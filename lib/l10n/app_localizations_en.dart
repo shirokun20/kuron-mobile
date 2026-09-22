@@ -5861,4 +5861,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get glossaryPage => 'page';
+
+  @override
+  String get nclientImport => 'Import from NClient';
+
+  @override
+  String get nclientImportSubtitle =>
+      'Favorites, collections, history and reading positions from an NClient V2/V3 backup';
+
+  @override
+  String get nclientImportAction => 'Import';
+
+  @override
+  String get nclientPreview => 'Import preview';
+
+  @override
+  String get nclientResult => 'Import result';
+
+  @override
+  String get nclientPositions => 'Reading positions';
+
+  @override
+  String get nclientMemberships => 'Collection items';
+
+  @override
+  String nclientSummaryRow(String label, int success, int skipped, int failed) {
+    return '$label: $success added, $skipped skipped, $failed failed';
+  }
 }

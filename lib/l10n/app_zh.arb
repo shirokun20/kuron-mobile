@@ -3775,5 +3775,29 @@
   "aiPrivacyDialogDesc": "您翻译的页面图片将使用您自己的密钥发送到您选择的提供商。没有数据经过 Kuron 的服务器。",
   "aiPrivacyAgree": "同意并翻译",
   "aiNoKeyNeeded": "无需密钥",
-  "glossaryPage": "页"
+  "glossaryPage": "页",
+  "nclientImport": "从 NClient 导入",
+  "nclientImportSubtitle": "从 NClient V2/V3 备份导入收藏、合集、历史和阅读进度",
+  "nclientImportAction": "导入",
+  "nclientPreview": "导入预览",
+  "nclientResult": "导入结果",
+  "nclientPositions": "阅读进度",
+  "nclientMemberships": "合集内容",
+  "nclientSummaryRow": "{label}：新增 {success}，跳过 {skipped}，失败 {failed}",
+  "@nclientSummaryRow": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "success": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  }
 }

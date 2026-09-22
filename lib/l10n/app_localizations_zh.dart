@@ -5702,4 +5702,30 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get glossaryPage => '页';
+
+  @override
+  String get nclientImport => '从 NClient 导入';
+
+  @override
+  String get nclientImportSubtitle => '从 NClient V2/V3 备份导入收藏、合集、历史和阅读进度';
+
+  @override
+  String get nclientImportAction => '导入';
+
+  @override
+  String get nclientPreview => '导入预览';
+
+  @override
+  String get nclientResult => '导入结果';
+
+  @override
+  String get nclientPositions => '阅读进度';
+
+  @override
+  String get nclientMemberships => '合集内容';
+
+  @override
+  String nclientSummaryRow(String label, int success, int skipped, int failed) {
+    return '$label：新增 $success，跳过 $skipped，失败 $failed';
+  }
 }

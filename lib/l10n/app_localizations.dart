@@ -10049,6 +10049,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'page'**
   String get glossaryPage;
+
+  /// No description provided for @nclientImport.
+  ///
+  /// In en, this message translates to:
+  /// **'Import from NClient'**
+  String get nclientImport;
+
+  /// No description provided for @nclientImportSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites, collections, history and reading positions from an NClient V2/V3 backup'**
+  String get nclientImportSubtitle;
+
+  /// No description provided for @nclientImportAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Import'**
+  String get nclientImportAction;
+
+  /// No description provided for @nclientPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Import preview'**
+  String get nclientPreview;
+
+  /// No description provided for @nclientResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Import result'**
+  String get nclientResult;
+
+  /// No description provided for @nclientPositions.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading positions'**
+  String get nclientPositions;
+
+  /// No description provided for @nclientMemberships.
+  ///
+  /// In en, this message translates to:
+  /// **'Collection items'**
+  String get nclientMemberships;
+
+  /// No description provided for @nclientSummaryRow.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}: {success} added, {skipped} skipped, {failed} failed'**
+  String nclientSummaryRow(String label, int success, int skipped, int failed);
 }
 
 class _AppLocalizationsDelegate

@@ -37,6 +37,7 @@ import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
 import 'settings_privacy_widgets.dart';
 import 'settings_app_lock_widgets.dart';
+import 'settings_nclient_import.dart';
 import 'ai_settings_screen.dart';
 
 part 'settings_source_install.dart';
@@ -241,7 +242,8 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildTagBlacklistSection(context, prefs, theme, tagBlacklistService: _tagBlacklistService),
+          buildTagBlacklistSection(context, prefs, theme,
+              tagBlacklistService: _tagBlacklistService),
 
           SizedBox(height: DesignTokens.spaceXl),
 
@@ -254,12 +256,14 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildStorageSection(context, theme, l10n, onRefresh: () => setState(() {})),
+          buildStorageSection(context, theme, l10n,
+              onRefresh: () => setState(() {})),
 
           SizedBox(height: DesignTokens.spaceXl),
 
           // Download Settings Card
-          buildSettingsSectionHeader(Icons.download_outlined, 'DOWNLOAD', theme),
+          buildSettingsSectionHeader(
+              Icons.download_outlined, 'DOWNLOAD', theme),
           SizedBox(height: DesignTokens.spaceMd),
           buildSettingsInfoBanner(
             l10n.imageQualityDescription,
@@ -272,7 +276,8 @@ class _SettingsScreenState extends State<SettingsScreen>
           SizedBox(height: DesignTokens.spaceXl),
 
           // Reader Settings Card
-          buildSettingsSectionHeader(Icons.auto_stories_outlined, 'READER', theme),
+          buildSettingsSectionHeader(
+              Icons.auto_stories_outlined, 'READER', theme),
           SizedBox(height: DesignTokens.spaceMd),
           buildSettingsInfoBanner(
             l10n.autoCleanupDescription,
@@ -391,7 +396,8 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildDnsStatusCard(context, theme, l10n, deviceDnsState: _deviceDnsState),
+          buildDnsStatusCard(context, theme, l10n,
+              deviceDnsState: _deviceDnsState),
 
           SizedBox(height: DesignTokens.spaceXl),
 
@@ -460,6 +466,19 @@ class _SettingsScreenState extends State<SettingsScreen>
             ),
             theme: theme,
           ),
+
+          SizedBox(height: DesignTokens.spaceXl),
+
+          // Backup & Restore Section
+          buildSettingsSectionHeader(
+            Icons.backup_outlined,
+            'BACKUP & RESTORE',
+            theme,
+          ),
+          SizedBox(height: DesignTokens.spaceMd),
+          buildSettingsCard([
+            buildNclientImportTile(context, theme, l10n),
+          ], theme),
 
           SizedBox(height: DesignTokens.spaceXl),
 

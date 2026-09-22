@@ -4193,5 +4193,29 @@
   "aiPrivacyDialogDesc": "Page images you translate are sent to the provider you choose using your own key. No data passes through Kuron's servers.",
   "aiPrivacyAgree": "Agree & Translate",
   "aiNoKeyNeeded": "No key needed",
-  "glossaryPage": "page"
+  "glossaryPage": "page",
+  "nclientImport": "Import from NClient",
+  "nclientImportSubtitle": "Favorites, collections, history and reading positions from an NClient V2/V3 backup",
+  "nclientImportAction": "Import",
+  "nclientPreview": "Import preview",
+  "nclientResult": "Import result",
+  "nclientPositions": "Reading positions",
+  "nclientMemberships": "Collection items",
+  "nclientSummaryRow": "{label}: {success} added, {skipped} skipped, {failed} failed",
+  "@nclientSummaryRow": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "success": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  }
 }

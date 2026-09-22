@@ -3179,5 +3179,29 @@
   "aiPrivacyDialogDesc": "Gambar halaman yang kamu translate akan dikirim ke provider yang kamu pilih menggunakan key kamu sendiri. Tidak ada data yang melalui server Kuron.",
   "aiPrivacyAgree": "Setuju & Translate",
   "aiNoKeyNeeded": "Tanpa key",
-  "glossaryPage": "halaman"
+  "glossaryPage": "halaman",
+  "nclientImport": "Impor dari NClient",
+  "nclientImportSubtitle": "Favorit, koleksi, riwayat, dan posisi baca dari backup NClient V2/V3",
+  "nclientImportAction": "Impor",
+  "nclientPreview": "Pratinjau impor",
+  "nclientResult": "Hasil impor",
+  "nclientPositions": "Posisi baca",
+  "nclientMemberships": "Isi koleksi",
+  "nclientSummaryRow": "{label}: {success} ditambah, {skipped} dilewati, {failed} gagal",
+  "@nclientSummaryRow": {
+    "placeholders": {
+      "label": {
+        "type": "String"
+      },
+      "success": {
+        "type": "int"
+      },
+      "skipped": {
+        "type": "int"
+      },
+      "failed": {
+        "type": "int"
+      }
+    }
+  }
 }

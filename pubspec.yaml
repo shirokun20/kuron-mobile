@@ -110,6 +110,8 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   build_runner: ^2.4.13
+  freezed: ^3.1.0
+  json_serializable: ^6.9.0
   melos: ^8.0.0
   mocktail: ^1.0.0
   bloc_test: ^10.0.0

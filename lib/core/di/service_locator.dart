@@ -113,6 +113,7 @@ import 'package:nhasixapp/domain/usecases/crotpedia/get_genre_list_usecase.dart'
 import 'package:nhasixapp/domain/usecases/crotpedia/get_doujin_list_usecase.dart';
 import 'package:nhasixapp/domain/usecases/crotpedia/get_request_list_usecase.dart';
 import 'package:nhasixapp/domain/usecases/imports/import_zip_usecase.dart';
+import 'package:nhasixapp/domain/usecases/imports/import_nclient_backup_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tags_by_type_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tag_autocomplete_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tag_detail_usecase.dart';
@@ -1067,6 +1068,13 @@ void _setupUseCases() {
     () => ImportZipUseCase(
       kuronNative: KuronNative.instance,
       userDataRepository: getIt<UserDataRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<ImportNclientBackupUseCase>(
+    () => ImportNclientBackupUseCase(
+      kuronNative: KuronNative.instance,
+      userDataRepository: getIt<UserDataRepository>(),
+      readerRepository: getIt<ReaderRepository>(),
     ),
   );
 

@@ -5888,4 +5888,31 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get glossaryPage => 'halaman';
+
+  @override
+  String get nclientImport => 'Impor dari NClient';
+
+  @override
+  String get nclientImportSubtitle =>
+      'Favorit, koleksi, riwayat, dan posisi baca dari backup NClient V2/V3';
+
+  @override
+  String get nclientImportAction => 'Impor';
+
+  @override
+  String get nclientPreview => 'Pratinjau impor';
+
+  @override
+  String get nclientResult => 'Hasil impor';
+
+  @override
+  String get nclientPositions => 'Posisi baca';
+
+  @override
+  String get nclientMemberships => 'Isi koleksi';
+
+  @override
+  String nclientSummaryRow(String label, int success, int skipped, int failed) {
+    return '$label: $success ditambah, $skipped dilewati, $failed gagal';
+  }
 }
