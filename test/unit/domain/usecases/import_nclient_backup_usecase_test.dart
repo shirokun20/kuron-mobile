@@ -162,4 +162,55 @@ void main() {
             .every((r) => r.success == 0 && r.skipped == 0 && r.failed == 0),
         isTrue);
   });
+
+  test('resume without gallery row imports via History fallback', () async {
+    // NClient prunes Gallery rows not in Downloads/Favorite/StatusManga, so a
+    // resumed gallery is regularly missing (real sample: 298547).
+    stubFresh();
+    final summary = await useCase.import(const NclientBackup(
+      history: [
+        NclientHistory(
+          id: 2,
+          title: 'Hist 2',
+          thumbType: 'https://t1.nhentai.net/galleries/22/thumb.webp',
+          time: 1700000000000,
+        )
+      ],
+      resumes: [NclientResume(galleryId: 2, page: 8)],
+    ));
+    expect(summary['positions'], (success: 1, skipped: 0, failed: 0));
+    final pos = verify(() => reader.saveReaderPosition(captureAny()))
+        .captured
+        .single as ReaderPosition;
+    expect(pos.contentId, '2');
+    expect((pos.currentPage, pos.totalPages), (8, 0));
+    expect(pos.title, 'Hist 2');
+    expect(pos.coverUrl, 'https://t1.nhentai.net/galleries/22/thumb.webp');
+  });
+
+  test('resume page clamped to total and floored at 1', () async {
+    stubFresh();
+    await useCase.import(const NclientBackup(
+      galleries: [
+        NclientGallery(
+            idGallery: 1,
+            titlePretty: 'G1',
+            mediaId: 11,
+            pages: '3;/cover.jpg.webp;/thumb.jpg.webp;'),
+        NclientGallery(
+            idGallery: 2,
+            titlePretty: 'G2',
+            mediaId: 22,
+            pages: '5;/cover.jpg.webp;/thumb.jpg.webp;'),
+      ],
+      resumes: [
+        NclientResume(galleryId: 1, page: 9),
+        NclientResume(galleryId: 2, page: 0)
+      ],
+    ));
+    final positions = verify(() => reader.saveReaderPosition(captureAny()))
+        .captured
+        .cast<ReaderPosition>();
+    expect(positions.map((p) => p.currentPage), [3, 1]);
+  });
 }

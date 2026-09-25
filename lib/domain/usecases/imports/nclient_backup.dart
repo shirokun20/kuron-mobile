@@ -50,13 +50,20 @@ abstract class NclientStatusLink with _$NclientStatusLink {
       _$NclientStatusLinkFromJson(json);
 }
 
+// NClient V2 stores History.thumbType as an ImageExt ordinal (int), V3 as the
+// full thumbnail URL (string) — verified in both upstreams (NClientV2
+// Queries.java `getThumb().ordinal()`, NClientV3 `getThumbnail().toString()`).
+// Accept both so a V2 history row is not dropped; a non-URL value simply falls
+// back to the Gallery cover at import time.
+String? _thumbFromJson(dynamic value) => value?.toString();
+
 @freezed
 abstract class NclientHistory with _$NclientHistory {
   const factory NclientHistory({
     required int id,
     dynamic mediaId,
     String? title,
-    String? thumbType,
+    @JsonKey(name: 'thumbType', fromJson: _thumbFromJson) String? thumbType,
     dynamic time,
   }) = _NclientHistory;
 
@@ -64,8 +71,11 @@ abstract class NclientHistory with _$NclientHistory {
       _$NclientHistoryFromJson(json);
 }
 
-// ponytail: Resume shape unverified (0 rows in real sample) — best-effort
-// keys only; unparseable rows count malformed via null galleryId/page.
+// Verified shape from a real backup (issue #50, NClientV3 4.2.7):
+//   {"id_gallery": 589597, "page": 6} — `page` is 1-based (upstream stores
+// actualPage + 1), so it maps straight onto ReaderPosition.currentPage.
+// Key fallbacks keep other exporter variants parseable; a row without a
+// gallery id or page counts as malformed instead of aborting the import.
 @freezed
 abstract class NclientResume with _$NclientResume {
   const factory NclientResume({int? galleryId, int? page}) = _NclientResume;

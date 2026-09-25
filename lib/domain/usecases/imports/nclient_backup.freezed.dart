@@ -1421,6 +1421,7 @@ mixin _$NclientHistory {
   int get id;
   dynamic get mediaId;
   String? get title;
+  @JsonKey(name: 'thumbType', fromJson: _thumbFromJson)
   String? get thumbType;
   dynamic get time;
 
@@ -1474,7 +1475,7 @@ abstract mixin class $NclientHistoryCopyWith<$Res> {
       {int id,
       dynamic mediaId,
       String? title,
-      String? thumbType,
+      @JsonKey(name: 'thumbType', fromJson: _thumbFromJson) String? thumbType,
       dynamic time});
 }
 
@@ -1615,7 +1616,12 @@ extension NclientHistoryPatterns on NclientHistory {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(int id, dynamic mediaId, String? title, String? thumbType,
+    TResult Function(
+            int id,
+            dynamic mediaId,
+            String? title,
+            @JsonKey(name: 'thumbType', fromJson: _thumbFromJson)
+            String? thumbType,
             dynamic time)?
         $default, {
     required TResult orElse(),
@@ -1645,7 +1651,12 @@ extension NclientHistoryPatterns on NclientHistory {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(int id, dynamic mediaId, String? title, String? thumbType,
+    TResult Function(
+            int id,
+            dynamic mediaId,
+            String? title,
+            @JsonKey(name: 'thumbType', fromJson: _thumbFromJson)
+            String? thumbType,
             dynamic time)
         $default,
   ) {
@@ -1673,7 +1684,12 @@ extension NclientHistoryPatterns on NclientHistory {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(int id, dynamic mediaId, String? title, String? thumbType,
+    TResult? Function(
+            int id,
+            dynamic mediaId,
+            String? title,
+            @JsonKey(name: 'thumbType', fromJson: _thumbFromJson)
+            String? thumbType,
             dynamic time)?
         $default,
   ) {
@@ -1692,7 +1708,11 @@ extension NclientHistoryPatterns on NclientHistory {
 @JsonSerializable()
 class _NclientHistory implements NclientHistory {
   const _NclientHistory(
-      {required this.id, this.mediaId, this.title, this.thumbType, this.time});
+      {required this.id,
+      this.mediaId,
+      this.title,
+      @JsonKey(name: 'thumbType', fromJson: _thumbFromJson) this.thumbType,
+      this.time});
   factory _NclientHistory.fromJson(Map<String, dynamic> json) =>
       _$NclientHistoryFromJson(json);
 
@@ -1703,6 +1723,7 @@ class _NclientHistory implements NclientHistory {
   @override
   final String? title;
   @override
+  @JsonKey(name: 'thumbType', fromJson: _thumbFromJson)
   final String? thumbType;
   @override
   final dynamic time;
@@ -1763,7 +1784,7 @@ abstract mixin class _$NclientHistoryCopyWith<$Res>
       {int id,
       dynamic mediaId,
       String? title,
-      String? thumbType,
+      @JsonKey(name: 'thumbType', fromJson: _thumbFromJson) String? thumbType,
       dynamic time});
 }
 

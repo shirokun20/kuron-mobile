@@ -65,7 +65,7 @@ _NclientHistory _$NclientHistoryFromJson(Map<String, dynamic> json) =>
       id: (json['id'] as num).toInt(),
       mediaId: json['mediaId'],
       title: json['title'] as String?,
-      thumbType: json['thumbType'] as String?,
+      thumbType: _thumbFromJson(json['thumbType']),
       time: json['time'],
     );
 

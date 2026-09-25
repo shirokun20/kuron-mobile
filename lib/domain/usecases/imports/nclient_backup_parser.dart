@@ -84,20 +84,51 @@ class NclientBackupParser {
   }
 }
 
-// Extension of Gallery `pages` ("{n};cover;thumb;...") after the LAST dot:
-// "/cover.jpg.webp" -> "webp". Unknown -> "jpg" via getImageExtension.
+// Gallery `pages` has two real shapes (both verified from upstream source):
+//
+// NClient V3 (sample issue #50): "270;/cover.jpg.webp;/thumb.jpg.webp;/1.jpg;"
+//   -> semicolon separated, cover path at index 1.
+// NClient V2 (GalleryData.createPagePath): "270pj35w245j"
+//   -> leading page count, then the cover/thumb ImageExt first letters
+//      (ImageExt V2 = JPG 'j' | PNG 'p' | GIF 'g'), then run-length intervals.
+//
+// Extension is always the substring after the LAST dot ("/cover.jpg.webp" and
+// "/cover.webp.webp" -> "webp"). Unknown/missing -> "jpg".
 String coverExtFromPages(String? pages) {
-  final parts = (pages ?? '').split(';');
+  final raw = pages ?? '';
+  if (!raw.contains(';')) {
+    return const {'j': 'jpg', 'p': 'png', 'g': 'gif'}[_extCharAt(raw, 0)] ??
+        'jpg';
+  }
+  final parts = raw.split(';');
   final cover = parts.length > 1 ? parts[1] : '';
   final dot = cover.lastIndexOf('.');
   if (dot < 0 || dot == cover.length - 1) return 'jpg';
   return cover.substring(dot + 1).toLowerCase();
 }
 
-// Page count = first token of `pages`. 0 when absent/unparseable.
+// Page count = the leading digits of `pages` (both formats start with it).
+// 0 when absent/unparseable.
 int pageCountFromPages(String? pages) {
-  final parts = (pages ?? '').split(';');
-  return parts.isEmpty ? 0 : int.tryParse(parts.first) ?? 0;
+  final raw = pages ?? '';
+  var i = 0;
+  while (i < raw.length && _isDigit(raw.codeUnitAt(i))) {
+    i++;
+  }
+  return i == 0 ? 0 : int.tryParse(raw.substring(0, i)) ?? 0;
+}
+
+bool _isDigit(int codeUnit) => codeUnit >= 0x30 && codeUnit <= 0x39;
+
+// `offset` 0 = cover extension char, 1 = thumbnail, counted after the page
+// count. Null when the compact string ends before that position.
+String? _extCharAt(String raw, int offset) {
+  var i = 0;
+  while (i < raw.length && _isDigit(raw.codeUnitAt(i))) {
+    i++;
+  }
+  final at = i + offset;
+  return at < raw.length ? raw[at] : null;
 }
 
 // NClient epoch-millis (int or numeric string) -> DateTime. Null when absent.

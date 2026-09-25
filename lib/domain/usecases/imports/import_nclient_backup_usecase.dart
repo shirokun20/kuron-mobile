@@ -187,23 +187,31 @@ class ImportNclientBackupUseCase {
       onProgress?.call('history', i + 1, backup.history.length);
     }
 
+    // NClient purges Gallery rows on every DB open (keep-list = Downloads ∪
+    // Favorite ∪ StatusManga only), so a Resume gallery is regularly missing
+    // from Gallery. Positions are still worth importing: History carries the
+    // title + thumbnail URL for those galleries.
+    final historyById = {for (final h in backup.history) h.id: h};
     var posOk = 0, posSkip = 0, posFail = 0;
     for (var i = 0; i < backup.resumes.length; i++) {
       final r = backup.resumes[i];
       try {
         final gallery = r.galleryId == null ? null : galleries[r.galleryId];
-        if (r.galleryId == null || r.page == null || gallery == null) {
+        if (r.galleryId == null || r.page == null) {
           posFail++;
         } else if (await _reader.getReaderPosition('${r.galleryId}') != null) {
           posSkip++;
         } else {
-          final total = pageCountFromPages(gallery.pages);
+          final total = gallery == null ? 0 : pageCountFromPages(gallery.pages);
+          final history = historyById[r.galleryId];
+          final thumb = history?.thumbType ?? '';
           await _reader.saveReaderPosition(ReaderPosition.create(
             contentId: '${r.galleryId}',
-            currentPage: r.page!.clamp(1, total > 0 ? total : r.page!),
+            currentPage: _safePage(r.page!, total),
             totalPages: total,
-            title: gallery.titlePretty ?? gallery.titleEng,
-            coverUrl: _coverFor(gallery),
+            title: gallery?.titlePretty ?? gallery?.titleEng ?? history?.title,
+            coverUrl:
+                _coverFor(gallery) ?? (thumb.startsWith('http') ? thumb : null),
           ));
           posOk++;
         }
@@ -229,5 +237,14 @@ class ImportNclientBackupUseCase {
       '$mediaId',
       coverExtFromPages(gallery.pages),
     );
+  }
+
+  // NClient pages are 1-based (ZoomActivity stores actualPage + 1), same as
+  // ReaderPosition.currentPage. Clamp into range when a total is known;
+  // floor at 1 so a 0 page cannot throw inside clamp().
+  int _safePage(int page, int total) {
+    if (page < 1) return 1;
+    if (total > 0) return page > total ? total : page;
+    return page;
   }
 }
