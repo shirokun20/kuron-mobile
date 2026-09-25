@@ -40,7 +40,8 @@ This project uses **FVM** (Flutter Version Management). Always prefix with `fvm`
 
 - **Build/Run**: `fvm flutter clean && fvm flutter pub get` | `fvm flutter run --debug` | `fvm flutter build apk --release`
 - **Build with flavor**: `fvm flutter build apk --release --flavor prod --dart-define=cronetHttpNoPlay=true` | `--flavor dev` (dev label "Kuron Dev", appId `id.nhasix.app.dev`)
-- **Required dart-define**: `--dart-define=cronetHttpNoPlay=true` — Cronet embedded (no Play Services); REQUIRED on AGP 9 for the org.chromium.net namespace conflict. Always pass it. `scripts/build_optimized.sh` includes it.
+- **Required dart-define**: `--dart-define=cronetHttpNoPlay=true` — memilih Cronet embedded (`org.chromium.net:cronet-embedded`, tanpa Play Services) di plugin `cronet_http`. Selalu pass. `scripts/build_optimized.sh` sudah termasuk.
+- **Wajib `android/gradle.properties`**: `android.uniquePackageNames=false` — AGP 9 membalik default flag ini jadi `true`, dan AAR Cronet embedded (`cronet-api` + `cronet-shared` + `cronet-common`) semuanya mendeklarasikan namespace `org.chromium.net` → manifest merger gagal. Flag ini adalah mitigasi resmi Google (mengembalikan perilaku warning AGP 8) dan WAJIB selama define di atas dipakai. Tanpa define (Play Services Cronet) build tetap bisa, tapi Cronet hanya jalan di perangkat yang punya Google Play Services.
 - **Build Optimized**: `./scripts/build_optimized.sh debug` | `release` (adds flavor + dart-define)
 - **Test/Lint**: `fvm flutter test` | `fvm flutter analyze` | `fvm dart run build_runner build`
 - **Codegen**: `fvm flutter pub run build_runner build --delete-conflicting-outputs`
