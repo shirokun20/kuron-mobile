@@ -21,7 +21,7 @@ void main() {
         if (el.isNotEmpty && el.length < 5) {
           debugPrint('  First child classes: ${el.first.classes.join(" ")}');
         }
-      } catch(e) {
+      } catch (e) {
         debugPrint('"$sel" -> ERROR: $e');
       }
     }

@@ -10092,6 +10092,12 @@ abstract class AppLocalizations {
   /// **'Collection items'**
   String get nclientMemberships;
 
+  /// No description provided for @nclientMalformedRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Unreadable rows'**
+  String get nclientMalformedRows;
+
   /// No description provided for @nclientSummaryRow.
   ///
   /// In en, this message translates to:

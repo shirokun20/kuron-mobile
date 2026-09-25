@@ -9,7 +9,8 @@ import 'package:nhasixapp/data/models/content_model.dart';
 import 'package:nhasixapp/data/repositories/content_repository_impl.dart';
 import 'package:nhasixapp/domain/entities/entities.dart';
 import 'package:nhasixapp/domain/value_objects/value_objects.dart';
-import 'package:nhasixapp/core/services/cache/cache_manager.dart' as multi_cache;
+import 'package:nhasixapp/core/services/cache/cache_manager.dart'
+    as multi_cache;
 import 'package:nhasixapp/core/services/detail_cache_service.dart';
 import 'package:nhasixapp/core/services/request_deduplication_service.dart';
 

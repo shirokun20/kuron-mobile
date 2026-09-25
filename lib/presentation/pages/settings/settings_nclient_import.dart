@@ -22,20 +22,26 @@ Widget buildNclientImportTile(
   );
 }
 
+// Preview and summary must advertise the same categories, otherwise the result
+// dialog can mention a row the preview never showed. Membership counts are
+// reported inside the `collections` row (that is what colOk/colSkip track).
 Map<String, String> _labels(AppLocalizations l10n) => {
       'favorites': l10n.favorites,
       'collections': l10n.collections,
-      'memberships': l10n.nclientMemberships,
       'history': l10n.history,
       'positions': l10n.nclientPositions,
+      'malformed': l10n.nclientMalformedRows,
     };
 
-Future<void> runNclientImport(BuildContext context) async {
+Future<void> runNclientImport(
+  BuildContext context, {
+  ImportNclientBackupUseCase? useCase,
+}) async {
   final l10n = AppLocalizations.of(context)!;
-  final useCase = getIt<ImportNclientBackupUseCase>();
+  final importer = useCase ?? getIt<ImportNclientBackupUseCase>();
   NclientBackup? backup;
   try {
-    backup = await useCase.pickAndParse();
+    backup = await importer.pickAndParse();
   } catch (e) {
     if (context.mounted) {
       ScaffoldMessenger.of(context)
@@ -45,7 +51,7 @@ Future<void> runNclientImport(BuildContext context) async {
   }
   if (backup == null || !context.mounted) return; // cancelled
 
-  final counts = useCase.preview(backup);
+  final counts = importer.preview(backup);
   final confirmed = await showDialog<bool>(
     context: context,
     builder: (_) => NclientPreviewDialog(counts: counts, labels: _labels(l10n)),
@@ -53,23 +59,43 @@ Future<void> runNclientImport(BuildContext context) async {
   if (confirmed != true || !context.mounted) return; // cancel = zero writes
 
   final progress = ValueNotifier<(String, int, int)>(('favorites', 0, 1));
-  late final NclientImportSummary summary;
+  NclientImportSummary? summary;
+  Object? failure;
+  var finished = false;
   BuildContext? dialogContext;
-  unawaited(useCase
+
+  // Always pop post-frame: the progress dialog is `barrierDismissible: false`,
+  // so a throw (or a fast import that finished before the first frame) would
+  // otherwise leave the user stuck on a dialog that can never close.
+  void closeProgressDialog() {
+    final ctx = dialogContext;
+    if (ctx == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (ctx.mounted) Navigator.of(ctx, rootNavigator: true).pop();
+    });
+  }
+
+  void settle(NclientImportSummary? result, Object? error) {
+    if (finished) return;
+    finished = true;
+    summary = result;
+    failure = error;
+    closeProgressDialog();
+  }
+
+  unawaited(importer
       .import(backup,
           onProgress: (cat, done, total) => progress.value = (cat, done, total))
-      .then((s) {
-    summary = s;
-    final ctx = dialogContext;
-    if (ctx != null && ctx.mounted) {
-      Navigator.of(ctx, rootNavigator: true).pop();
-    }
-  }));
+      .then((s) => settle(s, null), onError: (Object e) => settle(null, e)));
+
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) {
       dialogContext = ctx;
+      // A tiny backup can finish before the dialog is on screen; close it as
+      // soon as it appears instead of waiting for a callback that already ran.
+      if (finished) closeProgressDialog();
       return ValueListenableBuilder<(String, int, int)>(
         valueListenable: progress,
         builder: (_, p, __) => AlertDialog(
@@ -89,10 +115,21 @@ Future<void> runNclientImport(BuildContext context) async {
   );
   progress.dispose();
   if (!context.mounted) return;
+  final error = failure;
+  if (error != null) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.importFailed('$error'))));
+    return;
+  }
+  final result = summary;
+  if (result == null) {
+    // Dialog closed without a result (shouldn't happen): no summary to show.
+    return;
+  }
   await showDialog<void>(
     context: context,
     builder: (_) =>
-        NclientSummaryDialog(summary: summary, labels: _labels(l10n)),
+        NclientSummaryDialog(summary: result, labels: _labels(l10n)),
   );
 }
 

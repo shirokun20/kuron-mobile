@@ -12,7 +12,9 @@ class _CatalogMockAdapter implements HttpClientAdapter {
   _CatalogMockAdapter(this.handler);
   final Future<ResponseBody> Function(RequestOptions options) handler;
   @override
-  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? c) => handler(o);
+  Future<ResponseBody> fetch(
+          RequestOptions o, Stream<Uint8List>? s, Future<void>? c) =>
+      handler(o);
   @override
   void close({bool force = false}) {}
 }
@@ -20,7 +22,9 @@ class _CatalogMockAdapter implements HttpClientAdapter {
 ResponseBody _json(Object? data, [int status = 200]) => ResponseBody.fromString(
       jsonEncode(data),
       status,
-      headers: {Headers.contentTypeHeader: ['application/json']},
+      headers: {
+        Headers.contentTypeHeader: ['application/json']
+      },
     );
 
 Dio _dioWith(Future<ResponseBody> Function(RequestOptions) h) {
@@ -55,11 +59,15 @@ void main() {
           'data': [
             {
               'id': 'google/gemma-4-31b-it:free',
-              'architecture': {'input_modalities': ['image', 'text']},
+              'architecture': {
+                'input_modalities': ['image', 'text']
+              },
             },
             {
               'id': 'inclusionai/ling-3.0-flash-fin:free',
-              'architecture': {'input_modalities': ['text']},
+              'architecture': {
+                'input_modalities': ['text']
+              },
             },
             {
               'id': 'no-arch-model',
@@ -68,13 +76,24 @@ void main() {
         },
         type: AiProviderType.openRouter,
       );
-      expect(options.firstWhere((o) => o.id == 'google/gemma-4-31b-it:free').isVision, true);
-      expect(options.firstWhere((o) => o.id == 'inclusionai/ling-3.0-flash-fin:free').isVision, false);
-      expect(options.firstWhere((o) => o.id == 'no-arch-model').isVision, isNull);
+      expect(
+          options
+              .firstWhere((o) => o.id == 'google/gemma-4-31b-it:free')
+              .isVision,
+          true);
+      expect(
+          options
+              .firstWhere((o) => o.id == 'inclusionai/ling-3.0-flash-fin:free')
+              .isVision,
+          false);
+      expect(
+          options.firstWhere((o) => o.id == 'no-arch-model').isVision, isNull);
     });
 
     test('throws on unexpected format', () {
-      expect(() => OpenAICompatibleCatalog.parse({'nope': true}, type: AiProviderType.zen),
+      expect(
+          () => OpenAICompatibleCatalog.parse({'nope': true},
+              type: AiProviderType.zen),
           throwsA(isA<AiTranslationException>()));
     });
   });
@@ -83,8 +102,15 @@ void main() {
     test('strips models/ prefix, keeps generateContent, drops embeddings', () {
       final options = GeminiCatalogParser.parse({
         'models': [
-          {'name': 'models/gemini-2.5-flash', 'displayName': 'Gemini 2.5 Flash', 'supportedGenerationMethods': ['generateContent']},
-          {'name': 'models/embedding-001', 'supportedGenerationMethods': ['embedContent']},
+          {
+            'name': 'models/gemini-2.5-flash',
+            'displayName': 'Gemini 2.5 Flash',
+            'supportedGenerationMethods': ['generateContent']
+          },
+          {
+            'name': 'models/embedding-001',
+            'supportedGenerationMethods': ['embedContent']
+          },
         ],
       });
       expect(options.length, 1);
@@ -97,7 +123,12 @@ void main() {
     test('Zen fetch succeeds without key', () async {
       final dio = _dioWith((o) async {
         expect(o.headers['Authorization'], isNull);
-        return _json({'object': 'list', 'data': [{'id': 'some-model'}]});
+        return _json({
+          'object': 'list',
+          'data': [
+            {'id': 'some-model'}
+          ]
+        });
       });
       final models = await _repo(dio).getModels(type: AiProviderType.zen);
       expect(models.map((o) => o.id), ['some-model']);
@@ -109,15 +140,20 @@ void main() {
         called = true;
         return _json({'data': []});
       });
-      expect(() => _repo(dio).getModels(type: AiProviderType.openAi), throwsA(isA<AiTranslationException>()));
+      expect(() => _repo(dio).getModels(type: AiProviderType.openAi),
+          throwsA(isA<AiTranslationException>()));
       expect(called, false);
     });
 
     test('fetch failure throws (no fallback)', () async {
       final dio = _dioWith((o) async {
-        throw DioException(requestOptions: o, response: Response(requestOptions: o, statusCode: 401, data: 'denied'));
+        throw DioException(
+            requestOptions: o,
+            response:
+                Response(requestOptions: o, statusCode: 401, data: 'denied'));
       });
-      expect(() => _repo(dio).getModels(type: AiProviderType.openRouter), throwsA(isA<AiTranslationException>()));
+      expect(() => _repo(dio).getModels(type: AiProviderType.openRouter),
+          throwsA(isA<AiTranslationException>()));
     });
 
     test('custom throws without network', () async {
@@ -126,7 +162,8 @@ void main() {
         called = true;
         return _json({'data': []});
       });
-      expect(() => _repo(dio).getModels(type: AiProviderType.custom), throwsA(isA<AiTranslationException>()));
+      expect(() => _repo(dio).getModels(type: AiProviderType.custom),
+          throwsA(isA<AiTranslationException>()));
       expect(called, false);
     });
   });

@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:get_it/get_it.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
@@ -44,25 +46,39 @@ class ImportNclientBackupUseCase {
   Logger get _logger => GetIt.I<Logger>();
 
   /// Picks a file (ZIP or raw JSON) and parses it. Null when cancelled.
+  ///
+  /// Parsing runs on a background isolate: a real backup carries 6-8 MB of
+  /// JSON (85k tag rows) and `jsonDecode` + row mapping would otherwise freeze
+  /// the UI for the whole pick-and-preview step, before any dialog is shown.
   Future<NclientBackup?> pickAndParse() async {
     final bytes = await _kuronNative.pickBinaryFile();
     if (bytes == null) return null;
-    return _parser.parseBytes(bytes);
+    return Isolate.run(() => _parser.parseBytes(bytes));
   }
 
   /// Counts per category for the preview dialog. No writes.
+  ///
+  /// Mirrors what [import] can actually write so the preview never promises
+  /// more than the summary reports: favorites are the union of `Favorite` rows
+  /// and `StatusManga` galleries (both paths ensure a favorite), and positions
+  /// are only counted when the row carries a gallery id and a page.
   Map<String, int> preview(NclientBackup backup) {
     final galleries = {for (final g in backup.galleries) g.idGallery: g};
+    final favoriteIds = <int>{
+      for (final f in backup.favorites) f.galleryId,
+      for (final l in backup.statusLinks) l.galleryId,
+    };
     final memberNames = {
       for (final l in backup.statusLinks)
         if (galleries.containsKey(l.galleryId)) l.name,
     };
     return {
-      'favorites': backup.favorites.length,
+      'favorites': favoriteIds.length,
       'collections': memberNames.length,
-      'memberships': backup.statusLinks.length,
       'history': backup.history.length,
-      'positions': backup.resumes.length,
+      'positions': backup.resumes
+          .where((r) => r.galleryId != null && r.page != null)
+          .length,
     };
   }
 
@@ -227,6 +243,9 @@ class ImportNclientBackupUseCase {
       'collections': (success: colOk, skipped: colSkip, failed: colFail),
       'history': (success: hisOk, skipped: hisSkip, failed: hisFail),
       'positions': (success: posOk, skipped: posSkip, failed: posFail),
+      // Rows the parser could not read are real failures the user should see;
+      // without this they only ever appear as silently missing items.
+      'malformed': (success: 0, skipped: 0, failed: backup.malformedRows),
     };
   }
 

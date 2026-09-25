@@ -5885,6 +5885,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nclientMemberships => 'Collection items';
 
   @override
+  String get nclientMalformedRows => 'Unreadable rows';
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success added, $skipped skipped, $failed failed';
   }

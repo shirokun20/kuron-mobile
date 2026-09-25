@@ -4201,6 +4201,7 @@
   "nclientResult": "Import result",
   "nclientPositions": "Reading positions",
   "nclientMemberships": "Collection items",
+  "nclientMalformedRows": "Unreadable rows",
   "nclientSummaryRow": "{label}: {success} added, {skipped} skipped, {failed} failed",
   "@nclientSummaryRow": {
     "placeholders": {

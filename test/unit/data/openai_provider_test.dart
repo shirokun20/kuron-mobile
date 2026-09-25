@@ -28,8 +28,8 @@ void main() {
       expect(body['model'], 'kimi-k2.6');
       final content = (body['messages'][0] as Map)['content'] as List;
       expect(content[0]['type'], 'image_url');
-      expect(content[0]['image_url']['url'],
-          contains('data:image/jpeg;base64'));
+      expect(
+          content[0]['image_url']['url'], contains('data:image/jpeg;base64'));
       expect(content[1]['text'], contains('Return ALL visible IDs'));
 
       return jsonEncode({
@@ -101,8 +101,7 @@ void main() {
     );
   });
 
-  test('full-image fallback parses percentage coords to pixel rects',
-      () async {
+  test('full-image fallback parses percentage coords to pixel rects', () async {
     final dio = Dio(BaseOptions(baseUrl: 'http://mock'));
     dio.httpClientAdapter = MockAdapter((options) async {
       return jsonEncode({

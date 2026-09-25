@@ -116,7 +116,8 @@ void main() {
       await tester.pump();
     });
 
-    testWidgets('shows biometric button when showBiometric true', (tester) async {
+    testWidgets('shows biometric button when showBiometric true',
+        (tester) async {
       await tester.pumpWidget(buildTestApp(
         PinEntryScreen(
           title: 'Enter PIN',
@@ -129,7 +130,8 @@ void main() {
       expect(find.byIcon(Icons.fingerprint), findsOneWidget);
     });
 
-    testWidgets('hides biometric button when showBiometric false', (tester) async {
+    testWidgets('hides biometric button when showBiometric false',
+        (tester) async {
       await tester.pumpWidget(buildTestApp(
         PinEntryScreen(
           title: 'Enter PIN',

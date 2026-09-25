@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:mocktail/mocktail.dart';
@@ -56,13 +59,15 @@ void main() {
   });
   late MockUserData userData;
   late MockReader reader;
+  late MockKuronNative native;
   late ImportNclientBackupUseCase useCase;
 
   setUp(() {
     userData = MockUserData();
     reader = MockReader();
+    native = MockKuronNative();
     useCase = ImportNclientBackupUseCase(
-      kuronNative: MockKuronNative(),
+      kuronNative: native,
       userDataRepository: userData,
       readerRepository: reader,
     );
@@ -95,14 +100,55 @@ void main() {
   test('preview counts without writes', () {
     final counts = useCase.preview(sample());
     expect(counts, {
-      'favorites': 1,
+      // 1 Favorite row + gallery 2 pulled in by its StatusManga row: the
+      // import ensures a favorite for both, so the preview must say 2.
+      'favorites': 2,
       'collections': 1, // "None" has no members -> excluded
-      'memberships': 1,
       'history': 1,
       'positions': 1,
     });
     verifyZeroInteractions(userData);
     verifyZeroInteractions(reader);
+  });
+
+  test('preview matches the categories the summary reports', () async {
+    stubFresh();
+    final counts = useCase.preview(sample());
+    final summary = await useCase.import(sample());
+    expect(counts.keys, everyElement(isIn(summary.keys)));
+  });
+
+  test('preview counts only resumable rows as positions', () {
+    final counts = useCase.preview(const NclientBackup(
+      resumes: [
+        NclientResume(galleryId: 1, page: 2),
+        NclientResume(galleryId: null, page: 3),
+        NclientResume(galleryId: 4, page: null),
+      ],
+    ));
+    expect(counts['positions'], 1);
+  });
+
+  test('summary reports unreadable rows as failures', () async {
+    stubFresh();
+    final summary = await useCase.import(
+      const NclientBackup(malformedRows: 3),
+    );
+    expect(summary['malformed'], (success: 0, skipped: 0, failed: 3));
+  });
+
+  test('pickAndParse parses picked bytes on a background isolate', () async {
+    when(() => native.pickBinaryFile())
+        .thenAnswer((_) async => Uint8List.fromList(utf8.encode('{"Gallery":['
+            '{"idGallery":7,"title_pretty":"Seven","mediaId":70,'
+            '"pages":"4;/cover.jpg.webp;/thumb.jpg.webp;"}]}')));
+    final parsed = await useCase.pickAndParse();
+    expect(parsed!.galleries.single.titlePretty, 'Seven');
+  });
+
+  test('pickAndParse returns null when the picker is cancelled', () async {
+    when(() => native.pickBinaryFile()).thenAnswer((_) async => null);
+    expect(await useCase.pickAndParse(), isNull);
   });
 
   test('fresh import succeeds all', () async {

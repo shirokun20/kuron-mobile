@@ -5725,6 +5725,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nclientMemberships => '合集内容';
 
   @override
+  String get nclientMalformedRows => '无法读取的行';
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label：新增 $success，跳过 $skipped，失败 $failed';
   }

@@ -5912,6 +5912,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get nclientMemberships => 'Isi koleksi';
 
   @override
+  String get nclientMalformedRows => 'Baris tak terbaca';
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success ditambah, $skipped dilewati, $failed gagal';
   }

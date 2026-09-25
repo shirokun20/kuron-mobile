@@ -140,11 +140,11 @@ void main() {
       // Default mocks
       // Note: mocktail matches named arguments by matching the value passed to the name
       when(() => mockRepo.getAllDownloads(
-        state: any(named: 'state'),
-        sourceId: any(named: 'sourceId'),
-        limit: any(named: 'limit'),
-        offset: any(named: 'offset'),
-      )).thenAnswer((_) async => [testDownloadStatus]);
+            state: any(named: 'state'),
+            sourceId: any(named: 'sourceId'),
+            limit: any(named: 'limit'),
+            offset: any(named: 'offset'),
+          )).thenAnswer((_) async => [testDownloadStatus]);
       when(() => mockRepo.getUserPreferences()).thenAnswer(
           (_) async => const UserPreferences()); // Use default constructor
       when(() => mockRepo.saveDownloadStatus(any()))

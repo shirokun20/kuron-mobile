@@ -17,7 +17,8 @@ void main() {
 
   group('AppLockRepositoryImpl', () {
     test('savePinHash and getPinHash round-trip', () async {
-      when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+      when(() =>
+              storage.write(key: any(named: 'key'), value: any(named: 'value')))
           .thenAnswer((_) async {});
       when(() => storage.read(key: any(named: 'key')))
           .thenAnswer((_) async => 'abc123hash');
@@ -36,7 +37,8 @@ void main() {
     });
 
     test('setPinEnabled and getPinEnabled round-trip', () async {
-      when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+      when(() =>
+              storage.write(key: any(named: 'key'), value: any(named: 'value')))
           .thenAnswer((_) async {});
       when(() => storage.read(key: any(named: 'key')))
           .thenAnswer((_) async => 'true');
@@ -53,7 +55,8 @@ void main() {
     });
 
     test('setBiometricEnabled and getBiometricEnabled round-trip', () async {
-      when(() => storage.write(key: any(named: 'key'), value: any(named: 'value')))
+      when(() =>
+              storage.write(key: any(named: 'key'), value: any(named: 'value')))
           .thenAnswer((_) async {});
       when(() => storage.read(key: any(named: 'key')))
           .thenAnswer((_) async => 'true');

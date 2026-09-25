@@ -23,7 +23,8 @@ void main() {
 
   ReaderImageRepositoryImpl buildRepo({
     required Future<String?> Function(
-            String url, String contentId, int pageNumber) download,
+            String url, String contentId, int pageNumber)
+        download,
     Future<String?> Function(String url)? legacy,
   }) {
     return ReaderImageRepositoryImpl(
@@ -41,7 +42,8 @@ void main() {
     );
   }
 
-  test('local file-path URL resolves to ReadyFromDisk without network', () async {
+  test('local file-path URL resolves to ReadyFromDisk without network',
+      () async {
     final tmpDir = await Directory.systemTemp.createTemp('rimg');
     final file = File('${tmpDir.path}/page_1.jpg');
     await file.writeAsBytes([1, 2, 3]);
@@ -67,7 +69,8 @@ void main() {
     await tmpDir.delete(recursive: true);
   });
 
-  test('legacy cache hit returns ReadyFromDisk and does not redownload', () async {
+  test('legacy cache hit returns ReadyFromDisk and does not redownload',
+      () async {
     final tmpDir = await Directory.systemTemp.createTemp('rimg_legacy');
     final legacyFile = File('${tmpDir.path}/legacy.jpg');
     await legacyFile.writeAsBytes([9, 9, 9]);
@@ -122,11 +125,12 @@ void main() {
     );
 
     return repo
-        .resolvePage(url: 'https://cdn.example/p3.jpg', contentId: 'cid', pageNumber: 3)
+        .resolvePage(
+            url: 'https://cdn.example/p3.jpg', contentId: 'cid', pageNumber: 3)
         .then((result) {
-          expect(result, isA<FailedPage>());
-          expect((result as FailedPage).originalUrl, 'https://cdn.example/p3.jpg');
-        });
+      expect(result, isA<FailedPage>());
+      expect((result as FailedPage).originalUrl, 'https://cdn.example/p3.jpg');
+    });
   });
 
   test('network download throwing resolves to FailedPage with reason', () {
@@ -135,14 +139,16 @@ void main() {
     );
 
     return repo
-        .resolvePage(url: 'https://cdn.example/p4.jpg', contentId: 'cid', pageNumber: 4)
+        .resolvePage(
+            url: 'https://cdn.example/p4.jpg', contentId: 'cid', pageNumber: 4)
         .then((result) {
-          expect(result, isA<FailedPage>());
-          expect((result as FailedPage).reason.toString(), contains('403'));
-        });
+      expect(result, isA<FailedPage>());
+      expect((result as FailedPage).reason.toString(), contains('403'));
+    });
   });
 
-  test('concurrent resolves for same URL trigger only one network download', () async {
+  test('concurrent resolves for same URL trigger only one network download',
+      () async {
     final tmpDir = await Directory.systemTemp.createTemp('rimg_dedup');
     final downloaded = File('${tmpDir.path}/dedup.jpg');
     await downloaded.writeAsBytes([7, 7, 7]);
@@ -158,8 +164,10 @@ void main() {
     );
 
     final results = await Future.wait([
-      repo.resolvePage(url: 'https://cdn.example/p5.jpg', contentId: 'c', pageNumber: 5),
-      repo.resolvePage(url: 'https://cdn.example/p5.jpg', contentId: 'c', pageNumber: 5),
+      repo.resolvePage(
+          url: 'https://cdn.example/p5.jpg', contentId: 'c', pageNumber: 5),
+      repo.resolvePage(
+          url: 'https://cdn.example/p5.jpg', contentId: 'c', pageNumber: 5),
     ]);
 
     expect(downloadCalls, 1, reason: 'same URL in-flight must be deduplicated');

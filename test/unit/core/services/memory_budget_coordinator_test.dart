@@ -88,7 +88,8 @@ void main() {
       expect(c.maxDownloadParallel, 3);
     });
 
-    test('appHeap 256MB active → budget 61MB reader, 20MB cache, parallel 1', () {
+    test('appHeap 256MB active → budget 61MB reader, 20MB cache, parallel 1',
+        () {
       final c = MemoryBudgetCoordinator();
       c.onReaderActiveChanged(true);
       // active: budget=102, reader=102*0.6=61.2→round=61→61*1024*1024=63963136
@@ -112,8 +113,8 @@ void main() {
       c.onReaderActiveChanged(true);
       // active: budget=102, reader=61MB (karena appHeap default 256)
       // verification: reader cache ratio 60%/20%
-      expect(c.readerDecodedBudgetBytes,
-          greaterThanOrEqualTo(60 * 1024 * 1024));
+      expect(
+          c.readerDecodedBudgetBytes, greaterThanOrEqualTo(60 * 1024 * 1024));
       expect(c.imageCacheBudgetBytes, lessThan(c.readerDecodedBudgetBytes));
     });
   });
@@ -133,7 +134,8 @@ void main() {
   });
 
   group('_readTotalRamMB error paths', () {
-    test('KuronNative.getSystemInfo gagal → fallback 0 → _estimateAppHeap(0) = 256',
+    test(
+        'KuronNative.getSystemInfo gagal → fallback 0 → _estimateAppHeap(0) = 256',
         () async {
       // Integration test: butuh method channel mock
       // Unit: fallback sudah diverifikasi di default state test

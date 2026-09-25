@@ -3783,6 +3783,7 @@
   "nclientResult": "导入结果",
   "nclientPositions": "阅读进度",
   "nclientMemberships": "合集内容",
+  "nclientMalformedRows": "无法读取的行",
   "nclientSummaryRow": "{label}：新增 {success}，跳过 {skipped}，失败 {failed}",
   "@nclientSummaryRow": {
     "placeholders": {
