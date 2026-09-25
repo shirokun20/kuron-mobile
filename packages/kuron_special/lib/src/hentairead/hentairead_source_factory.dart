@@ -88,7 +88,7 @@ class WebViewReaderSourceFactory implements SourceFactory {
           return t;
         })()
       '''
-          : '''
+        : '''
         (function() {
           $challengeCheck
           return t;

@@ -505,9 +505,9 @@ class WebViewSessionAdapter {
           // captured HTML directly.
           final htmlContent = await _readCapturedHtml(pageHtml!);
           if (htmlContent != null) {
-            _logger.w(
-                '⚠️ SSL fallback — skipping Dio re-verify, serving captured '
-                'HTML (${htmlContent.length} chars)');
+            _logger
+                .w('⚠️ SSL fallback — skipping Dio re-verify, serving captured '
+                    'HTML (${htmlContent.length} chars)');
             return _htmlResponse<T>(htmlContent, targetUrl);
           }
         }
@@ -685,7 +685,8 @@ class WebViewSessionAdapter {
     }).toList();
 
     await _cookieJar.saveFromResponse(uri, cookiesToSave);
-    final cookieHeader = cookiesToSave.map((c) => '${c.name}=${c.value}').join('; ');
+    final cookieHeader =
+        cookiesToSave.map((c) => '${c.name}=${c.value}').join('; ');
     _cachedCookieHeaders[_baseUrl] = cookieHeader;
     _cachedCookieHeaders[uri.host] = cookieHeader;
     _logger.d('Saved ${cookiesToSave.length} cookies to jar for ${uri.host}');

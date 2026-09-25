@@ -94,14 +94,10 @@ void main() {
     mockGetFavoritesUseCase = MockGetFavoritesUseCase();
     mockRemoveFromFavoritesUseCase = MockRemoveFromFavoritesUseCase();
     mockGetFavoriteCollectionsUseCase = MockGetFavoriteCollectionsUseCase();
-    mockCreateFavoriteCollectionUseCase =
-        MockCreateFavoriteCollectionUseCase();
-    mockRenameFavoriteCollectionUseCase =
-        MockRenameFavoriteCollectionUseCase();
-    mockDeleteFavoriteCollectionUseCase =
-        MockDeleteFavoriteCollectionUseCase();
-    mockAddToFavoriteCollectionUseCase =
-        MockAddToFavoriteCollectionUseCase();
+    mockCreateFavoriteCollectionUseCase = MockCreateFavoriteCollectionUseCase();
+    mockRenameFavoriteCollectionUseCase = MockRenameFavoriteCollectionUseCase();
+    mockDeleteFavoriteCollectionUseCase = MockDeleteFavoriteCollectionUseCase();
+    mockAddToFavoriteCollectionUseCase = MockAddToFavoriteCollectionUseCase();
     mockUserDataRepository = MockUserDataRepository();
     mockLogger = MockLogger();
 

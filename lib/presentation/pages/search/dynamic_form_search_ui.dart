@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kuron_generic/kuron_generic.dart'
     show DynamicSearchFormContract;
+import 'package:kuron_special/kuron_special.dart' show doujinDesuDecrypt;
 import 'package:logger/logger.dart';
 import 'package:dio/dio.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
@@ -31,6 +32,26 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 ///
 // On submit it saves a `SearchFilter` with `query = "raw:<params>"` which
 // is consumed by [GenericScraperAdapter.search] to build the search URL.
+
+/// Prepares a `searchForm.dataSources` payload for path extraction.
+///
+/// Sources whose API wraps every response in an encrypted envelope declare
+/// `decrypt` in the dataSource config; the envelope is unwrapped here because
+/// the picker fetches over plain HTTP instead of going through the source
+/// adapter. `itemsPath` may be `""` to read a top-level JSON array.
+dynamic decodeDataSourcePayload(dynamic payload, String? decrypt) {
+  if (decrypt == 'doujindesuxxx' &&
+      payload is Map &&
+      payload['_enc_resp_'] is String) {
+    final decoded = doujinDesuDecrypt(payload['_enc_resp_'] as String);
+    if (decoded == null) {
+      throw const FormatException('Failed to decrypt _enc_resp_ payload');
+    }
+    return decoded;
+  }
+  return payload;
+}
+
 class DynamicFormSearchUI extends StatefulWidget {
   final SearchFormConfig config;
   final String sourceId;
@@ -247,6 +268,14 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
               'Failed to parse response as JSON: $e';
           return;
         }
+      }
+      try {
+        payload = decodeDataSourcePayload(
+            payload, sourceConfig['decrypt'] as String?);
+      } catch (e) {
+        _optionCacheBySource[sourceId] = const [];
+        _pickerLoadErrorBySource[sourceId] = '$e';
+        return;
       }
       final itemsPath = sourceConfig['itemsPath'] as String? ?? 'data';
       final valuePath = sourceConfig['valuePath'] as String? ?? 'id';

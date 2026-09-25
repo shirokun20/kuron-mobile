@@ -595,7 +595,8 @@ class LocalImagePreloader {
 
       final imagesDir = Directory(await getImagesFolderPath(contentId));
       await imagesDir.create(recursive: true);
-      final targetPath = path.join(imagesDir.path, _pageFilePatterns(pageNumber).first);
+      final targetPath =
+          path.join(imagesDir.path, _pageFilePatterns(pageNumber).first);
       final tmpPath = '$targetPath.part';
 
       final dio = getIt<Dio>();

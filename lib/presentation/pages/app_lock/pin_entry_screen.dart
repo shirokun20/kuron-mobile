@@ -158,9 +158,8 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
 
   Widget _buildRow(ThemeData theme, List<String> digits) {
     return Row(
-      children: digits
-          .map((d) => Expanded(child: _buildKey(theme, d)))
-          .toList(),
+      children:
+          digits.map((d) => Expanded(child: _buildKey(theme, d))).toList(),
     );
   }
 
@@ -174,15 +173,15 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
           borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
           onTap: () => _onDigit(label),
           child: Container(
-              height: 64,
-              alignment: Alignment.center,
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 26, fontWeight: FontWeight.w600)),
-            ),
+            height: 64,
+            alignment: Alignment.center,
+            child: Text(label,
+                style:
+                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
           ),
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildBackspace(ThemeData theme) {

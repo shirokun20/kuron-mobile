@@ -47,7 +47,6 @@ class DetailStateHeader extends StatelessWidget {
   }
 }
 
-
 class DetailErrorView extends StatelessWidget {
   const DetailErrorView({
     super.key,

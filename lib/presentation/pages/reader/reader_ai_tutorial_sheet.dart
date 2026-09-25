@@ -51,8 +51,8 @@ class ReaderAiTutorialOverlay extends StatelessWidget {
                               size: 14, color: theme.colorScheme.outline),
                           const SizedBox(width: 4),
                           Text(l10n.aiTutorialHint,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.outline)),
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: theme.colorScheme.outline)),
                         ],
                       ),
                       const SizedBox(height: 20),

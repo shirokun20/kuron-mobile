@@ -53,117 +53,118 @@ class EndOfChapterOverlay extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-              // Icon
-              Icon(
-                Icons.check_circle_outline,
-                size: 64,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+                  // Icon
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
 
-              const SizedBox(height: DesignTokens.spaceLg),
+                  const SizedBox(height: DesignTokens.spaceLg),
 
-              // Title
-              Text(
-                isChapterMode
-                    ? AppLocalizations.of(context)!.chapterComplete
-                    : AppLocalizations.of(context)!.finishedReading,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-              ),
+                  // Title
+                  Text(
+                    isChapterMode
+                        ? AppLocalizations.of(context)!.chapterComplete
+                        : AppLocalizations.of(context)!.finishedReading,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                  ),
 
-              const SizedBox(height: DesignTokens.spaceSm),
+                  const SizedBox(height: DesignTokens.spaceSm),
 
-              // Subtitle
-              Text(
-                state.content?.title ?? '',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+                  // Subtitle
+                  Text(
+                    state.content?.title ?? '',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
 
-              const SizedBox(height: DesignTokens.space2xl),
+                  const SizedBox(height: DesignTokens.space2xl),
 
-              // Buttons
-              if (isChapterMode) ...[
-                // Chapter Mode: Show prev/next/back buttons
-                if (onPreviousChapter != null)
+                  // Buttons
+                  if (isChapterMode) ...[
+                    // Chapter Mode: Show prev/next/back buttons
+                    if (onPreviousChapter != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: onPreviousChapter,
+                          icon: const Icon(Icons.skip_previous),
+                          label:
+                              Text(previousLabel, textAlign: TextAlign.center),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+
+                    if (onPreviousChapter != null && onNextChapter != null)
+                      const SizedBox(height: DesignTokens.spaceMd),
+
+                    // Next Chapter
+                    if (onNextChapter != null)
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: onNextChapter,
+                          icon: const Icon(Icons.skip_next),
+                          label: Text(nextLabel, textAlign: TextAlign.center),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                          ),
+                        ),
+                      ),
+                  ],
+
+                  // Back to Detail / Back to Previous Page — always show
+                  const SizedBox(height: DesignTokens.spaceMd),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: onPreviousChapter,
-                      icon: const Icon(Icons.skip_previous),
-                      label: Text(previousLabel, textAlign: TextAlign.center),
+                      onPressed: onBackToDetail,
+                      icon: const Icon(Icons.arrow_back),
+                      label: Text(isOfflineMode
+                          ? AppLocalizations.of(context)!.backToPreviousPage
+                          : AppLocalizations.of(context)!.backToDetail),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                     ),
                   ),
 
-                if (onPreviousChapter != null && onNextChapter != null)
-                  const SizedBox(height: DesignTokens.spaceMd),
-
-                // Next Chapter
-                if (onNextChapter != null)
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: onNextChapter,
-                      icon: const Icon(Icons.skip_next),
-                      label: Text(nextLabel, textAlign: TextAlign.center),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+                  // Go to First Page — CS mode only
+                  if (onGoToFirstPage != null) ...[
+                    const SizedBox(height: DesignTokens.spaceMd),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: onGoToFirstPage,
+                        icon: const Icon(Icons.vertical_align_top),
+                        label: Text(AppLocalizations.of(context)!
+                            .readerScreenGoToFirstPage),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                  ],
 
-              // Back to Detail / Back to Previous Page — always show
-              const SizedBox(height: DesignTokens.spaceMd),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: onBackToDetail,
-                  icon: const Icon(Icons.arrow_back),
-                  label: Text(isOfflineMode
-                      ? AppLocalizations.of(context)!.backToPreviousPage
-                      : AppLocalizations.of(context)!.backToDetail),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
+                  const SizedBox(height: DesignTokens.spaceXl),
+                  _buildSupportSection(context),
+                ],
               ),
-
-              // Go to First Page — CS mode only
-              if (onGoToFirstPage != null) ...[
-                const SizedBox(height: DesignTokens.spaceMd),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: onGoToFirstPage,
-                    icon: const Icon(Icons.vertical_align_top),
-                    label: Text(AppLocalizations.of(context)!
-                        .readerScreenGoToFirstPage),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                  ),
-                ),
-              ],
-
-              const SizedBox(height: DesignTokens.spaceXl),
-              _buildSupportSection(context),
-            ],
+            ),
           ),
         ),
       ),
-      ),
-    ),
-  );
+    );
   }
 
   Widget _buildSupportSection(BuildContext context) {

@@ -275,8 +275,8 @@ class HitomiAdapter implements GenericAdapter {
       );
 
       // Rust search (skip Dart fallback when Rust available)
-      final rustResult =
-          await _bSearchWithRust(keyHash, rootNodeBytes, indexUrl, dataUrl, rawConfig);
+      final rustResult = await _bSearchWithRust(
+          keyHash, rootNodeBytes, indexUrl, dataUrl, rawConfig);
       if (rustResult != null) return rustResult;
 
       // Dart fallback — only when Rust unavailable

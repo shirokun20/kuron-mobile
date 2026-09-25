@@ -50,7 +50,8 @@ void main() {
       providerRepository:
           providers ?? FakeAiProviderRepository(withVisionProvider: true),
       providerFactory: FakeAiProviderFactory(),
-      preferencesRepository: preferencesRepository ?? FakeAiPreferencesRepository(),
+      preferencesRepository:
+          preferencesRepository ?? FakeAiPreferencesRepository(),
       cacheRepository: cache ?? FakeCacheRepository(),
       mosaicBuilder: FakeMosaicBuilder(),
       fallbackHandler: FallbackImageHandler(),
@@ -490,7 +491,8 @@ void main() {
       expect((cubit.state as ReaderTranslationIdle).uiVersion, greaterThan(v1));
     });
 
-    test('containment dedup: small rect inside big manual box dropped', () async {
+    test('containment dedup: small rect inside big manual box dropped',
+        () async {
       final cubit = makeCubit();
       addTearDown(cubit.close);
 
@@ -560,8 +562,8 @@ void main() {
           imageWidth: 200,
           imageHeight: 200);
       await cubit.detectBubblesOnly();
-      cubit.addManualBubble(BubbleBox(
-          x: 10, y: 10, w: 50, h: 30, confidence: 1.0, shape: shape));
+      cubit.addManualBubble(
+          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0, shape: shape));
 
       await cubit.translatePage(
         imageBytes: Uint8List.fromList([1, 2, 3]),
@@ -575,9 +577,8 @@ void main() {
       );
       await pumpEventQueue();
 
-      final bubbles = (cubit.state as ReaderTranslationTranslated)
-          .result
-          .bubbles;
+      final bubbles =
+          (cubit.state as ReaderTranslationTranslated).result.bubbles;
       // Manual shape bubble gets the USER polygon (not detected shape).
       final manualBubble = bubbles.firstWhere((b) => b.rect.left.round() == 10);
       expect(manualBubble.shape, isNotNull);
@@ -649,7 +650,8 @@ void main() {
     });
 
     test('non-default styles map to their font', () async {
-      final prefs = FakeAiPreferencesRepository()..style = TranslationStyle.formal;
+      final prefs = FakeAiPreferencesRepository()
+        ..style = TranslationStyle.formal;
       final cubit = makeCubit(preferencesRepository: prefs);
       addTearDown(cubit.close);
       await cubit.translatePage(
@@ -730,8 +732,7 @@ void main() {
       expect(cubit.state, isA<ReaderTranslationTranslated>());
       // Reuse = NO second detect call; boxes came from the prefetch cache.
       expect(detectCalls, 1);
-      expect(
-          (cubit.state as ReaderTranslationTranslated).result.bubbles,
+      expect((cubit.state as ReaderTranslationTranslated).result.bubbles,
           hasLength(2));
     });
 
@@ -792,8 +793,7 @@ void main() {
       expect(cubit.state, isA<ReaderTranslationTranslated>());
       // Empty prefetch must NOT be reused — fresh ONNX ran (2nd call).
       expect(detectCalls, 2);
-      expect(
-          (cubit.state as ReaderTranslationTranslated).result.bubbles,
+      expect((cubit.state as ReaderTranslationTranslated).result.bubbles,
           hasLength(2));
     });
 

@@ -10,9 +10,11 @@ class MockGetContentListUseCase extends Mock implements GetContentListUseCase {}
 
 class MockSearchContentUseCase extends Mock implements SearchContentUseCase {}
 
-class MockGetContentByTagUseCase extends Mock implements GetContentByTagUseCase {}
+class MockGetContentByTagUseCase extends Mock
+    implements GetContentByTagUseCase {}
 
-class MockGetPopularContentUseCase extends Mock implements GetPopularContentUseCase {}
+class MockGetPopularContentUseCase extends Mock
+    implements GetPopularContentUseCase {}
 
 class MockLogger extends Mock implements Logger {}
 

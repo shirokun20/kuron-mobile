@@ -13,8 +13,7 @@ class GenericCookieStorage implements Storage {
   final String sourceId;
   final FlutterSecureStorage _secureStorage;
 
-  GenericCookieStorage(this.sourceId,
-      {FlutterSecureStorage? secureStorage})
+  GenericCookieStorage(this.sourceId, {FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   String _key(String key) => 'cookie_jar_${sourceId}_$key';

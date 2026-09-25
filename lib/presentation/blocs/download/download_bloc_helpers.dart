@@ -77,8 +77,7 @@ DownloadErrorType _determineErrorType(dynamic error) {
     return DownloadErrorType.permission;
   } else if (errorString.contains('server') || errorString.contains('5')) {
     return DownloadErrorType.server;
-  } else if (errorString.contains('parse') ||
-      errorString.contains('format')) {
+  } else if (errorString.contains('parse') || errorString.contains('format')) {
     return DownloadErrorType.parsing;
   } else if (errorString.contains('timeout')) {
     return DownloadErrorType.timeout;
@@ -118,10 +117,7 @@ Future<int> _countDownloadedImages({
     final targetDir = await imagesDir.exists() ? imagesDir : baseDir;
 
     final entities = await targetDir.list().toList();
-    return entities
-        .whereType<File>()
-        .where((f) => isImageFile(f.path))
-        .length;
+    return entities.whereType<File>().where((f) => isImageFile(f.path)).length;
   }
 
   if (downloadPath != null && downloadPath.isNotEmpty) {

@@ -48,17 +48,22 @@ class _ReaderImageViewer extends StatelessWidget {
   bool _canRepair({required String imageUrl, required String? sourceId}) {
     if (!cubit.networkCubit.isConnected) return false;
     if (sourceId == null || sourceId.trim().isEmpty) return false;
-    if (getIt<ContentSourceRegistry>().getSource(sourceId) == null) return false;
+    if (getIt<ContentSourceRegistry>().getSource(sourceId) == null) {
+      return false;
+    }
     if (OfflineContentManager.isFailedPagePlaceholder(imageUrl)) {
       final originalUrl =
           OfflineContentManager.extractOriginalUrlFromPlaceholder(imageUrl);
       return originalUrl != null && originalUrl.trim().isNotEmpty;
     }
-    if (!imageUrl.startsWith('/') && !imageUrl.startsWith('file://')) return false;
+    if (!imageUrl.startsWith('/') && !imageUrl.startsWith('file://')) {
+      return false;
+    }
     return isLocalReaderImagePath(normalizeLocalReaderImagePath(imageUrl));
   }
 
-  bool _canOpenSourcePage({required String imageUrl, required String? sourceId}) {
+  bool _canOpenSourcePage(
+      {required String imageUrl, required String? sourceId}) {
     if (!_canRepair(imageUrl: imageUrl, sourceId: sourceId)) return false;
     final rawConfig = sourceId == null || sourceId.trim().isEmpty
         ? null
@@ -96,7 +101,8 @@ class _ReaderImageViewer extends StatelessWidget {
           key: ValueKey('image_viewer_$pageNumber'),
           height: resolvedHeight,
           child: Padding(
-            padding: const EdgeInsets.only(bottom: ReaderScreen.kReaderContinuousGap),
+            padding: const EdgeInsets.only(
+                bottom: ReaderScreen.kReaderContinuousGap),
             child: ExtendedImageReaderWidget(
               imageUrl: imageUrl,
               contentId: contentId,
@@ -109,12 +115,18 @@ class _ReaderImageViewer extends StatelessWidget {
               visiblePageNotifier: visiblePageNotifier,
               grayscale: grayscale,
               onHeavyImageDetected: onHeavyImageDetected,
-              onRepairBrokenImage: _canRepair(imageUrl: imageUrl, sourceId: sourceId)
-                  ? () => onRepairBrokenImage?.call(pageNumber) ?? Future.value(false)
-                  : null,
-              onOpenSourcePageForRepair: _canOpenSourcePage(imageUrl: imageUrl, sourceId: sourceId)
-                  ? () => onOpenSourcePageForRepair?.call(pageNumber) ?? Future.value(false)
-                  : null,
+              onRepairBrokenImage:
+                  _canRepair(imageUrl: imageUrl, sourceId: sourceId)
+                      ? () =>
+                          onRepairBrokenImage?.call(pageNumber) ??
+                          Future.value(false)
+                      : null,
+              onOpenSourcePageForRepair:
+                  _canOpenSourcePage(imageUrl: imageUrl, sourceId: sourceId)
+                      ? () =>
+                          onOpenSourcePageForRepair?.call(pageNumber) ??
+                          Future.value(false)
+                      : null,
               onImageLoaded: onContinuousImageLoaded ?? cubit.onImageLoaded,
             ),
           ),
@@ -139,11 +151,16 @@ class _ReaderImageViewer extends StatelessWidget {
             visiblePageNotifier: visiblePageNotifier,
             grayscale: grayscale,
             onDoubleTapGesture: () => cubit.toggleUI(),
-            onRepairBrokenImage: _canRepair(imageUrl: imageUrl, sourceId: resolvedSourceId)
-                ? () => onRepairBrokenImage?.call(pageNumber) ?? Future.value(false)
+            onRepairBrokenImage: _canRepair(
+                    imageUrl: imageUrl, sourceId: resolvedSourceId)
+                ? () =>
+                    onRepairBrokenImage?.call(pageNumber) ?? Future.value(false)
                 : null,
-            onOpenSourcePageForRepair: _canOpenSourcePage(imageUrl: imageUrl, sourceId: resolvedSourceId)
-                ? () => onOpenSourcePageForRepair?.call(pageNumber) ?? Future.value(false)
+            onOpenSourcePageForRepair: _canOpenSourcePage(
+                    imageUrl: imageUrl, sourceId: resolvedSourceId)
+                ? () =>
+                    onOpenSourcePageForRepair?.call(pageNumber) ??
+                    Future.value(false)
                 : null,
             onImageLoaded: cubit.onImageLoaded,
           ),

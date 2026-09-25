@@ -161,8 +161,7 @@ Widget buildDownloadSection(
               if (value != null) {
                 context.read<DownloadBloc>().add(
                       DownloadSettingsUpdateEvent(
-                        maxConcurrentDownloads:
-                            settings.maxConcurrentDownloads,
+                        maxConcurrentDownloads: settings.maxConcurrentDownloads,
                         imageQuality: value,
                         autoRetry: settings.autoRetry,
                         retryAttempts: settings.retryAttempts,
@@ -225,8 +224,7 @@ Widget buildDownloadSection(
               onChanged: (value) {
                 context.read<DownloadBloc>().add(
                       DownloadSettingsUpdateEvent(
-                        maxConcurrentDownloads:
-                            settings.maxConcurrentDownloads,
+                        maxConcurrentDownloads: settings.maxConcurrentDownloads,
                         imageQuality: settings.imageQuality,
                         autoRetry: settings.autoRetry,
                         retryAttempts: value.toInt(),

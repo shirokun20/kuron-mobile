@@ -429,8 +429,7 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
             if (filter == 'text' && m.isVision != false) {
               return false;
             }
-            if (q.isNotEmpty &&
-                !m.id.toLowerCase().contains(q.toLowerCase())) {
+            if (q.isNotEmpty && !m.id.toLowerCase().contains(q.toLowerCase())) {
               return false;
             }
             return true;

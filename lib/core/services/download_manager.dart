@@ -48,7 +48,8 @@ class DownloadManager {
 
   void _listenToReaderActive() {
     try {
-      final notifier = getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
+      final notifier =
+          getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
       notifier.addListener(_onReaderActiveChanged);
     } catch (e) {
       _logger.w('DownloadManager: failed to listen to readerActive: $e');
@@ -57,7 +58,8 @@ class DownloadManager {
 
   void _onReaderActiveChanged() {
     try {
-      final active = getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value;
+      final active =
+          getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value;
       _logger.d('DownloadManager: readerActive=$active');
       if (active) {
         for (final contentId in _tasks.keys) {
@@ -86,7 +88,8 @@ class DownloadManager {
           final String? contentId = data['contentId'] as String?;
           final String? status = data['status'] as String?;
           if (contentId == null || status == null) return;
-          final int downloaded = (data['downloadedPages'] as num?)?.toInt() ?? 0;
+          final int downloaded =
+              (data['downloadedPages'] as num?)?.toInt() ?? 0;
           final int total = (data['totalPages'] as num?)?.toInt() ?? 0;
           final double speed =
               (data['downloadSpeed'] as num?)?.toDouble() ?? 0.0;

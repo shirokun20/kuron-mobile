@@ -61,7 +61,9 @@ class _GlobalDownloadProgressWidgetState
           return const SizedBox.shrink();
         }
 
-        if (state.downloads.where((d) => d.state == DownloadState.downloading).isEmpty) {
+        if (state.downloads
+            .where((d) => d.state == DownloadState.downloading)
+            .isEmpty) {
           if (_lastActiveCount > 0 && _slideController.isCompleted) {
             scheduleAutoHide();
           }
@@ -70,7 +72,8 @@ class _GlobalDownloadProgressWidgetState
         }
 
         final active = state.downloads
-            .where((d) => d.state == DownloadState.downloading).toList();
+            .where((d) => d.state == DownloadState.downloading)
+            .toList();
         _lastActiveCount = active.length;
         if (_dismissed ||
             (_dismissedAt != null &&
@@ -107,7 +110,8 @@ class _GlobalDownloadProgressWidgetState
   Widget _buildMultipleDownloadsView(
       BuildContext context, DownloadLoaded state) {
     final active = state.downloads
-        .where((d) => d.state == DownloadState.downloading).toList();
+        .where((d) => d.state == DownloadState.downloading)
+        .toList();
     final activeCount = active.length;
     final totalPages = active.fold<int>(0, (s, d) => s + d.totalPages);
     final donePages = active.fold<int>(0, (s, d) => s + d.downloadedPages);
@@ -175,9 +179,8 @@ class _GlobalDownloadProgressWidgetState
                         Text(
                           '$formattedSpeed • ${(totalProgress * 100).toInt()}%',
                           style: TextStyleConst.labelSmall.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -270,9 +273,8 @@ class _GlobalDownloadProgressWidgetState
                         Text(
                           '${(progress * 100).toInt()}%',
                           style: TextStyleConst.labelSmall.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],

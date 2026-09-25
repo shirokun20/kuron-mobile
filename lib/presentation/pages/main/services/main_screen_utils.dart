@@ -99,7 +99,9 @@ class MainScreenUtils {
   }) {
     try {
       final rawConfig = remoteConfig.getRawConfig(sourceId);
-      final ui = (rawConfig?['ui'] is Map<String, dynamic>) ? (rawConfig?['ui'] as Map<String, dynamic>) : null;
+      final ui = (rawConfig?['ui'] is Map<String, dynamic>)
+          ? (rawConfig?['ui'] as Map<String, dynamic>)
+          : null;
       if (ui == null) return null;
 
       final templateKey = isSearch ? 'searchUrlTemplate' : 'browseUrlTemplate';
@@ -186,7 +188,9 @@ class MainScreenUtils {
     required RemoteConfigService remoteConfig,
   }) {
     final rawConfig = remoteConfig.getRawConfig(sourceId);
-    final ui = (rawConfig?['ui'] is Map<String, dynamic>) ? (rawConfig?['ui'] as Map<String, dynamic>) : null;
+    final ui = (rawConfig?['ui'] is Map<String, dynamic>)
+        ? (rawConfig?['ui'] as Map<String, dynamic>)
+        : null;
     final candidate =
         (ui?['openInBrowserUrl'] ?? rawConfig?['openInBrowserUrl']) as String?;
 

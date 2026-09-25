@@ -2121,7 +2121,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       task.cancel('Download cancelled by user');
       _activeTasks.remove(contentId);
 
-            _downloadManager.unregisterTask(contentId);
+      _downloadManager.unregisterTask(contentId);
       _logger.d('DownloadBloc: Cancelled task for $contentId');
     }
   }
@@ -2811,7 +2811,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       if (!task.isCancelled) {
         task.cancel('BLoC is closing');
       }
-          _downloadManager.unregisterTask(task.contentId);
+      _downloadManager.unregisterTask(task.contentId);
     }
     _activeTasks.clear();
 

@@ -50,7 +50,9 @@ class ContentGroupCardWidget extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           border: Border.all(
-            color: hasReadProgress || hideOfflineIndicator ? Colors.transparent : offlineColor,
+            color: hasReadProgress || hideOfflineIndicator
+                ? Colors.transparent
+                : offlineColor,
             width: hasReadProgress || hideOfflineIndicator ? 0 : 1.4,
           ),
           boxShadow: [
@@ -202,7 +204,9 @@ class ContentGroupCardWidget extends StatelessWidget {
           ],
         ),
         border: Border.all(
-          color: hasReadProgress || hideOfflineIndicator ? Colors.transparent : offlineColor,
+          color: hasReadProgress || hideOfflineIndicator
+              ? Colors.transparent
+              : offlineColor,
           width: hasReadProgress || hideOfflineIndicator ? 0 : 1.2,
         ),
         boxShadow: [

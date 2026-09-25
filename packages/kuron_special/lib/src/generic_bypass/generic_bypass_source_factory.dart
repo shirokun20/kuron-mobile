@@ -143,7 +143,8 @@ class _BypassDioInterceptor with DioMixin implements Dio {
     final bypassCookie =
         WebViewSessionAdapter.getCachedCookieHeaderForUrl(path);
     final bypassUa = WebViewSessionAdapter.getCachedUserAgentForUrl(path);
-    if ((bypassCookie?.isNotEmpty ?? false) || (bypassUa?.isNotEmpty ?? false)) {
+    if ((bypassCookie?.isNotEmpty ?? false) ||
+        (bypassUa?.isNotEmpty ?? false)) {
       final preHeaders = Map<String, dynamic>.from(options?.headers ?? {});
       if ((bypassCookie?.isNotEmpty ?? false) &&
           !(preHeaders['Cookie']?.toString().contains('cf_clearance') ??
@@ -174,7 +175,8 @@ class _BypassDioInterceptor with DioMixin implements Dio {
         _sessionAdapter.baseUrl,
         options: Options(headers: options?.headers),
       );
-      final freshCookie = WebViewSessionAdapter.getCachedCookieHeaderForUrl(path);
+      final freshCookie =
+          WebViewSessionAdapter.getCachedCookieHeaderForUrl(path);
       final freshUa = WebViewSessionAdapter.getCachedUserAgentForUrl(path);
       final retryHeaders = Map<String, dynamic>.from(options?.headers ?? {});
       if (freshCookie != null && freshCookie.isNotEmpty) {
@@ -183,7 +185,8 @@ class _BypassDioInterceptor with DioMixin implements Dio {
       if (freshUa != null && freshUa.isNotEmpty) {
         retryHeaders['User-Agent'] = freshUa;
       }
-      final retryOptions = (options ?? Options()).copyWith(headers: retryHeaders);
+      final retryOptions =
+          (options ?? Options()).copyWith(headers: retryHeaders);
       // Retry POST with fresh cookies/UA after bypass
       return await _baseDio.post<T>(
         path,

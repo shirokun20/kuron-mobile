@@ -564,8 +564,7 @@ class RemoteDataSource implements AppInitializer {
         final headers = antiDetection.getRandomHeaders(referer: referer);
 
         // Scoped per-host bypass cookies (never global). Count only in logs.
-        final bypassCookie =
-            cloudflareBypass.cookieHeaderFor(uri.host) ?? '';
+        final bypassCookie = cloudflareBypass.cookieHeaderFor(uri.host) ?? '';
         if (bypassCookie.isNotEmpty) {
           headers.putIfAbsent('Cookie', () => bypassCookie);
         }
@@ -589,14 +588,12 @@ class RemoteDataSource implements AppInitializer {
         while (currentResponse.statusCode != null &&
             _isRedirectStatus(currentResponse.statusCode!) &&
             hopCount < 5) {
-          final location =
-              currentResponse.headers.value('location')?.trim();
+          final location = currentResponse.headers.value('location')?.trim();
           if (location == null || location.isEmpty) break;
           final next = Uri.parse(url).resolve(location);
           if (!_isAllowedRedirect(Uri.parse(url), next)) {
             _logger.w('Redirect rejected: $url -> $next');
-            throw NetworkException(
-                'Redirect rejected: $url -> $next',
+            throw NetworkException('Redirect rejected: $url -> $next',
                 '${currentResponse.statusCode}');
           }
           hopCount++;

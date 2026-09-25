@@ -222,8 +222,8 @@ Widget _pinDots(int pinLength, int maxDigits, ThemeData theme) {
   );
 }
 
-Widget _keypadRow(ThemeData theme, List<String> digits,
-    void Function(String) onDigit) {
+Widget _keypadRow(
+    ThemeData theme, List<String> digits, void Function(String) onDigit) {
   return Row(
     children: digits
         .map((d) => Expanded(
@@ -305,16 +305,15 @@ class _PinKeypadBody extends StatelessWidget {
                 fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Text(subtitle,
-            style: TextStyleConst.bodyMedium.copyWith(
-                color: theme.colorScheme.onSurfaceVariant)),
+            style: TextStyleConst.bodyMedium
+                .copyWith(color: theme.colorScheme.onSurfaceVariant)),
         const SizedBox(height: 48),
         _pinDots(pin.length, maxDigits, theme),
         if (error != null) ...[
           const SizedBox(height: 16),
           Text(error!,
               style: TextStyleConst.bodyMedium.copyWith(
-                  color: theme.colorScheme.error,
-                  fontWeight: FontWeight.w600)),
+                  color: theme.colorScheme.error, fontWeight: FontWeight.w600)),
         ],
         const Spacer(flex: 1),
         Padding(
@@ -343,8 +342,7 @@ class _PinKeypadBody extends StatelessWidget {
                             alignment: Alignment.center,
                             child: const Text('0',
                                 style: TextStyle(
-                                    fontSize: 26,
-                                    fontWeight: FontWeight.w600)),
+                                    fontSize: 26, fontWeight: FontWeight.w600)),
                           ),
                         ),
                       ),
@@ -374,7 +372,8 @@ Widget buildAppLockSection(BuildContext context, ThemeData theme) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          buildSettingsSectionHeader(Icons.lock_outline, l10n.appLockSectionTitle, theme),
+          buildSettingsSectionHeader(
+              Icons.lock_outline, l10n.appLockSectionTitle, theme),
           const SizedBox(height: 12),
           buildSettingsCard([
             buildSettingsSwitchTile(
@@ -401,8 +400,8 @@ Widget buildAppLockSection(BuildContext context, ThemeData theme) {
                           ? theme.colorScheme.onSurface
                           : theme.disabledColor)),
               subtitle: Text(l10n.changePinDescription,
-                  style: TextStyleConst.bodySmall.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant)),
+                  style: TextStyleConst.bodySmall
+                      .copyWith(color: theme.colorScheme.onSurfaceVariant)),
               trailing: Icon(Icons.chevron_right,
                   color: state.hasPin
                       ? theme.colorScheme.onSurfaceVariant

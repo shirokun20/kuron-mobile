@@ -50,8 +50,8 @@ class AppLockRepositoryImpl implements AppLockRepository {
       _storage.write(key: _keyBiometricAvailable, value: available.toString());
 
   @override
-  Future<void> saveSessionExpiry(DateTime expiry) =>
-      _storage.write(key: _keySessionExpiry, value: expiry.millisecondsSinceEpoch.toString());
+  Future<void> saveSessionExpiry(DateTime expiry) => _storage.write(
+      key: _keySessionExpiry, value: expiry.millisecondsSinceEpoch.toString());
 
   @override
   Future<DateTime?> getSessionExpiry() async {

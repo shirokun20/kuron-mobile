@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/presentation/pages/detail/services/detail_tag_query_resolver.dart';
 
@@ -255,6 +258,110 @@ void main() {
 
       expect(result.explicitMappingFailed, isFalse);
       expect(result.query, 'genre:drama');
+    });
+  });
+
+  // Guards the config <-> resolver <-> adapter contract for the encrypted
+  // doujin.desu.xxx source: tag taps must become taxonomy requests, not a
+  // free-text `search=` that returns 1 unrelated row.
+  group('doujindesuxxx real config', () {
+    const resolver = DetailTagQueryResolver();
+    late Map<String, dynamic> rawConfig;
+
+    setUpAll(() {
+      rawConfig = jsonDecode(
+        File('informations/configs/doujindesuxxx-config.json')
+            .readAsStringSync(),
+      ) as Map<String, dynamic>;
+    });
+
+    test('genre tag routes to the genres taxonomy', () {
+      final result = resolver.resolve(
+        sourceId: 'doujindesuxxx',
+        tagName: 'Sole Male',
+        tagId: 'sole-male',
+        tagType: 'genre',
+        rawConfig: rawConfig,
+      );
+
+      expect(result.explicitMappingFailed, isFalse);
+      expect(result.query, 'raw:taxonomy_genre=sole male');
+    });
+
+    test('genre tag without a slug still routes (never emits the "0" id)', () {
+      final result = resolver.resolve(
+        sourceId: 'doujindesuxxx',
+        tagName: 'Sole Male',
+        tagId: '0',
+        tagType: 'genre',
+        rawConfig: rawConfig,
+      );
+
+      expect(result.query, 'raw:taxonomy_genre=sole male');
+      expect(result.query, isNot(contains('=0')));
+    });
+
+    test('artist tag routes to the authors taxonomy using the name', () {
+      final result = resolver.resolve(
+        sourceId: 'doujindesuxxx',
+        tagName: 'Negita Shio',
+        tagId: '0',
+        tagType: 'artist',
+        rawConfig: rawConfig,
+      );
+
+      expect(result.query, 'raw:taxonomy_author=negita shio');
+    });
+
+    test('group tag routes to the groups taxonomy', () {
+      final result = resolver.resolve(
+        sourceId: 'doujindesuxxx',
+        tagName: 'Deppatsu Shinkoo',
+        tagId: '0',
+        tagType: 'group',
+        rawConfig: rawConfig,
+      );
+
+      expect(result.query, 'raw:taxonomy_group=deppatsu shinkoo');
+    });
+
+    test('character/parody keep a type-prefixed free-text query', () {
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'doujindesuxxx',
+              tagName: 'Rin',
+              tagId: '0',
+              tagType: 'character',
+              rawConfig: rawConfig,
+            )
+            .query,
+        'character:Rin',
+      );
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'doujindesuxxx',
+              tagName: 'Original',
+              tagId: '0',
+              tagType: 'parody',
+              rawConfig: rawConfig,
+            )
+            .query,
+        'parody:Original',
+      );
+    });
+
+    test('genres dataSource reads the decrypted top-level array by slug', () {
+      final dataSources =
+          ((rawConfig['searchForm'] as Map)['dataSources'] as Map);
+      final genres = dataSources['genres'] as Map;
+
+      expect(genres['endpoint'], '/api/genres?limit=1000');
+      expect(genres['itemsPath'], '');
+      expect(genres['valuePath'], 'slug');
+      expect(genres['labelPath'], 'name');
+      expect(genres['decrypt'], 'doujindesuxxx');
     });
   });
 }

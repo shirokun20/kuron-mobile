@@ -35,12 +35,11 @@ class _ReaderSettingsSheet extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: glassBg,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             border: Border(
               top: BorderSide(
-                color: kuron?.cardBorder.withValues(alpha: 0.3) ??
-                    Colors.white12,
+                color:
+                    kuron?.cardBorder.withValues(alpha: 0.3) ?? Colors.white12,
               ),
             ),
           ),
@@ -48,7 +47,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 40, height: 4,
+                width: 40,
+                height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: glassBg.withValues(alpha: 0.6),
@@ -104,15 +104,13 @@ class _ReaderSettingsSheet extends StatelessWidget {
           final currentMode = state.readingMode ?? ReadingMode.singlePage;
           final newMode = _getNextReadingMode(
             currentMode,
-            disableContinuousScroll:
-                readingModeLabel.contains(AppLocalizations.of(context)!
-                    .readerContinuousOffHeavyImage),
+            disableContinuousScroll: readingModeLabel.contains(
+                AppLocalizations.of(context)!.readerContinuousOffHeavyImage),
           );
           cubit.changeReadingMode(newMode);
         },
         icon: Icon(
-          _getReadingModeIcon(
-              state.readingMode ?? ReadingMode.singlePage),
+          _getReadingModeIcon(state.readingMode ?? ReadingMode.singlePage),
           color: Theme.of(context).colorScheme.primary,
         ),
       ),
@@ -138,14 +136,13 @@ class _ReaderSettingsSheet extends StatelessWidget {
           ButtonSegment(
             value: TapDirection.normal,
             icon: const Icon(Icons.arrow_forward, size: 16),
-            label: Text(AppLocalizations.of(context)!
-                .readerTapDirectionNormal),
+            label: Text(AppLocalizations.of(context)!.readerTapDirectionNormal),
           ),
           ButtonSegment(
             value: TapDirection.inverted,
             icon: const Icon(Icons.arrow_back, size: 16),
-            label: Text(AppLocalizations.of(context)!
-                .readerTapDirectionInverted),
+            label:
+                Text(AppLocalizations.of(context)!.readerTapDirectionInverted),
           ),
         ],
         selected: {state.tapDirection ?? TapDirection.normal},
@@ -291,8 +288,7 @@ class _ReaderChapterSelector extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.2),
@@ -332,8 +328,8 @@ class _ReaderChapterSelector extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   itemCount: chapters.length,
-                  itemBuilder: (_, index) => _buildChapterTile(
-                      context, index, scrollController),
+                  itemBuilder: (_, index) =>
+                      _buildChapterTile(context, index, scrollController),
                 ),
               ),
             ],
@@ -428,8 +424,7 @@ class _ReaderChapterSelector extends StatelessWidget {
             }
           },
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             child: Row(
               children: [
                 _buildNumberBadge(context, chapter, isCurrent, index),
@@ -453,12 +448,10 @@ class _ReaderChapterSelector extends StatelessWidget {
                       if (chapter.uploadDate != null) ...[
                         const SizedBox(height: 2),
                         Text(
-                          _formatChapterDate(
-                              context, chapter.uploadDate!),
+                          _formatChapterDate(context, chapter.uploadDate!),
                           style: TextStyleConst.bodySmall.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -517,8 +510,7 @@ class _ReaderChapterSelector extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.primary,
-        borderRadius:
-            BorderRadius.circular(DesignTokens.radiusMd),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
       ),
       child: Text(
         AppLocalizations.of(context)!.chapterCurrentBadge,
@@ -564,8 +556,7 @@ String _getTapDirectionDescription(
     BuildContext context, TapDirection direction) {
   switch (direction) {
     case TapDirection.normal:
-      return AppLocalizations.of(context)!
-          .readerTapDirectionNormalDescription;
+      return AppLocalizations.of(context)!.readerTapDirectionNormalDescription;
     case TapDirection.inverted:
       return AppLocalizations.of(context)!
           .readerTapDirectionInvertedDescription;
@@ -577,8 +568,7 @@ String? _normalizeLanguageForFilter(String? value) {
   return ChapterLanguagePresenter.normalize(value);
 }
 
-void _showResetConfirmationDialog(
-    BuildContext context, VoidCallback onReset) {
+void _showResetConfirmationDialog(BuildContext context, VoidCallback onReset) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
@@ -632,8 +622,7 @@ Future<void> _clearReaderImageCache(BuildContext context) async {
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text(AppLocalizations.of(context)!.readerImageCacheCleared),
+        content: Text(AppLocalizations.of(context)!.readerImageCacheCleared),
         backgroundColor: Theme.of(context).colorScheme.primary,
         duration: const Duration(seconds: 2),
       ),
@@ -671,8 +660,7 @@ Future<void> _resetReaderSettings(
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            AppLocalizations.of(context)
-                    ?.failedToResetSettings(e.toString()) ??
+            AppLocalizations.of(context)?.failedToResetSettings(e.toString()) ??
                 AppLocalizations.of(context)!
                     .failedToResetSettings(e.toString()),
             style: TextStyleConst.bodyMedium.copyWith(
@@ -723,7 +711,8 @@ void _showChapterSelector(
   final normalizedLanguage = _normalizeLanguageForFilter(activeLanguage);
   final chapters = normalizedLanguage == null
       ? chaptersOnly
-      : chaptersOnly.where((c) =>
+      : chaptersOnly
+          .where((c) =>
               _normalizeLanguageForFilter(c.language) == normalizedLanguage)
           .toList();
   final effectiveChapters = chapters.isNotEmpty ? chapters : chaptersOnly;

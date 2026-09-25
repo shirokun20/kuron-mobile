@@ -77,9 +77,13 @@ class OpenAICompatibleCatalog {
       if (id == null || id.isEmpty) continue;
       // Only chat-capable models (endpoints contains chat)
       final endpoints = item['endpoints'];
-      if (endpoints is List && !endpoints.map((e) => e.toString()).contains('chat')) continue;
+      if (endpoints is List &&
+          !endpoints.map((e) => e.toString()).contains('chat')) {
+        continue;
+      }
       final features = item['features'];
-      final isVision = features is List && features.map((e) => e.toString()).contains('vision');
+      final isVision = features is List &&
+          features.map((e) => e.toString()).contains('vision');
       options.add(AiModelOption(id: id, isVision: isVision));
     }
     if (options.isEmpty) throw const AiTranslationException('Empty model list');

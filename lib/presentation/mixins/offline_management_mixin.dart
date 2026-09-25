@@ -43,7 +43,6 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
     if (context.mounted) {
       await _autoScanBackupFolder(context, sourceId: selectedSourceId);
     }
-
   }
 
   Future<void> exportLibrary(BuildContext context) async {
@@ -199,8 +198,8 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
 
       try {
         context.read<DownloadBloc>().add(const DownloadRefreshEvent());
-        Logger().i(
-            'OFFLINE_AUTO_SCAN: Triggered DownloadBloc refresh after sync');
+        Logger()
+            .i('OFFLINE_AUTO_SCAN: Triggered DownloadBloc refresh after sync');
       } catch (e) {
         // DownloadBloc might not be available in all contexts (e.g., if Downloads Screen hasn't been visited)
         // This is non-critical, so just log and continue

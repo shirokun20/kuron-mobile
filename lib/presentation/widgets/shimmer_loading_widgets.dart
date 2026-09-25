@@ -312,7 +312,6 @@ class ContentGridCardShimmer extends StatelessWidget {
   }
 }
 
-
 // Shimmer placeholder for list view
 class ListShimmer extends StatelessWidget {
   final int itemCount;

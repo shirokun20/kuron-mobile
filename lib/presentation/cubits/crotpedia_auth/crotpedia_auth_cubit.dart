@@ -47,7 +47,8 @@ class CrotpediaAuthCubit extends BaseCubit<CrotpediaAuthState> {
     } catch (e) {
       logger.e('Login error', error: e);
       if (!isClosed) {
-        emit(const CrotpediaAuthError('An unexpected error occurred during login'));
+        emit(const CrotpediaAuthError(
+            'An unexpected error occurred during login'));
       }
     }
   }
@@ -61,7 +62,9 @@ class CrotpediaAuthCubit extends BaseCubit<CrotpediaAuthState> {
       if (!isClosed) emit(CrotpediaAuthSuccess(username));
     } catch (e, s) {
       logger.e('External login error: $e\n$s');
-      if (!isClosed) emit(const CrotpediaAuthError('Failed to capture session'));
+      if (!isClosed) {
+        emit(const CrotpediaAuthError('Failed to capture session'));
+      }
     }
   }
 

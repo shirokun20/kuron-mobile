@@ -141,7 +141,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
       path.startsWith('http') ? path : '$_base$path',
       options: Options(headers: _headers),
     );
-    return (_decode(res), int.tryParse(res.headers.value('x-total-count') ?? ''));
+    return (
+      _decode(res),
+      int.tryParse(res.headers.value('x-total-count') ?? '')
+    );
   }
 
   Map<int, String>? _genreSlugs;
@@ -163,6 +166,55 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     return map;
   }
 
+  /// `searchForm.dataSources` key -> `/api/taxonomy/<namespace>` segment.
+  /// The site only exposes `genres`, `authors` and `groups`; characters and
+  /// series have no namespace, so they fall back to free-text search.
+  static const Map<String, String> taxonomyNamespaces = {
+    'taxonomy_genre': 'genres',
+    'taxonomy_genres': 'genres',
+    'taxonomy_author': 'authors',
+    'taxonomy_authors': 'authors',
+    'taxonomy_group': 'groups',
+    'taxonomy_groups': 'groups',
+  };
+
+  static const int _taxonomyPageSize = 30;
+
+  // Site slugs are lowercase-dashed. The app hands over display names for
+  // author/group (Content.artists is a plain string list, no slug), so the
+  // incoming value is normalized here.
+  static String slugifyTerm(String value) => value
+      .trim()
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+
+  // The site honors only `latest` and `popular`; every other value (rating,
+  // top-rated, ...) silently falls back to `latest`.
+  static String taxonomySort(SortOption? sort) =>
+      (sort?.apiValue ?? '').startsWith('popular') ? 'popular' : 'latest';
+
+  // `tagQueryMapping` mode `name` yields `<type>:<name>`; the site has no
+  // taxonomy route for those types, so keep the text and search it.
+  static String stripTermPrefix(String query) {
+    final i = query.indexOf(':');
+    if (i <= 0) return query;
+    const types = {
+      'artist',
+      'author',
+      'character',
+      'group',
+      'circle',
+      'parody',
+      'series',
+      'publisher',
+      'magazine'
+    };
+    return types.contains(query.substring(0, i).toLowerCase())
+        ? query.substring(i + 1).trim()
+        : query;
+  }
+
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
@@ -173,43 +225,99 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     final q = filter.query.trim();
     var genreSlug = '';
     var textQuery = '';
+    String? taxonomyNamespace;
+    var taxonomySlug = '';
+    var rawSort = '';
 
     if (includeTagsGenre(filter) != null) {
       genreSlug = includeTagsGenre(filter)!;
     } else if (q.startsWith('raw:')) {
       final params = Uri.splitQueryString(q.substring(4));
-      for (final key in const [
-        'genre_id',
-        'genreId',
-        'tag_id',
-        'tagId',
-        'genre',
-        'tag'
-      ]) {
-        final v = params[key]?.trim() ?? '';
+      for (final entry in taxonomyNamespaces.entries) {
+        final v = params[entry.key]?.trim() ?? '';
         if (v.isNotEmpty) {
-          genreSlug = v;
+          taxonomyNamespace = entry.value;
+          taxonomySlug = v;
           break;
         }
       }
-      if (genreSlug.isEmpty) {
-        for (final key in const ['search', 'q', 's']) {
+      rawSort = params['sort']?.trim() ?? '';
+      if (taxonomyNamespace == null) {
+        for (final key in const [
+          'genre_id',
+          'genreId',
+          'tag_id',
+          'tagId',
+          'genre',
+          'tag'
+        ]) {
           final v = params[key]?.trim() ?? '';
           if (v.isNotEmpty) {
-            textQuery = v;
+            genreSlug = v;
             break;
+          }
+        }
+        if (genreSlug.isEmpty) {
+          for (final key in const ['search', 'q', 's']) {
+            final v = params[key]?.trim() ?? '';
+            if (v.isNotEmpty) {
+              textQuery = v;
+              break;
+            }
           }
         }
       }
     } else if (q.startsWith('genre:') || q.startsWith('tag:')) {
       genreSlug = q.substring(q.indexOf(':') + 1).trim();
     } else if (q.isNotEmpty) {
-      textQuery = q;
+      textQuery = stripTermPrefix(q);
     }
 
     if (genreSlug.isNotEmpty && int.tryParse(genreSlug) != null) {
       final slugs = await _loadGenreSlugs();
       genreSlug = slugs[int.parse(genreSlug)] ?? '';
+    }
+
+    // Genre/author/group browsing: /api/taxonomy/<ns>/<slug> is the site's own
+    // term page. It is page-based (not offset) and returns
+    // {term, mangaList, pagination{total, page, limit, totalPages}}. Filtering
+    // /api/manga?genre=<slug> also works but cannot sort and has no pagination.
+    if (taxonomyNamespace != null && taxonomySlug.isNotEmpty) {
+      var slug = slugifyTerm(taxonomySlug);
+      // Configs that pass the genre id (not the slug) still resolve here.
+      if (int.tryParse(slug) != null) {
+        slug = (await _loadGenreSlugs())[int.parse(slug)] ?? '';
+      }
+      if (slug.isEmpty) {
+        return const AdapterSearchResult(items: [], hasNextPage: false);
+      }
+      final page = filter.page > 1 ? filter.page : 1;
+      final sort = rawSort.isNotEmpty
+          ? (rawSort.toLowerCase().startsWith('popular') ? 'popular' : 'latest')
+          : taxonomySort(filter.sort);
+      final data = await _get('/api/taxonomy/$taxonomyNamespace/'
+          '${Uri.encodeComponent(slug)}?page=$page&sort=$sort&limit=$_taxonomyPageSize');
+      final map = data is Map
+          ? data.cast<String, dynamic>()
+          : const <String, dynamic>{};
+      final list = (map['mangaList'] as List?) ?? const [];
+      final items = list
+          .whereType<Map>()
+          .map((m) => _content(m.cast<String, dynamic>()))
+          .toList();
+      final pagination = map['pagination'];
+      final total =
+          pagination is Map ? int.tryParse('${pagination['total']}') : null;
+      final totalPages = pagination is Map
+          ? int.tryParse('${pagination['totalPages']}')
+          : null;
+      return AdapterSearchResult(
+        items: items,
+        hasNextPage: totalPages != null ? page < totalPages : items.isNotEmpty,
+        totalPages: totalPages ??
+            (total != null ? (total / _taxonomyPageSize).ceil() : 1),
+        totalItems: total ?? items.length,
+      );
     }
 
     // API pagination: `offset` (0-based) + `limit`; `x-total-count` header
@@ -221,23 +329,22 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
         : textQuery.isNotEmpty
             ? 'search=${Uri.encodeQueryComponent(textQuery)}'
             : '';
-    final path = '/api/manga?limit=$pageSize&offset=$offset${
-        query.isEmpty ? '' : '&$query'}';
+    final path =
+        '/api/manga?limit=$pageSize&offset=$offset${query.isEmpty ? '' : '&$query'}';
     final (data, total) = await _getWithTotal(path);
     final items = data is List ? data : const [];
     // ponytail: when the site omits x-total-count, fall back to the
     // page-size heuristic; switch to header-only if the API stops sending it.
     final totalItems = total ?? items.length;
-    final totalPages = totalItems == 0
-        ? 1
-        : (totalItems / pageSize).ceil();
+    final totalPages = totalItems == 0 ? 1 : (totalItems / pageSize).ceil();
     return AdapterSearchResult(
       items: items
           .whereType<Map>()
           .map((m) => _content(m.cast<String, dynamic>()))
           .toList(),
-      hasNextPage:
-          total != null ? offset + items.length < totalItems : items.length >= pageSize,
+      hasNextPage: total != null
+          ? offset + items.length < totalItems
+          : items.length >= pageSize,
       totalPages: totalPages,
       totalItems: totalItems,
     );
@@ -290,13 +397,32 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
         ));
       }
     }
-    for (final term in ((m['term_list'] ?? '').toString().split('|'))) {
-      final parts = term.split(':');
-      if (parts.length < 2) continue;
-      final name = parts[0].trim();
-      final type = parts[1].trim();
+    // Detail responses carry `term_list` ("Name:type:slug", pipe-separated);
+    // list/search responses only carry `terms` ("Name:type", comma-separated,
+    // genres only — no author/group/character). Accept both so the same Content
+    // shape comes out of search results and from the detail page.
+    final parsedTerms = <(String, String, String)>[];
+    final termList = m['term_list'];
+    final terms = m['terms'];
+    if (termList is String && termList.isNotEmpty) {
+      for (final part in termList.split('|')) {
+        final seg = part.split(':');
+        if (seg.length < 2) continue;
+        parsedTerms.add((
+          seg[0].trim(),
+          seg[1].trim(),
+          seg.length > 2 ? seg[2].trim() : '',
+        ));
+      }
+    } else if (terms is String && terms.isNotEmpty) {
+      for (final part in terms.split(',')) {
+        final seg = part.split(':');
+        if (seg.length < 2) continue;
+        parsedTerms.add((seg[0].trim(), seg[1].trim(), ''));
+      }
+    }
+    for (final (name, type, slug) in parsedTerms) {
       if (name.isEmpty || name == 'N/A') continue;
-      final slug = parts.length > 2 ? parts[2].trim() : '';
       switch (type) {
         case 'character':
           characters.add(name);
@@ -317,6 +443,12 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
                 Tag(id: 0, name: name, type: 'genre', count: 0, slug: slug));
           }
       }
+    }
+    // `author`/`artist` are plain strings on the detail payload.
+    for (final key in const ['author', 'artist']) {
+      final name = (m[key] ?? '').toString().trim();
+      if (name.isEmpty || name == 'N/A') continue;
+      if (!artists.contains(name)) artists.add(name);
     }
     return Content(
       id: (m['slug'] ?? m['id'] ?? '').toString(),

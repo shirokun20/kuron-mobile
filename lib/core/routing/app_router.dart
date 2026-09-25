@@ -152,9 +152,8 @@ class AppRouter {
           final encodedId = state.pathParameters['id']!;
           final contentId = UriComponentUtils.safeDecode(encodedId);
           final sourceId = state.uri.queryParameters['sourceId'];
-          final preloaded = state.extra is Content
-              ? state.extra as Content
-              : null;
+          final preloaded =
+              state.extra is Content ? state.extra as Content : null;
           return AppAnimations.animatedPageBuilder(
             context,
             state,

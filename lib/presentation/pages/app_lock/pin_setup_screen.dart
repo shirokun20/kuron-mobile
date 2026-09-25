@@ -42,7 +42,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            Icon(Icons.lock_outline, size: 48, color: theme.colorScheme.primary),
+            Icon(Icons.lock_outline,
+                size: 48, color: theme.colorScheme.primary),
             const SizedBox(height: 16),
             Text(
               _isConfirmPhase
@@ -187,7 +188,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildRow(ThemeData theme, List<String> digits) {
     return Row(
-      children: digits.map((d) => Expanded(child: _buildKey(theme, d))).toList(),
+      children:
+          digits.map((d) => Expanded(child: _buildKey(theme, d))).toList(),
     );
   }
 
@@ -204,7 +206,8 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             height: 64,
             alignment: Alignment.center,
             child: Text(label,
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
+                style:
+                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
           ),
         ),
       ),

@@ -29,8 +29,7 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-          title: Text(AppLocalizations.of(context)!.aiGlossary)),
+      appBar: AppBar(title: Text(AppLocalizations.of(context)!.aiGlossary)),
       body: FutureBuilder<List<GlossaryEntry>>(
         future: _future,
         builder: (context, snapshot) {
@@ -61,8 +60,8 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
                     children: [
                       Expanded(
@@ -71,37 +70,37 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                           children: [
                             // Bahasa asli (tebal)
                             Text(
-                            e.sourceText.isEmpty
-                                ? e.translatedText
-                                : e.sourceText,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              height: 1.3,
+                              e.sourceText.isEmpty
+                                  ? e.translatedText
+                                  : e.sourceText,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                height: 1.3,
+                              ),
                             ),
-                          ),
-                          if (e.sourceText.isNotEmpty) ...[
-                            if (e.reading.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              // Latin reading (romaji/romanization)
+                            if (e.sourceText.isNotEmpty) ...[
+                              if (e.reading.isNotEmpty) ...[
+                                const SizedBox(height: 2),
+                                // Latin reading (romaji/romanization)
+                                Text(
+                                  e.reading,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    height: 1.3,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 4),
+                              // Terjemahan (italic, aksen)
                               Text(
-                                e.reading,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                                e.translatedText,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: theme.colorScheme.primary,
                                   height: 1.3,
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 4),
-                            // Terjemahan (italic, aksen)
-                            Text(
-                              e.translatedText,
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                fontStyle: FontStyle.italic,
-                                color: theme.colorScheme.primary,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
                             if (e.contentId.isNotEmpty) ...[
                               const SizedBox(height: 8),
                               Row(
@@ -114,8 +113,8 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                                     child: Text(
                                       '${e.contentId} • ${AppLocalizations.of(context)!.glossaryPage} ${e.pageIndex}',
                                       overflow: TextOverflow.ellipsis,
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(
+                                      style:
+                                          theme.textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.outline,
                                       ),
                                     ),

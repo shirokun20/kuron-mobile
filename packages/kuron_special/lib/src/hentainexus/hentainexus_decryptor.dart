@@ -47,7 +47,8 @@ class HentaiNexusDecryptor {
     }
 
     // Rust unavailable
-    throw const FormatException('HentaiNexus decrypt failed: native library not loaded');
+    throw const FormatException(
+        'HentaiNexus decrypt failed: native library not loaded');
   }
 
   // Kept for future experiments with alternative server variants.
