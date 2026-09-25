@@ -5915,6 +5915,47 @@ class AppLocalizationsId extends AppLocalizations {
   String get nclientMalformedRows => 'Baris tak terbaca';
 
   @override
+  String get kuronBackupNow => 'Cadangkan library & pengaturan';
+
+  @override
+  String get kuronBackupNowSubtitle =>
+      'Membuat ZIP KuronBackup berisi favorit, koleksi, history, posisi baca, dan pengaturan (tanpa gambar)';
+
+  @override
+  String get kuronBackupNowAction => 'Cadangkan';
+
+  @override
+  String kuronBackupReady(String path) {
+    return 'Cadangan tersimpan: $path';
+  }
+
+  @override
+  String kuronBackupFailed(String error) {
+    return 'Cadangan gagal: $error';
+  }
+
+  @override
+  String get kuronRestore => 'Pulihkan cadangan';
+
+  @override
+  String get kuronRestoreSubtitle =>
+      'Pulihkan ZIP KuronBackup. Data existing tidak pernah ditimpa';
+
+  @override
+  String get kuronRestoreAction => 'Pulihkan';
+
+  @override
+  String get kuronRestorePreview => 'Pratinjau pemulihan';
+
+  @override
+  String get kuronRestoreResult => 'Hasil pemulihan';
+
+  @override
+  String kuronBackupIncompatible(String version) {
+    return 'Cadangan ini dibuat oleh Kuron versi lebih baru (format $version) dan tidak bisa dipulihkan di sini';
+  }
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success ditambah, $skipped dilewati, $failed gagal';
   }

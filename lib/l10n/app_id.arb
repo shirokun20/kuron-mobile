@@ -3188,6 +3188,38 @@
   "nclientPositions": "Posisi baca",
   "nclientMemberships": "Isi koleksi",
   "nclientMalformedRows": "Baris tak terbaca",
+  "kuronBackupNow": "Cadangkan library & pengaturan",
+  "kuronBackupNowSubtitle": "Membuat ZIP KuronBackup berisi favorit, koleksi, history, posisi baca, dan pengaturan (tanpa gambar)",
+  "kuronBackupNowAction": "Cadangkan",
+  "kuronBackupReady": "Cadangan tersimpan: {path}",
+  "kuronBackupFailed": "Cadangan gagal: {error}",
+  "kuronRestore": "Pulihkan cadangan",
+  "kuronRestoreSubtitle": "Pulihkan ZIP KuronBackup. Data existing tidak pernah ditimpa",
+  "kuronRestoreAction": "Pulihkan",
+  "kuronRestorePreview": "Pratinjau pemulihan",
+  "kuronRestoreResult": "Hasil pemulihan",
+  "kuronBackupIncompatible": "Cadangan ini dibuat oleh Kuron versi lebih baru (format {version}) dan tidak bisa dipulihkan di sini",
+  "@kuronBackupReady": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupIncompatible": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "nclientSummaryRow": "{label}: {success} ditambah, {skipped} dilewati, {failed} gagal",
   "@nclientSummaryRow": {
     "placeholders": {

@@ -5888,6 +5888,47 @@ class AppLocalizationsEn extends AppLocalizations {
   String get nclientMalformedRows => 'Unreadable rows';
 
   @override
+  String get kuronBackupNow => 'Back up library & settings';
+
+  @override
+  String get kuronBackupNowSubtitle =>
+      'Creates a KuronBackup ZIP with favorites, collections, history, reading positions and settings (no images)';
+
+  @override
+  String get kuronBackupNowAction => 'Back up';
+
+  @override
+  String kuronBackupReady(String path) {
+    return 'Backup saved: $path';
+  }
+
+  @override
+  String kuronBackupFailed(String error) {
+    return 'Backup failed: $error';
+  }
+
+  @override
+  String get kuronRestore => 'Restore backup';
+
+  @override
+  String get kuronRestoreSubtitle =>
+      'Restore a KuronBackup ZIP. Existing data is never overwritten';
+
+  @override
+  String get kuronRestoreAction => 'Restore';
+
+  @override
+  String get kuronRestorePreview => 'Restore preview';
+
+  @override
+  String get kuronRestoreResult => 'Restore result';
+
+  @override
+  String kuronBackupIncompatible(String version) {
+    return 'This backup was made by a newer Kuron version (format $version) and cannot be restored here';
+  }
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success added, $skipped skipped, $failed failed';
   }

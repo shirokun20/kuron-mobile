@@ -1,6 +1,11 @@
 import '../entities/entities.dart' hide ThemeOption;
 import '../entities/settings/settings.dart';
 
+/// Result of applying per-key settings: how many keys were written and how many
+/// were left alone because the device already held a value (or the key is
+/// unknown to this app version).
+typedef SettingsKeyApplyResult = ({int applied, int skipped});
+
 // Repository interface for app settings and preferences
 abstract class SettingsRepository {
   // ==================== USER PREFERENCES ====================
@@ -87,6 +92,23 @@ abstract class SettingsRepository {
   Future<void> importSettings({
     required String jsonData,
     bool mergeWithExisting = true,
+  });
+
+  /// Raw per-key settings snapshot used by the `kuron-full-backup` change.
+  ///
+  /// Same payload as [exportSettings] minus the `exportedAt`/`version`
+  /// metadata, but as one raw JSON string per key so a restore can apply
+  /// "device value wins" per key instead of overwriting the whole blob. Only
+  /// keys that actually hold a value on this device are included.
+  Future<Map<String, String>> exportSettingsKeys();
+
+  /// Applies raw per-key JSON from a backup. With [onlyIfAbsent] a key that
+  /// already holds a value on the device is left alone, which is what the
+  /// restore merge policy needs. Keys this app version does not know are
+  /// skipped, never failed.
+  Future<SettingsKeyApplyResult> importSettingsKeys(
+    Map<String, String> values, {
+    bool onlyIfAbsent = true,
   });
   Future<MigrationStatus> getMigrationStatus();
   Future<MigrationResult> migrateSettings({

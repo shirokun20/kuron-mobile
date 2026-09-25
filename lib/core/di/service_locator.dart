@@ -114,6 +114,9 @@ import 'package:nhasixapp/domain/usecases/crotpedia/get_doujin_list_usecase.dart
 import 'package:nhasixapp/domain/usecases/crotpedia/get_request_list_usecase.dart';
 import 'package:nhasixapp/domain/usecases/imports/import_zip_usecase.dart';
 import 'package:nhasixapp/domain/usecases/imports/import_nclient_backup_usecase.dart';
+import 'package:nhasixapp/domain/usecases/exports/export_kuron_backup_usecase.dart';
+import 'package:nhasixapp/domain/usecases/exports/kuron_backup_parser.dart';
+import 'package:nhasixapp/domain/usecases/exports/restore_kuron_backup_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tags_by_type_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tag_autocomplete_usecase.dart';
 import 'package:nhasixapp/domain/usecases/tags/get_tag_detail_usecase.dart';
@@ -1076,6 +1079,25 @@ void _setupUseCases() {
       userDataRepository: getIt<UserDataRepository>(),
       readerRepository: getIt<ReaderRepository>(),
     ),
+  );
+
+  // Kuron Full Backup (export + restore)
+  getIt.registerLazySingleton<ExportKuronBackupUseCase>(
+    () => ExportKuronBackupUseCase(
+      userDataRepository: getIt<UserDataRepository>(),
+      readerRepository: getIt<ReaderRepository>(),
+      settingsRepository: getIt<SettingsRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<RestoreKuronBackupUseCase>(
+    () => RestoreKuronBackupUseCase(
+      userDataRepository: getIt<UserDataRepository>(),
+      readerRepository: getIt<ReaderRepository>(),
+      settingsRepository: getIt<SettingsRepository>(),
+    ),
+  );
+  getIt.registerLazySingleton<KuronBackupParser>(
+    () => KuronBackupParser(),
   );
 
   // Tag Use Cases

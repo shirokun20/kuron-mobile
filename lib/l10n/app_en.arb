@@ -4202,6 +4202,38 @@
   "nclientPositions": "Reading positions",
   "nclientMemberships": "Collection items",
   "nclientMalformedRows": "Unreadable rows",
+  "kuronBackupNow": "Back up library & settings",
+  "kuronBackupNowSubtitle": "Creates a KuronBackup ZIP with favorites, collections, history, reading positions and settings (no images)",
+  "kuronBackupNowAction": "Back up",
+  "kuronBackupReady": "Backup saved: {path}",
+  "kuronBackupFailed": "Backup failed: {error}",
+  "kuronRestore": "Restore backup",
+  "kuronRestoreSubtitle": "Restore a KuronBackup ZIP. Existing data is never overwritten",
+  "kuronRestoreAction": "Restore",
+  "kuronRestorePreview": "Restore preview",
+  "kuronRestoreResult": "Restore result",
+  "kuronBackupIncompatible": "This backup was made by a newer Kuron version (format {version}) and cannot be restored here",
+  "@kuronBackupReady": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupIncompatible": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "nclientSummaryRow": "{label}: {success} added, {skipped} skipped, {failed} failed",
   "@nclientSummaryRow": {
     "placeholders": {

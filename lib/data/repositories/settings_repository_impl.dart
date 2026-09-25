@@ -40,6 +40,23 @@ class SettingsRepositoryImpl implements SettingsRepository {
   static const String _debugSettingsKey = 'debug_settings';
   static const String _customThemesKey = 'custom_themes';
 
+  /// Raw SharedPreferences keys that take part in backup/restore. Parity with
+  /// [exportSettings]: `content_filter_settings`, `proxy_settings` and
+  /// `debug_settings` are intentionally excluded because the legacy exporter
+  /// never included them, so importing them would restore state the exporter
+  /// could not have produced.
+  static const List<String> _rawSettingsKeys = [
+    _userPreferencesKey,
+    _themeSettingsKey,
+    _readerSettingsEntityKey,
+    _downloadSettingsKey,
+    _privacySettingsKey,
+    _networkSettingsKey,
+    _backupSettingsKey,
+    _advancedSettingsKey,
+    _customThemesKey,
+  ];
+
   // ==================== USER PREFERENCES ====================
 
   @override
@@ -1264,6 +1281,43 @@ class SettingsRepositoryImpl implements SettingsRepository {
       _logger.e('Failed to import settings', error: e, stackTrace: stackTrace);
       rethrow;
     }
+  }
+
+  @override
+  Future<Map<String, String>> exportSettingsKeys() async {
+    final out = <String, String>{};
+    out[_userPreferencesKey] =
+        jsonEncode((await getUserPreferences()).toJson());
+    for (final key in _rawSettingsKeys) {
+      final value = sharedPreferences.getString(key);
+      if (value != null) out[key] = value;
+    }
+    return out;
+  }
+
+  @override
+  Future<SettingsKeyApplyResult> importSettingsKeys(
+    Map<String, String> values, {
+    bool onlyIfAbsent = true,
+  }) async {
+    var applied = 0;
+    var skipped = 0;
+    for (final entry in values.entries) {
+      // Unknown key (older/newer app version): skip, never fail the restore.
+      if (!_rawSettingsKeys.contains(entry.key)) {
+        _logger.d('Skipping unknown settings key "${entry.key}" on restore');
+        skipped++;
+        continue;
+      }
+      if (onlyIfAbsent && sharedPreferences.containsKey(entry.key)) {
+        skipped++;
+        continue;
+      }
+      await sharedPreferences.setString(entry.key, entry.value);
+      applied++;
+    }
+    _logger.d('Settings keys applied: $applied, skipped: $skipped');
+    return (applied: applied, skipped: skipped);
   }
 
   @override

@@ -37,6 +37,7 @@ import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
 import 'settings_privacy_widgets.dart';
 import 'settings_app_lock_widgets.dart';
+import 'settings_kuron_backup.dart';
 import 'settings_nclient_import.dart';
 import 'ai_settings_screen.dart';
 
@@ -477,6 +478,8 @@ class _SettingsScreenState extends State<SettingsScreen>
           ),
           SizedBox(height: DesignTokens.spaceMd),
           buildSettingsCard([
+            buildKuronBackupTile(context, theme, l10n),
+            buildKuronRestoreTile(context, theme, l10n),
             buildNclientImportTile(context, theme, l10n),
           ], theme),
 

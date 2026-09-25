@@ -3784,6 +3784,38 @@
   "nclientPositions": "阅读进度",
   "nclientMemberships": "合集内容",
   "nclientMalformedRows": "无法读取的行",
+  "kuronBackupNow": "备份图库与设置",
+  "kuronBackupNowSubtitle": "生成包含收藏、合集、历史、阅读位置和设置的 KuronBackup ZIP（不含图片）",
+  "kuronBackupNowAction": "备份",
+  "kuronBackupReady": "备份已保存：{path}",
+  "kuronBackupFailed": "备份失败：{error}",
+  "kuronRestore": "恢复备份",
+  "kuronRestoreSubtitle": "恢复 KuronBackup ZIP。现有数据永不会被覆盖",
+  "kuronRestoreAction": "恢复",
+  "kuronRestorePreview": "恢复预览",
+  "kuronRestoreResult": "恢复结果",
+  "kuronBackupIncompatible": "此备份来自更新版本的 Kuron（格式 {version}），无法在此恢复",
+  "@kuronBackupReady": {
+    "placeholders": {
+      "path": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupFailed": {
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "@kuronBackupIncompatible": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
   "nclientSummaryRow": "{label}：新增 {success}，跳过 {skipped}，失败 {failed}",
   "@nclientSummaryRow": {
     "placeholders": {

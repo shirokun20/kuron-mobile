@@ -5728,6 +5728,46 @@ class AppLocalizationsZh extends AppLocalizations {
   String get nclientMalformedRows => '无法读取的行';
 
   @override
+  String get kuronBackupNow => '备份图库与设置';
+
+  @override
+  String get kuronBackupNowSubtitle =>
+      '生成包含收藏、合集、历史、阅读位置和设置的 KuronBackup ZIP（不含图片）';
+
+  @override
+  String get kuronBackupNowAction => '备份';
+
+  @override
+  String kuronBackupReady(String path) {
+    return '备份已保存：$path';
+  }
+
+  @override
+  String kuronBackupFailed(String error) {
+    return '备份失败：$error';
+  }
+
+  @override
+  String get kuronRestore => '恢复备份';
+
+  @override
+  String get kuronRestoreSubtitle => '恢复 KuronBackup ZIP。现有数据永不会被覆盖';
+
+  @override
+  String get kuronRestoreAction => '恢复';
+
+  @override
+  String get kuronRestorePreview => '恢复预览';
+
+  @override
+  String get kuronRestoreResult => '恢复结果';
+
+  @override
+  String kuronBackupIncompatible(String version) {
+    return '此备份来自更新版本的 Kuron（格式 $version），无法在此恢复';
+  }
+
+  @override
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label：新增 $success，跳过 $skipped，失败 $failed';
   }

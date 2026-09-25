@@ -10098,6 +10098,72 @@ abstract class AppLocalizations {
   /// **'Unreadable rows'**
   String get nclientMalformedRows;
 
+  /// No description provided for @kuronBackupNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up library & settings'**
+  String get kuronBackupNow;
+
+  /// No description provided for @kuronBackupNowSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Creates a KuronBackup ZIP with favorites, collections, history, reading positions and settings (no images)'**
+  String get kuronBackupNowSubtitle;
+
+  /// No description provided for @kuronBackupNowAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Back up'**
+  String get kuronBackupNowAction;
+
+  /// No description provided for @kuronBackupReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup saved: {path}'**
+  String kuronBackupReady(String path);
+
+  /// No description provided for @kuronBackupFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Backup failed: {error}'**
+  String kuronBackupFailed(String error);
+
+  /// No description provided for @kuronRestore.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore backup'**
+  String get kuronRestore;
+
+  /// No description provided for @kuronRestoreSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore a KuronBackup ZIP. Existing data is never overwritten'**
+  String get kuronRestoreSubtitle;
+
+  /// No description provided for @kuronRestoreAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore'**
+  String get kuronRestoreAction;
+
+  /// No description provided for @kuronRestorePreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore preview'**
+  String get kuronRestorePreview;
+
+  /// No description provided for @kuronRestoreResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Restore result'**
+  String get kuronRestoreResult;
+
+  /// No description provided for @kuronBackupIncompatible.
+  ///
+  /// In en, this message translates to:
+  /// **'This backup was made by a newer Kuron version (format {version}) and cannot be restored here'**
+  String kuronBackupIncompatible(String version);
+
   /// No description provided for @nclientSummaryRow.
   ///
   /// In en, this message translates to:
