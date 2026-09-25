@@ -1,5 +1,6 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:nhasixapp/domain/services/app_initializer.dart';
@@ -27,6 +28,12 @@ part 'splash_state.dart';
 
 class SplashBloc extends Bloc<SplashEvent, SplashState> {
   static const String _selectedSourcePrefKey = 'selected_source_id';
+  static const String _cfVerifiedAtKey = 'cf_bypass_verified_at';
+
+  /// How long a successful Cloudflare check is trusted. A cold start inside
+  /// this window skips the network round trip entirely; the cookies that
+  /// `cf_clearance` hands out stay valid far longer than that in practice.
+  static const Duration cfCacheTtl = Duration(minutes: 30);
 
   SplashBloc({
     required RemoteConfigService remoteConfigService,
@@ -60,6 +67,36 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   final Connectivity _connectivity;
   final TagDataManager _tagDataManager;
 
+  /// True when the active source reads through the legacy Cloudflare-scraped
+  /// path (`RemoteDataSource`, i.e. the nhentai HTML scraper, which declares
+  /// `network.cloudflare.bypassEnabled` in its config).
+  ///
+  /// Every other source is config-driven: it declares `network.requiresBypass`
+  /// and `ReaderCubit` performs its bypass lazily on first use
+  /// (`reader_cubit.dart`), so blocking startup on the nhentai check buys
+  /// nothing.
+  @visibleForTesting
+  bool needsLegacyCloudflare(ContentSourceRegistry registry) {
+    final sourceId = registry.currentSourceId;
+    if (sourceId == null) return false;
+    final raw = _remoteConfigService.getRawConfig(sourceId);
+    final network = raw?['network'];
+    if (network is! Map) return false;
+    final cloudflare = network['cloudflare'];
+    return cloudflare is Map && cloudflare['bypassEnabled'] == true;
+  }
+
+  Future<void> _rememberBypassVerified() async {
+    try {
+      await getIt<SharedPreferences>()
+          .setInt(_cfVerifiedAtKey, DateTime.now().millisecondsSinceEpoch);
+    } catch (e) {
+      // A failed cache write only costs one extra network check next launch.
+      _logger.d('SplashBloc: could not persist Cloudflare verification',
+          error: e);
+    }
+  }
+
   // static const Duration _initialDelay = Duration(seconds: 1); // Removed for optimization
 
   Future<void> _onSplashStarted(
@@ -87,9 +124,6 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       final lastSync = await _remoteConfigService.getLastSyncTime();
       _logger.i(
           'SplashBloc: Config synced (Last: ${lastSync?.toIso8601String()})');
-
-      // 4. Initialize Tag Data for all sources
-      emit(SplashInitializing(message: 'initTagsDbMsg', progress: 1.0));
 
       // Initialize sources
       // CRITICAL: Access registry AFTER smartInitialize() completes to ensure config is loaded
@@ -123,8 +157,18 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         }
       }
 
+      // 4. Initialize Tag Data for all sources
+      // Only announce this when there is actually tag work to do: the bundled
+      // tags manifest ships with zero sources, and a stale "initializing tags
+      // database" label made the Cloudflare wait below look like tag work.
       final sources = contentSourceRegistry.sourceIds;
       final tagsManifest = _remoteConfigService.tagsManifest;
+      final taggedSources = tagsManifest?.sources.keys ?? const <String>[];
+      if (taggedSources.isEmpty) {
+        _logger.d('SplashBloc: no sources with tag config, skipping tag init');
+      } else {
+        emit(SplashInitializing(message: 'initTagsDbMsg', progress: 1.0));
+      }
 
       for (final source in sources) {
         // Skip sources that don't have tag configuration
@@ -158,10 +202,40 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         return;
       }
 
+      // Cloudflare: the splash-level bypass targets the legacy nhentai HTML
+      // scraper (RemoteDataSource.baseUrl == nhentai). Config-driven sources
+      // declare `network.requiresBypass` and are bypassed lazily by
+      // ReaderCubit when first used, so making every cold start pay for the
+      // nhentai check + bypass was pure latency for those users.
+      if (!needsLegacyCloudflare(contentSourceRegistry)) {
+        _logger.i('SplashBloc: active source does not use the legacy '
+            'Cloudflare scraper path, skipping bypass check');
+        emit(SplashSuccess(
+            message:
+                'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
+        return;
+      }
+
+      // Recently verified inside the TTL: trust it instead of a round trip.
+      final prefs = getIt<SharedPreferences>();
+      final verifiedAt = prefs.getInt(_cfVerifiedAtKey);
+      if (verifiedAt != null &&
+          DateTime.now().millisecondsSinceEpoch - verifiedAt <
+              cfCacheTtl.inMilliseconds) {
+        _logger.i('SplashBloc: Cloudflare verified recently, using cache');
+        emit(SplashSuccess(
+            message:
+                'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
+        return;
+      }
+
       // Check if bypass is already working
+      emit(SplashInitializing(message: 'checkingConnection', progress: 1.0));
       final isAlreadyBypassed = await _remoteDataSource.checkCloudflareStatus();
       if (isAlreadyBypassed) {
         _logger.i('SplashBloc: Cloudflare already bypassed');
+        await prefs.setInt(
+            _cfVerifiedAtKey, DateTime.now().millisecondsSinceEpoch);
         emit(SplashSuccess(
             message:
                 'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
@@ -194,6 +268,9 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       final success = await _remoteDataSource.initialize();
 
       if (success) {
+        // `initialize()` includes the bypass attempt, so a true result is a
+        // verified Cloudflare state worth caching for the next cold start.
+        await _rememberBypassVerified();
         emit(SplashSuccess(message: 'connectedSuccess'));
       } else {
         emit(SplashError(
@@ -227,6 +304,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
 
         if (isVerified) {
           _logger.i('SplashBloc: Cloudflare bypass successful and verified');
+          await _rememberBypassVerified();
           emit(SplashSuccess(message: 'connectedSuccess'));
         } else {
           _logger
