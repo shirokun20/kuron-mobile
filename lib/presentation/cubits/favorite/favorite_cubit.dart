@@ -8,6 +8,7 @@ import '../../../domain/usecases/favorites/add_to_favorite_collection_usecase.da
 import '../../../domain/repositories/repositories.dart';
 import '../../../l10n/app_localizations.dart';
 import '../base/base_cubit.dart';
+import '../recommendations/recommendation_refresh_bus.dart';
 
 part 'favorite_state.dart';
 
@@ -239,6 +240,7 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
       }
 
       logInfo('Successfully added to favorites: ${content.title}');
+      RecommendationRefreshBus.requestGlobalRefresh();
     } catch (e, stackTrace) {
       handleError(e, stackTrace, 'add to favorites');
       rethrow; // Let the calling widget handle the error
@@ -298,6 +300,7 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
       }
 
       logInfo('Successfully removed from favorites: $contentId');
+      RecommendationRefreshBus.requestGlobalRefresh();
     } catch (e, stackTrace) {
       logWarning('Error removing content $contentId from favorites: $e');
       handleError(e, stackTrace, 'remove from favorites');

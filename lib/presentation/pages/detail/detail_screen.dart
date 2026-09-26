@@ -32,6 +32,7 @@ import '../../widgets/permission_request_sheet.dart';
 import 'widgets/chapter_list_bottom_sheet.dart';
 import 'widgets/comments_section_widget.dart';
 import 'widgets/detail_content_view.dart';
+import 'widgets/similar_content_section.dart';
 import 'widgets/detail_info_sections.dart';
 import 'widgets/detail_state_views.dart';
 import 'services/detail_tag_query_resolver.dart';
@@ -782,6 +783,14 @@ class _DetailScreenState extends State<DetailScreen> {
         if (state.relatedContent != null &&
             state.relatedContent!.isNotEmpty) ...[
           _buildRelatedContentSection(state),
+          const SizedBox(height: 20),
+        ] else ...[
+          // Local engine fallback when the source has no related content.
+          SimilarContentSection(
+            contentId: state.content.id,
+            sourceId: state.content.sourceId,
+            onTap: _navigateToRelatedContent,
+          ),
           const SizedBox(height: 20),
         ],
         _buildCommentsGate(

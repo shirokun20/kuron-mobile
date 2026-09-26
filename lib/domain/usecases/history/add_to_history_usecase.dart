@@ -53,6 +53,26 @@ class AddToHistoryUseCase extends UseCase<void, AddToHistoryParams> {
       );
 
       await _userDataRepository.saveHistory(history);
+
+      // Best-effort tag seeding for the recommendation engine. History is
+      // the primary write — tag loss is recoverable on the next save, so a
+      // tag failure must never fail the history write (already logged inside
+      // the repository).
+      final content = params.content;
+      if (content != null) {
+        try {
+          await _userDataRepository.saveContentTags(
+            ContentTag.seedsFromContent(
+              content: content,
+              contentId: params.contentId.value,
+              sourceId: params.sourceId,
+              origin: 'history',
+            ),
+          );
+        } catch (_) {
+          // Intentionally ignored — see comment above.
+        }
+      }
     } on UseCaseException {
       rethrow;
     } catch (e) {
@@ -75,6 +95,7 @@ class AddToHistoryParams extends UseCaseParams {
     this.chapterId,
     this.chapterIndex,
     this.chapterTitle,
+    this.content,
   });
 
   final ContentId contentId;
@@ -88,6 +109,9 @@ class AddToHistoryParams extends UseCaseParams {
   final String? chapterId;
   final int? chapterIndex;
   final String? chapterTitle;
+
+  /// Full content for recommendation tag seeding (optional, best-effort).
+  final Content? content;
 
   @override
   List<Object?> get props => [
@@ -114,6 +138,7 @@ class AddToHistoryParams extends UseCaseParams {
     String? chapterId,
     int? chapterIndex,
     String? chapterTitle,
+    Content? content,
   }) {
     return AddToHistoryParams(
       contentId: contentId ?? this.contentId,
@@ -127,6 +152,7 @@ class AddToHistoryParams extends UseCaseParams {
       chapterId: chapterId ?? this.chapterId,
       chapterIndex: chapterIndex ?? this.chapterIndex,
       chapterTitle: chapterTitle ?? this.chapterTitle,
+      content: content ?? this.content,
     );
   }
 
@@ -143,6 +169,7 @@ class AddToHistoryParams extends UseCaseParams {
     String? chapterId,
     int? chapterIndex,
     String? chapterTitle,
+    Content? content,
   }) {
     return AddToHistoryParams(
       contentId: ContentId.fromString(contentId),
@@ -156,6 +183,7 @@ class AddToHistoryParams extends UseCaseParams {
       chapterId: chapterId,
       chapterIndex: chapterIndex,
       chapterTitle: chapterTitle,
+      content: content,
     );
   }
 

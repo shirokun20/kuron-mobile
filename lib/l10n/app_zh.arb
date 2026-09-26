@@ -3816,6 +3816,44 @@
       }
     }
   },
+  "recommendedForYou": "为你推荐",
+  "recommendedSimilar": "类似内容",
+  "recommendedReasonRead": "因为你读过{title}",
+  "@recommendedReasonRead": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonFavorite": "因为你收藏了{title}",
+  "@recommendedReasonFavorite": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonDownload": "来自你的下载：{title}",
+  "@recommendedReasonDownload": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonExplore": "探索：{title}",
+  "@recommendedReasonExplore": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedColdStart": "开始阅读以获取个性化推荐",
+  "recommendedBrowse": "浏览内容",
+  "notInterested": "不感兴趣",
+  "recommendationDismissed": "已隐藏该推荐",
   "nclientSummaryRow": "{label}：新增 {success}，跳过 {skipped}，失败 {failed}",
   "@nclientSummaryRow": {
     "placeholders": {

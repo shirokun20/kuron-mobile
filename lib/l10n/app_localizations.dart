@@ -10169,6 +10169,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{label}: {success} added, {skipped} skipped, {failed} failed'**
   String nclientSummaryRow(String label, int success, int skipped, int failed);
+
+  /// No description provided for @recommendedForYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended for You'**
+  String get recommendedForYou;
+
+  /// No description provided for @recommendedSimilar.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar to This'**
+  String get recommendedSimilar;
+
+  /// No description provided for @recommendedReasonRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you read {title}'**
+  String recommendedReasonRead(String title);
+
+  /// No description provided for @recommendedReasonFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you favorited {title}'**
+  String recommendedReasonFavorite(String title);
+
+  /// No description provided for @recommendedReasonDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'From your downloads: {title}'**
+  String recommendedReasonDownload(String title);
+
+  /// No description provided for @recommendedReasonExplore.
+  ///
+  /// In en, this message translates to:
+  /// **'Explore: {title}'**
+  String recommendedReasonExplore(String title);
+
+  /// No description provided for @recommendedColdStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start reading to get personalized recommendations'**
+  String get recommendedColdStart;
+
+  /// No description provided for @recommendedBrowse.
+  ///
+  /// In en, this message translates to:
+  /// **'Browse content'**
+  String get recommendedBrowse;
+
+  /// No description provided for @notInterested.
+  ///
+  /// In en, this message translates to:
+  /// **'Not interested'**
+  String get notInterested;
+
+  /// No description provided for @recommendationDismissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommendation dismissed'**
+  String get recommendationDismissed;
 }
 
 class _AppLocalizationsDelegate

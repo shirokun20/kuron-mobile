@@ -7,6 +7,7 @@ import 'package:nhasixapp/core/constants/app_constants.dart';
 import '../../models/download_status_model.dart';
 import '../../models/history_model.dart';
 import '../../models/reader_position_model.dart';
+import '../../../domain/entities/content_tag.dart';
 import '../../../domain/entities/favorite_collection.dart';
 import '../../../domain/entities/user_preferences.dart';
 import '../../../domain/entities/download_status.dart';
@@ -113,6 +114,151 @@ class LocalDataSource {
     } catch (e) {
       _logger.e('Error deleting favorites by source: $e');
       rethrow;
+    }
+  }
+
+  // ==================== CONTENT TAGS (recommendation seeds) ====================
+
+  // Replace all tag rows for one content (delete + batch reinsert).
+  // Best-effort derived data: callers treat failures as non-fatal.
+  Future<void> saveContentTags(List<ContentTag> tags) async {
+    if (tags.isEmpty) return;
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) {
+        _logger.e('Database not available, cannot save content tags');
+        return;
+      }
+
+      final first = tags.first;
+      final batch = db.batch();
+      batch.delete(
+        'content_tags',
+        where: 'content_id = ? AND source_id = ?',
+        whereArgs: [first.contentId, first.sourceId],
+      );
+      for (final tag in tags) {
+        batch.insert(
+          'content_tags',
+          {
+            'content_id': tag.contentId,
+            'source_id': tag.sourceId,
+            'name': tag.name,
+            'type': tag.type,
+            'origin': tag.origin,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+      _logger.d(
+          'Saved ${tags.length} tags for ${first.contentId} (${first.origin})');
+    } catch (e) {
+      _logger.e('Error saving content tags: $e');
+      rethrow;
+    }
+  }
+
+  // ==================== RECOMMENDATION HISTORY ====================
+
+  static const _recTable = 'recommendation_history';
+
+  // Single-column upsert that preserves the other columns (a blind
+  // replace would wipe shown_at when a tap is recorded, and vice versa).
+  Future<void> _upsertRecState(
+    String contentId,
+    String? sourceId,
+    String column,
+    Object value, {
+    Map<String, Object>? extraSet,
+  }) async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return;
+      final sid = sourceId ?? 'nhentai';
+      final setClause = [
+        '$column = excluded.$column',
+        if (extraSet != null)
+          for (final e in extraSet.entries) '${e.key} = ${e.value}',
+      ].join(', ');
+      await db.rawInsert(
+        'INSERT INTO $_recTable (content_id, source_id, $column) '
+        'VALUES (?, ?, ?) '
+        'ON CONFLICT (content_id, source_id) DO UPDATE SET $setClause',
+        [contentId, sid, value],
+      );
+      // Keep the table bounded: drop rows fully older than 30 days.
+      final cutoff =
+          DateTime.now().subtract(const Duration(days: 30)).millisecondsSinceEpoch;
+      await db.delete(
+        _recTable,
+        where:
+            '(shown_at IS NULL OR shown_at < ?) AND (dismissed_at IS NULL OR dismissed_at < ?)',
+        whereArgs: [cutoff, cutoff],
+      );
+    } catch (e) {
+      _logger.e('Error recording recommendation state: $e');
+    }
+  }
+
+  Future<void> recordRecommendationShown(
+    String contentId,
+    String? sourceId,
+  ) =>
+      _upsertRecState(contentId, sourceId, 'shown_at',
+          DateTime.now().millisecondsSinceEpoch);
+
+  Future<void> recordRecommendationTapped(
+    String contentId,
+    String? sourceId,
+  ) =>
+      _upsertRecState(contentId, sourceId, 'tapped_at',
+          DateTime.now().millisecondsSinceEpoch);
+
+  Future<void> recordRecommendationDismissed(
+    String contentId,
+    String? sourceId,
+  ) =>
+      _upsertRecState(
+        contentId,
+        sourceId,
+        'dismissed_at',
+        DateTime.now().millisecondsSinceEpoch,
+        extraSet: const {'dismissed': 1},
+      );
+
+  Future<List<Map<String, dynamic>>> getRecommendationHistoryRows() async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return [];
+      return await db.query(_recTable);
+    } catch (e) {
+      _logger.e('Error reading recommendation history: $e');
+      return [];
+    }
+  }
+
+  // Tag names for one content — the seed set used by the scoring engine.
+  Future<Set<String>> getTagNamesForContent(
+    String contentId, {
+    String? sourceId,
+  }) async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return {};
+      final rows = await db.query(
+        'content_tags',
+        columns: ['name'],
+        where: sourceId == null
+            ? 'content_id = ?'
+            : 'content_id = ? AND source_id = ?',
+        whereArgs:
+            sourceId == null ? [contentId] : [contentId, sourceId],
+      );
+      return {for (final r in rows) r['name'] as String};
+    } catch (e) {
+      _logger.e('Error reading content tags: $e');
+      return {};
     }
   }
 

@@ -4250,5 +4250,43 @@
         "type": "int"
       }
     }
-  }
+  },
+  "recommendedForYou": "Recommended for You",
+  "recommendedSimilar": "Similar to This",
+  "recommendedReasonRead": "Because you read {title}",
+  "@recommendedReasonRead": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonFavorite": "Because you favorited {title}",
+  "@recommendedReasonFavorite": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonDownload": "From your downloads: {title}",
+  "@recommendedReasonDownload": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonExplore": "Explore: {title}",
+  "@recommendedReasonExplore": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedColdStart": "Start reading to get personalized recommendations",
+  "recommendedBrowse": "Browse content",
+  "notInterested": "Not interested",
+  "recommendationDismissed": "Recommendation dismissed"
 }

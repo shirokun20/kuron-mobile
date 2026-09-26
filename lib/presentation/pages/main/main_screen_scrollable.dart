@@ -38,6 +38,7 @@ import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
 import 'package:nhasixapp/presentation/widgets/pagination_widget.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/main_grid_card.dart';
+import 'package:nhasixapp/presentation/pages/main/widgets/recommended_section.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/main_featured_card.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_state.dart';
@@ -823,6 +824,15 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                         : null,
                   );
                 },
+              ),
+            ),
+
+          // Recommended for You (personalized; own cubit, never blocks grid)
+          if (!_isShowingSearchResults)
+            SliverToBoxAdapter(
+              child: RecommendedSection(
+                excludeIds: {for (final c in state.contents) c.id},
+                onBrowse: () => context.push(AppRoute.search),
               ),
             ),
 

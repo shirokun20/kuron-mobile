@@ -15,6 +15,8 @@ import 'package:nhasixapp/presentation/cubits/reader/reader_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_prefetch_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_translation_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/favorite/favorite_cubit.dart';
+import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_cubit.dart';
+import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_refresh_bus.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
@@ -79,6 +81,7 @@ import 'package:nhasixapp/domain/repositories/crotpedia/crotpedia_feature_reposi
 import 'package:nhasixapp/domain/repositories/tag_repository.dart';
 import 'package:nhasixapp/data/repositories/content_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/user_data_repository_impl.dart';
+import 'package:nhasixapp/data/repositories/recommendation_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/settings_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/reader_settings_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/reader_repository_impl.dart';
@@ -103,6 +106,7 @@ import 'package:nhasixapp/domain/usecases/favorites/delete_favorite_collection_u
 import 'package:nhasixapp/domain/usecases/favorites/add_to_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/downloads/downloads_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/add_to_history_usecase.dart';
+import 'package:nhasixapp/domain/usecases/recommendations/recommendations_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/get_all_chapter_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/history/get_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/history/clear_history_usecase.dart';
@@ -948,6 +952,14 @@ void _setupRepositories() {
         logger: getIt(),
       ));
 
+  // Recommendation Repository (local content-based engine)
+  getIt.registerLazySingleton<RecommendationRepository>(
+      () => RecommendationRepositoryImpl(
+            contentRepository: getIt<ContentRepository>(),
+            userDataRepository: getIt<UserDataRepository>(),
+            logger: getIt<Logger>(),
+          ));
+
   // Reader Settings Repository
   getIt.registerLazySingleton<ReaderSettingsEntityRepository>(
       () => ReaderSettingsEntityRepositoryImpl(
@@ -1191,6 +1203,14 @@ void _setupUseCases() {
       () => RemoveHistoryItemUseCase(getIt()));
   getIt.registerLazySingleton<GetHistoryCountUseCase>(
       () => GetHistoryCountUseCase(getIt()));
+
+  // Recommendation Use Cases
+  getIt.registerLazySingleton<GetRecommendationsUseCase>(
+      () => GetRecommendationsUseCase(getIt()));
+  getIt.registerLazySingleton<GetSimilarContentUseCase>(
+      () => GetSimilarContentUseCase(getIt()));
+  getIt.registerLazySingleton<RecordRecommendationEventUseCase>(
+      () => RecordRecommendationEventUseCase(getIt()));
 }
 
 // Setup BLoCs
@@ -1373,6 +1393,18 @@ void _setupCubits() {
 
   // HistoryCubit - History management (using static factory)
   getIt.registerFactory<HistoryCubit>(() => HistoryCubitFactory.create());
+
+  // Recommendation refresh bus (app-wide singleton signal)
+  getIt.registerLazySingleton<RecommendationRefreshBus>(
+      () => RecommendationRefreshBus());
+
+  // RecommendationCubit - one instance per screen (home + detail separate)
+  getIt.registerFactory<RecommendationCubit>(() => RecommendationCubit(
+        getRecommendationsUseCase: getIt<GetRecommendationsUseCase>(),
+        getSimilarContentUseCase: getIt<GetSimilarContentUseCase>(),
+        recordEventUseCase: getIt<RecordRecommendationEventUseCase>(),
+        logger: getIt<Logger>(),
+      ));
 
   // UpdateCubit - App update checking
   getIt.registerFactory<UpdateCubit>(() => UpdateCubit(

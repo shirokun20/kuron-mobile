@@ -9,7 +9,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 class DatabaseHelper {
   static const String _databaseName = 'nhasix_app.db';
   static const int _databaseVersion =
-      14; // v14: translation_cache table for AI translation
+      15; // v15: content_tags + recommendation_history for local recommendations
 
   static Database? _database;
   static final Logger _logger = getIt<Logger>();
@@ -121,6 +121,8 @@ class DatabaseHelper {
     _createReaderPositionsTable(batch);
     _createDoujinListTable(batch);
     _createTranslationCacheTable(batch);
+    _createContentTagsTable(batch);
+    _createRecommendationHistoryTable(batch);
 
     // Create indexes
     _createIndexes(batch);
@@ -480,6 +482,44 @@ class DatabaseHelper {
       }
     }
 
+    if (oldVersion < 15 && newVersion >= 15) {
+      _logger.i(
+          'Upgrading to version 15: Adding content_tags + recommendation_history');
+      try {
+        await db.execute('''
+          CREATE TABLE content_tags (
+            content_id TEXT NOT NULL,
+            source_id TEXT NOT NULL DEFAULT 'nhentai',
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'tag',
+            origin TEXT NOT NULL DEFAULT 'history',
+            PRIMARY KEY (content_id, source_id, name)
+          )
+        ''');
+        await db.execute(
+            'CREATE INDEX idx_content_tags_name ON content_tags (name)');
+        await db.execute(
+            'CREATE INDEX idx_content_tags_content ON content_tags (content_id, source_id)');
+        await db.execute('''
+          CREATE TABLE recommendation_history (
+            content_id TEXT NOT NULL,
+            source_id TEXT NOT NULL DEFAULT 'nhentai',
+            shown_at INTEGER,
+            tapped_at INTEGER,
+            dismissed INTEGER NOT NULL DEFAULT 0,
+            dismissed_at INTEGER,
+            PRIMARY KEY (content_id, source_id)
+          )
+        ''');
+        await db.execute(
+            'CREATE INDEX idx_rec_hist_shown ON recommendation_history (shown_at DESC)');
+        _logger.i('content_tags + recommendation_history created successfully');
+      } catch (e) {
+        _logger.e('Error creating recommendation tables: $e');
+        rethrow;
+      }
+    }
+
     if (oldVersion < 13 && newVersion >= 13) {
       _logger.i('Upgrading to version 13: Adding favorite collections tables');
       try {
@@ -683,6 +723,45 @@ class DatabaseHelper {
         'CREATE INDEX idx_tc_content ON translation_cache(content_id)');
   }
 
+  // Create content_tags table for the local recommendation engine.
+  // One row per (content, tag). Deliberately NO foreign keys: tags are also
+  // written for downloads/metadata that may have no history/favorite row.
+  // Tag names are normalized (lowercase, trimmed) by the writer, not here.
+  void _createContentTagsTable(Batch batch) {
+    batch.execute('''
+      CREATE TABLE content_tags (
+        content_id TEXT NOT NULL,
+        source_id TEXT NOT NULL DEFAULT 'nhentai',
+        name TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'tag',
+        origin TEXT NOT NULL DEFAULT 'history',
+        PRIMARY KEY (content_id, source_id, name)
+      )
+    ''');
+    batch.execute(
+        'CREATE INDEX idx_content_tags_name ON content_tags (name)');
+    batch.execute(
+        'CREATE INDEX idx_content_tags_content ON content_tags (content_id, source_id)');
+  }
+
+  // Tracks shown/tapped/dismissed recommendations for dedup windows
+  // (shown 24h, dismissed 30 days). One row per content, updated in place.
+  void _createRecommendationHistoryTable(Batch batch) {
+    batch.execute('''
+      CREATE TABLE recommendation_history (
+        content_id TEXT NOT NULL,
+        source_id TEXT NOT NULL DEFAULT 'nhentai',
+        shown_at INTEGER,
+        tapped_at INTEGER,
+        dismissed INTEGER NOT NULL DEFAULT 0,
+        dismissed_at INTEGER,
+        PRIMARY KEY (content_id, source_id)
+      )
+    ''');
+    batch.execute(
+        'CREATE INDEX idx_rec_hist_shown ON recommendation_history (shown_at DESC)');
+  }
+
   // Create database indexes for performance
   void _createIndexes(Batch batch) {
     // Favorites indexes
@@ -764,6 +843,8 @@ class DatabaseHelper {
       'favorite_collections',
       'favorites',
       'translation_cache',
+      'content_tags',
+      'recommendation_history',
     ];
 
     for (final table in tables) {
@@ -795,6 +876,8 @@ class DatabaseHelper {
     batch.delete('favorite_collections');
     batch.delete('favorites');
     batch.delete('doujin_list');
+    batch.delete('content_tags');
+    batch.delete('recommendation_history');
 
     await batch.commit();
     _logger.i('All data cleared from database');

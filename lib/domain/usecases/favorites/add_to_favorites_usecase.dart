@@ -40,6 +40,21 @@ class AddToFavoritesUseCase extends UseCase<void, AddToFavoritesParams> {
         coverUrl: params.content.coverUrl,
         title: params.content.title,
       );
+
+      // Best-effort tag seeding for the recommendation engine (same
+      // recover-on-next-save rationale as AddToHistoryUseCase).
+      try {
+        await _userDataRepository.saveContentTags(
+          ContentTag.seedsFromContent(
+            content: params.content,
+            contentId: params.content.id,
+            sourceId: params.content.sourceId,
+            origin: 'favorite',
+          ),
+        );
+      } catch (_) {
+        // Intentionally ignored — see comment above.
+      }
     } on UseCaseException {
       rethrow;
     } catch (e) {

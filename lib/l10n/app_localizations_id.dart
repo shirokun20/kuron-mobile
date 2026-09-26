@@ -5959,4 +5959,43 @@ class AppLocalizationsId extends AppLocalizations {
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success ditambah, $skipped dilewati, $failed gagal';
   }
+
+  @override
+  String get recommendedForYou => 'Rekomendasi Untukmu';
+
+  @override
+  String get recommendedSimilar => 'Mirip dengan Ini';
+
+  @override
+  String recommendedReasonRead(String title) {
+    return 'Karena kamu membaca $title';
+  }
+
+  @override
+  String recommendedReasonFavorite(String title) {
+    return 'Karena kamu memfavoritkan $title';
+  }
+
+  @override
+  String recommendedReasonDownload(String title) {
+    return 'Dari unduhanmu: $title';
+  }
+
+  @override
+  String recommendedReasonExplore(String title) {
+    return 'Jelajahi: $title';
+  }
+
+  @override
+  String get recommendedColdStart =>
+      'Mulai membaca untuk mendapatkan rekomendasi personal';
+
+  @override
+  String get recommendedBrowse => 'Jelajahi konten';
+
+  @override
+  String get notInterested => 'Tidak tertarik';
+
+  @override
+  String get recommendationDismissed => 'Rekomendasi disembunyikan';
 }

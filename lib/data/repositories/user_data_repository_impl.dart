@@ -222,6 +222,53 @@ class UserDataRepositoryImpl implements UserDataRepository {
     }
   }
 
+  // ==================== CONTENT TAGS (recommendation seeds) ====================
+
+  @override
+  Future<void> saveContentTags(List<ContentTag> tags) async {
+    try {
+      await localDataSource.saveContentTags(tags);
+    } catch (e, stackTrace) {
+      _logger.e('Failed to save content tags',
+          error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<Set<String>> getTagNamesForContent(
+    String contentId, {
+    String? sourceId,
+  }) async {
+    return localDataSource.getTagNamesForContent(contentId,
+        sourceId: sourceId);
+  }
+
+  // ==================== RECOMMENDATION HISTORY ====================
+
+  @override
+  Future<void> recordRecommendationShown(String contentId,
+      {String? sourceId}) async {
+    await localDataSource.recordRecommendationShown(contentId, sourceId);
+  }
+
+  @override
+  Future<void> recordRecommendationTapped(String contentId,
+      {String? sourceId}) async {
+    await localDataSource.recordRecommendationTapped(contentId, sourceId);
+  }
+
+  @override
+  Future<void> recordRecommendationDismissed(String contentId,
+      {String? sourceId}) async {
+    await localDataSource.recordRecommendationDismissed(contentId, sourceId);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getRecommendationHistoryRows() async {
+    return localDataSource.getRecommendationHistoryRows();
+  }
+
   // ==================== DOWNLOADS ====================
 
   @override

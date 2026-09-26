@@ -26,6 +26,7 @@ import '../../../domain/repositories/reader_repository.dart';
 import '../../../domain/entities/reader_settings_entity.dart';
 import '../../../core/utils/offline_content_manager.dart';
 import '../../../core/di/service_locator.dart';
+import '../recommendations/recommendation_refresh_bus.dart';
 import '../../../core/utils/chapter_id_classifier.dart';
 import '../../../core/utils/reader_image_repair_utils.dart';
 import '../../../core/models/image_metadata.dart';
@@ -112,6 +113,9 @@ class ReaderCubit extends Cubit<ReaderState> {
   List<Chapter>? _allChapters; // All chapters available for navigation
   int _lastTrackedPage =
       1; // Tracks current page for persistence even when state is silent
+
+  // Recommendation refresh dedupe: fire once per content at ≥90% completion.
+  String? _lastRecRefreshKey;
 
   Content? get parentContent => _parentContent;
 
@@ -1239,8 +1243,11 @@ class ReaderCubit extends Cubit<ReaderState> {
         chapterId: chapterId,
         chapterIndex: chapterIndex,
         chapterTitle: chapterTitle,
+        content: state.content,
       );
       await addToHistoryUseCase(params);
+      _maybeRequestRecommendationRefresh(historyContentId, validPage,
+          totalPages, state.content!.sourceId);
       ContentReadCache.invalidateCache(
         historyContentId,
         sourceId: state.content!.sourceId,
@@ -2489,6 +2496,23 @@ class ReaderCubit extends Cubit<ReaderState> {
     }
   }
 
+  // Fires the recommendation refresh bus once per content when reading
+  // passes 90% completion (spec 7.1). Page-by-page saves below the
+  // threshold stay silent so the engine is not recomputed per page turn.
+  void _maybeRequestRecommendationRefresh(
+    String historyContentId,
+    int page,
+    int totalPages,
+    String sourceId,
+  ) {
+    if (totalPages <= 0) return;
+    if (page / totalPages < 0.9) return;
+    final key = '$sourceId|$historyContentId';
+    if (_lastRecRefreshKey == key) return;
+    _lastRecRefreshKey = key;
+    RecommendationRefreshBus.requestGlobalRefresh();
+  }
+
   Future<void> _saveToHistory() async {
     if (state.isOfflineMode == true) return;
 
@@ -2569,11 +2593,14 @@ class ReaderCubit extends Cubit<ReaderState> {
         chapterId: chapterId,
         chapterIndex: chapterIndex,
         chapterTitle: chapterTitle,
+        content: state.content,
       );
 
       _logger.d(
           '📤 Saving history with contentId: ${params.contentId.value}, parentId: ${params.parentId}, chapterId: ${params.chapterId}');
       await addToHistoryUseCase(params);
+      _maybeRequestRecommendationRefresh(historyContentId, safePage,
+          state.content!.pageCount, state.content!.sourceId);
       ContentReadCache.invalidateCache(
         historyContentId,
         sourceId: state.content!.sourceId,

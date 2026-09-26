@@ -5771,4 +5771,42 @@ class AppLocalizationsZh extends AppLocalizations {
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label：新增 $success，跳过 $skipped，失败 $failed';
   }
+
+  @override
+  String get recommendedForYou => '为你推荐';
+
+  @override
+  String get recommendedSimilar => '类似内容';
+
+  @override
+  String recommendedReasonRead(String title) {
+    return '因为你读过$title';
+  }
+
+  @override
+  String recommendedReasonFavorite(String title) {
+    return '因为你收藏了$title';
+  }
+
+  @override
+  String recommendedReasonDownload(String title) {
+    return '来自你的下载：$title';
+  }
+
+  @override
+  String recommendedReasonExplore(String title) {
+    return '探索：$title';
+  }
+
+  @override
+  String get recommendedColdStart => '开始阅读以获取个性化推荐';
+
+  @override
+  String get recommendedBrowse => '浏览内容';
+
+  @override
+  String get notInterested => '不感兴趣';
+
+  @override
+  String get recommendationDismissed => '已隐藏该推荐';
 }

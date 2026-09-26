@@ -24,6 +24,7 @@ import '../../../core/services/native_pdf_reader_service.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/utils/offline_content_manager.dart';
 import '../../../core/services/notification_service.dart';
+import '../../cubits/recommendations/recommendation_refresh_bus.dart';
 import '../../../core/services/download_manager.dart';
 import '../../../core/services/pdf_conversion_service.dart';
 import '../../../core/services/pdf_conversion_queue_manager.dart';
@@ -2008,6 +2009,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
       _logger.d('Saving completed download to database...');
       await _userDataRepository.saveDownloadStatus(completedDownload);
+      RecommendationRefreshBus.requestGlobalRefresh();
       _logger.i(
           '✅ Saved "completed" status to DB for ${event.contentId} with size: ${DownloadStorageUtils.formatBytes(totalSize)}');
 

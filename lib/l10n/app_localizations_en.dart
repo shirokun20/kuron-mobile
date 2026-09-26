@@ -5932,4 +5932,43 @@ class AppLocalizationsEn extends AppLocalizations {
   String nclientSummaryRow(String label, int success, int skipped, int failed) {
     return '$label: $success added, $skipped skipped, $failed failed';
   }
+
+  @override
+  String get recommendedForYou => 'Recommended for You';
+
+  @override
+  String get recommendedSimilar => 'Similar to This';
+
+  @override
+  String recommendedReasonRead(String title) {
+    return 'Because you read $title';
+  }
+
+  @override
+  String recommendedReasonFavorite(String title) {
+    return 'Because you favorited $title';
+  }
+
+  @override
+  String recommendedReasonDownload(String title) {
+    return 'From your downloads: $title';
+  }
+
+  @override
+  String recommendedReasonExplore(String title) {
+    return 'Explore: $title';
+  }
+
+  @override
+  String get recommendedColdStart =>
+      'Start reading to get personalized recommendations';
+
+  @override
+  String get recommendedBrowse => 'Browse content';
+
+  @override
+  String get notInterested => 'Not interested';
+
+  @override
+  String get recommendationDismissed => 'Recommendation dismissed';
 }

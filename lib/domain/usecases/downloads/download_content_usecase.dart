@@ -215,6 +215,8 @@ class DownloadContentUseCase
 
       // 💾 Save metadata JSON as the "Decoder Key" for Safe IDs (CRITICAL)
       // This ensures that even with hashed folder names, we can identify the content.
+      // Tags are included for the local recommendation engine (MetadataTagScanner
+      // reads them back as scoring seeds; old files without these keys are skipped).
       await DownloadStorageUtils.saveLocalMetadata(
         contentId: content.id,
         sourceId: content.sourceId,
@@ -224,6 +226,14 @@ class DownloadContentUseCase
         url: content.url,
         language: content.language,
         totalImages: totalAvailablePages,
+        extraData: {
+          'tags': [
+            for (final tag in content.tags)
+              {'name': tag.name, 'type': tag.type},
+          ],
+          'artists': content.artists,
+          'contentLanguage': content.language,
+        },
       );
 
       // Use the cleaned/resolved URLs from the pipeline (strips fallback '|' tokens).

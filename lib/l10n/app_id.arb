@@ -3220,6 +3220,44 @@
       }
     }
   },
+  "recommendedForYou": "Rekomendasi Untukmu",
+  "recommendedSimilar": "Mirip dengan Ini",
+  "recommendedReasonRead": "Karena kamu membaca {title}",
+  "@recommendedReasonRead": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonFavorite": "Karena kamu memfavoritkan {title}",
+  "@recommendedReasonFavorite": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonDownload": "Dari unduhanmu: {title}",
+  "@recommendedReasonDownload": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedReasonExplore": "Jelajahi: {title}",
+  "@recommendedReasonExplore": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "recommendedColdStart": "Mulai membaca untuk mendapatkan rekomendasi personal",
+  "recommendedBrowse": "Jelajahi konten",
+  "notInterested": "Tidak tertarik",
+  "recommendationDismissed": "Rekomendasi disembunyikan",
   "nclientSummaryRow": "{label}: {success} ditambah, {skipped} dilewati, {failed} gagal",
   "@nclientSummaryRow": {
     "placeholders": {

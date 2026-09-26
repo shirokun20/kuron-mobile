@@ -24,6 +24,30 @@ abstract class UserDataRepository {
 
   Future<List<Map<String, dynamic>>> getAllFavoritesForExport();
 
+  // ==================== CONTENT TAGS (recommendation seeds) ====================
+
+  /// Replace all tag rows for one content. Best-effort derived data.
+  Future<void> saveContentTags(List<ContentTag> tags);
+
+  /// Tag names stored for one content (empty set when none/unknown).
+  Future<Set<String>> getTagNamesForContent(
+    String contentId, {
+    String? sourceId,
+  });
+
+  // ==================== RECOMMENDATION HISTORY ====================
+
+  /// Shown/tapped/dismissed bookkeeping for recommendation dedup windows.
+  /// Recording never throws — failures are logged and swallowed.
+  Future<void> recordRecommendationShown(String contentId, {String? sourceId});
+  Future<void> recordRecommendationTapped(String contentId, {String? sourceId});
+  Future<void> recordRecommendationDismissed(String contentId,
+      {String? sourceId});
+
+  /// Raw dedup rows (content_id, source_id, shown_at, tapped_at,
+  /// dismissed, dismissed_at). Small bounded table.
+  Future<List<Map<String, dynamic>>> getRecommendationHistoryRows();
+
   Future<FavoriteCollection> createFavoriteCollection({
     required String name,
     String? collectionId,
