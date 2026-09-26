@@ -1,7 +1,7 @@
 name: nhasixapp
 description: "Kuron — Manga reader with offline support, multi-source search, AI translation, and privacy tools."
 publish_to: "none"
-version: 0.9.26+36
+version: 0.9.27+37
 
 environment:
   sdk: ^3.5.4

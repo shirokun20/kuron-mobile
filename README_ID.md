@@ -5,7 +5,7 @@
 [![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com)
 [![18+](https://img.shields.io/badge/Batasan_Usia-18%2B-red?style=for-the-badge&logo=warning&logoColor=white)](#)
-[![RELEASE](https://img.shields.io/badge/Status-RELEASE_v0.9.26%2B36-green?style=for-the-badge&logo=android&logoColor=white)](#)
+[![RELEASE](https://img.shields.io/badge/Status-RELEASE_v0.9.27%2B37-green?style=for-the-badge&logo=android&logoColor=white)](#)
 [![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](#)
 [![Code Quality](https://img.shields.io/badge/code_quality-A+-blueviolet?style=for-the-badge)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)](#)
@@ -26,7 +26,7 @@
 
 ## 📥 **Download Rilis Terbaru**
 
-[📦 **Download v0.9.26+36**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.26%2B36)
+[📦 **Download v0.9.27+37**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.27%2B37)
 
 | Varian | Ukuran | Cocok Untuk | Status |
 |:-------|:----:|:---------|:------:|
@@ -75,7 +75,7 @@
     </td>
     <td>
       <h4>📦 Offline-First</h4>
-      Download background, manajemen massal, import ZIP, ekspor/restore library, pembaca offline dengan sinkron progress. Koleksi lokal lengkap dengan sorting & filter.
+      Download background, manajemen massal, import ZIP, <b>backup penuh</b> satu ketukan (favorit, koleksi, history, posisi baca, pengaturan) dengan restore aman, <b>import NClient V2/V3</b>, pembaca offline dengan sinkron progress. Koleksi lokal lengkap dengan sorting & filter.
     </td>
   </tr>
   <tr>
@@ -129,7 +129,7 @@
 | Layer | Stack |
 |:------|:------|
 | 🎯 **Bahasa** | Flutter 3.24+ · Dart 3.5+ |
-| 🏗️ **Arsitektur** | Clean Architecture · BLoC/Cubit · GetIt DI · Injectable |
+| 🏗️ **Arsitektur** | Clean Architecture · BLoC/Cubit · GetIt DI (manual registration) |
 | 🗄️ **Data** | SQLite · SharedPreferences · Dio · GoRouter |
 | 🎨 **UI** | Material 3 · CachedNetworkImage · Lottie · PhotoView |
 | 🔧 **Sistem** | Wakelock+ · Local Notifications · Permission Handler |
@@ -208,6 +208,7 @@ Sistem source Kuron sepenuhnya berbasis config — tidak perlu mengubah kode apa
 - **Cara tambah source baru?** Buka Pengaturan → Sources → Add via Link (tempel URL manifest) atau Import ZIP.
 - **Search tidak muncul / error "colliding tags"?** NHentai API mewajibkan ada isian di kolom search kalau mau pake sorting atau filter tag. Ketik minimal 1 karakter di kolom pencarian sebelum milih sort/tag. Atau gunakan dropdown sort di tab Home untuk browsing Popular tanpa keyword. Lihat [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) untuk detail.
 - **Aplikasi lambat pertama buka?** Pertama kali download config source dan cache data. Berikutnya lebih cepat.
+- **Ganti HP / install ulang?** Pengaturan → **BACKUP & RESTORE** → *Cadangkan* menghasilkan `KuronBackup_*.zip` (share ke Files/Drive). Di HP baru pakai *Pulihkan* — ada pratinjau dulu dan data yang sudah ada tidak pernah ditimpa. Pindah dari NClient? Pakai *Import from NClient* di section yang sama.
 
 ---
 

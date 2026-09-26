@@ -5,7 +5,7 @@
 [![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
 [![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com)
 [![18+](https://img.shields.io/badge/Age_Restriction-18%2B-red?style=for-the-badge&logo=warning&logoColor=white)](#)
-[![RELEASE](https://img.shields.io/badge/Status-RELEASE_v0.9.26%2B36-green?style=for-the-badge&logo=android&logoColor=white)](#)
+[![RELEASE](https://img.shields.io/badge/Status-RELEASE_v0.9.27%2B37-green?style=for-the-badge&logo=android&logoColor=white)](#)
 [![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](#)
 [![Code Quality](https://img.shields.io/badge/code_quality-A+-blueviolet?style=for-the-badge)](#)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)](#)
@@ -26,7 +26,7 @@
 
 ## 📥 **Download Latest Release**
 
-[📦 **Get v0.9.26+36**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.26%2B36)
+[📦 **Get v0.9.27+37**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.27%2B37)
 
 | Variant | Size | Best For | Status |
 |:-------|:----:|:---------|:------:|
@@ -75,7 +75,7 @@
     </td>
     <td>
       <h4>📦 Offline-First</h4>
-      Background download, bulk management, ZIP import, library export/restore, offline reader with progress sync. Full local library with sorting & filtering.
+      Background download, bulk management, ZIP import, one-tap <b>full backup</b> ZIP (favorites, collections, history, reading positions, settings) with safe restore, <b>NClient V2/V3 import</b>, offline reader with progress sync. Full local library with sorting & filtering.
     </td>
   </tr>
   <tr>
@@ -129,7 +129,7 @@
 | Layer | Stack |
 |:------|:------|
 | 🎯 **Language** | Flutter 3.24+ · Dart 3.5+ |
-| 🏗️ **Architecture** | Clean Architecture · BLoC/Cubit · GetIt DI · Injectable |
+| 🏗️ **Architecture** | Clean Architecture · BLoC/Cubit · GetIt DI (manual registration) |
 | 🗄️ **Data** | SQLite · SharedPreferences · Dio · GoRouter |
 | 🎨 **UI** | Material 3 · CachedNetworkImage · Lottie · PhotoView |
 | 🔧 **System** | Wakelock+ · Local Notifications · Permission Handler |
@@ -208,6 +208,7 @@ Kuron's source system is fully config-driven — no code changes required. Each 
 - **How to add new source?** Go to Settings → Sources → Add via Link (paste manifest URL) or Import ZIP.
 - **Search shows nothing / "colliding tags" error?** NHentai API requires a search query when using sort or tag filters. Simply type at least 1 character in the search field before selecting sort/tags. Or use the Home tab sort dropdown for Popular browsing without a keyword. See [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) for details.
 - **App slow on first load?** First load downloads source configs and caches data. Subsequent launches are faster.
+- **Switching phones / reinstalling?** Settings → **BACKUP & RESTORE** → *Backup now* produces a `KuronBackup_*.zip` (share it to Files/Drive). On the new device use *Restore* — it shows a preview first and never overwrites data you already have. Coming from NClient? Use *Import from NClient* in the same section.
 
 ---
 
