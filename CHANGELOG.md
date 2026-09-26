@@ -8,7 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-(nothing yet)
+### 🐛 Fixed
+
+- **Import from NClient failed on every backup** (`Invalid argument(s): Illegal argument in isolate message: object is unsendable`, surfaced as a snackbar): `Isolate.run(() => _parser.parseBytes(data))` captured the whole use case via the `_parser` field, dragging `ReaderRepositoryImpl` → `Logger` (which holds an unsendable internal `Future`) across the isolate boundary. The closure now receives only a hoisted field-less parser plus the file bytes. The Kuron restore path was audited and is safe (its closure constructs the parser inside the isolate). Reported on issue #50, fix shipped in v0.9.27+37.
+- **NClient import had zero logs on the tap path**: `pickAndParse` now logs pick started / picked byte size / parsed row counts per table / pick + parse failures with stack trace (and still rethrows, so UI behavior is unchanged); `import` logs started, per-category completion, and the final summary; pick and progress-flow failures are logged with the error. Reproduce on device and filter `adb logcat | grep -i nclient`.
+
+### 🧪 Tests
+
+- NClient import: +3 unit (picker-throw and parse-garbage rethrow with asserted log lines via an in-memory `LogOutput`; isolate-capture regression with a `Logger`-holding fake repository that is red-proven without the fix) + widget `Logger` registration for the now-logging failure path. 18/18 green, analyze clean.
 
 ## [0.9.27+37] - 2026-09-26
 
