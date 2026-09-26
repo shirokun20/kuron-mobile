@@ -28,8 +28,8 @@ usage() {
     echo "  ast          AST-aware pattern search (semgrep)"
     echo "  interactive  Interactive TUI search (ugrep)"
     echo "  fuzzy        Fuzzy/approximate search (ugrep)"
-    echo "  audit        Run architecture audit checks"
-    echo "  debugprint     Find debugPrint/print violations"
+    echo "  audit        Run architecture audit checks (mirrors AGENTS.md rules)"
+    echo "  debugprint   Find debugPrint/print violations"
     echo "  violations   Find code standard violations"
     echo ""
     echo -e "${YELLOW}Examples:${NC}"
@@ -92,25 +92,33 @@ audit_architecture() {
     echo "═══════════════════════════════════════════"
     
     echo ""
-    echo -e "${YELLOW}1. Deprecated GetX Remnants:${NC}"
-    rg --color=always -n "Get\.(find|put|lazyPut|to|back|off|toNamed)" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no GetX remnants${NC}"
-    
+    echo -e "${YELLOW}1. injectable Ban (manual GetIt only):${NC}"
+    rg --color=always -n "package:injectable|@injectable|@singleton|@lazySingleton" "$PROJECT_ROOT/lib/" "$PROJECT_ROOT/pubspec.yaml" 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no injectable usage${NC}"
+
     echo ""
-    echo -e "${YELLOW}2. Print/DebugPrint Violations:${NC}"
-    rg --color=always -n "(^|[^/])\s*(print|debugPrint)\(" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no print violations${NC}"
-    
+    echo -e "${YELLOW}2. Domain Purity (no Flutter in lib/domain):${NC}"
+    rg --color=always -n -l "package:flutter" "$PROJECT_ROOT/lib/domain/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — domain is pure Dart${NC}"
+
     echo ""
-    echo -e "${YELLOW}3. Direct API Calls in Presentation:${NC}"
-    rg --color=always -n "(http\.|dio\.|Dio\()" "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no direct API calls in UI${NC}"
-    
+    echo -e "${YELLOW}3. Print/DebugPrint Violations (code only, comments ignored):${NC}"
+    rg --color=always -n "^\s*(print|debugPrint)\(" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no print violations${NC}"
+
     echo ""
-    echo -e "${YELLOW}4. Hardcoded Strings in UI:${NC}"
+    echo -e "${YELLOW}4. New Dio Clients in Presentation (inject, don't construct):${NC}"
+    rg --color=always -n "(= Dio\(|Dio\(BaseOptions|Dio\(\)\s*;)" "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean — no constructed Dio clients in UI${NC}"
+
+    echo ""
+    echo -e "${YELLOW}5. Cubits Not Extending BaseCubit:${NC}"
+    rg --color=always -n "extends Cubit<" "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null | grep -v "base_cubit.dart" || echo -e "  ${GREEN}✓ Clean — all cubits extend BaseCubit${NC}"
+
+    echo ""
+    echo -e "${YELLOW}6. Hardcoded Strings in UI:${NC}"
     local count
     count=$(rg -c "Text\(['\"][A-Z]" "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     echo -e "  Found ${count} potential hardcoded strings (consider l10n)"
     
     echo ""
-    echo -e "${YELLOW}5. TODO/FIXME/HACK Count:${NC}"
+    echo -e "${YELLOW}7. TODO/FIXME/HACK Count:${NC}"
     local todo_count
     todo_count=$(rg -c "(TODO|FIXME|HACK|XXX)" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     echo -e "  Found ${todo_count} items"
@@ -149,12 +157,18 @@ search_violations() {
     echo -e "\n${YELLOW}1. Logger Violations (print/debugPrint):${NC}"
     rg --color=always -n "^\s*(print|debugPrint)\(" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean${NC}"
     
-    echo -e "\n${YELLOW}2. Missing const constructors:${NC}"
+    echo -e "\n${YELLOW}2. Cubits Not Extending BaseCubit:${NC}"
+    rg --color=always -n "extends Cubit<" "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null | grep -v "base_cubit.dart" || echo -e "  ${GREEN}✓ Clean${NC}"
+
+    echo -e "\n${YELLOW}3. Flutter Imports in Domain:${NC}"
+    rg --color=always -n -l "package:flutter" "$PROJECT_ROOT/lib/domain/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean${NC}"
+
+    echo -e "\n${YELLOW}4. Missing const constructors:${NC}"
     local non_const
     non_const=$(rg -c "^\s+\w+\(\)," "$PROJECT_ROOT/lib/presentation/" -t dart 2>/dev/null | awk -F: '{sum+=$2} END {print sum+0}')
     echo -e "  ${non_const} potential missing const (review manually)"
-    
-    echo -e "\n${YELLOW}3. ListView with children (should use .builder):${NC}"
+
+    echo -e "\n${YELLOW}5. ListView with children (should use .builder):${NC}"
     rg --color=always -n "ListView\(\s*$" "$PROJECT_ROOT/lib/" -t dart 2>/dev/null || echo -e "  ${GREEN}✓ Clean${NC}"
     rg --color=always -n "children:\s*\[" "$PROJECT_ROOT/lib/presentation/" -t dart --glob '!*widget*' 2>/dev/null | head -10 || true
     

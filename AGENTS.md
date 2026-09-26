@@ -62,7 +62,7 @@ Located in `scripts/` folder. **ALWAYS run after project changes:**
 | **Smart Search** | `./scripts/smart_search.sh <mode> <pattern>` | Code search, audit, violations |
 | **Pub Get All** | `./scripts/pub_get_all.sh` | Run `fvm flutter pub get` on all packages at once |
 
-**Note**: `project_status.dart` auto-updates all README dashboards with progress bars and statistics.
+**Note**: `project_status.dart` counts `tasks.md` checkboxes per change and writes the dashboard to `openspec/STATUS.md` (no README is touched — README has no dashboard section).
 
 ## 🧠 Development Workflow (CRITICAL)
 

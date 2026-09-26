@@ -2,175 +2,112 @@
 
 import 'dart:io';
 
+// Project dashboard sourced from OpenSpec changes (the current tracker).
+//
+// - Active:  openspec/changes/<name>/ (proposal.md + tasks.md)
+// - Archived: openspec/changes/archive/<date>-<name>/
+// - Progress: `- [x]` / `- [ ]` checkboxes in tasks.md
+//
+// Prints the dashboard and writes it to openspec/STATUS.md (generated file;
+// openspec/ is gitignored so it never pollutes `git status`).
 void main() {
-  print('🔄 Updating Project Dashboards...');
+  print('Updating OpenSpec dashboard...');
 
-  // 1. Update Individual Dashboards
-  final data = <String, List<String>>{};
-
-  data['🔮 Future Plans'] = _updateDirectoryReadme('projects/future-plan');
-  data['📋 Analysis Phase'] = _updateDirectoryReadme('projects/analysis-plan');
-  data['🚧 On Progress'] = _updateDirectoryReadme('projects/onprogress-plan');
-  data['✅ Success'] = _updateDirectoryReadme('projects/success-plan');
-
-  // Issues are special case
-  data['🐛 Active Issues'] = _updateIssuesReadme('projects/issues');
-
-  // 2. Update Master Dashboard
-  _updateMasterDashboard(data);
-
-  print('✅ All dashboards updated.');
-}
-
-// Returns a list of markdown rows for the master dashboard
-List<String> _updateDirectoryReadme(String dirPath) {
-  final directory = Directory(dirPath);
-  final rows = <String>[];
-
-  if (!directory.existsSync()) return rows;
-
-  final projects = directory.listSync().whereType<Directory>().toList()
-    ..sort((a, b) => a.path.compareTo(b.path));
-
-  final buffer = StringBuffer();
-  buffer.writeln('# 📊 Dashboard: ${dirPath.split('/').last}\n');
-
-  if (projects.isEmpty) {
-    buffer.writeln('*No projects found in this category.*');
-  } else {
-    buffer.writeln('| Project Name | Progress | % | Status |');
-    buffer.writeln('|---|---|---|---|');
-
-    for (var project in projects) {
-      final projectName = project.path.split(Platform.pathSeparator).last;
-      final progressFile = File('${project.path}/progress.md');
-
-      // Default values
-      int percentage = 0;
-      String status = 'Pending';
-      String bar = '..........';
-
-      if (progressFile.existsSync()) {
-        final content = progressFile.readAsStringSync();
-        final lines = content.split('\n');
-        int totalTasks = 0;
-        int completedTasks = 0;
-
-        for (var line in lines) {
-          final trimmed = line.trim();
-          if (trimmed.startsWith('- [ ]')) totalTasks++;
-          if (trimmed.startsWith('- [x]')) {
-            totalTasks++;
-            completedTasks++;
-          }
-        }
-
-        if (totalTasks > 0) {
-          percentage = (completedTasks / totalTasks * 100).toInt();
-          final filled = (percentage / 10).round();
-          bar = '█' * filled + '░' * (10 - filled);
-
-          if (percentage == 100) {
-            status = '✅ Ready';
-          } else if (percentage > 50) {
-            status = '🔥 Hot';
-          } else {
-            status = '🚧 Building';
-          }
-        }
-      } else {
-        if (dirPath.contains('success-plan')) {
-          percentage = 100;
-          bar = '██████████';
-          status = '✅ Merged';
-        } else if (dirPath.contains('future-plan')) {
-          status = '🧊 Backlog';
-        }
-      }
-
-      final row = '| **$projectName** | `$bar` | $percentage% | $status |';
-      buffer.writeln(row);
-      rows.add(row);
-    }
+  final changesDir = Directory('openspec/changes');
+  if (!changesDir.existsSync()) {
+    print('No openspec/changes directory found.');
+    return;
   }
 
-  buffer
-      .writeln('\n_Last updated: ${DateTime.now().toString().split('.')[0]}_');
-  File('$dirPath/README.md').writeAsStringSync(buffer.toString());
-  return rows;
-}
-
-List<String> _updateIssuesReadme(String dirPath) {
-  final directory = Directory(dirPath);
-  final rows = <String>[];
-
-  if (!directory.existsSync()) return rows;
-
-  final files = directory
-      .listSync()
-      .whereType<File>()
-      .where((f) => f.path.endsWith('.md') && !f.path.endsWith('README.md'))
-      .toList();
+  final active = <_Change>[];
+  final archived = <_Change>[];
+  for (final entry in changesDir.listSync().whereType<Directory>()) {
+    final name = entry.path.split(Platform.pathSeparator).last;
+    if (name == 'archive') {
+      for (final archivedDir
+          in entry.listSync().whereType<Directory>().toList()
+            ..sort((a, b) => a.path.compareTo(b.path))) {
+        archived.add(_readChange(archivedDir, archived: true));
+      }
+      continue;
+    }
+    active.add(_readChange(entry, archived: false));
+  }
+  active.sort((a, b) => a.name.compareTo(b.name));
 
   final buffer = StringBuffer();
-  buffer.writeln('# 🐛 Issue Tracker\n');
-  buffer.writeln('| Issue | Date | Status |');
-  buffer.writeln('|---|---|---|');
+  buffer.writeln('# OpenSpec Changes Dashboard');
+  buffer.writeln('');
+  buffer.writeln('| Change | Progress | % | Status |');
+  buffer.writeln('|---|---|---|---|');
+  for (final change in active) {
+    buffer.writeln(
+        '| ${change.name} | ${change.bar} | ${change.percent}% | ${change.status} |');
+  }
+  buffer.writeln('');
+  buffer.writeln('## Archived (${archived.length})');
+  buffer.writeln('');
+  for (final change in archived) {
+    buffer.writeln(
+        '- ${change.name} — ${change.done}/${change.total} (${change.percent}%)');
+  }
+  buffer.writeln('');
+  buffer.writeln(
+      '_Last updated: ${DateTime.now().toString().split('.')[0]}_ (generated by scripts/project_status.dart)');
 
-  if (files.isEmpty) {
-    buffer.writeln('*No active issues.*');
-  } else {
-    for (var file in files) {
-      final name =
-          file.path.split(Platform.pathSeparator).last.replaceAll('.md', '');
-      String date = 'Unknown';
-      String display = name;
-      if (name.length > 10 && name[4] == '-' && name[7] == '-') {
-        date = name.substring(0, 10);
-        display = name.substring(11).replaceAll('_', ' ');
-      }
-      final row = '| $display | $date | 🔴 Open |';
-      buffer.writeln(row);
-      rows.add(row);
+  File('openspec/STATUS.md').writeAsStringSync(buffer.toString());
+  print(buffer.toString());
+  print('Dashboard written to openspec/STATUS.md');
+}
+
+final _donePattern = RegExp(r'^-\s*\[x\]', caseSensitive: false);
+final _openPattern = RegExp(r'^-\s*\[ \]');
+
+_Change _readChange(Directory dir, {required bool archived}) {
+  final name = dir.path.split(Platform.pathSeparator).last;
+  final tasksFile = File('${dir.path}/tasks.md');
+  if (!tasksFile.existsSync()) {
+    return _Change(
+        name: name, done: 0, total: 0, status: archived ? 'Archived' : 'Explore');
+  }
+  var done = 0;
+  var total = 0;
+  for (final line in tasksFile.readAsStringSync().split('\n')) {
+    final trimmed = line.trim();
+    if (_donePattern.hasMatch(trimmed)) {
+      done++;
+      total++;
+    } else if (_openPattern.hasMatch(trimmed)) {
+      total++;
     }
   }
-
-  buffer
-      .writeln('\n_Last updated: ${DateTime.now().toString().split('.')[0]}_');
-  File('$dirPath/README.md').writeAsStringSync(buffer.toString());
-  return rows;
+  final status = archived
+      ? 'Archived'
+      : total == 0
+          ? 'Explore'
+          : done == total
+              ? 'Complete'
+              : 'On Progress';
+  return _Change(name: name, done: done, total: total, status: status);
 }
 
-void _updateMasterDashboard(Map<String, List<String>> data) {
-  final buffer = StringBuffer();
-  buffer.writeln('# 🚀 Master Project Dashboard');
-  buffer.writeln('**Role**: Senior Principal Flutter Engineer & Architect');
-  buffer.writeln(
-      '**Mission**: Build scalable, clean, and robust mobile applications.\n');
+class _Change {
+  _Change(
+      {required this.name,
+      required this.done,
+      required this.total,
+      required this.status});
 
-  buffer.writeln('## 📌 Workflow Overview');
-  buffer.writeln('1. **Analysis** → **On Progress** → **Success**');
-  buffer.writeln('2. **Issue** → **On Progress** → **Success**');
-  buffer.writeln('3. **Future** → **On Progress** → **Success**\n');
+  final String name;
+  final int done;
+  final int total;
+  final String status;
 
-  data.forEach((section, rows) {
-    buffer.writeln('## $section');
-    if (rows.isEmpty) {
-      buffer.writeln('_No items in this stage._\n');
-    } else {
-      if (section.contains('Issues')) {
-        buffer.writeln('| Issue | Date | Status |');
-        buffer.writeln('|---|---|---|');
-      } else {
-        buffer.writeln('| Project Name | Progress | % | Status |');
-        buffer.writeln('|---|---|---|---|');
-      }
-      rows.forEach(buffer.writeln);
-      buffer.writeln('');
-    }
-  });
+  int get percent => total == 0 ? 0 : (done * 100 / total).round();
 
-  buffer.writeln(
-      '---\n_Generated automatically by Advanced Engineering Project Manager_');
-  File('projects/README.md').writeAsStringSync(buffer.toString());
+  String get bar {
+    const width = 10;
+    final filled = total == 0 ? 0 : (done * width / total).round();
+    return '${'#' * filled}${'.' * (width - filled)}';
+  }
 }

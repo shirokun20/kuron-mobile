@@ -9,10 +9,20 @@ void main() {
   // Parser emits `compatible` when the feature is declared in
   // `features` (search: true here) and `inferred` when only the config
   // block (urlPatterns/selectors) backs it (home/detail/reader).
+  // Upstream (kuron-extensions) dropped the `features.search` declaration
+  // for ngomik/sektedoujin/mihentai/mangaread (verified live 2026-09-26),
+  // so those resolve to `inferred` while the rest stay `compatible`.
   const Map<FeatureKind, FeatureStatus> mangaFeatures =
       <FeatureKind, FeatureStatus>{
     FeatureKind.home: FeatureStatus.inferred,
     FeatureKind.search: FeatureStatus.compatible,
+    FeatureKind.detail: FeatureStatus.inferred,
+    FeatureKind.reader: FeatureStatus.inferred,
+  };
+  const Map<FeatureKind, FeatureStatus> mangaFeaturesNoSearch =
+      <FeatureKind, FeatureStatus>{
+    FeatureKind.home: FeatureStatus.inferred,
+    FeatureKind.search: FeatureStatus.inferred,
     FeatureKind.detail: FeatureStatus.inferred,
     FeatureKind.reader: FeatureStatus.inferred,
   };
@@ -26,16 +36,23 @@ void main() {
   runConfigContractTests(<ConfigContractCase>[
     for (final String name in <String>[
       'komikindo',
-      'ngomik',
-      'sektedoujin',
-      'mihentai',
       'komikdewasa',
-      'mangaread',
       'manhwareads',
     ])
       ConfigContractCase(
         configName: '$name-config.json',
         expectedFeatures: mangaFeatures,
+        forbiddenDiagCodes: <String>{'featureUnsupported'},
+      ),
+    for (final String name in <String>[
+      'ngomik',
+      'sektedoujin',
+      'mihentai',
+      'mangaread',
+    ])
+      ConfigContractCase(
+        configName: '$name-config.json',
+        expectedFeatures: mangaFeaturesNoSearch,
         forbiddenDiagCodes: <String>{'featureUnsupported'},
       ),
     for (final String name in <String>[

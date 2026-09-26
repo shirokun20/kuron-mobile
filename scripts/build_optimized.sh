@@ -8,16 +8,12 @@ set -euo pipefail
 
 BUILD_TYPE=${1:-release}
 
+# Real IDs live in android/app/build.gradle productFlavors; the effective
+# APP_ID/APP_NAME are recomputed from $FLAVOR below (this is just a default).
 APP_ID="id.nhasix.app"
 APP_NAME="Kuron"
 
-if [ "$BUILD_TYPE" = "debug" ]; then
-    APP_ID="${APP_ID}.debug"
-    APP_NAME="Kuron Dev"
-fi
-
 echo "🚀 Building OPTIMIZED $BUILD_TYPE APK..."
-echo "📱 App: $APP_NAME ($APP_ID)"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
@@ -61,6 +57,17 @@ if [ "$BUILD_TYPE" = "release" ]; then
 else
     FLAVOR="${FLAVOR:-dev}"
 fi
+# Recompute display ID from the effective flavor (gradle is source of truth).
+if [ "$FLAVOR" = "dev" ]; then
+    APP_ID="id.nhasix.app.dev"
+    APP_NAME="Kuron Dev"
+    [ "$BUILD_TYPE" = "debug" ] && APP_ID="${APP_ID}.debug"
+else
+    APP_ID="id.nhasix.app"
+    APP_NAME="Kuron"
+    [ "$BUILD_TYPE" = "debug" ] && APP_ID="${APP_ID}.debug"
+fi
+echo "📱 App: $APP_NAME ($APP_ID) [flavor: $FLAVOR, type: $BUILD_TYPE]"
 # ponytail: single-flavor default keeps build ~50% faster; loop over prod+dev when you need both
 # Universal by default (single APK); opt in to per-ABI with SPLIT_ABI=true
 SPLIT_ABI_FLAG=""

@@ -7,13 +7,14 @@ import '../support/config_test_harness.dart';
 
 void main() {
   // Parser emits `compatible` when the feature is declared in `features`
-  // (search: true/false here) and `inferred` when only the config block
-  // (urlPatterns/selectors) backs it (home/detail/reader). Same behavior as
-  // Phase 1 manhwareads (search: false → compatible).
+  // and `inferred` when only the config block (urlPatterns/selectors)
+  // backs it. Upstream (kuron-extensions) dropped the `features.search`
+  // declaration for all four phase-3 sources (verified live 2026-09-26),
+  // so search resolves to `inferred` here.
   const Map<FeatureKind, FeatureStatus> mangaFeatures =
       <FeatureKind, FeatureStatus>{
     FeatureKind.home: FeatureStatus.inferred,
-    FeatureKind.search: FeatureStatus.compatible,
+    FeatureKind.search: FeatureStatus.inferred,
     FeatureKind.detail: FeatureStatus.inferred,
     FeatureKind.reader: FeatureStatus.inferred,
   };
@@ -118,15 +119,17 @@ void main() {
       expect(chapters['container'], 'li.wp-manga-chapter');
     });
 
-    test('mangaforfree baseUrl + madara signature', () async {
+    test('mangaforfree baseUrl + reader mode', () async {
       final config = await loadConfigRemote('mangaforfree-config.json');
-      expect(config['baseUrl'], 'https://mangaforfree.com');
+      // Live 2026-09-26: domain moved .com → .net and the reader left the
+      // madara chapterDataScript for plain html images.
+      expect(config['baseUrl'], 'https://mangaforfree.net');
 
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
       final selectors = (scraper['selectors'] as Map).cast<String, Object?>();
       final reader = (selectors['reader'] as Map).cast<String, Object?>();
 
-      expect(reader['mode'], 'chapterDataScript');
+      expect(reader['mode'], 'html');
     });
   });
 }

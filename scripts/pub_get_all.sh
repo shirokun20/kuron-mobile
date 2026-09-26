@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Pub Get All Packages Script
-# Runs 'fvm flutter pub get' on all packages in the packages/ directory
+# Runs 'fvm flutter pub get' on the root app + all packages in packages/
+# (kuron_core, kuron_config_generator, kuron_generic, kuron_native, kuron_special)
 
 set -e
 
@@ -9,13 +10,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 PACKAGES_DIR="$PROJECT_ROOT/packages"
 
-echo "🚀 Running pub get for all packages..."
-echo ""
-
 # Counter for tracking
 SUCCESS_COUNT=0
 FAIL_COUNT=0
 FAILED_PACKAGES=()
+
+echo "📦 Processing: root app"
+echo "   Path: $PROJECT_ROOT"
+
+if (cd "$PROJECT_ROOT" && fvm flutter pub get); then
+    echo "   ✅ Success"
+    ((SUCCESS_COUNT++))
+else
+    echo "   ❌ Failed"
+    ((FAIL_COUNT++))
+    FAILED_PACKAGES+=("root")
+fi
+echo ""
+
+echo "🚀 Running pub get for all packages..."
+echo ""
 
 # Find all pubspec.yaml files in packages directory
 while IFS= read -r -d '' pubspec; do
