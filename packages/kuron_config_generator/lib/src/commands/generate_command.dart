@@ -9,6 +9,7 @@ import '../generator/config_generator.dart';
 import '../discovery/http_probe.dart';
 import '../discovery/cms_detector.dart';
 import '../discovery/api_detector.dart';
+import '../discovery/api_endpoint_hunter.dart';
 import '../validation/validation_orchestrator.dart';
 import '../validation/smoke_runner.dart';
 import '../validation/skeleton_test_emitter.dart';
@@ -232,6 +233,33 @@ class GenerateCommand extends Command<void> {
       return;
     }
 
+    // API-first: the site shell is clean HTML (no CF/WAF — blocked sites
+    // already returned above). Hunt for a hidden JSON API before falling
+    // back to scraper selectors: an API endpoint is the patokan when found.
+    final pageUri = Uri.tryParse(url);
+    if (pageUri != null) {
+      logger.i('📡 Hunting for JSON API endpoints...');
+      final hunt = await huntApiEndpoints(
+        base: pageUri,
+        htmlBody: probe.body,
+      );
+      if (hunt != null) {
+        logger.i('✓ API found: ${hunt.endpointUrl} (${hunt.kind.name}, '
+            '${(hunt.inference.confidence * 100).round()}% confidence) — '
+            'API jadi patokan, bukan scraper.');
+        await _emitRestConfig(
+          api: hunt.inference,
+          host: pageUri.host.replaceAll(RegExp(r'^www\.'), ''),
+          homeBase:
+              '${pageUri.scheme}://${pageUri.host}',
+          output: output,
+          logger: logger,
+        );
+        return;
+      }
+      logger.i('Tidak ada JSON API terdeteksi — lanjut mode scraper.');
+    }
+
     // Detect CMS from HTML
     final cms = detectCms(probe.body);
     logger.i(
@@ -426,11 +454,28 @@ class GenerateCommand extends Command<void> {
 
     final uri = Uri.tryParse(url);
     final host = uri?.host.replaceAll(RegExp(r'^www\.'), '') ?? 'unknown';
+    await _emitRestConfig(
+      api: api,
+      host: host,
+      homeBase: '${uri?.scheme}://${uri?.host}',
+      output: output,
+      logger: logger,
+    );
+  }
 
+  // Shared REST-config emitter: API responses are the patokan (no CF
+  // bypass, no theme-specific reader modes — the "general" mode).
+  Future<void> _emitRestConfig({
+    required ApiInference api,
+    required String host,
+    required String homeBase,
+    required String output,
+    required Logger logger,
+  }) async {
     final answers = <String, String?>{
       'sourceId': host,
       'displayName': host,
-      'homeUrl': '${uri?.scheme}://${uri?.host}',
+      'homeUrl': homeBase,
       'version': '1.0.0',
       'contentType': 'manga',
       'mode': 'rest_json',

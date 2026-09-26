@@ -16,7 +16,7 @@ Developer tooling for generating Kuron source configs — interactive wizard **a
 | HTML site probe | `fvm dart run ... generate --url https://site.com` |
 | JSON API probe | `fvm dart run ... generate --url https://api.site.com/endpoint` |
 | Validate output | `fvm dart run kuron_generic:kuron_config_validate build/generated/*.json` |
-| Deploy | `cp build/generated/*.json informations/configs/` |
+| Deploy | `cp build/generated/*.json <kuron-extensions>/config/new/` |
 
 ## Usage
 
@@ -105,11 +105,11 @@ fvm dart run packages/kuron_config_generator/bin/kuron_config_generator.dart \
     generate --url https://manhwaread.com/
 ```
 
-1. HTTP probe with browser User-Agent  
-2. Detect CMS (Madara / WordPress / custom) from HTML signatures  
-3. Inject candidate selectors into config (list, detail, chapters, reader)  
-4. Detect Cloudflare → add `network.cloudflare.bypassRequired`  
-5. Output scraper-mode Source Config v2
+1. HTTP probe with browser User-Agent (blocked/CF sites stop here with a verdict — use `--interactive` for those)
+2. **API-first**: hunt hidden JSON endpoints (page-script `/api/...`, Next.js `/_next/data`, WordPress `/wp-json/`, generic `/api/`) — a hit becomes a `rest_json` config as the patokan, no scraper needed
+3. Fallback: detect CMS (Madara / WordPress / custom) from HTML signatures
+4. Inject candidate selectors into config (list, detail, chapters, reader)
+5. Output scraper-mode Source Config v2 (clean sites only — no CF machinery)
 
 **Example probe output:**
 ```
@@ -147,8 +147,9 @@ fvm dart run packages/kuron_config_generator/bin/kuron_config_generator.dart \
 fvm dart run kuron_generic:kuron_config_validate \
     build/generated/manhwaread-config.json
 
-# Deploy to app configs
-cp build/generated/manhwaread-config.json informations/configs/
+# Deploy to extension repo staging, then publish via manifest flow
+# (see kuron-source-config skill: bucket foldering + refresh_manifest.py)
+cp build/generated/manhwaread-config.json <kuron-extensions>/config/new/
 ```
 
 > 💡 `build/` is gitignored. Generated output stays local until deployed.
@@ -249,7 +250,7 @@ fvm dart format .
 1. **Try interactive**: `generate --interactive` — manual wizard
 2. **Try URL-assisted**: `generate --url https://site.com` — auto-detect
 3. **Validate**: `kuron_config_validate build/generated/*.json`
-4. **Deploy**: `cp build/generated/*.json informations/configs/`
+4. **Deploy**: `cp build/generated/*.json <kuron-extensions>/config/new/` (staging, then bucket + manifest via kuron-source-config skill)
 5. **Test in app**: Import via Settings → Sources → Add Link
 
 ## Deferred Features
