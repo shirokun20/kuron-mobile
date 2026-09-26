@@ -12,7 +12,7 @@ import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
 import '../mappers/generic_content_mapper.dart';
-import '../models/source_config_runtime.dart';
+import '../nhentai/nhentai_shapes.dart';import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
 import '../parsers/generic_json_parser.dart';
 import '../url_builder/generic_url_builder.dart';
@@ -1874,7 +1874,7 @@ class GenericRestAdapter implements GenericAdapter {
     final id = _extract(item, selectors, 'id') ?? '';
     final title = _extract(item, selectors, 'listTitle') ??
         _extract(item, selectors, 'title') ??
-        _extractNhentaiV2ListTitle(item);
+        extractNhentaiV2ListTitle(item, sourceId: _sourceId);
     final mediaId = _extract(item, selectors, 'mediaId');
 
     // Build cover URL: prefer config-driven relative asset path, then legacy fields.
@@ -1892,7 +1892,7 @@ class GenericRestAdapter implements GenericAdapter {
           rawConfig: rawConfig,
           hostKey: 'thumbnail',
         ) ??
-        _resolveNhentaiV2CoverUrl(item) ??
+        resolveNhentaiV2CoverUrl(item, sourceId: _sourceId) ??
         _extract(item, selectors, 'thumbnail') ??
         _extract(item, selectors, 'coverUrl') ??
         _buildCoverUrl(item, selectors, mediaId) ??
@@ -1957,7 +1957,7 @@ class GenericRestAdapter implements GenericAdapter {
     final id = _extract(data, selectors, 'id') ?? contentId;
     final title = _extract(data, selectors, 'detailTitle') ??
         _extract(data, selectors, 'title') ??
-        _extractNhentaiV2DetailTitle(data);
+        extractNhentaiV2DetailTitle(data, sourceId: _sourceId);
     final mediaId = _extract(data, selectors, 'mediaId');
     final coverUrl = _extractResolvedAsset(
           data,
@@ -1973,7 +1973,7 @@ class GenericRestAdapter implements GenericAdapter {
           rawConfig: rawConfig,
           hostKey: 'thumbnail',
         ) ??
-        _resolveNhentaiV2CoverUrl(data) ??
+        resolveNhentaiV2CoverUrl(data, sourceId: _sourceId) ??
         _extract(data, selectors, 'thumbnail') ??
         _extract(data, selectors, 'coverUrl') ??
         _buildCoverUrl(data, selectors, mediaId) ??
@@ -2062,10 +2062,10 @@ class GenericRestAdapter implements GenericAdapter {
       favorites: favorites,
       englishTitle: _extract(data, selectors, 'detailEnglishTitle') ??
           _extract(data, selectors, 'englishTitle') ??
-          _extractNhentaiV2Field(data, 'english'),
+          extractNhentaiV2Field(data, 'english', sourceId: _sourceId),
       japaneseTitle: _extract(data, selectors, 'detailJapaneseTitle') ??
           _extract(data, selectors, 'japaneseTitle') ??
-          _extractNhentaiV2Field(data, 'japanese'),
+          extractNhentaiV2Field(data, 'japanese', sourceId: _sourceId),
       mediaId: mediaId,
     );
   }
@@ -2092,7 +2092,7 @@ class GenericRestAdapter implements GenericAdapter {
       return configuredPaths;
     }
 
-    final nhentaiV2Urls = _resolveNhentaiV2ImageUrls(data);
+    final nhentaiV2Urls = resolveNhentaiV2ImageUrls(data, sourceId: _sourceId);
     if (nhentaiV2Urls.isNotEmpty) {
       return nhentaiV2Urls;
     }
@@ -2359,114 +2359,12 @@ class GenericRestAdapter implements GenericAdapter {
     return '$normalizedHost/$normalizedPath';
   }
 
-  String _extractNhentaiV2ListTitle(dynamic data) {
-    if (!_isNhentaiV2Shape(data)) return 'Unknown';
 
-    if (data is Map) {
-      final english = data['english_title']?.toString().trim() ?? '';
-      if (english.isNotEmpty) return english;
 
-      final japanese = data['japanese_title']?.toString().trim() ?? '';
-      if (japanese.isNotEmpty) return japanese;
-    }
 
-    return 'Unknown';
-  }
 
-  String _extractNhentaiV2DetailTitle(dynamic data) {
-    if (!_isNhentaiV2Shape(data)) return 'Unknown';
 
-    final pretty = _extractNhentaiV2Field(data, 'pretty');
-    if (pretty != null && pretty.trim().isNotEmpty) {
-      return pretty;
-    }
 
-    final english = _extractNhentaiV2Field(data, 'english');
-    if (english != null && english.trim().isNotEmpty) {
-      return english;
-    }
-
-    final japanese = _extractNhentaiV2Field(data, 'japanese');
-    if (japanese != null && japanese.trim().isNotEmpty) {
-      return japanese;
-    }
-
-    return 'Unknown';
-  }
-
-  String? _extractNhentaiV2Field(dynamic data, String field) {
-    if (!_isNhentaiV2Shape(data) || data is! Map) return null;
-    final title = data['title'];
-    if (title is Map) {
-      final value = title[field]?.toString().trim();
-      if (value != null && value.isNotEmpty) return value;
-    }
-    return null;
-  }
-
-  String? _resolveNhentaiV2CoverUrl(dynamic data) {
-    if (!_isNhentaiV2Shape(data) || data is! Map) return null;
-
-    final thumbnail = data['thumbnail'];
-    final cover = data['cover'];
-
-    if (thumbnail is String && thumbnail.trim().isNotEmpty) {
-      return _resolveNhentaiV2AssetUrl(thumbnail, thumbnail: true);
-    }
-
-    if (cover is Map) {
-      final path = cover['path']?.toString().trim() ?? '';
-      if (path.isNotEmpty) {
-        return _resolveNhentaiV2AssetUrl(path, thumbnail: true);
-      }
-    }
-
-    if (thumbnail is Map) {
-      final path = thumbnail['path']?.toString().trim() ?? '';
-      if (path.isNotEmpty) {
-        return _resolveNhentaiV2AssetUrl(path, thumbnail: true);
-      }
-    }
-
-    return null;
-  }
-
-  List<String> _resolveNhentaiV2ImageUrls(dynamic data) {
-    if (!_isNhentaiV2Shape(data) || data is! Map) return const [];
-
-    final pages = data['pages'];
-    if (pages is! List) return const [];
-
-    return pages
-        .whereType<Map>()
-        .map((page) => page['path']?.toString().trim() ?? '')
-        .where((path) => path.isNotEmpty)
-        .map((path) => _resolveNhentaiV2AssetUrl(path, thumbnail: false))
-        .toList();
-  }
-
-  String _resolveNhentaiV2AssetUrl(
-    String rawPath, {
-    required bool thumbnail,
-  }) {
-    if (rawPath.startsWith('https://') || rawPath.startsWith('http://')) {
-      return rawPath;
-    }
-
-    final normalized = rawPath.startsWith('/') ? rawPath.substring(1) : rawPath;
-    final host = thumbnail ? 'https://t.nhentai.net' : 'https://i.nhentai.net';
-    return '$host/$normalized';
-  }
-
-  bool _isNhentaiV2Shape(dynamic data) {
-    if (_sourceId != 'nhentai' || data is! Map) return false;
-
-    return data.containsKey('media_id') &&
-        (data.containsKey('thumbnail') ||
-            data.containsKey('cover') ||
-            data.containsKey('pages') ||
-            data.containsKey('english_title'));
-  }
 
   // Convert raw string tag names to [Tag] entities with default values.
   List<Tag> _stringsToTags(List<String> names, String type) {

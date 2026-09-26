@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:dio/dio.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:cookie_jar/cookie_jar.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nhasixapp/data/datasources/local/database_helper.dart';
@@ -452,12 +453,18 @@ void _setupDataSources() {
       ));
 
   // Secure cookie jar wrapper: GenericCookieStorage backs onto
-  // FlutterSecureStorage (secure wrapper). Fire-and-forget migration of
+  // FlutterSecureValueStore (secure wrapper). Fire-and-forget migration of
   // legacy plaintext cookie dirs on first use per source (same instance
   // the jar reads/writes through, so migration runs once per source).
   PersistCookieJar secureCookieJar(String sourceId) {
-    final storage = GenericCookieStorage(sourceId);
-    storage.migrateLegacyPlaintextFiles(); // best-effort, non-blocking
+    final storage = GenericCookieStorage(
+      sourceId,
+      secureStore: const FlutterSecureValueStore(),
+    );
+    // Best-effort, non-blocking (was GenericCookieStorage.migrateLegacyPlaintextFiles).
+    getApplicationDocumentsDirectory().then(
+      (dir) => cleanLegacyCookieDir(sourceId, dir.path),
+    );
     return PersistCookieJar(storage: storage);
   }
 
@@ -852,13 +859,13 @@ void _setupDataSources() {
         SchaleSourceFactory(
           dio: getIt<Dio>(),
           logger: getIt<Logger>(),
-          secureStorage: const FlutterSecureStorage(),
+          secureStorage: const FlutterSecureValueStore(),
         ),
         SchaleSourceFactory(
           sourceId: 'hdoujin',
           dio: getIt<Dio>(),
           logger: getIt<Logger>(),
-          secureStorage: const FlutterSecureStorage(),
+          secureStorage: const FlutterSecureValueStore(),
         ),
         DoujinDesuXxxSourceFactory(
           dio: getIt<Dio>(),

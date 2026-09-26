@@ -7,8 +7,8 @@ import '../support/config_test_harness.dart';
 void main() {
   late Map<String, Object?> config;
 
-  setUpAll(() {
-    config = loadConfig('shirodoujin-config.json');
+  setUpAll(() async {
+    config = await loadConfigRemote('shirodoujin-config.json');
   });
 
   test('uses direct chapter URLs and genre archive routes', () {

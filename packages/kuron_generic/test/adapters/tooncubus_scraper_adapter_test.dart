@@ -48,8 +48,8 @@ void main() {
   const nextPageUrl =
       '$_baseUrl/search/label/Series?updated-max=2025-12-09T02:03:00-08:00&max-results=16&start=16&by-date=false';
 
-  setUpAll(() {
-    config = loadConfig('tooncubus-config.json').cast<String, dynamic>();
+  setUpAll(() async {
+    config = (await loadConfigRemote('tooncubus-config.json')).cast<String, dynamic>();
   });
 
   test('home fixture extracts Blogger cards from Series label page', () async {

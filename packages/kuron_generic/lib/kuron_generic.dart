@@ -9,6 +9,9 @@ library;
 export 'src/adapters/generic_adapter.dart';
 export 'src/adapters/generic_rest_adapter.dart';
 export 'src/adapters/generic_scraper_adapter.dart';
+export 'src/readers/reader_image_resolver.dart';
+export 'src/routing/search_query_routing.dart';
+export 'src/nhentai/nhentai_shapes.dart';
 export 'src/filters/generic_filter_transformer.dart';
 export 'src/generic_http_source.dart';
 export 'src/generic_source_factory.dart';
@@ -30,3 +33,7 @@ export 'src/pipeline/page_resolution_pipeline.dart';
 
 // Plugin Architecture (§6)
 export 'src/plugins/source_plugin.dart';
+
+// Secure cookie storage + challenge clearance (platform ports in kuron_core)
+export 'src/storage/generic_cookie_storage.dart';
+export 'src/clearance/clearance_service.dart';

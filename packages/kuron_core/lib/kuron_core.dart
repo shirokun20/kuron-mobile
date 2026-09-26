@@ -38,6 +38,10 @@ export 'src/exceptions/login_required_exception.dart';
 
 // Network utilities
 export 'src/network/rate_limiter.dart';
+
+// Platform ports (implemented by kuron_special, consumed by kuron_generic)
+export 'src/ports/secure_value_store.dart';
+export 'src/ports/clearance_driver.dart';
 export 'src/network/registrable_domain.dart';
 
 // Compatibility / validation contracts (revamp-kuron-config-runtime)

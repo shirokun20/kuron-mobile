@@ -45,8 +45,8 @@ GenericScraperAdapter _buildAdapter(Dio dio) {
 void main() {
   late Map<String, dynamic> config;
 
-  setUpAll(() {
-    config = loadConfig('shirodoujin-config.json').cast<String, dynamic>();
+  setUpAll(() async {
+    config = (await loadConfigRemote('shirodoujin-config.json')).cast<String, dynamic>();
   });
 
   group('shirodoujin scraper config', () {

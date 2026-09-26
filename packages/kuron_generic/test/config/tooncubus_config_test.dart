@@ -7,8 +7,8 @@ import '../support/config_test_harness.dart';
 void main() {
   late Map<String, Object?> config;
 
-  setUpAll(() {
-    config = loadConfig('tooncubus-config.json');
+  setUpAll(() async {
+    config = await loadConfigRemote('tooncubus-config.json');
   });
 
   test('uses Blogger label pages, chapters, and reader-link handoff', () {

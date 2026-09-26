@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:kuron_native/kuron_native.dart';
+import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/domain/repositories/reader_repository.dart';
 import 'package:nhasixapp/domain/repositories/user_data_repository.dart';
@@ -22,6 +24,13 @@ Widget wrap(Widget child) => MaterialApp(
     );
 
 void main() {
+  // backup_flow logs import failures via GetIt<Logger>.
+  setUpAll(() {
+    if (!GetIt.I.isRegistered<Logger>()) {
+      GetIt.I.registerSingleton<Logger>(Logger(level: Level.off));
+    }
+  });
+
   testWidgets('preview shows counts, cancel pops false', (tester) async {
     await tester.pumpWidget(wrap(Builder(
       builder: (context) => NclientPreviewDialog(

@@ -52,8 +52,8 @@ void main() {
   ]);
 
   group('phase1 structural checks', () {
-    test('komikindo home list + ts_reader regex', () {
-      final Map<String, Object?> config = loadConfig('komikindo-config.json');
+    test('komikindo home list + ts_reader regex', () async {
+      final Map<String, Object?> config = await loadConfigRemote('komikindo-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> urlPatterns =
@@ -85,9 +85,9 @@ void main() {
       expect(reader['tsReaderRegex'], contains('ts_reader'));
     });
 
-    test('komikdewasa imageHeaders referer + detail pattern', () {
+    test('komikdewasa imageHeaders referer + detail pattern', () async {
       final Map<String, Object?> config =
-          loadConfig('komikdewasa-config.json');
+          await loadConfigRemote('komikdewasa-config.json');
       final Map<String, Object?> network =
           (config['network'] as Map).cast<String, Object?>();
       final Map<String, Object?> imageHeaders =
@@ -102,14 +102,15 @@ void main() {
       expect(urlPatterns['detail'], '/komik/{id}/');
     });
 
-    test('mangaread baseUrl', () {
-      expect(loadConfig('mangaread-config.json')['baseUrl'],
-          'https://www.mangaread.org');
+    test('mangaread baseUrl', () async {
+      final mangareadConfig =
+          await loadConfigRemote('mangaread-config.json');
+      expect(mangareadConfig['baseUrl'], 'https://www.mangaread.org');
     });
 
-    test('manhwareads home url', () {
+    test('manhwareads home url', () async {
       final Map<String, Object?> config =
-          loadConfig('manhwareads-config.json');
+          await loadConfigRemote('manhwareads-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> urlPatterns =
@@ -119,8 +120,8 @@ void main() {
       expect(home['url'], '/new-2/');
     });
 
-    test('hentaiera reader page url + image selector', () {
-      final Map<String, Object?> config = loadConfig('hentaiera-config.json');
+    test('hentaiera reader page url + image selector', () async {
+      final Map<String, Object?> config = await loadConfigRemote('hentaiera-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> reader =
@@ -131,8 +132,8 @@ void main() {
       expect(reader['readerImageSelector'], '#gimg');
     });
 
-    test('hentaizap reader image selector + page count attr', () {
-      final Map<String, Object?> config = loadConfig('hentaizap-config.json');
+    test('hentaizap reader image selector + page count attr', () async {
+      final Map<String, Object?> config = await loadConfigRemote('hentaizap-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> reader =
@@ -143,9 +144,9 @@ void main() {
       expect(reader['readerPageCountAttr'], 'data-reader-total');
     });
 
-    test('hentaienvy reader page url + tags selector', () {
+    test('hentaienvy reader page url + tags selector', () async {
       final Map<String, Object?> config =
-          loadConfig('hentaienvy-config.json');
+          await loadConfigRemote('hentaienvy-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> selectors =
@@ -163,9 +164,9 @@ void main() {
       expect(tags['selector'] as String, contains('gp_tag'));
     });
 
-    test('asmhentai detail + reader page urls', () {
+    test('asmhentai detail + reader page urls', () async {
       final Map<String, Object?> config =
-          loadConfig('asmhentai-config.json');
+          await loadConfigRemote('asmhentai-config.json');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> urlPatterns =

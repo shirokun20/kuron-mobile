@@ -364,7 +364,7 @@ ui              （必填）App UI 显示元数据
 
 ### 1. 创建配置文件
 
-文件名：`<source-id>-config.json`，放置于 `informations/configs/` 目录。  
+文件名：`<source-id>-config.json`，放置于暂存区 `<kuron-extensions>/config/new/`，然后按 kuron-source-config skill 移至语言目录（`config/<lang>/`）。  
 文件名前缀**必须**与 `"source"` 字段值一致。
 
 ### 2. 最小必需结构
@@ -438,7 +438,7 @@ ui              （必填）App UI 显示元数据
 ### 3. 验证 JSON
 
 ```bash
-python3 -c "import json; json.load(open('informations/configs/mysite-config.json'))"
+python3 -c "import json; json.load(open('<kuron-extensions>/config/new/mysite-config.json'))"
 ```
 
 ### 4. 在浏览器中测试选择器

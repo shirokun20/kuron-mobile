@@ -22,6 +22,43 @@ task buildRustLibs(type: Exec) {
 tasks.whenTaskAdded { task ->
     if (task.name == 'preReleaseBuild' || task.name == 'preDebugBuild') {
         task.dependsOn buildRustLibs
+        task.dependsOn downloadBubbleModel
+    }
+}
+
+// ── ML model asset: download-at-build ────────────────────────
+// Pinned by model.pin.json ({file, version, url, sha256}). First build
+// downloads + verifies; later builds reuse the cached file. Override the
+// URL for local verification: -PmodelUrl=file:///path/to/model.onnx
+// or env KURON_MODEL_URL. Offline with empty cache fails loudly.
+def modelPin = new groovy.json.JsonSlurper()
+    .parseText(file("${projectDir}/model.pin.json").text)
+def modelFile = file("${projectDir}/src/main/assets/${modelPin.file}")
+
+task downloadBubbleModel {
+    description = 'Download bubble_detector.onnx per model.pin.json (cached, SHA256-verified)'
+    group = 'kuron'
+    outputs.file(modelFile)
+    doLast {
+        if (!modelFile.exists()) {
+            def modelUrl = project.findProperty('modelUrl')
+                ?: System.getenv('KURON_MODEL_URL')
+                ?: modelPin.url
+            logger.lifecycle("Downloading model v${modelPin.version} from ${modelUrl} ...")
+            modelFile.parentFile.mkdirs()
+            ant.get(src: modelUrl, dest: modelFile)
+            logger.lifecycle("Downloaded ${modelFile.length()} bytes.")
+        } else {
+            logger.lifecycle("Model asset cached: ${modelFile.name}")
+        }
+        def actual = java.security.MessageDigest.getInstance('SHA-256')
+            .digest(modelFile.bytes).encodeHex().toString()
+        if (actual != modelPin.sha256) {
+            modelFile.delete()
+            throw new GradleException(
+                "Model SHA256 mismatch (expected ${modelPin.sha256}, got ${actual}). Check model.pin.json.")
+        }
+        logger.lifecycle("Model asset verified: ${modelFile.name} (${modelFile.length()} bytes).")
     }
 }
 

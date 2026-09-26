@@ -1,8 +1,5 @@
 library;
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/src/adapters/generic_rest_adapter.dart';
@@ -10,6 +7,8 @@ import 'package:kuron_generic/src/parsers/generic_json_parser.dart';
 import 'package:kuron_generic/src/url_builder/generic_url_builder.dart';
 import 'package:logger/logger.dart';
 import 'package:test/test.dart';
+
+import '../support/config_test_harness.dart';
 
 const _baseUrl = 'https://mangafire.to';
 const _mangaId = 'manga123';
@@ -116,13 +115,8 @@ void main() {
     late Map<String, dynamic> config;
 
     setUp(() async {
-      var path = 'informations/configs/mangafire-config.json';
-      if (!File(path).existsSync()) {
-        path = '../../informations/configs/mangafire-config.json';
-      }
-
-      final file = File(path);
-      config = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      config = (await loadConfigRemote('mangafire-config.json'))
+          .cast<String, dynamic>();
 
       dio = Dio();
       dio.interceptors.add(MockInterceptor());

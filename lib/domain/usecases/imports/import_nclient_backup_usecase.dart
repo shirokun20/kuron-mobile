@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:get_it/get_it.dart';
 import 'package:kuron_native/kuron_native.dart';
@@ -51,9 +52,39 @@ class ImportNclientBackupUseCase {
   /// JSON (85k tag rows) and `jsonDecode` + row mapping would otherwise freeze
   /// the UI for the whole pick-and-preview step, before any dialog is shown.
   Future<NclientBackup?> pickAndParse() async {
-    final bytes = await _kuronNative.pickBinaryFile();
-    if (bytes == null) return null;
-    return Isolate.run(() => _parser.parseBytes(bytes));
+    _logger.i('NClient import: pick started');
+    final Uint8List? bytes;
+    try {
+      bytes = await _kuronNative.pickBinaryFile();
+    } catch (e, s) {
+      _logger.e('NClient import: pick failed', error: e, stackTrace: s);
+      rethrow;
+    }
+    if (bytes == null) {
+      _logger.i('NClient import: pick cancelled');
+      return null;
+    }
+    // Copy to a non-nullable local: Dart drops promotion for variables
+    // assigned inside a try block, and the isolate closure needs Uint8List.
+    final data = bytes;
+    _logger.i('NClient import: picked ${data.lengthInBytes} bytes, parsing');
+    try {
+      // Hoist: the isolate closure must not capture `this` — the usecase
+      // holds repositories whose loggers are unsendable across isolates.
+      final parser = _parser;
+      final backup = await Isolate.run(() => parser.parseBytes(data));
+      _logger.i('NClient import: parsed ${backup.galleries.length} galleries, '
+          '${backup.favorites.length} favorites, '
+          '${backup.statusLinks.length} status links, '
+          '${backup.history.length} history, '
+          '${backup.resumes.length} resumes, '
+          '${backup.malformedRows} malformed rows');
+      return backup;
+    } catch (e, s) {
+      _logger.e('NClient import: parse failed (${data.lengthInBytes} bytes)',
+          error: e, stackTrace: s);
+      rethrow;
+    }
   }
 
   /// Counts per category for the preview dialog. No writes.
@@ -86,6 +117,10 @@ class ImportNclientBackupUseCase {
     NclientBackup backup, {
     NclientImportProgress? onProgress,
   }) async {
+    _logger.i('NClient import: started (${backup.favorites.length} favorites, '
+        '${backup.statusLinks.length} status links, '
+        '${backup.history.length} history, '
+        '${backup.resumes.length} resumes)');
     final galleries = {for (final g in backup.galleries) g.idGallery: g};
     var favOk = 0, favSkip = 0, favFail = 0;
 
@@ -127,6 +162,8 @@ class ImportNclientBackupUseCase {
           (i + chunk.length).clamp(0, backup.favorites.length),
           backup.favorites.length);
     }
+    _logger.i('NClient import: favorites done '
+        '($favOk ok, $favSkip skipped, $favFail failed)');
 
     var colOk = 0, colSkip = 0, colFail = 0;
     final existing = {
@@ -176,6 +213,8 @@ class ImportNclientBackupUseCase {
       }
       onProgress?.call('collections', ++done, linksByStatus.length);
     }
+    _logger.i('NClient import: collections done '
+        '($colOk ok, $colSkip skipped, $colFail failed)');
 
     var hisOk = 0, hisSkip = 0, hisFail = 0;
     for (var i = 0; i < backup.history.length; i++) {
@@ -202,6 +241,8 @@ class ImportNclientBackupUseCase {
       }
       onProgress?.call('history', i + 1, backup.history.length);
     }
+    _logger.i('NClient import: history done '
+        '($hisOk ok, $hisSkip skipped, $hisFail failed)');
 
     // NClient purges Gallery rows on every DB open (keep-list = Downloads ∪
     // Favorite ∪ StatusManga only), so a Resume gallery is regularly missing
@@ -238,7 +279,9 @@ class ImportNclientBackupUseCase {
       onProgress?.call('positions', i + 1, backup.resumes.length);
     }
 
-    return {
+    _logger.i('NClient import: positions done '
+        '($posOk ok, $posSkip skipped, $posFail failed)');
+    final summary = {
       'favorites': (success: favOk, skipped: favSkip, failed: favFail),
       'collections': (success: colOk, skipped: colSkip, failed: colFail),
       'history': (success: hisOk, skipped: hisSkip, failed: hisFail),
@@ -247,6 +290,8 @@ class ImportNclientBackupUseCase {
       // without this they only ever appear as silently missing items.
       'malformed': (success: 0, skipped: 0, failed: backup.malformedRows),
     };
+    _logger.i('NClient import: finished $summary');
+    return summary;
   }
 
   String? _coverFor(NclientGallery? gallery) {

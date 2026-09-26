@@ -1,26 +1,16 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:test/test.dart';
 
-String _resolveConfigPath(String filename) {
-  final candidates = [
-    '../../app/config/$filename',
-    'app/config/$filename',
-  ];
-  for (final p in candidates) {
-    if (File(p).existsSync()) return p;
-  }
-  throw StateError('Cannot locate $filename.');
-}
+import '../support/config_test_harness.dart';
+
+
 
 void main() {
   group('MangaDex Config Schema Validation', () {
     late Map<String, dynamic> config;
 
-    setUpAll(() {
-      final path = _resolveConfigPath('mangadex-config.json');
-      config = jsonDecode(File(path).readAsStringSync());
+    setUpAll(() async {
+      config = (await loadConfigRemote('mangadex-config.json'))
+          .cast<String, dynamic>();
     });
 
     test('has required top-level keys', () {
@@ -60,9 +50,9 @@ void main() {
   group('HentaiFox Config Schema Validation', () {
     late Map<String, dynamic> config;
 
-    setUpAll(() {
-      final path = _resolveConfigPath('hentaifox-config.json');
-      config = jsonDecode(File(path).readAsStringSync());
+    setUpAll(() async {
+      config = (await loadConfigRemote('hentaifox-config.json'))
+          .cast<String, dynamic>();
     });
 
     test('has required top-level keys', () {

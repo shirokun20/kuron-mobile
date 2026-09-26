@@ -11,7 +11,6 @@
 // ponytail: reuses the Phase-1 probe pattern; live sites are the fixture.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -23,21 +22,11 @@ import 'package:kuron_generic/src/url_builder/generic_url_builder.dart';
 import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
+import '../support/config_test_harness.dart';
+
 const _timeout = Timeout(Duration(seconds: 90));
 
-Map<String, Object?> _loadConfig(String filename) {
-  final List<String> candidates = <String>[
-    '../../informations/configs/$filename',
-    'informations/configs/$filename',
-  ];
-  for (final String path in candidates) {
-    final File f = File(path);
-    if (f.existsSync()) {
-      return (jsonDecode(f.readAsStringSync()) as Map).cast<String, Object?>();
-    }
-  }
-  throw StateError('Cannot locate $filename.');
-}
+
 
 GenericScraperAdapter _adapter(Map<String, Object?> config) {
   final baseUrl = config['baseUrl'] as String;
@@ -138,8 +127,8 @@ void _runSourceTests(String sourceId) {
     late Map<String, Object?> config;
     late GenericScraperAdapter adapter;
 
-    setUpAll(() {
-      config = _loadConfig('$sourceId-config.json');
+    setUpAll(() async {
+      config = await loadConfigRemote('$sourceId-config.json');
       adapter = _adapter(config);
     });
 
@@ -241,8 +230,8 @@ void _runSourceTests(String sourceId) {
     late Map<String, Object?> config;
     late GenericScraperAdapter adapter;
 
-    setUpAll(() {
-      config = _loadConfig('cosplaytele-config.json');
+    setUpAll(() async {
+      config = await loadConfigRemote('cosplaytele-config.json');
       adapter = _adapter(config);
     });
 

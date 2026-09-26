@@ -1,6 +1,5 @@
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -12,24 +11,13 @@ import 'package:kuron_generic/src/url_builder/generic_url_builder.dart';
 import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
+import '../support/config_test_harness.dart';
+
 const _baseUrl = 'https://manga18.club';
 
-Map<String, dynamic> _loadConfig() {
-  final candidates = [
-    'manga18.club-config.json',
-    '../../manga18.club-config.json',
-    '../../informations/configs/manga18.club-config.json',
-  ];
-
-  for (final path in candidates) {
-    final file = File(path);
-    if (file.existsSync()) {
-      return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
-    }
-  }
-
-  throw StateError('Cannot locate manga18.club-config.json');
-}
+Future<Map<String, dynamic>> _loadConfig() async =>
+    (await loadConfigRemote('manga18.club-config.json'))
+        .cast<String, dynamic>();
 
 String _readFixture(String filename) {
   final candidates = [
@@ -220,8 +208,8 @@ const _readerHtml = '''
 void main() {
   late Map<String, dynamic> config;
 
-  setUpAll(() {
-    config = _loadConfig();
+  setUpAll(() async {
+    config = await _loadConfig();
   });
 
   group('manga18.club homepage parsing', () {

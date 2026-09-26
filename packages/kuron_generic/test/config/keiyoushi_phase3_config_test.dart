@@ -42,8 +42,8 @@ void main() {
   ]);
 
   group('phase3 structural checks', () {
-    test('rawbaka home list + reader images', () {
-      final config = loadConfig('rawbaka-config.json');
+    test('rawbaka home list + reader images', () async {
+      final config = await loadConfigRemote('rawbaka-config.json');
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
       final urlPatterns =
           (scraper['urlPatterns'] as Map).cast<String, Object?>();
@@ -59,8 +59,8 @@ void main() {
       expect(images['attribute'], 'src');
     });
 
-    test('rawbaka detail chapter regex', () {
-      final config = loadConfig('rawbaka-config.json');
+    test('rawbaka detail chapter regex', () async {
+      final config = await loadConfigRemote('rawbaka-config.json');
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
       final selectors = (scraper['selectors'] as Map).cast<String, Object?>();
       final detail = (selectors['detail'] as Map).cast<String, Object?>();
@@ -71,8 +71,8 @@ void main() {
       expect(id['regex'], contains('/manga/'));
     });
 
-    test('manhwa18cc home list + reader images', () {
-      final config = loadConfig('manhwa18cc-config.json');
+    test('manhwa18cc home list + reader images', () async {
+      final config = await loadConfigRemote('manhwa18cc-config.json');
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
       final urlPatterns =
           (scraper['urlPatterns'] as Map).cast<String, Object?>();
@@ -88,8 +88,8 @@ void main() {
       expect(images['attribute'], 'data-src');
     });
 
-    test('manhwa18cc detail + reader nav', () {
-      final config = loadConfig('manhwa18cc-config.json');
+    test('manhwa18cc detail + reader nav', () async {
+      final config = await loadConfigRemote('manhwa18cc-config.json');
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
       final urlPatterns =
           (scraper['urlPatterns'] as Map).cast<String, Object?>();
@@ -102,8 +102,8 @@ void main() {
       expect(nav['next'], '.navi-change-chapter-btn-next');
     });
 
-    test('manhwaclubnet baseUrl + madara signature', () {
-      final config = loadConfig('manhwaclubnet-config.json');
+    test('manhwaclubnet baseUrl + madara signature', () async {
+      final config = await loadConfigRemote('manhwaclubnet-config.json');
       expect(config['baseUrl'], 'https://manhwaclub.net');
 
       final scraper = (config['scraper'] as Map).cast<String, Object?>();
@@ -118,8 +118,8 @@ void main() {
       expect(chapters['container'], 'li.wp-manga-chapter');
     });
 
-    test('mangaforfree baseUrl + madara signature', () {
-      final config = loadConfig('mangaforfree-config.json');
+    test('mangaforfree baseUrl + madara signature', () async {
+      final config = await loadConfigRemote('mangaforfree-config.json');
       expect(config['baseUrl'], 'https://mangaforfree.com');
 
       final scraper = (config['scraper'] as Map).cast<String, Object?>();

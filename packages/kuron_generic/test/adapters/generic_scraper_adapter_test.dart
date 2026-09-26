@@ -19,7 +19,7 @@
 //   dart test packages/kuron_generic/test/adapters/generic_scraper_adapter_test.dart
 library;
 
-import 'dart:convert';
+import '../support/config_test_harness.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -904,11 +904,6 @@ String _readFixtureFile(String relativePath) {
   throw StateError('Fixture not found: $relativePath');
 }
 
-Map<String, dynamic> _readFixtureJsonMap(String relativePath) {
-  return (jsonDecode(_readFixtureFile(relativePath)) as Map)
-      .cast<String, dynamic>();
-}
-
 String _buildDetailHtmlWithTitle(String title) => '''
 <html><body>
 <h1 class="entry-title">$title</h1>
@@ -1560,7 +1555,7 @@ void main() {
     late DioAdapter dioAdapter;
     late GenericScraperAdapter adapter;
 
-    setUp(() {
+    setUp(() async {
       dio = _buildNicomangaDio();
       dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
       adapter = _buildNicomangaAdapter(dio);
@@ -1653,7 +1648,7 @@ void main() {
     late DioAdapter dioAdapter;
     late GenericScraperAdapter adapter;
 
-    setUp(() {
+    setUp(() async {
       dio = _buildNicomangaDio();
       dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
       adapter = _buildNicomangaAdapter(dio);
@@ -2212,12 +2207,12 @@ void main() {
     late Map<String, dynamic> config;
     late String gridHtml;
 
-    setUp(() {
+    setUp(() async {
       dio = _buildNicomangaDio();
       dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
       adapter = _buildNicomangaAdapter(dio);
-      config =
-          _readFixtureJsonMap('informations/configs/nicomanga-config.json');
+      config = (await loadConfigRemote('nicomanga-config.json'))
+          .cast<String, dynamic>();
       gridHtml = _readFixtureFile('test/fixtures/nicomanga_grid_list.html');
     });
 
@@ -2289,13 +2284,12 @@ void main() {
       late String genreHtml;
       late String detailHtml;
 
-      setUp(() {
+      setUp(() async {
         dio = _buildDoujindesuDio();
         dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
         adapter = _buildDoujindesuAdapter(dio);
-        config = _readFixtureJsonMap(
-          'informations/configs/doujindesuv2-config.json',
-        );
+        config = (await loadConfigRemote('doujindesuv2-config.json'))
+            .cast<String, dynamic>();
         homeHtml = _readFixtureFile(
             'informations/documentation/doujindesuv2/home.html');
         doujinPage2Html = _readFixtureFile(
@@ -2671,7 +2665,7 @@ void main() {
     late DioAdapter dioAdapter;
     late GenericScraperAdapter adapter;
 
-    setUp(() {
+    setUp(() async {
       dio = _buildNicomangaDio();
       dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
       adapter = _buildNicomangaAdapter(dio);

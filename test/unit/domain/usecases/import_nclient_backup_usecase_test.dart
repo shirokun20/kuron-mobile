@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:kuron_native/kuron_native.dart';
+import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/domain/entities/favorite_collection.dart';
 import 'package:nhasixapp/domain/entities/history.dart';
@@ -51,11 +53,63 @@ FavoriteCollection col(String id, String name) => FavoriteCollection(
       updatedAt: DateTime(2024),
     );
 
+class _MemoryOutput extends LogOutput {
+  final lines = <String>[];
+  @override
+  void output(OutputEvent event) => lines.addAll(event.lines);
+}
+
+// Mirrors production: real repository impls hold a Logger, whose internal
+// Future makes the whole object graph unsendable across isolates. The parse
+// isolate must therefore never capture the usecase (`this`).
+class _UnsendableReader implements ReaderRepository {
+  final Logger log = Logger();
+
+  @override
+  Future<void> saveReaderPosition(ReaderPosition position) =>
+      throw UnimplementedError();
+  @override
+  Future<ReaderPosition?> getReaderPosition(String contentId) =>
+      throw UnimplementedError();
+  @override
+  Future<List<ReaderPosition>> getAllReaderPositions(
+          {int limit = 50, int page = 1}) =>
+      throw UnimplementedError();
+  @override
+  Future<void> deleteReaderPosition(String contentId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> clearAllReaderPositions() => throw UnimplementedError();
+  @override
+  Future<void> updateReadingTime(String contentId, int additionalMinutes) =>
+      throw UnimplementedError();
+  @override
+  Future<List<String>> getRecentlyReadContentIds({int limit = 10}) =>
+      throw UnimplementedError();
+  @override
+  Future<bool> hasReaderPosition(String contentId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> updateReaderPage(
+          {required String contentId,
+          required int currentPage,
+          required int totalPages}) =>
+      throw UnimplementedError();
+}
+
 void main() {
+  final logOutput = _MemoryOutput();
   setUpAll(() {
     registerFallbackValue(History(contentId: 'x', lastViewed: DateTime(2024)));
     registerFallbackValue(
         ReaderPosition.create(contentId: 'x', currentPage: 1, totalPages: 1));
+    if (!GetIt.I.isRegistered<Logger>()) {
+      GetIt.I.registerSingleton<Logger>(Logger(
+        filter: ProductionFilter(),
+        printer: SimplePrinter(),
+        output: logOutput,
+      ));
+    }
   });
   late MockUserData userData;
   late MockReader reader;
@@ -149,6 +203,35 @@ void main() {
   test('pickAndParse returns null when the picker is cancelled', () async {
     when(() => native.pickBinaryFile()).thenAnswer((_) async => null);
     expect(await useCase.pickAndParse(), isNull);
+  });
+
+  test('pickAndParse rethrows picker errors and logs them', () async {
+    logOutput.lines.clear();
+    when(() => native.pickBinaryFile()).thenThrow(StateError('picker boom'));
+    await expectLater(useCase.pickAndParse(), throwsStateError);
+    expect(logOutput.lines.join('\n'), contains('NClient import: pick failed'));
+  });
+
+  test('pickAndParse rethrows parse errors and logs them', () async {
+    logOutput.lines.clear();
+    when(() => native.pickBinaryFile())
+        .thenAnswer((_) async => Uint8List.fromList([0, 1, 2, 3]));
+    await expectLater(useCase.pickAndParse(), throwsA(anything));
+    expect(
+        logOutput.lines.join('\n'), contains('NClient import: parse failed'));
+  });
+
+  test('pickAndParse isolate captures no unsendable usecase state', () async {
+    final withRealDeps = ImportNclientBackupUseCase(
+      kuronNative: native,
+      userDataRepository: userData,
+      readerRepository: _UnsendableReader(),
+    );
+    when(() => native.pickBinaryFile()).thenAnswer(
+        (_) async => Uint8List.fromList(utf8.encode('{"Gallery":[]}')));
+    final parsed = await withRealDeps.pickAndParse();
+    expect(parsed, isNotNull);
+    expect(parsed!.galleries, isEmpty);
   });
 
   test('fresh import succeeds all', () async {

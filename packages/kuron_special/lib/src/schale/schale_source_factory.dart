@@ -1,23 +1,22 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
 import 'package:logger/logger.dart';
 
-import 'schale_clearance_service.dart';
+import '../clearance/native_clearance_driver.dart';
 
 class SchaleSourceFactory implements SourceFactory {
   final Dio _dio;
   final Logger _logger;
-  final FlutterSecureStorage _secureStorage;
+  final SecureValueStore _secureStorage;
   final String _sourceId;
 
   SchaleSourceFactory({
     required Dio dio,
     required Logger logger,
-    required FlutterSecureStorage secureStorage,
+    required SecureValueStore secureStorage,
     String sourceId = 'schale-network',
   })  : _dio = dio,
         _logger = logger,
@@ -42,8 +41,9 @@ class SchaleSourceFactory implements SourceFactory {
     //  switch catch-all masks typos in sourceId. Add a map/registry
     // when mapping grows beyond 2 sources so unknown IDs fail loudly at
     // construction instead of silently routing to schale.
-    final clearance = SchaleClearanceService(
-      secureStorage: _secureStorage,
+    final clearance = ClearanceService(
+      store: _secureStorage,
+      driver: const NativeClearanceDriver(),
       logger: _logger,
       sourceId: _sourceId,
       domainUrl: domainUrl,

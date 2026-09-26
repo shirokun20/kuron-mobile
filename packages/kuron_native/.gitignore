@@ -33,3 +33,5 @@ migrate_working_dir/
 /coverage/
 android/src/main/jniLibs/
 rust/target/
+# ML model asset: download-at-build per android/model.pin.json (cached, ~40MB).
+android/src/main/assets/*.onnx

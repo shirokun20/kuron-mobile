@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 // Shared pick-free import/export flow used by every Settings importer
@@ -95,6 +97,7 @@ Future<T?> runBackupProgressFlow<T>({
   if (!context.mounted) return null;
   final error = failure;
   if (error != null) {
+    getIt<Logger>().e('Backup import failed', error: error);
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(l10n.importFailed('$error'))));
     return null;

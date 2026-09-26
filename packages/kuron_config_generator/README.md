@@ -38,8 +38,8 @@ The generator ships a **theme bank** in code: `cms_detector.dart` holds
 signatures (hints + selectors + URL patterns) per CMS theme, and
 `config_generator.dart` emits full configs per theme. Signatures are lifted
 from live-proven configs — not guesses. Proven config files themselves stay
-**private** (`informations/configs/` is gitignored); only the distilled
-patterns live in code.
+**private**: live configs now live in the `kuron-extensions` repo
+(`config/<lang>/`); only the distilled patterns live in code.
 
 ```bash
 fvm dart run packages/kuron_config_generator/bin/kuron_config_generator.dart \
@@ -61,8 +61,8 @@ fvm dart run packages/kuron_config_generator/bin/kuron_config_generator.dart \
     generate --template hentaiera --url https://hentaiera.com --validate --live
 ```
 
-- `--template <sourceId>` — reads `informations/configs/<id>-config.json`
-  (gitignored; fresh clones won't have it — use Theme Detection above)
+- `--template <sourceId>` — reads `<kuron-extensions>/config/<lang>/<id>-config.json`
+  (needs a local checkout of the extensions repo — otherwise use Theme Detection above)
 - `--url` — new source's base URL (host becomes the new source id)
 - `--validate --live` — readiness validation + 5-screen live smoke through the
   real adapter; on success emits golden fixtures + a dual-mode skeleton test

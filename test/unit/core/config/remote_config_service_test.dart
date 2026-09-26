@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/ext_config_loader.dart';
 import 'package:kuron_core/kuron_core.dart' show CompatibilityStatus;
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -17,11 +19,8 @@ void main() {
   late Directory tempDir;
   late RemoteConfigService service;
 
-  String readConfig(String fileName) {
-    return File(
-      p.join(Directory.current.path, 'informations', 'configs', fileName),
-    ).readAsStringSync();
-  }
+  Future<String> readConfig(String fileName) =>
+      loadExtConfigString(fileName);
 
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -56,7 +55,7 @@ void main() {
       () async {
     await service.applySourceConfigFromJson(
       sourceId: 'komikcast',
-      rawJson: readConfig('komikcast-config.json'),
+      rawJson: await readConfig('komikcast-config.json'),
       sourceLabel: 'test',
     );
 
@@ -80,7 +79,7 @@ void main() {
       () async {
     await service.applySourceConfigFromJson(
       sourceId: 'hitomi',
-      rawJson: readConfig('hitomi-config.json'),
+      rawJson: await readConfig('hitomi-config.json'),
       sourceLabel: 'test',
     );
 
@@ -92,7 +91,7 @@ void main() {
   test('uninstallSourceConfig clears cached validation report', () async {
     await service.applySourceConfigFromJson(
       sourceId: 'komikcast',
-      rawJson: readConfig('komikcast-config.json'),
+      rawJson: await readConfig('komikcast-config.json'),
       sourceLabel: 'test',
     );
     await service.markSourceInstalled('komikcast');

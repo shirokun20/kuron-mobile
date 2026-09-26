@@ -373,9 +373,11 @@ For sources that encrypt their reader data (e.g., HentaiNexus XOR/RC4).
 ### 1. Create the config file
 
 ```
-informations/configs/<source-id>-config.json
+<kuron-extensions>/config/new/<source-id>-config.json
 ```
 
+Start new configs in the `config/new/` staging bucket, then move to the
+language bucket (`config/<lang>/`) per the kuron-source-config skill.
 Filename prefix **must** match the `"source"` field value.
 
 ### 2. Minimum required structure
@@ -419,7 +421,7 @@ Filename prefix **must** match the `"source"` field value.
 ### 3. Validate JSON
 
 ```bash
-python3 -c "import json; json.load(open('informations/configs/mysite-config.json'))"
+python3 -c "import json; json.load(open('<kuron-extensions>/config/new/mysite-config.json'))"
 ```
 
 ### 4. Test key selectors

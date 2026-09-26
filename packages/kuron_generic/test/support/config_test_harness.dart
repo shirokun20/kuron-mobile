@@ -23,26 +23,58 @@ import 'package:test/test.dart';
 
 import 'package:kuron_generic/src/config/source_config_parser.dart';
 
-// Locate a config file by [name] in the standard search paths.
-///
-// Searches (in order):
-//   - `../../informations/configs/<name>` (from packages/kuron_generic/)
-//   - `informations/configs/<name>` (from workspace root)
-Map<String, Object?> loadConfig(String name) {
-  final List<String> candidates = <String>[
-    '../../informations/configs/$name',
-    'informations/configs/$name',
-  ];
-  for (final String path in candidates) {
-    final File f = File(path);
-    if (f.existsSync()) {
-      return (jsonDecode(f.readAsStringSync()) as Map).cast<String, Object?>();
-    }
-  }
-  throw StateError(
-    'Cannot locate config $name. Run tests from workspace root or '
-    'packages/kuron_generic/.',
+// Remote config source: kuron-extensions repo (replaces the retired local
+// `informations/configs/` directory). Configs resolve through the published
+// manifest, so `config/<lang>/<file>` bucketing never has to be hardcoded
+// in tests.
+const String kExtRepoRawBase =
+    'https://raw.githubusercontent.com/shirokun20/kuron-extensions/main';
+
+// Filename (`<id>-config.json`) → manifest `url` (`config/<lang>/<file>`).
+// Fetched once per test run.
+Map<String, String>? _extConfigUrls;
+
+Future<Map<String, String>> _extConfigUrlMap() async {
+  final cached = _extConfigUrls;
+  if (cached != null) return cached;
+  final request = await HttpClient().getUrl(
+    Uri.parse('$kExtRepoRawBase/manifest.json'),
   );
+  final response = await request.close();
+  final body = await response.transform(utf8.decoder).join();
+  if (response.statusCode != 200) {
+    throw StateError(
+      'Cannot fetch kuron-extensions manifest '
+      '(HTTP ${response.statusCode}). Check network access.',
+    );
+  }
+  final manifest = jsonDecode(body) as Map;
+  final urls = <String, String>{};
+  for (final entry in (manifest['installableSources'] as List)) {
+    final url = (entry as Map)['url'] as String;
+    urls[url.split('/').last] = url;
+  }
+  _extConfigUrls = urls;
+  return urls;
+}
+
+// Load a config JSON by [name] (`<id>-config.json`) from kuron-extensions.
+Future<Map<String, Object?>> loadConfigRemote(String name) async {
+  final urls = await _extConfigUrlMap();
+  final path = urls[name];
+  if (path == null) {
+    throw StateError(
+      'Config $name is not registered in the kuron-extensions manifest.',
+    );
+  }
+  final request =
+      await HttpClient().getUrl(Uri.parse('$kExtRepoRawBase/$path'));
+  final response = await request.close();
+  final body = await response.transform(utf8.decoder).join();
+  if (response.statusCode != 200) {
+    throw StateError('Cannot fetch config $name (HTTP ${response.statusCode}).');
+  }
+  return (jsonDecode(body) as Map).cast<String, Object?>();
 }
 
 // Metadata describing the expected outcome for one source config.
@@ -90,11 +122,11 @@ void runConfigContractTests(
     group(c.configName, () {
       late SourceConfigParseResult result;
 
-      setUpAll(() {
+      setUpAll(() async {
         final SourceConfigParser parser = parserFactory != null
             ? parserFactory(c)
             : SourceConfigParser(registeredPlugins: c.registeredPlugins);
-        result = parser.parse(loadConfig(c.configName));
+        result = parser.parse(await loadConfigRemote(c.configName));
       });
 
       if (c.expectedOverallStatus != null) {

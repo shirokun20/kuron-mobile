@@ -370,7 +370,7 @@ Untuk sumber yang mengenkripsi data reader (mis. HentaiNexus XOR/RC4).
 
 ### 1. Buat file config
 
-Nama file: `<source-id>-config.json`, taruh di folder `informations/configs/`.  
+Nama file: `<source-id>-config.json`, taruh di staging `<kuron-extensions>/config/new/`, lalu pindah ke bucket bahasa (`config/<lang>/`) sesuai skill kuron-source-config.  
 Prefix nama file **harus** cocok dengan nilai field `"source"`.
 
 ### 2. Struktur minimum yang dibutuhkan
@@ -444,7 +444,7 @@ Prefix nama file **harus** cocok dengan nilai field `"source"`.
 ### 3. Validasi JSON
 
 ```bash
-python3 -c "import json; json.load(open('informations/configs/mysite-config.json'))"
+python3 -c "import json; json.load(open('<kuron-extensions>/config/new/mysite-config.json'))"
 ```
 
 ### 4. Uji selector di browser

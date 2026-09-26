@@ -1,0 +1,6 @@
+{
+  "file": "bubble_detector.onnx",
+  "version": "1",
+  "url": "https://github.com/shirokun20/kuron-mobile/releases/download/kuron-models-v1/bubble_detector.onnx",
+  "sha256": "4f5fa56ff1c84527ad8417e1c02b0862392f6f259acc95ed97813861cd50a034"
+}

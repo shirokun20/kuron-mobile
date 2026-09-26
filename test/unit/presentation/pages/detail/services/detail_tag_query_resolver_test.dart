@@ -1,7 +1,7 @@
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../../../support/ext_config_loader.dart';
 import 'package:nhasixapp/presentation/pages/detail/services/detail_tag_query_resolver.dart';
 
 void main() {
@@ -268,11 +268,8 @@ void main() {
     const resolver = DetailTagQueryResolver();
     late Map<String, dynamic> rawConfig;
 
-    setUpAll(() {
-      rawConfig = jsonDecode(
-        File('informations/configs/doujindesuxxx-config.json')
-            .readAsStringSync(),
-      ) as Map<String, dynamic>;
+    setUpAll(() async {
+      rawConfig = await loadExtConfigMap('doujindesuxxx-config.json');
     });
 
     test('genre tag routes to the genres taxonomy', () {

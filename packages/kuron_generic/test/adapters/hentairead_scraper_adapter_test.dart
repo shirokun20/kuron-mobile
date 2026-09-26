@@ -120,8 +120,8 @@ GenericScraperAdapter _buildAdapter(Dio dio) {
 void main() {
   late Map<String, dynamic> config;
 
-  setUpAll(() {
-    config = loadConfig('hentairead-config.json').cast<String, dynamic>();
+  setUpAll(() async {
+    config = (await loadConfigRemote('hentairead-config.json')).cast<String, dynamic>();
   });
 
   group('hentairead scraper config', () {

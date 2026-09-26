@@ -139,6 +139,31 @@ KuronImportButton(
 );
 ```
 
+## ML model asset (download-at-build)
+
+`bubble_detector.onnx` (~40 MB) is NOT tracked in git. It is fetched once
+per machine by Gradle and cached under
+`packages/kuron_native/android/src/main/assets/`.
+
+- Pin: `packages/kuron_native/android/model.pin.json`
+  (`file`, `version`, `url`, `sha256`). Bump `version` + `sha256` when the
+  model changes; builds verify SHA256 on every run.
+- Publish a new model version once:
+  ```bash
+  gh release upload kuron-models-v1 bubble_detector.onnx
+  ```
+  (tag `kuron-models-v1` must serve the exact `url` in the pin file).
+- Verify the pipeline on a clean cache:
+  ```bash
+  rm packages/kuron_native/android/src/main/assets/bubble_detector.onnx
+  cd android && ./gradlew :kuron_native:downloadBubbleModel
+  ```
+- Local override (no network): `KURON_MODEL_URL=file:///path/to/model.onnx`
+  or `-PmodelUrl=file:///path/to/model.onnx`.
+- Manual placement fallback: copy the file to `src/main/assets/` — the
+  SHA256 check still applies. Offline builds with an empty cache fail loudly
+  naming `model.pin.json`.
+
 ## Permissions
 This package uses `permission_handler` to automatically request:
 -   `storage` (for downloads/backup)

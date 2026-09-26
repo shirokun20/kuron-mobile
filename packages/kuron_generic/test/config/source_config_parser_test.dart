@@ -9,31 +9,15 @@
 //   dart test packages/kuron_generic/test/config/source_config_parser_test.dart
 library;
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
 import 'package:test/test.dart';
 
+import '../support/config_test_harness.dart';
+
 // ── Config resolver ──────────────────────────────────────────────────────────
 
-// Load a config JSON from `informations/configs/<filename>`.
-Map<String, Object?> _loadConfig(String filename) {
-  final List<String> candidates = <String>[
-    '../../informations/configs/$filename',
-    'informations/configs/$filename',
-  ];
-  for (final String path in candidates) {
-    final File f = File(path);
-    if (f.existsSync()) {
-      return (jsonDecode(f.readAsStringSync()) as Map).cast<String, Object?>();
-    }
-  }
-  throw StateError(
-    'Cannot locate $filename. Run from workspace root or packages/kuron_generic/.',
-  );
-}
+
 
 // Returns a [SourceConfigParser] with an empty registered-primitive set so
 // primitive-gap checking is skipped (tests focus on feature inference).
@@ -48,8 +32,8 @@ void main() {
   group('mangadex-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('mangadex-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('mangadex-config.json'));
     });
 
     test('sourceId is mangadex', () {
@@ -119,8 +103,8 @@ void main() {
   group('hentainexus-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('hentainexus-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('hentainexus-config.json'));
     });
 
     test('sourceId is hentainexus', () {
@@ -182,8 +166,8 @@ void main() {
   group('crotpedia-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('crotpedia-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('crotpedia-config.json'));
     });
 
     test('sourceId is crotpedia', () {
@@ -241,8 +225,8 @@ void main() {
   group('komiktap-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('komiktap-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('komiktap-config.json'));
     });
 
     test('sourceId is komiktap', () {
@@ -285,8 +269,8 @@ void main() {
   group('hentaifox-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('hentaifox-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('hentaifox-config.json'));
     });
 
     test('reader requires cdnRegex primitive', () {
@@ -308,8 +292,8 @@ void main() {
   group('doujindesuv2-config.json', () {
     late SourceConfigParseResult result;
 
-    setUpAll(() {
-      result = _parser().parse(_loadConfig('doujindesuv2-config.json'));
+    setUpAll(() async {
+      result = _parser().parse(await loadConfigRemote('doujindesuv2-config.json'));
     });
 
     test('sourceId is doujindesuv2', () {

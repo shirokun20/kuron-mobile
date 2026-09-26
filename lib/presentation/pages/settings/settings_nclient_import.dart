@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/usecases/imports/import_nclient_backup_usecase.dart';
 import 'package:nhasixapp/domain/usecases/imports/nclient_backup.dart';
@@ -37,7 +38,9 @@ Future<void> runNclientImport(
   NclientBackup? backup;
   try {
     backup = await importer.pickAndParse();
-  } catch (e) {
+  } catch (e, s) {
+    getIt<Logger>()
+        .e('NClient import: pickAndParse failed', error: e, stackTrace: s);
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.importFailed('$e'))));

@@ -10,8 +10,8 @@ import '../support/config_test_harness.dart';
 void main() {
   late Map<String, Object?> config;
 
-  setUpAll(() {
-    config = loadConfig('hentairead-config.json');
+  setUpAll(() async {
+    config = await loadConfigRemote('hentairead-config.json');
   });
 
   test('uses the /hentai/ listing and english reader route', () {

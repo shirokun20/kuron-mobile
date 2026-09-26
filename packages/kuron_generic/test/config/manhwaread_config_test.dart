@@ -7,8 +7,8 @@ import '../support/config_test_harness.dart';
 void main() {
   late Map<String, Object?> config;
 
-  setUpAll(() {
-    config = loadConfig('manhwaread-config.json');
+  setUpAll(() async {
+    config = await loadConfigRemote('manhwaread-config.json');
   });
 
   test('uses /manhwa/ latest listing for the home feed', () {

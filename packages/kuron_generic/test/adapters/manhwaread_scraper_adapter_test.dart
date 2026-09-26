@@ -44,8 +44,8 @@ GenericScraperAdapter _buildAdapter(Dio dio) {
 void main() {
   late Map<String, dynamic> config;
 
-  setUpAll(() {
-    config = loadConfig('manhwaread-config.json').cast<String, dynamic>();
+  setUpAll(() async {
+    config = (await loadConfigRemote('manhwaread-config.json')).cast<String, dynamic>();
   });
 
   group('manhwaread detail chapter scoping', () {
