@@ -6,6 +6,7 @@
 
 ## 📝 Project Memory
 **CRITICAL**: Read `MEMORY.md` at project root for full context. Update it after every session.
+**Scope**: `MEMORY.md` hanya berisi perubahan coding / flow aplikasi. Jangan catat penambahan skills, hooks, maupun AI tools di sana.
 
 ## 🤖 AI Tool Compatibility
 
@@ -161,6 +162,9 @@ All `.dart` files are automatically formatted using `fvm dart format` after writ
 2. **Codex**: `.codex/skills/*/SKILL.md`
 3. **OpenCode**: `.opencode/skills/*/SKILL.md`
 4. **Agent**: `.agent/skills/*/SKILL.md`
+5. **Shared project skills**: `.agents/skills/*/SKILL.md` — loader-priority tertinggi; rumah `cavecrew`, `caveman-*`, `ponytail-*`, `source-command-opsx-*`. Semua direktori skill di atas gitignored (local-only).
+
+> Warning `skill-shadowed` untuk mirror `openspec-*` per-tool dan duplikat `$HOME/.agents` vs `$HOME/.claude` adalah expected & harmless: satu ID dimuat sekali, versi prioritas tertinggi menang. Jangan hapus mirror per-tool untuk membungkam warning — isinya beda per tool dan tool lain butuh jalurnya sendiri.
 
 If a task matches a listed skill, read the relevant file before editing code.
 
