@@ -98,6 +98,32 @@ void main() {
     expect(find.textContaining('Explore'), findsNothing);
   });
 
+  testWidgets('ghost rank numbers mark slide position', (tester) async {
+    await tester.pumpWidget(
+        _harness(items: [_rec('a'), _rec('b'), _rec('c')]));
+
+    // PageView builds the active slide plus cached neighbors.
+    expect(find.text('1'), findsWidgets);
+    expect(find.text('2'), findsWidgets);
+  });
+
+  testWidgets('autoplay progress shows for many, hidden for single',
+      (tester) async {
+    await tester.pumpWidget(
+        _harness(items: [_rec('a'), _rec('b')]));
+    expect(
+      find.byKey(const ValueKey('autoplay-progress')),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(_harness(items: [_rec('a')]));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('autoplay-progress')),
+      findsNothing,
+    );
+  });
+
   testWidgets('tap opens the visible recommendation', (tester) async {
     final tapped = <String>[];
     await tester.pumpWidget(_harness(
@@ -114,7 +140,9 @@ void main() {
         _harness(items: [_rec('a'), _rec('b')]));
 
     await tester.drag(find.byType(PageView), const Offset(-400, 0));
-    await tester.pumpAndSettle();
+    // No pumpAndSettle: the autoplay progress animation is perpetual.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.text('Banner Title b'), findsOneWidget);
   });
@@ -125,7 +153,8 @@ void main() {
 
     expect(find.text('Banner Title a'), findsOneWidget);
     await tester.pump(const Duration(seconds: 6));
-    await tester.pumpAndSettle();
+    // No pumpAndSettle: the autoplay progress animation is perpetual.
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(find.text('Banner Title b'), findsOneWidget);
   });

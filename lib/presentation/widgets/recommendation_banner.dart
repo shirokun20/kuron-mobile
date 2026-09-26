@@ -33,11 +33,13 @@ class RecommendationBannerCarousel extends StatefulWidget {
 }
 
 class _RecommendationBannerCarouselState
-    extends State<RecommendationBannerCarousel> {
+    extends State<RecommendationBannerCarousel>
+    with SingleTickerProviderStateMixin {
   static const _autoPlayInterval = Duration(seconds: 5);
   static const _resumeDelay = Duration(seconds: 4);
 
   late final PageController _controller;
+  late final AnimationController _progress;
   Timer? _autoPlay;
   Timer? _resume;
   int _page = 0;
@@ -46,6 +48,10 @@ class _RecommendationBannerCarouselState
   void initState() {
     super.initState();
     _controller = PageController(viewportFraction: 0.92);
+    _progress = AnimationController(
+      vsync: this,
+      duration: _autoPlayInterval,
+    );
     _startAutoPlay();
   }
 
@@ -64,6 +70,7 @@ class _RecommendationBannerCarouselState
   void dispose() {
     _autoPlay?.cancel();
     _resume?.cancel();
+    _progress.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -71,6 +78,7 @@ class _RecommendationBannerCarouselState
   void _startAutoPlay() {
     _autoPlay?.cancel();
     if (widget.items.length < 2) return;
+    _progress.forward(from: 0);
     _autoPlay = Timer.periodic(_autoPlayInterval, (_) {
       if (!mounted || !_controller.hasClients) return;
       final next = (_page + 1) % widget.items.length;
@@ -97,6 +105,7 @@ class _RecommendationBannerCarouselState
         if (n is ScrollStartNotification) {
           _autoPlay?.cancel();
           _resume?.cancel();
+          _progress.stop();
         } else if (n is ScrollEndNotification) {
           _pauseForInteraction();
         }
@@ -110,22 +119,41 @@ class _RecommendationBannerCarouselState
             child: PageView.builder(
               controller: _controller,
               itemCount: widget.items.length,
-              onPageChanged: (i) => setState(() => _page = i),
-              itemBuilder: (context, i) => Padding(
-                padding: EdgeInsets.only(
-                  left: i == 0 ? 16 : 4,
-                  right: i == widget.items.length - 1 ? 16 : 4,
-                ),
-                child: _BannerSlide(
-                  item: widget.items[i],
-                  onTap: () => widget.onTap(widget.items[i]),
-                  onDismiss: widget.onDismiss == null
-                      ? null
-                      : () => widget.onDismiss!(widget.items[i]),
+              onPageChanged: (i) {
+                setState(() => _page = i);
+                _progress.forward(from: 0);
+              },
+              itemBuilder: (context, i) => _SlideFocus(
+                controller: _controller,
+                index: i,
+                activePage: _page,
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: i == 0 ? 16 : 4,
+                    right: i == widget.items.length - 1 ? 16 : 4,
+                  ),
+                  child: _BannerSlide(
+                    item: widget.items[i],
+                    rank: i + 1,
+                    onTap: () => widget.onTap(widget.items[i]),
+                    onDismiss: widget.onDismiss == null
+                        ? null
+                        : () => widget.onDismiss!(widget.items[i]),
+                  ),
                 ),
               ),
             ),
           ),
+          if (widget.items.length > 1) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _AutoPlayProgress(
+                key: const ValueKey('autoplay-progress'),
+                progress: _progress,
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           BannerDots(count: widget.items.length, active: _page),
         ],
@@ -134,14 +162,98 @@ class _RecommendationBannerCarouselState
   }
 }
 
+/// Inactive slides shrink slightly and dim so the eye lands on the active
+/// slide. Pure transform — no layout change, no extra raster cost.
+class _SlideFocus extends StatelessWidget {
+  const _SlideFocus({
+    required this.controller,
+    required this.index,
+    required this.activePage,
+    required this.child,
+  });
+
+  final PageController controller;
+  final int index;
+  final int activePage;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        var delta = (index - activePage).abs().toDouble();
+        if (controller.hasClients && controller.page != null) {
+          delta = (controller.page! - index).abs().clamp(0.0, 1.0);
+        }
+        return Transform.scale(
+          scale: 1.0 - 0.045 * delta,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              child!,
+              if (delta > 0.01)
+                IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.22 * delta),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// Thin autoplay countdown under the banner. Pauses while the user drags
+/// (mirrors the autoplay timer), resets on every page change.
+class _AutoPlayProgress extends StatelessWidget {
+  const _AutoPlayProgress({super.key, required this.progress});
+
+  final AnimationController progress;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      height: 2,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
+          borderRadius: BorderRadius.circular(1),
+        ),
+        child: AnimatedBuilder(
+          animation: progress,
+          builder: (context, _) => FractionallySizedBox(
+            alignment: Alignment.centerLeft,
+            widthFactor: progress.value.clamp(0.0, 1.0),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BannerSlide extends StatelessWidget {
   const _BannerSlide({
     required this.item,
+    required this.rank,
     required this.onTap,
     this.onDismiss,
   });
 
   final Recommendation item;
+  final int rank;
   final VoidCallback onTap;
   final VoidCallback? onDismiss;
 
@@ -201,6 +313,30 @@ class _BannerSlide extends StatelessWidget {
                       Color.fromRGBO(0, 0, 0, 0.88),
                     ],
                     stops: [0.0, 0.35, 0.7, 1.0],
+                  ),
+                ),
+              ),
+              // Ghost rank number (Top-10 style): position info, doubles as
+              // the slide's visual anchor. Outline only — never covers art.
+              Positioned(
+                top: 6,
+                right: 12,
+                child: Text(
+                  '$rank',
+                  style: TextStyle(
+                    fontSize: 52,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                    foreground: Paint()
+                      ..style = PaintingStyle.stroke
+                      ..strokeWidth = 1.5
+                      ..color = Colors.white.withValues(alpha: 0.9),
+                    shadows: const [
+                      Shadow(
+                        blurRadius: 8,
+                        color: Color.fromRGBO(0, 0, 0, 0.45),
+                      ),
+                    ],
                   ),
                 ),
               ),
