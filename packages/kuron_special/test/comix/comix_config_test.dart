@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kuron_generic/src/config/source_config_parser.dart';
 
 // Validates the publish-ready kuron-extensions payloads in the change
 // directory (tasks 6/15/21/27) against the LIVE repo schema, fetched from
@@ -39,7 +40,8 @@ void main() {
     expect(config['source'], 'comix');
     expect(config['version'], isNotEmpty);
     expect(config['enabled'], isTrue);
-    expect(config['defaultLanguage'], 'en');
+    // Bucket vocabulary rule (kuron-source-config skill): en -> english.
+    expect(config['defaultLanguage'], 'english');
     expect(config['baseUrl'], 'https://comix.to');
 
     // No invented top-level keys (live schema has no schemaVersion,
@@ -104,6 +106,15 @@ void main() {
 
     expect(config['contentIdPattern'], '/title/([^/?#]+)');
 
+    // Without searchForm the search screen renders the "unavailable"
+    // fallback (search_screen.dart) — adapter sources carry a minimal
+    // query field (hitomi precedent).
+    final searchForm = config['searchForm'] as Map<String, dynamic>;
+    final params = searchForm['params'] as Map<String, dynamic>;
+    final query = params['query'] as Map<String, dynamic>;
+    expect(query['queryParam'], 'keyword');
+    expect(query['type'], 'text');
+
     final features = config['features'] as Map<String, dynamic>;
     for (final key in [
       'home',
@@ -118,6 +129,20 @@ void main() {
     }
     expect(features['comments'], isFalse);
     expect(features['favorite'], isFalse);
+  });
+
+  test('comix-config.json parses via the public parser interface', () {
+    final config = loadPayload('comix-config.json');
+    final parsed = const SourceConfigParser().parse(
+      config.cast<String, Object?>(),
+    );
+    // The search screen renders a real box only when a non-empty
+    // searchForm contract exists (else the "unavailable" fallback).
+    final form = parsed.searchForm;
+    expect(form, isNotNull);
+    expect(form!.fields, isNotEmpty);
+    final query = form.fields.where((f) => f.id == 'query').toList();
+    expect(query, hasLength(1));
   });
 
   test('comix-manifest-entry.json is publish-ready', () {

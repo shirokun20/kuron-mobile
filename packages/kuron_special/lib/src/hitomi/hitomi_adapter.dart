@@ -10,6 +10,9 @@ import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 
 class HitomiAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => const Duration(seconds: 30);
+
   static const int _pageSize = 20;
   static const int _hitomiNodeSizeBytes = 464;
 

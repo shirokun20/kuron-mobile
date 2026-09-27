@@ -37,6 +37,12 @@ class AdapterDetailResult {
 
 // Abstract interface all adapters must implement.
 abstract class GenericAdapter {
+  /// Wall-clock budget for a detail fetch. Sources that boot a headless
+  /// WebView on first run (e.g. comix-family proxy sources: SPA boot +
+  /// chunks + signed requests) override this beyond the 30s default so
+  /// upstream deduplication does not kill a healthy slow capture.
+  Duration get detailTimeout => const Duration(seconds: 30);
+
   // Fetch and parse a search/list page for [filter].
   Future<AdapterSearchResult> search(
     SearchFilter filter,

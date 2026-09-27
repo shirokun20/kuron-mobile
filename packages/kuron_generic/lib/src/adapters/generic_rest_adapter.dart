@@ -27,6 +27,9 @@ typedef HeadersGenerator = Map<String, String> Function({String? referer});
 typedef DelayApplier = Future<void> Function();
 
 class GenericRestAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => const Duration(seconds: 30);
+
   final Dio _dio;
   final GenericUrlBuilder _urlBuilder;
   final GenericJsonParser _parser;

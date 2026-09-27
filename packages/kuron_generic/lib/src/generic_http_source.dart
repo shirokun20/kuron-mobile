@@ -152,6 +152,11 @@ class GenericHttpSource implements ContentSource {
     return result.content.copyWith(imageUrls: result.imageUrls);
   }
 
+  /// Detail wall-clock budget requested by the underlying adapter
+  /// (default 30s). Repositories should pass this to deduplication so
+  /// slow-but-healthy sources (headless WebView) are not killed early.
+  Duration get detailTimeout => _adapter.detailTimeout;
+
   @override
   Future<ContentListResult> getList({
     int page = 1,
@@ -660,8 +665,8 @@ class GenericHttpSource implements ContentSource {
 
     // Image CDN needs cross-site Sec-Fetch hints — config-driven via
     // `network.imageHeaders` (HentaiRead/ManhwaRead).
-    final imageHeaders = (_rawConfig['network'] as Map<String, dynamic>?)
-            ?['imageHeaders'] as Map<String, dynamic>?;
+    final imageHeaders = (_rawConfig['network']
+        as Map<String, dynamic>?)?['imageHeaders'] as Map<String, dynamic>?;
     if (imageHeaders != null && imageHeaders.isNotEmpty) {
       for (final entry in imageHeaders.entries) {
         headers[entry.key] = entry.value.toString();

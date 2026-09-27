@@ -35,6 +35,12 @@ class ComixAdapter implements GenericAdapter {
         _engine = engine,
         _logger = logger;
 
+  /// Mangafire boots a full SPA per detail fetch; comix usually answers
+  /// from Tier-1/2 in seconds. Both stay under the 120s WebView deadline.
+  @override
+  Duration get detailTimeout =>
+      isMangafire ? const Duration(seconds: 150) : const Duration(seconds: 45);
+
   final Dio _dio;
   final WebViewProxyEngine _engine;
   final Logger _logger;

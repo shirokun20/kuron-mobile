@@ -90,6 +90,9 @@ import 'generic_adapter.dart';
 // behavior is unchanged from the pre-extraction single file.
 
 class GenericScraperAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => const Duration(seconds: 30);
+
   final Dio _dio;
   final GenericUrlBuilder _urlBuilder;
   final GenericHtmlParser _parser;

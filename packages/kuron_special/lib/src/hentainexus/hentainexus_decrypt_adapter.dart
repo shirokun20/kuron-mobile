@@ -7,6 +7,9 @@ import 'hentainexus_decryptor.dart';
 
 // HentaiNexus adapter that decrypts reader payload from initReader().
 class HentaiNexusDecryptAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => _delegate.detailTimeout;
+
   final Dio _dio;
   final GenericScraperAdapter _delegate;
   final Logger _logger;

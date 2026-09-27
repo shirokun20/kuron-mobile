@@ -10,6 +10,9 @@ import 'package:logger/logger.dart';
 // E-Hentai adapter that delegates generic scraping and adds per-page image
 // extraction from reader links (`/s/{hash}/{gid}-{page}`).
 class EHentaiScraperAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => _delegate.detailTimeout;
+
   static const String _partPrefix = '__ehpart__';
   static const String _chunkPrefix = '__ehchunk__';
 

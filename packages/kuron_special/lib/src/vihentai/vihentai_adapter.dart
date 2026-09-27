@@ -11,6 +11,9 @@ import 'vihentai_livewire_auth.dart';
 import 'vihentai_packed_js.dart';
 
 class ViHentaiAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => _delegate.detailTimeout;
+
   final Dio _dio;
   final GenericScraperAdapter _delegate;
   final Logger _logger;

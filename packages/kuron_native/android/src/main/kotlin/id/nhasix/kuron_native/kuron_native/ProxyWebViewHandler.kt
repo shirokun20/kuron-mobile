@@ -56,11 +56,23 @@ class ProxyWebViewHandler(private val context: Context) {
         val extendDeadline = call.argument<Boolean>("extendDeadlineOnApiTraffic") ?: false
 
         Handler(Looper.getMainLooper()).post {
-            runRequest(
-                pageUrl, html, userAgent, allowedHosts, bootstrapScript,
-                captureScript, bridgeName, errorBridgeName, pollMs,
-                extendDeadline, result,
-            )
+            try {
+                runRequest(
+                    pageUrl, html, userAgent, allowedHosts, bootstrapScript,
+                    captureScript, bridgeName, errorBridgeName, pollMs,
+                    extendDeadline, result,
+                )
+            } catch (e: Exception) {
+                // Never leave the Dart side hanging: every path settles.
+                android.util.Log.e(TAG, "runProxyWebView failed for $pageUrl", e)
+                runCatching {
+                    result.error(
+                        "WEBVIEW_PROXY",
+                        "Proxy WebView failed: ${e.message}",
+                        null,
+                    )
+                }
+            }
         }
     }
 
@@ -84,6 +96,10 @@ class ProxyWebViewHandler(private val context: Context) {
 
         fun settleSuccess(payload: String, webView: WebView) {
             if (!settled.compareAndSet(false, true)) return
+            android.util.Log.i(
+                TAG,
+                "captured ${payload.length} chars for $pageUrl",
+            )
             main.removeCallbacksAndMessages(null)
             runCatching { webView.stopLoading() }
             runCatching { webView.destroy() }
@@ -92,6 +108,7 @@ class ProxyWebViewHandler(private val context: Context) {
 
         fun settleError(message: String, webView: WebView) {
             if (!settled.compareAndSet(false, true)) return
+            android.util.Log.w(TAG, "failed for $pageUrl: $message")
             main.removeCallbacksAndMessages(null)
             runCatching { webView.stopLoading() }
             runCatching { webView.destroy() }
@@ -137,6 +154,18 @@ class ProxyWebViewHandler(private val context: Context) {
             }
         }
 
+        webView.webChromeClient = object : android.webkit.WebChromeClient() {
+            override fun onConsoleMessage(
+                message: android.webkit.ConsoleMessage?,
+            ): Boolean {
+                android.util.Log.d(
+                    TAG,
+                    "console [${message?.messageLevel()}] ${message?.message()}",
+                )
+                return true
+            }
+        }
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(
                 view: WebView?,
@@ -154,7 +183,21 @@ class ProxyWebViewHandler(private val context: Context) {
                         host == entry
                     }
                 }
+                if (!allowed) {
+                    android.util.Log.d(TAG, "blocked $url")
+                }
                 return if (allowed) null else emptyResponse()
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: android.webkit.WebResourceError?,
+            ) {
+                android.util.Log.w(
+                    TAG,
+                    "resource error ${request?.url} ${error?.description}",
+                )
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
@@ -185,6 +228,7 @@ class ProxyWebViewHandler(private val context: Context) {
     }
 
     companion object {
+        private const val TAG = "MFPROXY"
         private const val TIMEOUT_SECONDS = 120L
     }
 }

@@ -12,6 +12,7 @@ import '../../core/services/detail_cache_service.dart';
 import '../datasources/remote/exceptions.dart';
 import '../../core/services/request_deduplication_service.dart';
 import 'package:kuron_core/kuron_core.dart' as core;
+import 'package:kuron_generic/kuron_generic.dart';
 
 // Implementation of ContentRepository with caching strategy and offline-first architecture
 class ContentRepositoryImpl implements ContentRepository {
@@ -97,6 +98,12 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<Content> getContentDetail(ContentId contentId,
       {String? sourceId}) async {
     final requestKey = 'content_detail_${contentId.value}';
+    final requestedSource = sourceId != null
+        ? contentSourceRegistry.getSource(sourceId)
+        : _activeSource;
+    final detailTimeout = requestedSource is GenericHttpSource
+        ? requestedSource.detailTimeout
+        : null;
 
     return requestDeduplicationService.deduplicate(
       requestKey,
@@ -147,9 +154,7 @@ class ContentRepositoryImpl implements ContentRepository {
 
           _logger.d('Cache MISS for content detail: ${contentId.value}');
           try {
-            final source = sourceId != null
-                ? contentSourceRegistry.getSource(sourceId)
-                : _activeSource;
+            final source = requestedSource;
 
             if (source == null) {
               throw Exception('Source not found for ID: $sourceId');
@@ -178,6 +183,7 @@ class ContentRepositoryImpl implements ContentRepository {
           rethrow;
         }
       },
+      timeout: detailTimeout,
     );
   }
 
@@ -300,9 +306,8 @@ class ContentRepositoryImpl implements ContentRepository {
           'Getting related content for: ${contentId.value} (source: $sourceId)');
       // Route to the owning source when known — ids are meaningless on any
       // other source. Falls back to the active source for legacy callers.
-      final source = sourceId != null
-          ? contentSourceRegistry.getSource(sourceId)
-          : null;
+      final source =
+          sourceId != null ? contentSourceRegistry.getSource(sourceId) : null;
       final target = source ?? _activeSource;
       try {
         final coreRelated = await target.getRelated(contentId.value);

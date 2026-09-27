@@ -96,6 +96,9 @@ String _xor(String hex, String key) {
 }
 
 class DoujinDesuXxxAdapter implements GenericAdapter {
+  @override
+  Duration get detailTimeout => const Duration(seconds: 30);
+
   final Dio _dio;
   final String _sourceId;
   final String _base;
