@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:kuron_core/kuron_core.dart' show ChapterData;
+import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 
-import '../../cubits/reader/reader_cubit.dart';
-import '../../widgets/error_widget.dart';
 import '../../../core/constants/design_tokens.dart';
+import '../../cubits/reader/reader_cubit.dart';
 
 /// Issue #68: a chapter whose page serves `<video>`/HLS instead of `<img>`.
 ///
@@ -16,12 +15,16 @@ import '../../../core/constants/design_tokens.dart';
 bool isVideoChapter(ChapterData? chapterData) =>
     (chapterData?.videoUrls.isNotEmpty ?? false);
 
-/// Plays a video/HLS chapter inline.
+/// Play affordance for a video/HLS chapter.
 ///
-/// Uses the already-installed `webview_flutter` rather than adding a video
-/// player dependency — Android WebView ships an HLS-capable media stack, so
-/// `master.m3u8` plays directly. Direct `.mp4`/`.webm` go through the same path.
-class ReaderVideoChapter extends StatefulWidget {
+/// ponytail: playback opens in the platform WebView (Custom Tabs via
+/// `KuronNative.openWebView`, the same path the reader already uses for
+/// undecodable AVIF pages). An in-app `WebViewWidget` would mean a live
+/// platform view and a media stack sitting inside the reader for the whole
+/// time the chapter is open — for something the user may swipe past — and
+/// autoplaying a stream the moment a chapter loads is hostile anyway. The
+/// user taps, decides to watch, and the reader stays untouched underneath.
+class ReaderVideoChapter extends StatelessWidget {
   const ReaderVideoChapter({
     super.key,
     required this.chapterData,
@@ -32,158 +35,132 @@ class ReaderVideoChapter extends StatefulWidget {
   final ReaderCubit cubit;
 
   @override
-  State<ReaderVideoChapter> createState() => _ReaderVideoChapterState();
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: VideoPosterCard(
+              streamCount: chapterData.videoUrls.length,
+              onPlay: () => _play(chapterData.videoUrls.first),
+            ),
+          ),
+        ),
+        _ChapterNavBar(cubit: cubit),
+      ],
+    );
+  }
+
+  Future<void> _play(String url) async {
+    final logger = Logger();
+    try {
+      await KuronNative.instance.openWebView(url: url);
+    } catch (e) {
+      // The native WebView is unavailable (no host, or a platform without the
+      // channel) — hand the URL to the system browser instead of dead-ending.
+      logger.w('video chapter native WebView failed, falling back: $e');
+      final uri = Uri.tryParse(url);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    }
+  }
 }
 
-class _ReaderVideoChapterState extends State<ReaderVideoChapter> {
-  final _logger = Logger();
-  late final WebViewController _controller;
-  bool _failed = false;
-  bool _retrying = false;
+/// Pre-play surface: a tap target, not a black rectangle. Matches the app's
+/// card styling so the chapter reads as "has a video" rather than "failed to
+/// load".
+///
+/// Public so the card can be widget-tested in isolation.
+@visibleForTesting
+class VideoPosterCard extends StatelessWidget {
+  const VideoPosterCard({
+    required this.streamCount,
+    required this.onPlay,
+  });
 
-  String get _url => widget.chapterData.videoUrls.first;
-
-  /// A manifest or media file loads as a page; an `<iframe>`/embed page URL
-  /// must be navigated to directly.
-  bool get _isDirectStream {
-    final path = Uri.tryParse(_url)?.path.toLowerCase() ?? '';
-    return RegExp(r'\.(m3u8|mp4|webm|mov)$').hasMatch(path);
-  }
-
-  /// ponytail: a plain `<video controls autoplay>` is enough — hls.js would be
-  /// a new dependency and Android WebView plays HLS natively. Add a JS engine
-  /// only if a source needs DRM or a codec WebView lacks.
-  String get _playerHtml => '''
-<!doctype html>
-<html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>html,body{margin:0;height:100%;background:#000}
-video{width:100%;height:100%;object-fit:contain;background:#000}</style>
-</head><body><video src="$_url" controls autoplay playsinline></video></body></html>
-''';
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = WebViewController()
-      // Reader surface is theme-coloured; a white flash around the video
-      // reads as a broken screen in dark mode.
-      ..setBackgroundColor(const Color(0xFF000000))
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onWebResourceError: (error) {
-            // Sub-resource failures (telemetry, ad beacons) are noise — only a
-            // broken main frame means the stream will not play.
-            if (error.isForMainFrame != true || _retrying) return;
-            _logger.w('video chapter load failed: ${error.description}');
-            if (mounted) setState(() => _failed = true);
-          },
-          onNavigationRequest: (request) {
-            // HLS manifests redirect across hosts (CDN -> origin); let the
-            // stack follow them instead of navigating the view away.
-            return NavigationDecision.navigate;
-          },
-        ),
-      );
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _failed = false);
-    _retrying = true;
-    try {
-      final uri = Uri.parse(_url);
-      if (_isDirectStream) {
-        // Navigating straight to a manifest gives WebView's built-in media
-        // page; an inline `<video>` element plays it in-place and matches the
-        // dark surface. Android WebView ships an HLS-capable media stack.
-        await _controller.loadHtmlString(_playerHtml, baseUrl: _url);
-      } else {
-        await _controller.loadRequest(uri);
-      }
-    } catch (e) {
-      _logger.w('video chapter request failed: $e');
-      if (mounted) setState(() => _failed = true);
-    } finally {
-      _retrying = false;
-    }
-  }
-
-  Future<void> _openExternally() async {
-    final uri = Uri.tryParse(_url);
-    if (uri == null) return;
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  final int streamCount;
+  final Future<void> Function() onPlay;
 
   @override
   Widget build(BuildContext context) {
-    if (_failed) {
-      return AppErrorWidget(
-        title: 'Video unavailable',
-        message: _url,
-        icon: Icons.videocam_off_outlined,
-        onRetry: _load,
-        retryText: 'Retry',
-        onSecondaryAction: _openExternally,
-        secondaryActionText: 'Open in browser',
-      );
-    }
-
-    return Stack(
-      children: [
-        Positioned.fill(child: WebViewWidget(controller: _controller)),
-        Positioned(
-          right: DesignTokens.spaceMd,
-          bottom: DesignTokens.spaceXl,
-          child: _ChapterNavButton(
-            icon: Icons.skip_previous,
-            tooltip: 'Previous chapter',
-            onPressed: widget.cubit.hasPreviousChapter
-                ? widget.cubit.loadPreviousChapter
-                : null,
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(DesignTokens.spaceLg),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onPlay,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              vertical: DesignTokens.spaceXl,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.colorScheme.primary,
+                  ),
+                  child: Icon(
+                    Icons.play_arrow_rounded,
+                    size: 40,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+                SizedBox(height: DesignTokens.spaceMd),
+                Text('Play video', style: theme.textTheme.titleMedium),
+                if (streamCount > 1) ...[
+                  SizedBox(height: DesignTokens.spaceXs),
+                  Text(
+                    '$streamCount streams available',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
-        Positioned(
-          left: DesignTokens.spaceMd,
-          bottom: DesignTokens.spaceXl,
-          child: _ChapterNavButton(
-            icon: Icons.skip_next,
-            tooltip: 'Next chapter',
-            onPressed: widget.cubit.hasNextChapter
-                ? widget.cubit.loadNextChapter
-                : null,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-class _ChapterNavButton extends StatelessWidget {
-  const _ChapterNavButton({
-    required this.icon,
-    required this.tooltip,
-    this.onPressed,
-  });
+/// Prev/next chapter row for a video chapter — the pager is absent, so the
+/// normal chapter navigation has to live somewhere.
+class _ChapterNavBar extends StatelessWidget {
+  const _ChapterNavBar({required this.cubit});
 
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback? onPressed;
+  final ReaderCubit cubit;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.55),
-      shape: const CircleBorder(),
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(
-          icon,
-          color: onPressed == null ? Colors.white38 : Colors.white,
-        ),
-        tooltip: tooltip,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: DesignTokens.spaceLg,
+        vertical: DesignTokens.spaceMd,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          TextButton.icon(
+            onPressed:
+                cubit.hasPreviousChapter ? cubit.loadPreviousChapter : null,
+            icon: const Icon(Icons.skip_previous),
+            label: const Text('Previous'),
+          ),
+          TextButton.icon(
+            onPressed: cubit.hasNextChapter ? cubit.loadNextChapter : null,
+            iconAlignment: IconAlignment.end,
+            icon: const Icon(Icons.skip_next),
+            label: const Text('Next'),
+          ),
+        ],
       ),
     );
   }
