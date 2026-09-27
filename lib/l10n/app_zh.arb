@@ -3850,6 +3850,30 @@
       }
     }
   },
+  "readerTierSantai": "休闲读者",
+  "readerTierKutubuku": "书虫",
+  "readerTierOtaku": "重度宅",
+  "readerTierResi": "漫画贤者",
+  "readerTierShaker": "手冲大师",
+  "readerStatsLine": "已完成 {count} • {source} 粉丝",
+  "@readerStatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "appDownloadsFromGithub": "从 GitHub Releases 下载 {count}",
+  "@appDownloadsFromGithub": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "recommendedColdStart": "开始阅读以获取个性化推荐",
   "recommendedBrowse": "浏览内容",
   "notInterested": "不感兴趣",

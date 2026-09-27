@@ -3254,6 +3254,30 @@
       }
     }
   },
+  "readerTierSantai": "Pembaca Santai",
+  "readerTierKutubuku": "Kutu Buku",
+  "readerTierOtaku": "Otaku Akut",
+  "readerTierResi": "Resi Manga",
+  "readerTierShaker": "Pengocok Handal",
+  "readerStatsLine": "{count} selesai • Fans {source}",
+  "@readerStatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "appDownloadsFromGithub": "Diunduh {count} dari GitHub Releases",
+  "@appDownloadsFromGithub": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "recommendedColdStart": "Mulai membaca untuk mendapatkan rekomendasi personal",
   "recommendedBrowse": "Jelajahi konten",
   "notInterested": "Tidak tertarik",

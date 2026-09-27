@@ -1171,6 +1171,44 @@ class LocalDataSource {
     }
   }
 
+  // Completed-history count (is_completed = 1) for the reader badge tier.
+  Future<int> getCompletedHistoryCount() async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return 0;
+
+      final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM history WHERE is_completed = 1');
+      return result.first['count'] as int;
+    } catch (e) {
+      _logger.e('Error getting completed history count: $e');
+      return 0;
+    }
+  }
+
+  // Top completed-download source by distinct content count, for the reader
+  // badge fans label. Returns null when nothing completed.
+  Future<({String sourceId, int count})?> getTopDownloadSource() async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return null;
+
+      final result = await db.rawQuery(
+        "SELECT source_id, COUNT(DISTINCT id) as count FROM downloads "
+        "WHERE state = 'completed' GROUP BY source_id "
+        "ORDER BY count DESC LIMIT 1",
+      );
+      if (result.isEmpty) return null;
+      return (
+        sourceId: result.first['source_id'] as String,
+        count: result.first['count'] as int,
+      );
+    } catch (e) {
+      _logger.e('Error getting top download source: $e');
+      return null;
+    }
+  }
+
   // Get history count
   Future<int> getHistoryCount() async {
     try {

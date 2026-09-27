@@ -5799,6 +5799,31 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get readerTierSantai => '休闲读者';
+
+  @override
+  String get readerTierKutubuku => '书虫';
+
+  @override
+  String get readerTierOtaku => '重度宅';
+
+  @override
+  String get readerTierResi => '漫画贤者';
+
+  @override
+  String get readerTierShaker => '手冲大师';
+
+  @override
+  String readerStatsLine(String count, String source) {
+    return '已完成 $count • $source 粉丝';
+  }
+
+  @override
+  String appDownloadsFromGithub(String count) {
+    return '从 GitHub Releases 下载 $count';
+  }
+
+  @override
   String get recommendedColdStart => '开始阅读以获取个性化推荐';
 
   @override

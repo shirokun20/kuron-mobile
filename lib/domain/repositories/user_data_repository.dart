@@ -148,6 +148,13 @@ abstract class UserDataRepository {
 
   Future<int> getHistoryCount();
 
+  /// Completed-history count for the reader badge tier.
+  Future<int> getCompletedHistoryCount();
+
+  /// Top completed-download source `(sourceId, distinctCount)` for the
+  /// reader badge fans label. Null when nothing completed.
+  Future<({String sourceId, int count})?> getTopDownloadSource();
+
   // ==================== PREFERENCES ====================
 
   Future<void> saveUserPreferences(UserPreferences preferences);

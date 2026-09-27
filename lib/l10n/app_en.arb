@@ -4285,6 +4285,30 @@
       }
     }
   },
+  "readerTierSantai": "Casual Reader",
+  "readerTierKutubuku": "Bookworm",
+  "readerTierOtaku": "Hardcore Otaku",
+  "readerTierResi": "Manga Sage",
+  "readerTierShaker": "Certified Shaker",
+  "readerStatsLine": "{count} completed • {source} fan",
+  "@readerStatsLine": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "appDownloadsFromGithub": "Downloaded {count} from GitHub Releases",
+  "@appDownloadsFromGithub": {
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
   "recommendedColdStart": "Start reading to get personalized recommendations",
   "recommendedBrowse": "Browse content",
   "notInterested": "Not interested",

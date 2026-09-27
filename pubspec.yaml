@@ -123,6 +123,7 @@ flutter:
 
   assets:
     - assets/
+    - assets/avatars/
     - assets/images/
     - assets/icons/
     - assets/legal/en/

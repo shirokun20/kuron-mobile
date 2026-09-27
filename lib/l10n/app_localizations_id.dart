@@ -5987,6 +5987,31 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get readerTierSantai => 'Pembaca Santai';
+
+  @override
+  String get readerTierKutubuku => 'Kutu Buku';
+
+  @override
+  String get readerTierOtaku => 'Otaku Akut';
+
+  @override
+  String get readerTierResi => 'Resi Manga';
+
+  @override
+  String get readerTierShaker => 'Pengocok Handal';
+
+  @override
+  String readerStatsLine(String count, String source) {
+    return '$count selesai • Fans $source';
+  }
+
+  @override
+  String appDownloadsFromGithub(String count) {
+    return 'Diunduh $count dari GitHub Releases';
+  }
+
+  @override
   String get recommendedColdStart =>
       'Mulai membaca untuk mendapatkan rekomendasi personal';
 

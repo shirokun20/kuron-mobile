@@ -550,6 +550,28 @@ class UserDataRepositoryImpl implements UserDataRepository {
     }
   }
 
+  @override
+  Future<int> getCompletedHistoryCount() async {
+    try {
+      return await localDataSource.getCompletedHistoryCount();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get completed history count',
+          error: e, stackTrace: stackTrace);
+      return 0;
+    }
+  }
+
+  @override
+  Future<({String sourceId, int count})?> getTopDownloadSource() async {
+    try {
+      return await localDataSource.getTopDownloadSource();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get top download source',
+          error: e, stackTrace: stackTrace);
+      return null;
+    }
+  }
+
   // ==================== PREFERENCES ====================
 
   @override

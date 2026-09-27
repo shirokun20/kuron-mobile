@@ -106,6 +106,7 @@ import 'package:nhasixapp/domain/usecases/favorites/delete_favorite_collection_u
 import 'package:nhasixapp/domain/usecases/favorites/add_to_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/downloads/downloads_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/add_to_history_usecase.dart';
+import 'package:nhasixapp/domain/usecases/reader_identity/reader_identity_usecases.dart';
 import 'package:nhasixapp/domain/usecases/recommendations/recommendations_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/get_all_chapter_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/history/get_history_usecase.dart';
@@ -134,6 +135,7 @@ import 'package:nhasixapp/core/services/native_zip_import_service.dart';
 import 'package:nhasixapp/core/services/native_pdf_reader_service.dart';
 import 'package:nhasixapp/core/services/download_service.dart';
 
+import 'package:nhasixapp/core/services/github_release_stats_service.dart';
 import 'package:nhasixapp/core/services/update_service.dart';
 import 'package:nhasixapp/core/services/language_service.dart';
 import 'package:nhasixapp/core/services/notification_service.dart';
@@ -371,6 +373,13 @@ void _setupServices() {
   getIt.registerLazySingleton<UpdateService>(() => UpdateService(
         logger: getIt<Logger>(),
       ));
+
+  // Github Release Download Counter (About screen)
+  getIt.registerLazySingleton<GithubReleaseStatsService>(
+      () => GithubReleaseStatsService(
+            prefs: getIt<SharedPreferences>(),
+            logger: getIt<Logger>(),
+          ));
 
   // Image Metadata Service - Handles image metadata generation and validation
   getIt.registerLazySingleton<ImageMetadataService>(() => ImageMetadataService(
@@ -1211,6 +1220,13 @@ void _setupUseCases() {
       () => GetSimilarContentUseCase(getIt()));
   getIt.registerLazySingleton<RecordRecommendationEventUseCase>(
       () => RecordRecommendationEventUseCase(getIt()));
+
+  // Reader Identity Use Case
+  getIt.registerLazySingleton<GetReaderBadgeUseCase>(
+      () => GetReaderBadgeUseCase(
+            userDataRepository: getIt(),
+            sourceRegistry: getIt(),
+          ));
 }
 
 // Setup BLoCs

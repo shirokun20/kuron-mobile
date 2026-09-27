@@ -10206,6 +10206,48 @@ abstract class AppLocalizations {
   /// **'Explore: {title}'**
   String recommendedReasonExplore(String title);
 
+  /// No description provided for @readerTierSantai.
+  ///
+  /// In en, this message translates to:
+  /// **'Casual Reader'**
+  String get readerTierSantai;
+
+  /// No description provided for @readerTierKutubuku.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookworm'**
+  String get readerTierKutubuku;
+
+  /// No description provided for @readerTierOtaku.
+  ///
+  /// In en, this message translates to:
+  /// **'Hardcore Otaku'**
+  String get readerTierOtaku;
+
+  /// No description provided for @readerTierResi.
+  ///
+  /// In en, this message translates to:
+  /// **'Manga Sage'**
+  String get readerTierResi;
+
+  /// No description provided for @readerTierShaker.
+  ///
+  /// In en, this message translates to:
+  /// **'Certified Shaker'**
+  String get readerTierShaker;
+
+  /// No description provided for @readerStatsLine.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} completed • {source} fan'**
+  String readerStatsLine(String count, String source);
+
+  /// No description provided for @appDownloadsFromGithub.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded {count} from GitHub Releases'**
+  String appDownloadsFromGithub(String count);
+
   /// No description provided for @recommendedColdStart.
   ///
   /// In en, this message translates to:

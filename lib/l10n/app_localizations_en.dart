@@ -5960,6 +5960,31 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get readerTierSantai => 'Casual Reader';
+
+  @override
+  String get readerTierKutubuku => 'Bookworm';
+
+  @override
+  String get readerTierOtaku => 'Hardcore Otaku';
+
+  @override
+  String get readerTierResi => 'Manga Sage';
+
+  @override
+  String get readerTierShaker => 'Certified Shaker';
+
+  @override
+  String readerStatsLine(String count, String source) {
+    return '$count completed • $source fan';
+  }
+
+  @override
+  String appDownloadsFromGithub(String count) {
+    return 'Downloaded $count from GitHub Releases';
+  }
+
+  @override
   String get recommendedColdStart =>
       'Start reading to get personalized recommendations';
 

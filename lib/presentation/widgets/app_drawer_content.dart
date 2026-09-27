@@ -12,9 +12,12 @@ import 'package:kuron_special/kuron_special.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/source_auth_service.dart';
 import '../../core/routing/app_route.dart';
+import '../../domain/entities/reader_badge.dart';
+import '../../domain/usecases/reader_identity/reader_identity_usecases.dart';
 import 'common/source_selector.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+import 'reader_avatar.dart';
 
 class _SourceAuthIdentity {
   final bool authenticated;
@@ -41,6 +44,7 @@ class AppDrawerContent extends StatefulWidget {
 class _AppDrawerContentState extends State<AppDrawerContent>
     with SingleTickerProviderStateMixin {
   String _appVersion = '';
+  ReaderBadge? _badge;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -49,6 +53,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
     super.initState();
     _checkConnectivity();
     _loadAppVersion();
+    _loadReaderBadge();
 
     // Setup pulse animation for logo
     _pulseController = AnimationController(
@@ -83,6 +88,17 @@ class _AppDrawerContentState extends State<AppDrawerContent>
       setState(() {
         _appVersion = 'v${packageInfo.version}';
       });
+    }
+  }
+
+  // Reader identity is local-only (SQLite aggregates) — cheap enough to
+  // reload every time the drawer opens. Never throws into the UI.
+  Future<void> _loadReaderBadge() async {
+    try {
+      final badge = await getIt<GetReaderBadgeUseCase>()();
+      if (mounted) setState(() => _badge = badge);
+    } catch (_) {
+      // No badge: drawer keeps working without the identity row.
     }
   }
 
@@ -611,6 +627,62 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
+            ),
+          ),
+          if (_badge != null) ...[
+            const SizedBox(height: 12),
+            _buildIdentityRow(theme, l10n, _badge!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIdentityRow(
+      ThemeData theme, AppLocalizations l10n, ReaderBadge badge) {
+    final source = badge.topSourceDisplayName.isNotEmpty
+        ? badge.topSourceDisplayName
+        : '–';
+    // Full-width card matching the menu-item rhythm (same fill, radius,
+    // and horizontal insets as the navigation rows below).
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+        border: Border.all(
+          color: theme.colorScheme.outline.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          ReaderAvatar(tier: badge.tier, radius: 26),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  readerTierName(l10n, badge.tier),
+                  style: TextStyleConst.titleSmall.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  l10n.readerStatsLine(
+                    badge.completedCount.toString(),
+                    source,
+                  ),
+                  style: TextStyleConst.bodySmall.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

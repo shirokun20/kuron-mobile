@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
+import 'package:nhasixapp/core/services/github_release_stats_service.dart';
 import 'package:nhasixapp/presentation/cubits/update/update_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/update/update_state.dart';
 import 'package:nhasixapp/presentation/widgets/app_main_drawer_widget.dart';
@@ -36,6 +37,7 @@ class _AboutContent extends StatefulWidget {
 class _AboutContentState extends State<_AboutContent>
     with SingleTickerProviderStateMixin {
   String _version = '';
+  String? _downloadsLabel;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
@@ -43,6 +45,7 @@ class _AboutContentState extends State<_AboutContent>
   void initState() {
     super.initState();
     _loadVersion();
+    _loadDownloadCount();
 
     // Setup pulse animation for logo
     _pulseController = AnimationController(
@@ -67,6 +70,25 @@ class _AboutContentState extends State<_AboutContent>
       setState(() {
         _version = 'v${info.version}';
       });
+    }
+  }
+
+  // Community download counter: cache-first, fail-silent. Null keeps the
+  // row hidden — a zero or a spinner here would mislead or clutter.
+  Future<void> _loadDownloadCount() async {
+    try {
+      final total =
+          await getIt<GithubReleaseStatsService>().getTotalDownloads();
+      if (mounted && total != null) {
+        final lang = Localizations.localeOf(context).languageCode;
+        setState(() {
+          _downloadsLabel = AppLocalizations.of(context)!
+              .appDownloadsFromGithub(
+                  compactCount(total, languageCode: lang));
+        });
+      }
+    } catch (_) {
+      // Row stays hidden.
     }
   }
 
@@ -187,6 +209,40 @@ class _AboutContentState extends State<_AboutContent>
                     ),
                   ),
                 ),
+                if (_downloadsLabel != null) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.5,
+                        ),
+                        borderRadius:
+                            BorderRadius.circular(DesignTokens.radius2xl),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.file_download_outlined,
+                            size: 14,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _downloadsLabel!,
+                            style: TextStyleConst.bodySmall.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
 
                 const SizedBox(height: DesignTokens.space3xl),
 
