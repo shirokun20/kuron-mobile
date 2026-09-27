@@ -5281,6 +5281,17 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerScreenGoToFirstPage => '回到第一页';
 
   @override
+  String get readerVideoEyebrow => '视频章节';
+
+  @override
+  String get readerVideoPlay => '播放视频';
+
+  @override
+  String readerVideoStreamCount(int count) {
+    return '有 $count 个可用流';
+  }
+
+  @override
   String get appLockSectionTitle => '应用锁';
 
   @override

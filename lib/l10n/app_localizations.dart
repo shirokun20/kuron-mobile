@@ -9258,6 +9258,24 @@ abstract class AppLocalizations {
   /// **'Go to First Page'**
   String get readerScreenGoToFirstPage;
 
+  /// No description provided for @readerVideoEyebrow.
+  ///
+  /// In en, this message translates to:
+  /// **'VIDEO CHAPTER'**
+  String get readerVideoEyebrow;
+
+  /// No description provided for @readerVideoPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play video'**
+  String get readerVideoPlay;
+
+  /// No description provided for @readerVideoStreamCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} streams available'**
+  String readerVideoStreamCount(int count);
+
   /// No description provided for @appLockSectionTitle.
   ///
   /// In en, this message translates to:

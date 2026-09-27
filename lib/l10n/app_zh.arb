@@ -3630,6 +3630,16 @@
   "readerScreenThanks": "感谢阅读！",
   "readerScreenThanksDesc": "希望你享受这一章节。下一章再见！",
   "readerScreenGoToFirstPage": "回到第一页",
+  "readerVideoEyebrow": "视频章节",
+  "readerVideoPlay": "播放视频",
+  "readerVideoStreamCount": "有 {count} 个可用流",
+  "@readerVideoStreamCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appLockSectionTitle": "应用锁",
   "pinLock": "PIN锁",
   "pinLockActive": "PIN已设置并激活",

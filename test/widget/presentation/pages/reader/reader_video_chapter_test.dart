@@ -4,12 +4,25 @@
 // Tabs), so there is no platform view to stand up here and the widget test
 // binding needs no WebView implementation. What is worth locking down is the
 // *decision* — the reader swaps the image pager for [ReaderVideoChapter] only
-// when the chapter carries a stream URL, keeps paging images otherwise, and
+// when the chapter has no pages at all, keeps paging images otherwise, and
 // shows a poster card until the reader taps play.
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
+import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/pages/reader/reader_video_chapter.dart';
+
+Widget _app(Widget child) => MaterialApp(
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(body: child),
+    );
 
 void main() {
   group('isVideoChapter()', () {
@@ -35,6 +48,36 @@ void main() {
         isTrue,
       );
     });
+
+    // videoUrls is harvested by a page-wide regex, so an ad embed or a "watch
+    // the adaptation" teaser tags a chapter that has plenty of real pages.
+    // Swapping the pager on that signal dropped every page of a 60-page
+    // chapter — the reader showed a play card instead.
+    test('is false for a chapter with both images and a stray stream', () {
+      expect(
+        isVideoChapter(const ChapterData(
+          images: [
+            'https://cdn.example.com/p/001.jpg',
+            'https://cdn.example.com/p/002.jpg',
+          ],
+          videoUrls: ['https://ads.example.com/promo.mp4'],
+        )),
+        isFalse,
+        reason: 'real pages must win over a page-wide video match',
+      );
+    });
+
+    test('is false for a long chapter with one stream among many pages', () {
+      expect(
+        isVideoChapter(ChapterData(
+          images: [
+            for (var i = 1; i <= 60; i++) 'https://cdn.example.com/$i.jpg'
+          ],
+          videoUrls: const ['https://cdn.example.com/hls/master.m3u8'],
+        )),
+        isFalse,
+      );
+    });
   });
 
   group('poster card precedes playback', () {
@@ -43,12 +86,10 @@ void main() {
     ) async {
       var tapped = false;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: VideoPosterCard(
-              streamCount: 2,
-              onPlay: () async => tapped = true,
-            ),
+        _app(
+          VideoPosterCard(
+            streamCount: 2,
+            onPlay: () async => tapped = true,
           ),
         ),
       );
@@ -65,12 +106,35 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(
-          home: Scaffold(body: VideoPosterCard(streamCount: 1, onPlay: _noop)),
-        ),
+        _app(const VideoPosterCard(streamCount: 1, onPlay: _noop)),
       );
       expect(find.text('Play video'), findsOneWidget);
       expect(find.textContaining('streams available'), findsNothing);
+    });
+
+    testWidgets('shows the chapter title when one is supplied', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const VideoPosterCard(
+            streamCount: 1,
+            onPlay: _noop,
+            title: 'Episode 12 — The Arrival',
+          ),
+        ),
+      );
+      expect(find.text('Episode 12 — The Arrival'), findsOneWidget);
+    });
+
+    testWidgets('omits the title row for a blank title', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          const VideoPosterCard(streamCount: 1, onPlay: _noop, title: '   '),
+        ),
+      );
+      expect(find.text('Play video'), findsOneWidget);
+      expect(tester.takeException(), isNull);
     });
   });
 }

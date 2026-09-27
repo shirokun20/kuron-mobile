@@ -3034,6 +3034,16 @@
   "readerScreenThanks": "Terima Kasih Sudah Membaca!",
   "readerScreenThanksDesc": "Semoga kamu menikmati chapter ini. Sampai jumpa di chapter berikutnya!",
   "readerScreenGoToFirstPage": "Baca dari Awal",
+  "readerVideoEyebrow": "CHAPTER VIDEO",
+  "readerVideoPlay": "Putar video",
+  "readerVideoStreamCount": "{count} stream tersedia",
+  "@readerVideoStreamCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appLockSectionTitle": "KUNCI APLIKASI",
   "pinLock": "Kunci PIN",
   "pinLockActive": "PIN sudah diatur dan aktif",

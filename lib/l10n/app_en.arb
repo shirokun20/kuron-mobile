@@ -4048,6 +4048,16 @@
   "readerScreenThanks": "Thank You for Reading!",
   "readerScreenThanksDesc": "Hope you enjoyed this chapter. See you in the next one!",
   "readerScreenGoToFirstPage": "Go to First Page",
+  "readerVideoEyebrow": "VIDEO CHAPTER",
+  "readerVideoPlay": "Play video",
+  "readerVideoStreamCount": "{count} streams available",
+  "@readerVideoStreamCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "appLockSectionTitle": "APP LOCK",
   "pinLock": "PIN Lock",
   "pinLockActive": "PIN is set and active",

@@ -5429,6 +5429,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerScreenGoToFirstPage => 'Go to First Page';
 
   @override
+  String get readerVideoEyebrow => 'VIDEO CHAPTER';
+
+  @override
+  String get readerVideoPlay => 'Play video';
+
+  @override
+  String readerVideoStreamCount(int count) {
+    return '$count streams available';
+  }
+
+  @override
   String get appLockSectionTitle => 'APP LOCK';
 
   @override

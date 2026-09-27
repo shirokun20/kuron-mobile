@@ -5452,6 +5452,17 @@ class AppLocalizationsId extends AppLocalizations {
   String get readerScreenGoToFirstPage => 'Baca dari Awal';
 
   @override
+  String get readerVideoEyebrow => 'CHAPTER VIDEO';
+
+  @override
+  String get readerVideoPlay => 'Putar video';
+
+  @override
+  String readerVideoStreamCount(int count) {
+    return '$count stream tersedia';
+  }
+
+  @override
   String get appLockSectionTitle => 'KUNCI APLIKASI';
 
   @override
