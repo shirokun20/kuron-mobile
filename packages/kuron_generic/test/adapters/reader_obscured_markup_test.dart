@@ -74,8 +74,7 @@ const _noscriptHtml = '''
 // ── Fixture 2: ts_reader JSON base64-encoded (scythescans shape) ─────────────
 
 String _base64TsReaderHtml() {
-  const payload =
-      'ts_reader.run({"sources":[{"source":"Server 1","images":'
+  const payload = 'ts_reader.run({"sources":[{"source":"Server 1","images":'
       '["https://cdn.example.com/c/01.webp","https://cdn.example.com/c/02.webp",'
       '"https://cdn.example.com/c/03.webp"]}],'
       '"prevUrl":"","nextUrl":"https://reader.example.com/ch-2/"});';
@@ -108,7 +107,10 @@ void main() {
       expect(chapter, isNotNull);
       expect(
         chapter!.images,
-        ['https://cdn.example.com/p/001.jpg', 'https://cdn.example.com/p/002.jpg'],
+        [
+          'https://cdn.example.com/p/001.jpg',
+          'https://cdn.example.com/p/002.jpg'
+        ],
       );
     });
 

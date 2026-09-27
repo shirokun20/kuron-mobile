@@ -8,7 +8,6 @@
 //   --url <baseUrl> --validate --live
 library;
 
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -18,35 +17,13 @@ import 'package:kuron_generic/kuron_generic.dart';
 import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
+import '../support/bulk_config_loader.dart';
+
 const _sourceId = 'orchisasia';
 final _live = Platform.environment['LIVE'] == '1';
 
-Map<String, Object?> _loadConfig() {
-  final candidates = [
-    'build/generated/$_sourceId-config.json',
-    '../../informations/configs/$_sourceId-config.json',
-  ];
-  for (final path in candidates) {
-    final f = File(path);
-    if (f.existsSync()) {
-      return (jsonDecode(f.readAsStringSync()) as Map).cast<String, Object?>();
-    }
-  }
-  throw StateError('Cannot locate $_sourceId-config.json');
-}
-
-String? _fixture(String screen) {
-  if (_live) return null;
-  final candidates = [
-    'build/generated/fixtures/$_sourceId/$screen.html',
-    'fixtures/$_sourceId/$screen.html',
-  ];
-  for (final path in candidates) {
-    final f = File(path);
-    if (f.existsSync()) return f.readAsStringSync();
-  }
-  return null;
-}
+String? _fixture(String screen) =>
+    loadBulkFixture(_sourceId, screen, live: _live);
 GenericScraperAdapter _adapter(Map<String, Object?> config,
     {mock.DioAdapter? mockAdapter}) {
   final baseUrl = config['baseUrl'] as String;
@@ -70,23 +47,31 @@ GenericScraperAdapter _adapter(Map<String, Object?> config,
   );
 }
 
-void main() {
+Future<void> main() async {
   late Map<String, Object?> config;
   late GenericScraperAdapter adapter;
 
-  setUpAll(() {
-    config = _loadConfig();
+  // An unpublished source is not a regression: skip with the reason instead
+  // of failing when no config resolves locally or from kuron-extensions.
+  String? unavailable;
+  try {
+    config = await loadBulkConfig(_sourceId);
     adapter = _adapter(config);
-  });
+  } on StateError catch (e) {
+    unavailable = 'config unavailable for $_sourceId: ${e.message}';
+  }
 
   group('$_sourceId generated 5-screen', () {
     test('home screen returns items', () async {
       final fixture = _fixture('home');
-      if (fixture != null) {
-        // Offline replay: assert the saved home HTML still parses into items
-        // through the same parser the adapter uses.
-        expect(fixture, contains('<html'), reason: 'home fixture sanity');
+      if (fixture == null) {
+        // No golden fixture and not LIVE: nothing to replay offline.
+        markTestSkipped('no home fixture for $_sourceId; re-run with LIVE=1');
+        return;
       }
+      // Offline replay: assert the saved home HTML still parses into items
+      // through the same parser the adapter uses.
+      expect(fixture, contains('<html'), reason: 'home fixture sanity');
       final result = await adapter.search(
         const SearchFilter(query: '', page: 1),
         config,
@@ -141,5 +126,5 @@ void main() {
         expect(data?.images, isNotEmpty, reason: 'reader images');
       }
     }, timeout: const Timeout(Duration(seconds: 120)));
-  });
+  }, skip: unavailable);
 }

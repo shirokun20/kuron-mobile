@@ -7,8 +7,7 @@ import 'package:test/test.dart';
 // Mirrors the normalizer logic; if the engine copy drifts from this, update.
 String normalizeForTest(String chapterId, String template) {
   if (chapterId.isEmpty) return chapterId;
-  final placeholder =
-      template.contains('{contentId}') ? '{contentId}' : '{id}';
+  final placeholder = template.contains('{contentId}') ? '{contentId}' : '{id}';
   if (!template.contains(placeholder)) return chapterId;
 
   final prefix = template.split(placeholder).first;
@@ -42,8 +41,7 @@ void main() {
 
   test('prefix stripping still works with trailing slash present', () {
     expect(
-      normalizeForTest(
-          '/manga/series-a/chapter-2/', '/manga/{id}'),
+      normalizeForTest('/manga/series-a/chapter-2/', '/manga/{id}'),
       'series-a/chapter-2/',
     );
   });

@@ -3,11 +3,14 @@ import 'package:nhasixapp/presentation/pages/reader/reader_screen.dart';
 
 void main() {
   group('ReaderScreen heavy-image auto-switch policy', () {
-    test('skips auto-switch for manga18 source', () {
-      expect(
-        ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource('manga18.club'),
-        isTrue,
-      );
+    test('skips auto-switch for heavy-image sources', () {
+      for (final id in ['manga18.club', 'ehentai', 'komiktap']) {
+        expect(
+          ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource(id),
+          isTrue,
+          reason: '$id must keep webtoon/dual-page mode',
+        );
+      }
       expect(
         ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource('MANGA18.CLUB'),
         isTrue,
@@ -16,7 +19,7 @@ void main() {
 
     test('keeps auto-switch enabled for other sources', () {
       expect(
-        ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource('ehentai'),
+        ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource('nhentai'),
         isFalse,
       );
       expect(

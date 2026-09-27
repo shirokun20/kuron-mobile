@@ -15,7 +15,19 @@ const String kExtRepoRawBase =
 // Fetched once per test run.
 Map<String, String>? _extConfigUrls;
 
-Future<String> _extGet(String path) async {
+// `TestWidgetsFlutterBinding` installs a global `HttpOverrides` that fails
+// every request with HTTP 400. This loader is the sanctioned way for app tests
+// to pull real configs from the ext repo, so run outside that override.
+// ponytail: pass-through override; swap for a cached fixture dir when the
+// tests must stay fully offline.
+class _RealHttpOverrides extends HttpOverrides {}
+
+Future<String> _extGet(String path) async => HttpOverrides.runWithHttpOverrides(
+      () => _extGetUnchecked(path),
+      _RealHttpOverrides(),
+    );
+
+Future<String> _extGetUnchecked(String path) async {
   final request =
       await HttpClient().getUrl(Uri.parse('$kExtRepoRawBase/$path'));
   final response = await request.close();
@@ -29,8 +41,7 @@ Future<String> _extGet(String path) async {
 Future<Map<String, String>> _extConfigUrlMap() async {
   final cached = _extConfigUrls;
   if (cached != null) return cached;
-  final manifest =
-      jsonDecode(await _extGet('manifest.json')) as Map;
+  final manifest = jsonDecode(await _extGet('manifest.json')) as Map;
   final urls = <String, String>{};
   for (final entry in (manifest['installableSources'] as List)) {
     final url = (entry as Map)['url'] as String;

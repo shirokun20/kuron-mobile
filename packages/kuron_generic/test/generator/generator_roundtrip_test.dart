@@ -109,12 +109,23 @@ void main() {
         },
       };
 
-      // Parse using engine that supports our declared primitives.
+      // Parse using an engine that supports our declared primitives.
+      //
+      // `dynamicForm.basic` is required in addition to the two declared in
+      // `requiredPrimitives`: `searchConfig.queryParam` makes
+      // SourceConfigParser autowire a minimal search form, and
+      // DynamicSearchFormContract.impliedPrimitives then demands
+      // `dynamicForm.basic`. Without it the parser reports
+      // `primitiveMissing` and the config lands on `partiallyCompatible`.
+      // This is validator behaviour added after this fixture was written,
+      // not a regression — the real ConfigGenerator output is `compatible`
+      // against a default SourceConfigParser, which registers every primitive.
       const parser = SourceConfigParser(
         engineVersion: '1.0.0',
         registeredPrimitives: <String>{
           EnginePrimitive.imageModeDirectUrl,
           EnginePrimitive.paginationPage,
+          EnginePrimitive.dynamicFormBasic,
         },
       );
 

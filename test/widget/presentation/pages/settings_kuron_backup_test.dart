@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:logger/logger.dart';
 import 'package:nhasixapp/domain/usecases/exports/kuron_backup_serializer.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/pages/settings/backup_flow.dart';
@@ -17,6 +19,14 @@ Widget wrap(Widget child) => MaterialApp(
     );
 
 void main() {
+  // backup_flow.dart logs via GetIt<Logger>; only the failing-import path
+  // reaches that line, so the other tests pass without it.
+  setUpAll(() {
+    if (!GetIt.I.isRegistered<Logger>()) {
+      GetIt.I.registerSingleton<Logger>(Logger(level: Level.off));
+    }
+  });
+
   testWidgets('restore flow: preview -> confirm -> progress -> summary',
       (tester) async {
     var ran = false;

@@ -204,6 +204,12 @@ class OfflineSearchCubit extends BaseCubit<OfflineSearchState> {
         currentDescending = (state as OfflineSearchLoaded).descending;
       }
 
+      // Buckets must be captured BEFORE the loading emit below, otherwise the
+      // state is OfflineSearchLoading and a filtered load loses the source list.
+      final previousBuckets = state is OfflineSearchLoaded
+          ? (state as OfflineSearchLoaded).availableSourceIds
+          : const <String>[];
+
       if (loadMore) {
         final currentState = state;
         if (currentState is! OfflineSearchLoaded) {
@@ -250,10 +256,6 @@ class OfflineSearchCubit extends BaseCubit<OfflineSearchState> {
         logWarning(
             'searchOfflineContent: rows truncated at $fetchLimit; group pages may be incomplete');
       }
-
-      final previousBuckets = state is OfflineSearchLoaded
-          ? (state as OfflineSearchLoaded).availableSourceIds
-          : const <String>[];
 
       // Phase 1 (cheap, all rows): lightweight conversion + full grouping.
       // Cover resolution and reader positions are file/DB I/O — deferred to
@@ -453,6 +455,12 @@ class OfflineSearchCubit extends BaseCubit<OfflineSearchState> {
         currentDescending = (state as OfflineSearchLoaded).descending;
       }
 
+      // Buckets must be captured BEFORE the loading emit below, otherwise the
+      // state is OfflineSearchLoading and a filtered load loses the source list.
+      final previousBuckets = state is OfflineSearchLoaded
+          ? (state as OfflineSearchLoaded).availableSourceIds
+          : const <String>[];
+
       if (loadMore) {
         final currentState = state;
         if (currentState is! OfflineSearchLoaded) {
@@ -492,10 +500,6 @@ class OfflineSearchCubit extends BaseCubit<OfflineSearchState> {
         logWarning(
             'getAllOfflineContent: rows truncated at $fetchLimit; group pages may be incomplete');
       }
-
-      final previousBuckets = state is OfflineSearchLoaded
-          ? (state as OfflineSearchLoaded).availableSourceIds
-          : const <String>[];
 
       if (downloads.isEmpty && !loadMore) {
         // Only trigger empty if NO source filter is applied.

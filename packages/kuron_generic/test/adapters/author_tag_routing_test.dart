@@ -99,7 +99,9 @@ void main() {
         const SearchFilter(
           query: '',
           page: 1,
-          includeTags: [FilterItem(id: 0, name: 'artist:Han Se', type: 'artist')],
+          includeTags: [
+            FilterItem(id: 0, name: 'artist:Han Se', type: 'artist')
+          ],
         ),
         _configWith(const ['authorSearch', 'artistSearch', 'genreSearch']),
       );
@@ -118,7 +120,9 @@ void main() {
         const SearchFilter(
           query: '',
           page: 1,
-          includeTags: [FilterItem(id: 0, name: 'author:Hanse', type: 'author')],
+          includeTags: [
+            FilterItem(id: 0, name: 'author:Hanse', type: 'author')
+          ],
         ),
         _configWith(const ['authorSearch', 'artistSearch', 'genreSearch']),
       );
@@ -135,7 +139,9 @@ void main() {
         const SearchFilter(
           query: '',
           page: 1,
-          includeTags: [FilterItem(id: 0, name: 'artist:Han Se', type: 'artist')],
+          includeTags: [
+            FilterItem(id: 0, name: 'artist:Han Se', type: 'artist')
+          ],
         ),
         _configWith(const ['genreSearch']),
       );

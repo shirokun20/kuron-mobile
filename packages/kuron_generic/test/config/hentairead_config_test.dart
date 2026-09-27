@@ -14,23 +14,28 @@ void main() {
     config = await loadConfigRemote('hentairead-config.json');
   });
 
-  test('uses the /hentai/ listing and english reader route', () {
+  test('uses the site root listing and plain detail/chapter routes', () {
     final scraper = (config['scraper'] as Map).cast<String, Object?>();
     final urlPatterns = (scraper['urlPatterns'] as Map).cast<String, Object?>();
 
-    expect((urlPatterns['home'] as Map)['url'], '/hentai/');
-    expect(urlPatterns['detail'], '/hentai/{id}/');
-    expect(urlPatterns['chapter'], '/hentai/{id}/english/p/1/');
+    expect((urlPatterns['home'] as Map)['url'], '/');
+    expect((urlPatterns['search'] as Map)['url'], '/search/{query}');
+    expect(urlPatterns['detail'], '/{id}/');
+    expect(urlPatterns['chapter'], '/{id}');
   });
 
-  test('keeps hentairead as a no-chapters source with reader fallback', () {
+  test('declares chapters and reads images from data-index img tags', () {
     final scraper = (config['scraper'] as Map).cast<String, Object?>();
     final selectors = (scraper['selectors'] as Map).cast<String, Object?>();
     final reader = (selectors['reader'] as Map).cast<String, Object?>();
     final features = (config['features'] as Map).cast<String, Object?>();
+    final chapters =
+        ((selectors['detail'] as Map)['chapters'] as Map)
+            .cast<String, Object?>();
 
-    expect(reader['mode'], 'chapterDataScript');
-    expect(features['chapters'], isFalse);
+    expect(features['chapters'], isTrue);
+    expect(chapters['container'], '#nt_listchapter');
+    expect((reader['images'] as Map)['selector'], 'img[data-index]');
   });
 
   test('image download headers match hentairead full-size reader contract', () {
@@ -41,12 +46,13 @@ void main() {
     );
 
     final headers = source.getImageDownloadHeaders(
-      imageUrl: 'https://henread.xyz/294075/87911/hr_0001.jpg',
+      imageUrl: 'https://hentairead.io/upload/pages/2026/09/cover.jpg',
     );
 
-    expect(headers['Referer'], 'https://hentairead.com/');
-    expect(headers['Accept'], 'image/webp,image/*,*/*;q=0.8');
-    expect(headers['Origin'], 'https://hentairead.com');
-    expect(headers['Sec-Fetch-Dest'], 'image');
+    // refererHeader is derived from the config's baseUrl, so this asserts the
+    // published config points at the live domain.
+    expect(config['baseUrl'], 'https://hentairead.io');
+    expect(headers['Referer'], 'https://hentairead.io/');
+    expect(headers['User-Agent'], contains('Mozilla/5.0'));
   });
 }

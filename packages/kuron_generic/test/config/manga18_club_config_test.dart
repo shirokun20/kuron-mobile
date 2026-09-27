@@ -1,29 +1,8 @@
 library;
 
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:test/test.dart';
 
-String _resolveConfigPath() {
-  final candidates = [
-    'manga18.club-config.json',
-    '../../manga18.club-config.json',
-  ];
-
-  for (final path in candidates) {
-    if (File(path).existsSync()) {
-      return path;
-    }
-  }
-
-  throw StateError('Cannot locate manga18.club-config.json');
-}
-
-Map<String, dynamic> _loadConfig() {
-  final path = _resolveConfigPath();
-  return jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
-}
+import '../support/config_test_harness.dart';
 
 void main() {
   group('manga18.club config contract', () {
@@ -32,8 +11,9 @@ void main() {
     late Map<String, dynamic> urlPatterns;
     late Map<String, dynamic> selectors;
 
-    setUpAll(() {
-      config = _loadConfig();
+    setUpAll(() async {
+      config = (await loadConfigRemote('manga18.club-config.json'))
+          .cast<String, dynamic>();
       scraper = (config['scraper'] as Map).cast<String, dynamic>();
       urlPatterns = (scraper['urlPatterns'] as Map).cast<String, dynamic>();
       selectors = (scraper['selectors'] as Map).cast<String, dynamic>();

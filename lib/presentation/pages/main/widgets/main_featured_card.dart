@@ -451,12 +451,19 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                           final emoji = hasLang
                                               ? langSvc.flagEmoji(normLang)
                                               : null;
+                                          final languageBadge = hasLang
+                                              ? (normLang.length >= 2
+                                                  ? normLang
+                                                      .substring(0, 2)
+                                                      .toUpperCase()
+                                                  : normLang.toUpperCase())
+                                              : '--';
                                           final label = hasLang
                                               ? langSvc.displayName(normLang)
                                               : content.language;
 
                                           return Text(
-                                            '${emoji ?? normLang.substring(0, 2).toUpperCase()} $label',
+                                            '${emoji ?? languageBadge} $label',
                                             style: TextStyleConst.labelSmall
                                                 .copyWith(
                                               color: theme

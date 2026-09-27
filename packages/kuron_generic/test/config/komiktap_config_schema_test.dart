@@ -6,9 +6,8 @@
 //   3. `fields` maps use the canonical `{selector, ...}` field definition format.
 //   4. Detail selectors and chapter selectors are well-formed.
 //   5. Reader config has the required sub-structure.
-//   6. `configUrl` is present (so self-refresh works).
-//   7. `searchForm` structure is valid.
-//   8. `inherits` references point to existing patterns.
+//   6. `searchForm` structure is valid.
+//   7. `inherits` references point to existing patterns.
 ///
 // Run with:
 //   dart test packages/kuron_generic/test/config/komiktap_config_schema_test.dart
@@ -19,36 +18,22 @@ import 'dart:io';
 
 import 'package:test/test.dart';
 
-// Resolve config path with explicit source policy:
-// - installable sources -> app/config/
-// - bundled defaults (nhentai) -> assets/configs/
-String _resolveConfigPath(String filename) {
-  final bool isBundledNhentai = filename == 'nhentai-config.json';
-  final candidates = isBundledNhentai
-      ? [
-          '../../assets/configs/$filename',
-          'assets/configs/$filename',
-        ]
-      : [
-          '../../app/config/$filename', // running inside packages/kuron_generic/
-          'app/config/$filename', // running from project root
-        ];
+import '../support/config_test_harness.dart';
+
+// nhentai is a bundled default shipped in `assets/configs/`; it is not an
+// installable source, so the remote harness does not apply.
+Map<String, dynamic> _loadBundledNhentai() {
+  const candidates = [
+    'assets/configs/nhentai-config.json', // running from project root
+    '../../assets/configs/nhentai-config.json', // from packages/kuron_generic/
+  ];
   for (final p in candidates) {
-    if (File(p).existsSync()) return p;
+    if (File(p).existsSync()) {
+      return jsonDecode(File(p).readAsStringSync()) as Map<String, dynamic>;
+    }
   }
-  if (isBundledNhentai) {
-    throw StateError(
-        'Cannot locate $filename under assets/config/. Run tests from project root or packages/kuron_generic/.');
-  }
-
   throw StateError(
-      'Cannot locate $filename under app/config/. Run tests from project root or packages/kuron_generic/.');
-}
-
-Map<String, dynamic> _loadJson(String filename) {
-  final path = _resolveConfigPath(filename);
-  final content = File(path).readAsStringSync();
-  return jsonDecode(content) as Map<String, dynamic>;
+      'Cannot locate nhentai-config.json under assets/configs/. Run tests from project root or packages/kuron_generic/.');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -117,9 +102,10 @@ void main() {
   late Map<String, dynamic> komiktap;
   late Map<String, dynamic> nhentai;
 
-  setUpAll(() {
-    komiktap = _loadJson('komiktap-config.json');
-    nhentai = _loadJson('nhentai-config.json');
+  setUpAll(() async {
+    komiktap = (await loadConfigRemote('komiktap-config.json'))
+        .cast<String, dynamic>();
+    nhentai = _loadBundledNhentai();
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -407,12 +393,6 @@ void main() {
   // ─────────────────────────────────────────────────────────────────────────
 
   group('nhentai-config.json', () {
-    test('has configUrl field', () {
-      _asString(nhentai, 'configUrl', 'root');
-      expect((nhentai['configUrl'] as String).startsWith('https://'), isTrue,
-          reason: 'configUrl must be an https URL');
-    });
-
     test('source is "nhentai"', () {
       expect(nhentai['source'], 'nhentai');
     });

@@ -16,8 +16,13 @@ import '../support/config_test_harness.dart';
 const _baseUrl = 'https://www.tooncubus.top';
 const _readerBaseUrl = 'https://www.tooncubus-read.my.id';
 
-String _readFixture(String filename) {
+/// Returns the named Tooncubus fixture, or `null` when it is absent.
+///
+/// The fixture lives under `informations/`, which is gitignored
+/// (.gitignore line 69), so it is unavailable on a clean checkout.
+String? _readFixture(String filename) {
   final candidates = [
+    'packages/kuron_generic/test/fixtures/tooncubus/$filename',
     'informations/documentation/tooncubus/$filename',
     '../../informations/documentation/tooncubus/$filename',
   ];
@@ -29,8 +34,16 @@ String _readFixture(String filename) {
     }
   }
 
-  throw StateError('Cannot locate fixture $filename');
+  return null;
 }
+
+/// Skip reason for a Tooncubus fixture that `_readFixture` could not locate.
+String _missingFixtureReason(String filename) =>
+    'Missing fixture: informations/documentation/tooncubus/$filename. The '
+    'whole /informations/ tree is gitignored (.gitignore line 69), so this '
+    'Tooncubus page is absent from a clean checkout. Un-skips automatically '
+    'once the fixture is committed to '
+    'packages/kuron_generic/test/fixtures/tooncubus/.';
 
 GenericScraperAdapter _buildAdapter(Dio dio) {
   final logger = Logger(level: Level.off);
@@ -49,10 +62,17 @@ void main() {
       '$_baseUrl/search/label/Series?updated-max=2025-12-09T02:03:00-08:00&max-results=16&start=16&by-date=false';
 
   setUpAll(() async {
-    config = (await loadConfigRemote('tooncubus-config.json')).cast<String, dynamic>();
+    config = (await loadConfigRemote('tooncubus-config.json'))
+        .cast<String, dynamic>();
   });
 
   test('home fixture extracts Blogger cards from Series label page', () async {
+    final homeHtml = _readFixture('halaman-utama.html');
+    if (homeHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-utama.html'));
+      return;
+    }
+
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
@@ -61,7 +81,7 @@ void main() {
       '$_baseUrl/search/label/Series?max-results=16',
       (server) => server.reply(
         200,
-        _readFixture('halaman-utama.html'),
+        homeHtml,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },
@@ -81,10 +101,14 @@ void main() {
   });
 
   test('page 2 uses Blogger cursor url instead of repeating page 1', () async {
+    final page1Html = _readFixture('halaman-utama.html');
+    if (page1Html == null) {
+      markTestSkipped(_missingFixtureReason('halaman-utama.html'));
+      return;
+    }
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
-    final page1Html = _readFixture('halaman-utama.html');
     final page2Html = page1Html.replaceFirst(
       'Love For Amalthea',
       'Page Two Title',
@@ -123,6 +147,17 @@ void main() {
 
   test('page 2 can be opened directly by walking Blogger cursor pagination',
       () async {
+    final homeHtml = _readFixture('halaman-utama.html');
+    final page2Html = _readFixture('halaman-utama-page-2.html');
+    if (homeHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-utama.html'));
+      return;
+    }
+    if (page2Html == null) {
+      markTestSkipped(_missingFixtureReason('halaman-utama-page-2.html'));
+      return;
+    }
+
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
@@ -131,7 +166,7 @@ void main() {
       '$_baseUrl/search/label/Series?max-results=16',
       (server) => server.reply(
         200,
-        _readFixture('halaman-utama.html'),
+        homeHtml,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },
@@ -142,7 +177,7 @@ void main() {
       nextPageUrl,
       (server) => server.reply(
         200,
-        _readFixture('halaman-utama-page-2.html'),
+        page2Html,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },
@@ -159,6 +194,12 @@ void main() {
 
   test('detail fixture extracts chapter reader URL from Baca Online block',
       () async {
+    final detailHtml = _readFixture('halaman-detail.html');
+    if (detailHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-detail.html'));
+      return;
+    }
+
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
@@ -167,7 +208,7 @@ void main() {
       '$_baseUrl/2026/03/love-for-amalthea.html',
       (server) => server.reply(
         200,
-        _readFixture('halaman-detail.html'),
+        detailHtml,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },
@@ -191,6 +232,17 @@ void main() {
   test(
       'reader fallback follows explicit Baca Online link before scraping images',
       () async {
+    final detailHtml = _readFixture('halaman-detail.html');
+    final readerHtml = _readFixture('halaman-reader.html');
+    if (detailHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-detail.html'));
+      return;
+    }
+    if (readerHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-reader.html'));
+      return;
+    }
+
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
@@ -199,7 +251,7 @@ void main() {
       '$_baseUrl/2023/01/konoha-shinobi-affair.html',
       (server) => server.reply(
         200,
-        _readFixture('halaman-detail.html')
+        detailHtml
             .replaceAll(
               'https://www.tooncubus.top/2026/03/love-for-amalthea.html',
               '$_baseUrl/2023/01/konoha-shinobi-affair.html',
@@ -218,7 +270,7 @@ void main() {
       '$_readerBaseUrl/2026/01/konoha-shinobi-affair-04.html',
       (server) => server.reply(
         200,
-        _readFixture('halaman-reader.html'),
+        readerHtml,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },
@@ -238,6 +290,12 @@ void main() {
 
   test('tag query uses Blogger label route instead of keyword search',
       () async {
+    final tagHtml = _readFixture('halaman-tag-click.html');
+    if (tagHtml == null) {
+      markTestSkipped(_missingFixtureReason('halaman-tag-click.html'));
+      return;
+    }
+
     final dio = Dio(BaseOptions(baseUrl: _baseUrl));
     final dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
     final adapter = _buildAdapter(dio);
@@ -246,7 +304,7 @@ void main() {
       '$_baseUrl/search/label/Full%20Color?max-results=20',
       (server) => server.reply(
         200,
-        _readFixture('halaman-tag-click.html'),
+        tagHtml,
         headers: {
           Headers.contentTypeHeader: ['text/html; charset=utf-8'],
         },

@@ -114,12 +114,11 @@ void main() {
       final chapters = detail.content.chapters ?? [];
 
       expect(chapters, hasLength(3));
-      expect(chapters.map((c) => c.id).toList(),
-          ['1', '2', '3']);
+      expect(chapters.map((c) => c.id).toList(), ['1', '2', '3']);
       expect(chapters.map((c) => c.title).toList(),
           ['Chapter 1', 'Chapter 2', 'Chapter 3']);
-      expect(chapters.first.url,
-          'https://manganova.test/manga/shadow-slave/1/');
+      expect(
+          chapters.first.url, 'https://manganova.test/manga/shadow-slave/1/');
     });
 
     test('posts to a clean /wp-admin/admin-ajax.php (no ?# tail)', () {

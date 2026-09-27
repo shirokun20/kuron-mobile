@@ -249,6 +249,8 @@ void main() {
             limit: 10000,
             offset: 0,
             sourceId: any(named: 'sourceId'),
+            orderBy: any(named: 'orderBy'),
+            descending: any(named: 'descending'),
           )).thenAnswer((inv) async {
         final sid = inv.namedArguments[#sourceId] as String?;
         if (sid == null) return rows;
