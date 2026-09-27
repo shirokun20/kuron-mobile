@@ -6,28 +6,25 @@ import '../../domain/repositories/content_repository.dart';
 import '../../domain/repositories/recommendation_repository.dart';
 import '../../domain/repositories/user_data_repository.dart';
 import '../../domain/value_objects/value_objects.dart';
-import '../datasources/local/metadata_tag_scanner.dart';
 import 'package:kuron_core/kuron_core.dart'
     hide ContentListResult, PopularTimeframe;
 
-// Content-based recommendation engine. Scoring is fully local (SQLite +
-// download library); only candidate *discovery* may hit the network via the
-// same related-content API the detail screen already uses.
+// Content-based recommendation engine. Seeds come from history + favorites
+// only (downloads are skipped by design). Scoring is fully local (SQLite);
+// only candidate *discovery* may hit the network via the same related-content
+// API the detail screen already uses.
 class RecommendationRepositoryImpl implements RecommendationRepository {
   RecommendationRepositoryImpl({
     required ContentRepository contentRepository,
     required UserDataRepository userDataRepository,
     required Logger logger,
-    Future<List<MetadataSeed>> Function()? loadMetadataSeeds,
   })  : _content = contentRepository,
         _userData = userDataRepository,
-        _logger = logger,
-        _loadMetadataSeeds = loadMetadataSeeds ?? _defaultMetadataSeeds;
+        _logger = logger;
 
   final ContentRepository _content;
   final UserDataRepository _userData;
   final Logger _logger;
-  final Future<List<MetadataSeed>> Function() _loadMetadataSeeds;
 
   static const seedWindow = Duration(days: 30);
   static const shownWindow = Duration(hours: 24);
@@ -38,7 +35,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
   static const relatedPerSeed = 10;
   static const favoriteBoostValue = 2.0;
   static const sourceBoostValue = 1.2;
-  static const downloadCompletionWeight = 0.7;
   static const explorationFraction = 0.2;
 
   /// Max detail fetches per recompute for tag backfill (old rows saved
@@ -48,12 +44,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
 
   List<Recommendation>? _cached;
   DateTime? _cachedAt;
-
-  static Future<List<MetadataSeed>> _defaultMetadataSeeds() async {
-    final root = await MetadataTagScanner.resolveLibraryRoot();
-    if (root == null) return [];
-    return MetadataTagScanner(libraryRoot: root).scan();
-  }
 
   // ---------- public API ----------
 
@@ -110,15 +100,9 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
         }
       }
 
-      // Exploration pool (never scored): owned-but-unread downloads first,
-      // then related items beyond the top seeds.
+      // Exploration pool (never scored): related items beyond the top
+      // seeds. Downloads are skipped by design (history + favorites only).
       final explorePool = <String, Content>{};
-      final metaSeeds = await _loadMetadataSeeds();
-      for (final m in metaSeeds) {
-        if (readIds.contains(m.contentId)) continue;
-        explorePool.putIfAbsent(
-            _key(m.sourceId, m.contentId), () => _contentFromSeed(m));
-      }
       for (final seed in rankedSeeds.skip(relatedSeeds)) {
         try {
           final related = await _content.getRelatedContent(
@@ -135,7 +119,7 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       }
 
       // Last resort: popular from the active source (affinity-based, not
-      // random). Only fills what related + downloads could not.
+      // random). Only fills what related could not.
       if (pool.length + explorePool.length < limit) {
         try {
           final popular = await _content.getPopularContent(
@@ -194,25 +178,46 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       }
       scored.sort((a, b) => b.score.compareTo(a.score));
 
+      // Fresh (never-shown) first; shown-within-24h repeats fill only what
+      // fresh could not — an empty home is worse than a repeat.
+      final shown = await _shownIds(now);
       final result = <Recommendation>[];
-      for (final s in scored.take(rankedCount)) {
-        result.add(_toRecommendation(s.candidate, s.score, s.contributor));
-      }
-      // Exploration fills its 20% quota, PLUS any slots the ranked pool
-      // could not fill — a thin ranked pool must never mean a thin list.
-      final remaining = limit - result.length;
-      for (final c in explorePool.values.take(remaining)) {
-        result.add(Recommendation(
-          contentId: c.id,
-          sourceId: c.sourceId,
-          score: 0,
-          reason: 'Explore: ${c.title}',
-          contributorTitle: c.title,
-          contributorRelation: RecommendationRelation.similar,
-          content: c,
-        ));
+      final usedIds = <String>{};
+      void takeRanked(Iterable<_Scored> candidates, int count) {
+        for (final s in candidates) {
+          if (result.length >= count) break;
+          if (!usedIds.add(s.candidate.id)) continue;
+          result.add(_toRecommendation(s.candidate, s.score, s.contributor));
+        }
       }
 
+      takeRanked(
+          scored.where((s) => !shown.contains(s.candidate.id)), rankedCount);
+      takeRanked(scored, rankedCount);
+      // Exploration fills its 20% quota, PLUS any slots the ranked pool
+      // could not fill — a thin ranked pool must never mean a thin list.
+      void takeExplore(Iterable<Content> candidates, int count) {
+        for (final c in candidates) {
+          if (result.length >= count) break;
+          if (!usedIds.add(c.id)) continue;
+          result.add(Recommendation(
+            contentId: c.id,
+            sourceId: c.sourceId,
+            score: 0,
+            reason: 'Explore: ${c.title}',
+            contributorTitle: c.title,
+            contributorRelation: RecommendationRelation.similar,
+            content: c,
+          ));
+        }
+      }
+
+      takeExplore(
+          explorePool.values.where((c) => !shown.contains(c.id)), limit);
+      takeExplore(explorePool.values, limit);
+
+      _logger.i('Recommendations: seeds=${seeds.length} pool=${pool.length} '
+          'explore=${explorePool.length} result=${result.length}');
       _cached = result;
       _cachedAt = now;
       return result;
@@ -319,8 +324,14 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
     required String sourceId,
     required String origin,
   }) async {
-    final stored =
-        await _userData.getTagNamesForContent(id, sourceId: sourceId);
+    Set<String> stored = const {};
+    try {
+      stored = await _userData.getTagNamesForContent(id, sourceId: sourceId);
+    } catch (e) {
+      // A missing/broken tag table must never kill the whole recompute —
+      // fall through to the detail backfill below.
+      _logger.d('Recommendations: stored tags unavailable for $id: $e');
+    }
     if (stored.isNotEmpty) return stored;
     if (_backfillUsed >= backfillMaxDetails) return {};
     _backfillUsed++;
@@ -410,32 +421,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       _logger.d('Recommendations: favorites unavailable: $e');
     }
 
-    // Tagged downloads: ownership interest with fixed completion weight.
-    try {
-      final meta = await _loadMetadataSeeds();
-      meta.sort((a, b) => b.downloadedAt.compareTo(a.downloadedAt));
-      for (final m in meta) {
-        if (seeds.length >= maxSeeds) break;
-        if (m.downloadedAt.isBefore(cutoff)) continue;
-        if (seeds.any((s) => s.id == m.contentId && s.sourceId == m.sourceId)) {
-          continue;
-        }
-        final tags = {for (final t in m.tags) t.name};
-        if (tags.isEmpty) continue;
-        seeds.add(_Seed(
-          id: m.contentId,
-          sourceId: m.sourceId,
-          title: m.title ?? m.contentId,
-          tags: tags,
-          priorWeight:
-              downloadCompletionWeight * recencyDecay(now.difference(m.downloadedAt)),
-          relation: RecommendationRelation.download,
-        ));
-      }
-    } catch (e) {
-      _logger.d('Recommendations: metadata seeds unavailable: $e');
-    }
-
     return seeds;
   }
 
@@ -454,7 +439,9 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
     return ids;
   }
 
-  /// Shown (24h) + dismissed (30d) ids, plus caller-supplied excludes.
+  /// Hard blocks: caller excludes + dismissed (30d). Shown-within-24h is a
+  /// SOFT block (see [_shownIds]) — it yields when the list would otherwise
+  /// come back empty, so a returning user never faces a vanishing section.
   Future<Set<String>> _blockedIds(DateTime now, Set<String> extra) async {
     final blocked = {...extra};
     try {
@@ -462,12 +449,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       for (final r in rows) {
         final id = r['content_id']?.toString() ?? '';
         if (id.isEmpty) continue;
-        final shownAt = r['shown_at'] as int?;
-        if (shownAt != null &&
-            now.millisecondsSinceEpoch - shownAt <
-                shownWindow.inMilliseconds) {
-          blocked.add(id);
-        }
         if ((r['dismissed'] as int? ?? 0) == 1) {
           final dismissedAt = r['dismissed_at'] as int?;
           if (dismissedAt != null &&
@@ -481,6 +462,28 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       _logger.d('Recommendations: history rows unavailable: $e');
     }
     return blocked;
+  }
+
+  /// Ids shown within the last 24h. Excluded by preference, but allowed as
+  /// repeats when nothing fresh remains (better a repeat than an empty home).
+  Future<Set<String>> _shownIds(DateTime now) async {
+    final shown = <String>{};
+    try {
+      final rows = await _userData.getRecommendationHistoryRows();
+      for (final r in rows) {
+        final id = r['content_id']?.toString() ?? '';
+        if (id.isEmpty) continue;
+        final shownAt = r['shown_at'] as int?;
+        if (shownAt != null &&
+            now.millisecondsSinceEpoch - shownAt <
+                shownWindow.inMilliseconds) {
+          shown.add(id);
+        }
+      }
+    } catch (e) {
+      _logger.d('Recommendations: shown rows unavailable: $e');
+    }
+    return shown;
   }
 
   // ---------- pure helpers (unit-tested) ----------
@@ -512,7 +515,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
       Content candidate, double score, _Seed contributor) {
     final prefix = switch (contributor.relation) {
       RecommendationRelation.favorite => 'Because you favorited',
-      RecommendationRelation.download => 'From your downloads',
       _ => 'Because you read',
     };
     return Recommendation(
@@ -526,44 +528,6 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
     );
   }
 
-  static Content _contentFromSeed(MetadataSeed m) {
-    final tags = <Tag>[];
-    final artists = <String>[];
-    final characters = <String>[];
-    final parodies = <String>[];
-    final groups = <String>[];
-    String language = '';
-    for (final t in m.tags) {
-      tags.add(Tag(id: 0, name: t.name, type: t.type, count: 0));
-      switch (t.type) {
-        case 'artist':
-          artists.add(t.name);
-        case 'character':
-          characters.add(t.name);
-        case 'parody':
-          parodies.add(t.name);
-        case 'group':
-          groups.add(t.name);
-        case 'language':
-          if (language.isEmpty) language = t.name;
-      }
-    }
-    return Content(
-      id: m.contentId,
-      sourceId: m.sourceId,
-      title: m.title ?? m.contentId,
-      coverUrl: m.coverUrl ?? '',
-      tags: tags,
-      artists: artists,
-      characters: characters,
-      parodies: parodies,
-      groups: groups,
-      language: language,
-      pageCount: 0,
-      imageUrls: const [],
-      uploadDate: m.downloadedAt,
-    );
-  }
 }
 
 class _Seed {

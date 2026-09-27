@@ -153,8 +153,6 @@ class _ReasonBadge extends StatelessWidget {
     final text = switch (item.contributorRelation) {
       RecommendationRelation.favorite =>
         l10n.recommendedReasonFavorite(title),
-      RecommendationRelation.download =>
-        l10n.recommendedReasonDownload(title),
       // Explore items show the origin source as the badge — the title
       // already appears on the card, so no "Jelajahi:" prefix is needed.
       RecommendationRelation.similar => item.sourceId,

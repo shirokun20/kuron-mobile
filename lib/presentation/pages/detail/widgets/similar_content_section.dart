@@ -7,6 +7,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_refresh_bus.dart';
+import 'package:nhasixapp/presentation/widgets/recommendation_banner.dart';
 import 'package:nhasixapp/presentation/widgets/recommendation_row.dart';
 
 // Detail-screen fallback shown only when the source has no related content
@@ -68,6 +69,7 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
               items: const [],
               isLoading: true,
               isColdStart: false,
+              bannerLoading: true,
               onTap: (_) {},
             );
           }
@@ -79,26 +81,71 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
           if (items.isEmpty && !state.isLoadingSimilar) {
             return const SizedBox.shrink();
           }
-          return RecommendationRow(
-            title: l10n.recommendedSimilar,
-            items: items,
-            isLoading: state.isLoadingSimilar,
-            isColdStart: false,
-            onRefresh: () => _cubit.loadSimilarContent(
-                widget.contentId,
-                sourceId: widget.sourceId),
-            onTap: (item) {
-              final content = item.content;
-              if (content != null) {
-                unawaited(_cubit.markTapped(item));
-                widget.onTap(content);
-              }
-            },
-            onDismiss: (item) =>
-                _cubit.dismissRecommendation(item.contentId,
+          if (items.isEmpty) {
+            return RecommendationRow(
+              title: l10n.recommendedSimilar,
+              items: const [],
+              isLoading: true,
+              isColdStart: false,
+              bannerLoading: true,
+              onTap: (_) {},
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _header(context, l10n, state.isLoadingSimilar),
+              RecommendationBannerCarousel(
+                items: items,
+                onTap: (item) {
+                  final content = item.content;
+                  if (content != null) {
+                    unawaited(_cubit.markTapped(item));
+                    widget.onTap(content);
+                  }
+                },
+                onDismiss: (item) => _cubit.dismissRecommendation(
+                    item.contentId,
                     sourceId: item.sourceId),
+              ),
+              const SizedBox(height: 8),
+            ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _header(
+      BuildContext context, AppLocalizations l10n, bool isLoading) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              l10n.recommendedSimilar,
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          IconButton(
+            icon: isLoading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.refresh_outlined, size: 20),
+            tooltip: MaterialLocalizations.of(context)
+                .refreshIndicatorSemanticLabel,
+            onPressed: isLoading
+                ? null
+                : () => _cubit.loadSimilarContent(
+                    widget.contentId,
+                    sourceId: widget.sourceId),
+          ),
+        ],
       ),
     );
   }

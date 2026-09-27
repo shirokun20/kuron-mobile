@@ -124,6 +124,25 @@ void main() {
     );
   });
 
+  testWidgets('cover drifts against the swipe direction', (tester) async {
+    await tester.pumpWidget(
+        _harness(items: [_rec('a'), _rec('b')]));
+
+    // Fling to the next slide; mid-flight the page offset is fractional,
+    // so a working parallax must show a non-zero horizontal drift.
+    await tester.drag(find.byType(PageView), const Offset(-400, 0));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final shifted =
+        tester.widgetList<Transform>(find.byType(Transform)).where(
+      (t) => t.transform.getTranslation().x != 0,
+    );
+    expect(shifted, isNotEmpty);
+
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Banner Title b'), findsOneWidget);
+  });
+
   testWidgets('tap opens the visible recommendation', (tester) async {
     final tapped = <String>[];
     await tester.pumpWidget(_harness(

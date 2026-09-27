@@ -11,6 +11,7 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/recommendations/recommendation_refresh_bus.dart';
 import 'package:nhasixapp/presentation/pages/detail/widgets/similar_content_section.dart';
+import 'package:nhasixapp/presentation/widgets/recommendation_banner.dart';
 import 'package:nhasixapp/presentation/widgets/recommendation_card.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 
@@ -123,7 +124,8 @@ void main() {
     expect(find.byType(KuronShimmer), findsWidgets);
   });
 
-  testWidgets('9.9 populated shows similar cards', (tester) async {
+  testWidgets('9.9 populated shows banner carousel, not small cards',
+      (tester) async {
     when(() => cubit.state).thenReturn(RecommendationLoaded(
       items: const [],
       similarByContent: {
@@ -133,7 +135,10 @@ void main() {
     await tester.pumpWidget(_harness());
     await tester.pump();
 
-    expect(find.byType(RecommendationCard), findsNWidgets(2));
+    expect(find.byType(RecommendationBannerCarousel), findsOneWidget);
+    expect(find.byType(BannerDots), findsOneWidget);
+    expect(find.byType(RecommendationCard), findsNothing);
+    expect(find.text('Title s1'), findsOneWidget);
     verify(() => cubit.loadSimilarContent('c1', sourceId: 'nhentai'))
         .called(1);
   });

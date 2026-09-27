@@ -215,8 +215,8 @@ class DownloadContentUseCase
 
       // 💾 Save metadata JSON as the "Decoder Key" for Safe IDs (CRITICAL)
       // This ensures that even with hashed folder names, we can identify the content.
-      // Tags are included for the local recommendation engine (MetadataTagScanner
-      // reads them back as scoring seeds; old files without these keys are skipped).
+      // Tags/artists are kept for offline resync (ContentMetadata); the
+      // recommendation engine no longer reads downloads (history + favorites only).
       await DownloadStorageUtils.saveLocalMetadata(
         contentId: content.id,
         sourceId: content.sourceId,

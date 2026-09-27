@@ -3,9 +3,7 @@ import 'package:kuron_core/kuron_core.dart'
     hide ContentListResult, PopularTimeframe;
 import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:nhasixapp/data/datasources/local/metadata_tag_scanner.dart';
 import 'package:nhasixapp/data/repositories/recommendation_repository_impl.dart';
-import 'package:nhasixapp/domain/entities/content_tag.dart';
 import 'package:nhasixapp/domain/entities/history.dart';
 import 'package:nhasixapp/domain/entities/recommendation.dart';
 import 'package:nhasixapp/domain/repositories/content_repository.dart';
@@ -85,33 +83,11 @@ void main() {
         .thenAnswer((_) async {});
   });
 
-  RecommendationRepositoryImpl engineForTest({
-    List<MetadataSeed> metaSeeds = const [],
-  }) {
+  RecommendationRepositoryImpl engineForTest() {
     return RecommendationRepositoryImpl(
       contentRepository: contentRepo,
       userDataRepository: userData,
       logger: Logger(level: Level.off),
-      loadMetadataSeeds: () async => metaSeeds,
-    );
-  }
-
-  MetadataSeed metaSeedForTest(String id, Set<String> tagNames) {
-    return MetadataSeed(
-      contentId: id,
-      sourceId: 'nhentai',
-      downloadedAt: DateTime.now(),
-      tags: [
-        for (final name in tagNames)
-          ContentTag(
-            contentId: id,
-            sourceId: 'nhentai',
-            name: name,
-            type: 'tag',
-            origin: 'metadata',
-          ),
-      ],
-      title: 'DL $id',
     );
   }
 
@@ -313,13 +289,50 @@ void main() {
       final result = await engineForTest()
           .getRecommendations(limit: 10, excludeIds: {'home-cand'});
 
-      expect(result.map((r) => r.contentId), ['good']);
+      // Fresh first, then the shown repeat — read/dismissed/home excluded.
+      expect(result.map((r) => r.contentId), ['good', 'shown-cand']);
     });
-  });
 
-  group('9.5 exploration mix', () {
-    test('20% comes unscored from the download pool, no extra fetches',
-        () async {
+    test('shown-within-24h repeats rescue an otherwise-empty list', () async {
+      final now = DateTime.now();
+      stubHistoryForTest(
+        [_history('seed', lastViewed: now)],
+        {
+          'seed': {'action'},
+        },
+      );
+      when(() => userData.getRecommendationHistoryRows()).thenAnswer(
+        (_) async => [
+          for (final id in ['rep-1', 'rep-2'])
+            {
+              'content_id': id,
+              'source_id': 'nhentai',
+              'shown_at': now.millisecondsSinceEpoch,
+              'tapped_at': null,
+              'dismissed': 0,
+              'dismissed_at': null,
+            },
+        ],
+      );
+      when(() => contentRepo.getRelatedContent(
+            contentId: any(named: 'contentId'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => [
+            _content('rep-1', tagNames: ['action']),
+            _content('rep-2', tagNames: ['action']),
+          ]);
+
+      final result = await engineForTest().getRecommendations(limit: 10);
+
+      // Nothing fresh (all shown <24h ago) → repeats instead of an
+      // invisible section.
+      expect(
+        result.map((r) => r.contentId),
+        containsAll(['rep-1', 'rep-2']),
+      );
+    });
+
+    test('stored tag failure falls back to detail backfill', () async {
       final now = DateTime.now();
       stubHistoryForTest(
         [_history('a', lastViewed: now)],
@@ -327,18 +340,64 @@ void main() {
           'a': {'action'},
         },
       );
+      // Simulates a missing/broken content_tags table: must not kill
+      // the whole recompute.
+      when(() => userData.getTagNamesForContent(any(),
+              sourceId: any(named: 'sourceId')))
+          .thenThrow(Exception('no such table'));
+      when(() => contentRepo.getContentDetail(any(),
+              sourceId: any(named: 'sourceId')))
+          .thenAnswer((_) async => _content('a', tagNames: ['action']));
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
           )).thenAnswer((_) async => [
-            for (var i = 0; i < 8; i++)
-              _content('ranked-$i', tagNames: ['action']),
+            _content('cand', tagNames: ['action']),
           ]);
 
-      final result = await engineForTest(metaSeeds: [
-        metaSeedForTest('dl-1', {'comedy'}),
-        metaSeedForTest('dl-2', {'drama'}),
-      ]).getRecommendations(limit: 10);
+      final result = await engineForTest().getRecommendations(limit: 10);
+
+      expect(result.map((r) => r.contentId), contains('cand'));
+    });
+  });
+
+  group('9.5 exploration mix', () {
+    test('20% comes unscored from extra-related, no download pool',
+        () async {
+      final now = DateTime.now();
+      stubHistoryForTest(
+        [
+          _history('a', lastViewed: now),
+          _history('b', lastViewed: now),
+          _history('c', lastViewed: now),
+          _history('d', lastViewed: now),
+        ],
+        {
+          'a': {'action'},
+          'b': {'action'},
+          'c': {'action'},
+          'd': {'action'},
+        },
+      );
+      when(() => contentRepo.getRelatedContent(
+            contentId: any(named: 'contentId'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((inv) async {
+        final id = (inv.namedArguments[#contentId] as ContentId).value;
+        // The 4th seed (beyond the fetch budget of 3) feeds exploration.
+        if (id == 'd') {
+          return [
+            _content('extra-1', tagNames: ['comedy']),
+            _content('extra-2', tagNames: ['drama']),
+          ];
+        }
+        return [
+          for (var i = 0; i < 8; i++)
+            _content('ranked-$i', tagNames: ['action']),
+        ];
+      });
+
+      final result = await engineForTest().getRecommendations(limit: 10);
 
       // 10 slots → 2 explore (20%), 8 ranked.
       expect(result.length, 10);
@@ -346,18 +405,21 @@ void main() {
           result.where((r) => r.contributorRelation == 'similar').toList();
       final ranked =
           result.where((r) => r.contributorRelation != 'similar').toList();
-      expect(explore.map((r) => r.contentId), containsAll(['dl-1', 'dl-2']));
+      expect(
+        explore.map((r) => r.contentId),
+        containsAll(['extra-1', 'extra-2']),
+      );
       expect(explore.every((r) => r.score == 0), isTrue);
       expect(ranked.length, 8);
-      // Related fetches happen only for seeds (history + the 2 downloads)
-      // — the exploration items themselves triggered zero extra fetches.
+      // Fetches: budget-3 seeds (a, b, c) + the exploration seed (d).
+      // No download scan happens anywhere.
       final requested = verify(() => contentRepo.getRelatedContent(
             contentId: captureAny(named: 'contentId'),
             limit: any(named: 'limit'),
           )).captured;
       expect(
         {for (final c in requested) (c as ContentId).value},
-        {'a', 'dl-1', 'dl-2'},
+        {'a', 'b', 'c', 'd'},
       );
     });
   });

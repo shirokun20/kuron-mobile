@@ -135,6 +135,8 @@ class _RecommendationBannerCarouselState
                   child: _BannerSlide(
                     item: widget.items[i],
                     rank: i + 1,
+                    controller: _controller,
+                    index: i,
                     onTap: () => widget.onTap(widget.items[i]),
                     onDismiss: widget.onDismiss == null
                         ? null
@@ -244,16 +246,54 @@ class _AutoPlayProgress extends StatelessWidget {
   }
 }
 
+/// Cover drifts against the swipe direction while title/chips stay put.
+/// The image is scaled up slightly so the drift never exposes an edge.
+class _ParallaxCover extends StatelessWidget {
+  const _ParallaxCover({
+    required this.controller,
+    required this.index,
+    required this.child,
+  });
+
+  final PageController controller;
+  final int index;
+  final Widget child;
+
+  static const _shift = 28.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, child) {
+        var delta = 0.0;
+        if (controller.hasClients && controller.page != null) {
+          delta = (controller.page! - index).clamp(-1.0, 1.0).toDouble();
+        }
+        return Transform.translate(
+          offset: Offset(-delta * _shift, 0),
+          child: Transform.scale(scale: 1.18, child: child),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class _BannerSlide extends StatelessWidget {
   const _BannerSlide({
     required this.item,
     required this.rank,
+    required this.controller,
+    required this.index,
     required this.onTap,
     this.onDismiss,
   });
 
   final Recommendation item;
   final int rank;
+  final PageController controller;
+  final int index;
   final VoidCallback onTap;
   final VoidCallback? onDismiss;
 
@@ -275,24 +315,28 @@ class _BannerSlide extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (content != null)
-                ProgressiveImageWidget(
-                  networkUrl: content.coverUrl,
-                  httpHeaders: getIt<ContentSourceRegistry>()
-                      .getSource(content.sourceId)
-                      ?.getImageDownloadHeaders(
-                          imageUrl: content.coverUrl),
-                  fit: BoxFit.cover,
-                  memCacheWidth: 800,
-                  memCacheHeight: 450,
-                  placeholder: Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                  ),
-                  errorWidget: Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.image_outlined,
-                      color: theme.colorScheme.onSurfaceVariant
-                          .withValues(alpha: 0.5),
+                _ParallaxCover(
+                  controller: controller,
+                  index: index,
+                  child: ProgressiveImageWidget(
+                    networkUrl: content.coverUrl,
+                    httpHeaders: getIt<ContentSourceRegistry>()
+                        .getSource(content.sourceId)
+                        ?.getImageDownloadHeaders(
+                            imageUrl: content.coverUrl),
+                    fit: BoxFit.cover,
+                    memCacheWidth: 800,
+                    memCacheHeight: 450,
+                    placeholder: Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                    ),
+                    errorWidget: Container(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.image_outlined,
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.5),
+                      ),
                     ),
                   ),
                 )
@@ -401,8 +445,6 @@ class _ReasonChip extends StatelessWidget {
     final text = switch (item.contributorRelation) {
       RecommendationRelation.favorite =>
         l10n.recommendedReasonFavorite(title),
-      RecommendationRelation.download =>
-        l10n.recommendedReasonDownload(title),
       // Explore items show the origin source as the chip — the title
       // already appears below, so no "Jelajahi:" prefix is needed.
       RecommendationRelation.similar => item.sourceId,
