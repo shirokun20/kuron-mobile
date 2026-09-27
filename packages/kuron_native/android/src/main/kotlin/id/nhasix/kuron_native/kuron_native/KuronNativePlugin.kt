@@ -264,6 +264,9 @@ class KuronNativePlugin :
             "headlessGetClearance" -> {
                 handleHeadlessGetClearance(call, result)
             }
+            "runProxyWebView" -> {
+                ProxyWebViewHandler(context).handle(call, result)
+            }
             "clearCookies" -> {
                 handleClearCookies(result)
             }

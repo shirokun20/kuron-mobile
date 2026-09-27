@@ -19,3 +19,10 @@ export 'src/hentairead/hentairead_source_factory.dart'
     show WebViewReaderSourceFactory;
 export 'src/vihentai/vihentai_source_factory.dart';
 export 'src/schale/schale_source_factory.dart';
+export 'src/comix/comix_cipher.dart';
+export 'src/comix/comix_dto.dart';
+export 'src/comix/comix_descrambler.dart';
+export 'src/comix/comix_network.dart';
+export 'src/comix/comix_adapter.dart';
+export 'src/comix/comix_source_factory.dart';
+export 'src/webview_proxy/webview_proxy_engine.dart';

@@ -11,7 +11,10 @@ import 'package:logger/logger.dart';
 import '../models/source_config_runtime.dart';
 
 // Ordered list of lazy-load image attributes to check as fallbacks.
+// `data-default-src` is used by FIFU-mature cards (e.g. mangadistrict)
+// where `src` is an inline SVG placeholder until age-gate interaction.
 const _kImageFallbackAttributes = [
+  'data-default-src',
   'data-src',
   'data-lazy-src',
   'data-pagespeed-lazy-src',
@@ -40,6 +43,15 @@ class GenericHtmlParser {
 
   dom.Document parse(String htmlString) => html_parser.parse(htmlString);
 
+  /// Applies optional prefix/suffix (mirrors generic_json_parser).
+  /// Null-safe: configs without prefix/suffix behave exactly as before.
+  String _applyAffixes(String value, FieldSelector selector) {
+    final prefix = selector.prefix;
+    final suffix = selector.suffix;
+    if (prefix == null && suffix == null) return value;
+    return '${prefix ?? ''}$value${suffix ?? ''}';
+  }
+
   String? extractString(dom.Document document, FieldSelector selector) {
     try {
       if (selector.regex != null) {
@@ -57,7 +69,7 @@ class GenericHtmlParser {
           if (matched != null && matched.isNotEmpty) {
             _logger.d(
                 'GenericHtmlParser.extractString: regex matched on element: "$value" → "$matched"');
-            return matched;
+            return _applyAffixes(matched, selector);
           }
         }
         _logger.w(
@@ -82,7 +94,7 @@ class GenericHtmlParser {
       }
       _logger.d(
           'GenericHtmlParser.extractString: selector="${selector.selector}" → "$value"');
-      return value;
+      return _applyAffixes(value, selector);
     } catch (e) {
       _logger.w('GenericHtmlParser: failed to extract "${selector.selector}"',
           error: e);
@@ -106,14 +118,14 @@ class GenericHtmlParser {
       if (selector.regex == null) {
         _logger.d(
             'GenericHtmlParser.extractList: no regex, returning ${rawValues.length} raw values');
-        return rawValues;
+        return rawValues.map((v) => _applyAffixes(v, selector)).toList();
       }
 
       final regexed = <String>[];
       for (final value in rawValues) {
         final matched = _applyRegex(value, selector.regex!);
         if (matched != null && matched.isNotEmpty) {
-          regexed.add(matched);
+          regexed.add(_applyAffixes(matched, selector));
           _logger.t(
               'GenericHtmlParser.extractList: regex matched: "$value" → "$matched"');
         } else {

@@ -120,6 +120,26 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('clearCookies() has not been implemented.');
   }
 
+  // Per-request headless WebView for the WebView proxy engine (comix /
+  // mangafire cipher capture). Loads [html] with [bootstrapScript] injected,
+  // evaluates [captureScript] on page events + poll, resolves with the JSON
+  // string posted to the [bridgeName] bridge. The WebView is destroyed after
+  // exactly one settlement.
+  Future<String> runProxyWebView({
+    required String pageUrl,
+    required String html,
+    required String userAgent,
+    required List<String> allowedHosts,
+    required String bridgeName,
+    required String errorBridgeName,
+    required String bootstrapScript,
+    required String captureScript,
+    int pollIntervalMs = 100,
+    bool extendDeadlineOnApiTraffic = false,
+  }) {
+    throw UnimplementedError('runProxyWebView() has not been implemented.');
+  }
+
   Future<void> clearAnimatedWebPCache() {
     throw UnimplementedError(
         'clearAnimatedWebPCache() has not been implemented.');

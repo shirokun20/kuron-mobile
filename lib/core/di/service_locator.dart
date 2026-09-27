@@ -785,6 +785,23 @@ void _setupDataSources() {
     },
   );
 
+  // Comix-family per-origin WebView proxy engines. One instance per
+  // origin keeps cipher caches isolated (comix.to vs mangafire.to).
+  getIt.registerLazySingleton<WebViewProxyEngine>(
+    () => WebViewProxyEngine(
+      sourceHost: 'comix.to',
+      allowedHosts: comixAllowedHosts,
+    ),
+    instanceName: 'comix',
+  );
+  getIt.registerLazySingleton<WebViewProxyEngine>(
+    () => WebViewProxyEngine(
+      sourceHost: 'mangafire.to',
+      allowedHosts: mangafireAllowedHosts,
+    ),
+    instanceName: 'mangafire',
+  );
+
   // Source Factory Resolver
   getIt.registerLazySingleton<SourceFactoryResolver>(() {
     return SourceFactoryResolver(
@@ -882,6 +899,16 @@ void _setupDataSources() {
         ),
         DoujinDesuXxxSourceFactory(
           dio: getIt<Dio>(),
+          logger: getIt<Logger>(),
+        ),
+        ComixSourceFactory(
+          dio: getIt<Dio>(),
+          engine: getIt<WebViewProxyEngine>(instanceName: 'comix'),
+          logger: getIt<Logger>(),
+        ),
+        MangafireSourceFactory(
+          dio: getIt<Dio>(),
+          engine: getIt<WebViewProxyEngine>(instanceName: 'mangafire'),
           logger: getIt<Logger>(),
         ),
       ],
@@ -1222,8 +1249,8 @@ void _setupUseCases() {
       () => RecordRecommendationEventUseCase(getIt()));
 
   // Reader Identity Use Case
-  getIt.registerLazySingleton<GetReaderBadgeUseCase>(
-      () => GetReaderBadgeUseCase(
+  getIt
+      .registerLazySingleton<GetReaderBadgeUseCase>(() => GetReaderBadgeUseCase(
             userDataRepository: getIt(),
             sourceRegistry: getIt(),
           ));

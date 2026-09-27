@@ -161,6 +161,27 @@ class GenerateCommand extends Command<void> {
       config.remove('configUrl');
       // Icon path points at the template's asset — drop it.
       config['ui']?.remove('iconPath');
+      // Referer/image headers point at the template's host — re-point them
+      // at the new host, else hotlink-protected images 403/text-plain.
+      if (oldBase != null && oldBase.isNotEmpty) {
+        final network = config['network'];
+        if (network is Map) {
+          for (final section in ['headers', 'imageHeaders']) {
+            final headers = network[section];
+            if (headers is Map) {
+              for (final k in headers.keys.toList()) {
+                final v = headers[k];
+                if (v is String && v.contains(oldBase)) {
+                  headers[k] = v
+                      .replaceAll(oldBase, config['baseUrl'] as String)
+                      .replaceAll('https://https://', 'https://')
+                      .replaceAll('http://http://', 'http://');
+                }
+              }
+            }
+          }
+        }
+      }
       logger.i('📋 Template: $templateId (${oldBase ?? '?'}) → '
           '${config['baseUrl']}');
     } else {

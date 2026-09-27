@@ -95,6 +95,9 @@ class SmokeRunner {
     final fixtures = <String, String>{};
     final findings = <ProbeFinding>[];
 
+    // ponytail: akazascans 429s back-to-back probes; space them out.
+    const settle = Duration(seconds: 3);
+
     // ── home ────────────────────────────────────────────────────────────────
     List<Content> homeItems = const [];
     var homeHtml = '';
@@ -141,6 +144,7 @@ class SmokeRunner {
     if (badgeFinding != null) findings.add(badgeFinding);
 
     // ── search ──────────────────────────────────────────────────────────────
+    await Future<void>.delayed(settle);
     try {
       // ponytail: single-char queries ('a') are ignored by many WP search
       // backends (min keyword length) and return a legit empty page. Use a
@@ -192,10 +196,16 @@ class SmokeRunner {
     }
 
     // ── detail ──────────────────────────────────────────────────────────────
+    await Future<void>.delayed(settle);
     final contentId = homeItems.first.id;
     AdapterDetailResult? detail;
     try {
       detail = await adapter.fetchDetail(contentId, config);
+      if (detail.content.chapters?.isEmpty ?? true) {
+        // ponytail: 429-prone hosts serve an empty shell on the first hit.
+        await Future<void>.delayed(const Duration(seconds: 8));
+        detail = await adapter.fetchDetail(contentId, config);
+      }
       final hasPages = detail.content.pageCount > 0 ||
           detail.imageUrls.isNotEmpty ||
           (detail.content.chapters?.isNotEmpty ?? false);
@@ -262,9 +272,26 @@ class SmokeRunner {
         screen: 'chapters', passed: true, itemCount: chapters.length));
 
     try {
-      final chapterData =
-          await adapter.fetchChapterImages(chapters.first.id, config);
-      final images = chapterData?.images ?? const <String>[];
+      // ponytail: some hosts password-lock the newest chapter(s) (bunmanga
+      // mhcl gate). Sample up to 3 recent chapters; note the lock.
+      var images = const <String>[];
+      var sampledId = '';
+      for (final ch in chapters.take(3)) {
+        await Future<void>.delayed(settle);
+        final chapterData =
+            await adapter.fetchChapterImages(ch.id, config);
+        images = chapterData?.images ?? const <String>[];
+        sampledId = ch.id;
+        if (images.isNotEmpty) break;
+      }
+      if (sampledId != chapters.first.id) {
+        findings.add(ProbeFinding(
+          probe: 'reader-sampled-older',
+          severity: FindingSeverity.info,
+          message:
+              'reader sampled "$sampledId" — newest chapter(s) locked/empty',
+        ));
+      }
       final impurityFinding = probeReaderScopeImpurity(images);
       if (impurityFinding != null) findings.add(impurityFinding);
       if (images.isEmpty) {

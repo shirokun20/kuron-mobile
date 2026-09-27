@@ -82,6 +82,8 @@ class ReaderImageResolver {
       attribute: def['attribute'] as String?,
       type: (def['type'] as String?) ?? 'css',
       regex: def['regex'] as String?,
+      prefix: def['prefix'] as String?,
+      suffix: def['suffix'] as String?,
       fallback: def['fallback'] as String?,
     );
   }
@@ -377,6 +379,42 @@ class ReaderImageResolver {
     return urls;
   }
 
+  /// Images embedded as JSON in a script tag, e.g. hentai4free's
+  /// `<script type="application/json" id="h4f-r2-data">`
+  /// `{"images":[{"src":"https://…/1.webp"},…]}</script>`.
+  /// Config: `images: {scriptJson: {id, items, url}}`.
+  List<String> extractScriptJsonImages(
+    String htmlContent, {
+    required String scriptId,
+    required String itemsKey,
+    required String urlKey,
+  }) {
+    final match = RegExp(
+      '<script[^>]*id="$scriptId"[^>]*>(.*?)</script>',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(htmlContent);
+    if (match == null) {
+      _logger.d('$_sourceId scriptJson: #$scriptId not found');
+      return const [];
+    }
+    try {
+      final decoded = json.decode(match.group(1)!) as Map<String, dynamic>;
+      final items = decoded[itemsKey];
+      if (items is! List) return const [];
+      final urls = <String>[];
+      final seen = <String>{};
+      for (final item in items) {
+        final url = item is Map ? item[urlKey]?.toString() ?? '' : '';
+        if (url.isNotEmpty && seen.add(url)) urls.add(url);
+      }
+      return urls;
+    } catch (e) {
+      _logger.w('$_sourceId scriptJson: JSON parse FAILED', error: e);
+      return const [];
+    }
+  }
+
   String sanitizeImageUrl(String value) {
     var cleaned = value.trim();
     if (cleaned.length >= 2 &&
@@ -410,6 +448,15 @@ class ReaderImageResolver {
         !cleaned.startsWith('//') &&
         !_urlBuilder.baseUrl.startsWith('/')) {
       cleaned = '${_urlBuilder.baseUrl}$cleaned';
+    }
+
+    // Bare relative paths (e.g. hentairead `upload/pages/...jpg`, no leading
+    // slash) resolve against the source baseUrl the same way.
+    final hasScheme = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:').hasMatch(cleaned);
+    if (!hasScheme &&
+        !cleaned.startsWith('/') &&
+        !_urlBuilder.baseUrl.startsWith('/')) {
+      cleaned = '${_urlBuilder.baseUrl}/$cleaned';
     }
 
     // Android network_security_config blocks cleartext http:// — native

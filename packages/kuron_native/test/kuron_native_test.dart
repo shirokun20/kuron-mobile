@@ -9,6 +9,21 @@ class MockKuronNativePlatform
     with MockPlatformInterfaceMixin
     implements KuronNativePlatform {
   @override
+  Future<String> runProxyWebView({
+    required String pageUrl,
+    required String html,
+    required String userAgent,
+    required List<String> allowedHosts,
+    required String bridgeName,
+    required String errorBridgeName,
+    required String bootstrapScript,
+    required String captureScript,
+    int pollIntervalMs = 100,
+    bool extendDeadlineOnApiTraffic = false,
+  }) =>
+      Future.value('{"payload":"{}","material":null}');
+
+  @override
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
@@ -238,6 +253,24 @@ void main() {
     KuronNativePlatform.instance = fakePlatform;
 
     expect(await kuronNativePlugin.getPlatformVersion(), '42');
+  });
+
+  test('runProxyWebView returns capture JSON', () async {
+    KuronNative kuronNativePlugin = KuronNative();
+    MockKuronNativePlatform fakePlatform = MockKuronNativePlatform();
+    KuronNativePlatform.instance = fakePlatform;
+
+    final result = await kuronNativePlugin.runProxyWebView(
+      pageUrl: 'https://comix.to/browse',
+      html: '<html><head></head></html>',
+      userAgent: 'test',
+      allowedHosts: const ['comix.to'],
+      bridgeName: 'bridgeA',
+      errorBridgeName: 'bridgeB',
+      bootstrapScript: '',
+      captureScript: 'null',
+    );
+    expect(result, contains('payload'));
   });
 
   test('setDohProvider and getDohProvider round-trip', () async {

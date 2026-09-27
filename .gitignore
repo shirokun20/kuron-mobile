@@ -85,3 +85,4 @@ skills-lock.json
 .clinerules/*
 # Widget Preview related
 .widget_preview/
+.playwright-cli/*

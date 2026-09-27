@@ -1,0 +1,8 @@
+{
+  "source": "manga18xnet",
+  "baseUrl": "https://manga18x.net",
+  "probedAt": "2026-09-27T07:33:32.580366Z",
+  "screens": [
+    "home"
+  ]
+}

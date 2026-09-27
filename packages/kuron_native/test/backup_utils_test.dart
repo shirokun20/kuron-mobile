@@ -13,6 +13,21 @@ class MockKuronNativePlatform
   String? mockPickedFileContent;
 
   @override
+  Future<String> runProxyWebView({
+    required String pageUrl,
+    required String html,
+    required String userAgent,
+    required List<String> allowedHosts,
+    required String bridgeName,
+    required String errorBridgeName,
+    required String bootstrapScript,
+    required String captureScript,
+    int pollIntervalMs = 100,
+    bool extendDeadlineOnApiTraffic = false,
+  }) async =>
+      '{"payload":"{}","material":null}';
+
+  @override
   Future<String?> pickDirectory() async => mockPickedDirectory;
 
   @override

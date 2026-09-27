@@ -250,6 +250,33 @@ class KuronNative {
     );
   }
 
+  /// Per-request headless WebView for the WebView proxy engine.
+  Future<String> runProxyWebView({
+    required String pageUrl,
+    required String html,
+    required String userAgent,
+    required List<String> allowedHosts,
+    required String bridgeName,
+    required String errorBridgeName,
+    required String bootstrapScript,
+    required String captureScript,
+    int pollIntervalMs = 100,
+    bool extendDeadlineOnApiTraffic = false,
+  }) {
+    return KuronNativePlatform.instance.runProxyWebView(
+      pageUrl: pageUrl,
+      html: html,
+      userAgent: userAgent,
+      allowedHosts: allowedHosts,
+      bridgeName: bridgeName,
+      errorBridgeName: errorBridgeName,
+      bootstrapScript: bootstrapScript,
+      captureScript: captureScript,
+      pollIntervalMs: pollIntervalMs,
+      extendDeadlineOnApiTraffic: extendDeadlineOnApiTraffic,
+    );
+  }
+
   // Open a local AVIF image in an external gallery/photo app.
   Future<void> openAvif({required String filePath}) {
     return KuronNativePlatform.instance.openAvif(filePath: filePath);

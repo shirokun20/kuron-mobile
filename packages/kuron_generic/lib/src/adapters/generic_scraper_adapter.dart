@@ -1071,22 +1071,94 @@ class GenericScraperAdapter implements GenericAdapter {
               error: e);
         }
       }
+      if (chapters == null &&
+          chaptersCfg != null &&
+          (chaptersCfg['mode'] as String?) == 'adminAjax') {
+        // Manganova-style: chapter <option>s render only via POST
+        // `/wp-admin/admin-ajax.php` with `action=<action>&<idParam>=<postId>`,
+        // where postId comes from a detail-page element (default
+        // `div.bookmark[data-id]`). Response options carry value=chapter URL.
+        try {
+          final postIdSel =
+              (chaptersCfg['postIdSelector'] as String?) ?? 'div.bookmark';
+          final postIdAttr =
+              (chaptersCfg['postIdAttr'] as String?) ?? 'data-id';
+          final postId =
+              doc.querySelector(postIdSel)?.attributes[postIdAttr] ?? '';
+          final action = (chaptersCfg['action'] as String?) ?? 'get_chapters';
+          final idParam = (chaptersCfg['idParam'] as String?) ?? 'id';
+          if (postId.isNotEmpty) {
+            final baseUri = Uri.parse(url);
+            final adminAjaxUrl = baseUri
+                .replace(
+                    path: '/wp-admin/admin-ajax.php',
+                    query: '',
+                    fragment: '')
+                .toString();
+            final adminResponse = await _executeRequest<Response<String>>(
+              () => _dio.post<String>(
+                adminAjaxUrl,
+                data: 'action=$action&$idParam=$postId',
+                options: Options(
+                  responseType: ResponseType.plain,
+                  headers: {
+                    ...requestHeaders,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                  },
+                ),
+              ),
+            );
+            final adminDoc = _parser.parse(adminResponse.data ?? '');
+            chapters = adminDoc
+                .querySelectorAll('option[value]')
+                .map((opt) {
+                  final curl = opt.attributes['value'] ?? '';
+                  final tail = curl.split('?').first.split('/').where(
+                      (seg) => seg.isNotEmpty);
+                  return Chapter(
+                    id: tail.isNotEmpty ? tail.last : curl,
+                    title: opt.text.trim(),
+                    url: curl,
+                  );
+                })
+                .where((ch) => ch.id.isNotEmpty && ch.url.isNotEmpty)
+                .toList();
+            _logger.d(
+                '$_sourceId: adminAjax chapters=${chapters.length} for $contentId');
+          }
+        } catch (e) {
+          _logger.w('$_sourceId adminAjax chapters failed, falling back',
+              error: e);
+        }
+      }
       if (chapters == null && chaptersCfg != null) {
         final containerSel = chaptersCfg['container'] as String?;
         final chFieldsCfg =
             (chaptersCfg['fields'] as Map?)?.cast<String, dynamic>() ?? {};
         if (containerSel != null) {
           final chEls = _parser.selectAll(doc, containerSel);
-          chapters = chEls
+          var chList = chEls
               .map((el) {
                 final chFields = _extractElementFields(el, chFieldsCfg);
                 return GenericContentMapper.toChapter(chFields);
               })
-              .where((ch) =>
-                  ch.id.isNotEmpty &&
-                  !ch.title.startsWith('Read First') &&
-                  !ch.title.startsWith('Read Last'))
+              .where((ch) => ch.id.isNotEmpty)
               .toList();
+          // Drop Read First/Last shortcut buttons only when a real chapter
+          // list exists alongside them (madara nav buttons duplicate the
+          // first/last chapter). Oneshot sources (e.g. hentai4free) expose
+          // ONLY a "Read First" button — keep it so the gallery is readable.
+          final hasRealChapters = chList.any((ch) =>
+              !ch.title.startsWith('Read First') &&
+              !ch.title.startsWith('Read Last'));
+          if (hasRealChapters) {
+            chList = chList
+                .where((ch) =>
+                    !ch.title.startsWith('Read First') &&
+                    !ch.title.startsWith('Read Last'))
+                .toList();
+          }
+          chapters = chList;
            _logger.d(
                '$_sourceId: extracted ${chapters.length} chapters for $contentId');
          }
@@ -1610,7 +1682,33 @@ class GenericScraperAdapter implements GenericAdapter {
       }
 
       var workingUrl = url;
-      var workingHtmlContent = htmlContent;
+      // ponytail: mangareader themes stash chapter <img> inside
+      // <noscript> (JS swaps them in). The HTML parser treats noscript
+      // content as text, so unwrap the tags to expose the images.
+      var workingHtmlContent = htmlContent.replaceAll(
+        RegExp(r'</?noscript[^>]*>', caseSensitive: false),
+        '',
+      );
+      // ponytail: some mangareader hosts (scythescans) base64-encode the
+      // inline `ts_reader.run({...})` script
+      // (`<script src="data:text/javascript;base64,...">`). Decode those
+      // blocks so tsReaderRegex sees the JSON.
+      final b64Scripts = RegExp(
+        r'''src="data:text/javascript;base64,([A-Za-z0-9+/=]+)"''',
+      ).allMatches(workingHtmlContent);
+      if (b64Scripts.isNotEmpty) {
+        final decoded = StringBuffer();
+        for (final m in b64Scripts) {
+          try {
+            final text =
+                utf8.decode(base64.decode(m.group(1)!), allowMalformed: true);
+            if (text.contains('ts_reader')) decoded.writeln(text);
+          } catch (_) {}
+        }
+        if (decoded.isNotEmpty) {
+          workingHtmlContent = '$workingHtmlContent\n${decoded.toString()}';
+        }
+      }
       var workingDoc = _parser.parse(workingHtmlContent);
 
       final readerPageLinkDef = _toDefMap(readerConfig['readerPageLink']);
@@ -1897,7 +1995,26 @@ class GenericScraperAdapter implements GenericAdapter {
         if (imagesDef != null) {
           final defMap = _toDefMap(imagesDef);
           if (defMap != null) {
-            var sel = _readerImages.fieldDefToSelector(defMap);
+            // ponytail: images embedded as JSON in a script tag
+            // (hentai4free `h4f-r2-data`). Config:
+            // `images: {scriptJson: {id, items, url}}`.
+            final scriptJson = defMap['scriptJson'];
+            if (scriptJson is Map) {
+              imageUrls = _readerImages
+                  .extractScriptJsonImages(
+                    workingHtmlContent,
+                    scriptId:
+                        (scriptJson['id'] ?? '').toString(),
+                    itemsKey: (scriptJson['items'] ?? 'images').toString(),
+                    urlKey: (scriptJson['url'] ?? 'src').toString(),
+                  )
+                  .map((u) => _readerImages.sanitizeImageUrl(u))
+                  .map((u) => _urlBuilder.resolve(u, const {}))
+                  .toList();
+            }
+            var sel = imageUrls.isEmpty
+                ? _readerImages.fieldDefToSelector(defMap)
+                : null;
             // Scope the fallback selector to reader.container when the
             // selector isn't already self-scoped: without this, a series-slug
             // fetch (detail page, no ts_reader) scrapes every page img —
@@ -1914,6 +2031,8 @@ class GenericScraperAdapter implements GenericAdapter {
                 attribute: sel.attribute,
                 type: sel.type,
                 regex: sel.regex,
+                prefix: sel.prefix,
+                suffix: sel.suffix,
                 fallback: sel.fallback,
               );
             }
@@ -1978,6 +2097,8 @@ class GenericScraperAdapter implements GenericAdapter {
                   attribute: s.attribute,
                   type: s.type,
                   regex: s.regex,
+                  prefix: s.prefix,
+                  suffix: s.suffix,
                   fallback: s.fallback,
                 );
               }

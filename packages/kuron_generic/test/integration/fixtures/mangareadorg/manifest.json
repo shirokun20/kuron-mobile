@@ -1,0 +1,8 @@
+{
+  "source": "mangareadorg",
+  "baseUrl": "https://www.mangaread.org",
+  "probedAt": "2026-09-27T07:42:47.271171Z",
+  "screens": [
+    "home"
+  ]
+}

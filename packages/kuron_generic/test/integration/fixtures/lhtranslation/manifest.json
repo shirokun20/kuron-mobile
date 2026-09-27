@@ -1,0 +1,8 @@
+{
+  "source": "lhtranslationnet",
+  "baseUrl": "https://lhtranslation.net",
+  "probedAt": "2026-09-27T06:58:24.635532Z",
+  "screens": [
+    "home"
+  ]
+}

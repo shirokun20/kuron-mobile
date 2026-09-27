@@ -389,6 +389,40 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<String> runProxyWebView({
+    required String pageUrl,
+    required String html,
+    required String userAgent,
+    required List<String> allowedHosts,
+    required String bridgeName,
+    required String errorBridgeName,
+    required String bootstrapScript,
+    required String captureScript,
+    int pollIntervalMs = 100,
+    bool extendDeadlineOnApiTraffic = false,
+  }) async {
+    final result = await methodChannel.invokeMethod<String>(
+      'runProxyWebView',
+      {
+        'pageUrl': pageUrl,
+        'html': html,
+        'userAgent': userAgent,
+        'allowedHosts': allowedHosts,
+        'bridgeName': bridgeName,
+        'errorBridgeName': errorBridgeName,
+        'bootstrapScript': bootstrapScript,
+        'captureScript': captureScript,
+        'pollIntervalMs': pollIntervalMs,
+        'extendDeadlineOnApiTraffic': extendDeadlineOnApiTraffic,
+      },
+    );
+    if (result == null) {
+      throw StateError('runProxyWebView returned null');
+    }
+    return result;
+  }
+
+  @override
   Future<bool> setDohProvider(int provider) async {
     final result = await methodChannel.invokeMethod<bool>('setDohProvider', {
       'provider': provider,
