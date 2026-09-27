@@ -76,7 +76,18 @@ class FieldSelector {
   final String type;
 
   // Optional attribute to extract from a CSS-selected element (e.g. `"href"`).
+  // With a chain (`attribute: ["data-src", "src"]`) this holds the FIRST
+  // entry so callers that only read one attribute keep working.
   final String? attribute;
+
+  // Ordered attribute fallback chain. Empty for the plain single-attribute
+  // form, in which case [attribute] is the only candidate.
+  final List<String> attributes;
+
+  // Effective chain — first non-empty attribute wins.
+  List<String> get attributeChain => attributes.isNotEmpty
+      ? attributes
+      : (attribute == null ? const [] : [attribute!]);
 
   // Optional regex to apply to extracted text.
   final String? regex;
@@ -94,6 +105,7 @@ class FieldSelector {
     required this.selector,
     this.type = 'jsonpath',
     this.attribute,
+    this.attributes = const [],
     this.regex,
     this.prefix,
     this.suffix,
@@ -101,10 +113,15 @@ class FieldSelector {
   });
 
   factory FieldSelector.fromMap(Map<String, dynamic> map) {
+    final rawAttribute = map['attribute'];
+    final chain = rawAttribute is List
+        ? rawAttribute.map((e) => e.toString().trim()).toList()
+        : const <String>[];
     return FieldSelector(
       selector: map['selector']?.toString() ?? '',
       type: map['type']?.toString() ?? 'jsonpath',
-      attribute: map['attribute']?.toString(),
+      attribute: chain.isNotEmpty ? chain.first : rawAttribute?.toString(),
+      attributes: chain,
       regex: map['regex']?.toString(),
       prefix: map['prefix']?.toString(),
       suffix: map['suffix']?.toString(),

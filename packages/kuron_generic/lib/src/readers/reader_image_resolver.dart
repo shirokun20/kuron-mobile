@@ -77,9 +77,16 @@ class ReaderImageResolver {
   FieldSelector? fieldDefToSelector(Map<String, dynamic> def) {
     final selector = def['selector'] as String?;
     if (selector == null || selector.isEmpty) return null;
+    final rawAttribute = def['attribute'];
+    // `"attribute": "src"` (legacy) or `"attribute": ["data-src","src"]`
+    // — the chain form is first-non-empty-wins.
+    final chain = rawAttribute is List
+        ? rawAttribute.map((e) => e.toString().trim()).toList()
+        : const <String>[];
     return FieldSelector(
       selector: selector,
-      attribute: def['attribute'] as String?,
+      attribute: chain.isNotEmpty ? chain.first : rawAttribute as String?,
+      attributes: chain,
       type: (def['type'] as String?) ?? 'css',
       regex: def['regex'] as String?,
       prefix: def['prefix'] as String?,
@@ -351,6 +358,10 @@ class ReaderImageResolver {
     for (final raw in expanded) {
       final sanitized = sanitizeImageUrl(raw);
       if (sanitized.isEmpty) continue;
+      // A broad reader selector can grab `<source src="…master.m3u8">`; an
+      // HLS/mp4 URL is not a page image. Drop it — video-only chapters
+      // report zero images (issue #68) instead of a broken player.
+      if (_isVideoUrl(sanitized)) continue;
       final resolved = _urlBuilder.resolve(sanitized, const {});
       if (seen.add(resolved)) {
         normalized.add(resolved);
@@ -383,36 +394,140 @@ class ReaderImageResolver {
   /// `<script type="application/json" id="h4f-r2-data">`
   /// `{"images":[{"src":"https://…/1.webp"},…]}</script>`.
   /// Config: `images: {scriptJson: {id, items, url}}`.
+  ///
+  /// `scriptId` also matches a plain JS variable when no element with that
+  /// id exists — `var ajax = {"pages":[…]}`, `var chapter_preloaded_images =
+  /// ["…jpg", …]` (issue #67: those payloads have no DOM nodes at all).
+  /// `items` is dotted (`"data.pages"`); `url` is ignored for plain-string
+  /// arrays.
   List<String> extractScriptJsonImages(
     String htmlContent, {
     required String scriptId,
     required String itemsKey,
     required String urlKey,
   }) {
-    final match = RegExp(
+    if (scriptId.isEmpty) return const [];
+
+    final elementMatch = RegExp(
       '<script[^>]*id="$scriptId"[^>]*>(.*?)</script>',
       caseSensitive: false,
       dotAll: true,
     ).firstMatch(htmlContent);
-    if (match == null) {
-      _logger.d('$_sourceId scriptJson: #$scriptId not found');
-      return const [];
-    }
-    try {
-      final decoded = json.decode(match.group(1)!) as Map<String, dynamic>;
-      final items = decoded[itemsKey];
-      if (items is! List) return const [];
-      final urls = <String>[];
-      final seen = <String>{};
-      for (final item in items) {
-        final url = item is Map ? item[urlKey]?.toString() ?? '' : '';
-        if (url.isNotEmpty && seen.add(url)) urls.add(url);
+
+    final dynamic decoded;
+    if (elementMatch != null) {
+      decoded = _tryDecodeJson(elementMatch.group(1)!.trim());
+    } else {
+      final variableBody = _jsVariableBody(htmlContent, scriptId);
+      if (variableBody == null) {
+        _logger.d('$_sourceId scriptJson: neither #id nor JS var "$scriptId"');
+        return const [];
       }
-      return urls;
+      decoded = _tryDecodeJson(variableBody);
+    }
+    if (decoded == null) return const [];
+
+    final items = itemsKey.isEmpty ? decoded : _digValue(decoded, itemsKey);
+    if (items is! List) return const [];
+
+    final urls = <String>[];
+    final seen = <String>{};
+    for (final item in items) {
+      String url;
+      if (item is Map) {
+        url = item[urlKey]?.toString() ?? '';
+      } else {
+        // Flat string array (`["…/001.jpg", …]`) — the entry IS the URL, and
+        // config `url` defaults to `src`, which never matches a bare string.
+        final raw = item.toString().trim();
+        url = raw.startsWith('http') || raw.startsWith('/') ? raw : '';
+      }
+      if (url.isNotEmpty && seen.add(url)) urls.add(url);
+    }
+    return urls;
+  }
+
+  dynamic _tryDecodeJson(String body) {
+    try {
+      return json.decode(body);
     } catch (e) {
       _logger.w('$_sourceId scriptJson: JSON parse FAILED', error: e);
-      return const [];
+      return null;
     }
+  }
+
+  /// Body of `name = <json>` inside any `<script>` block. Quote/bracket aware
+  /// so a `;` or `}` inside a string or nested object doesn't truncate it.
+  String? _jsVariableBody(String htmlContent, String name) {
+    final assign = RegExp(
+      '(?:var|let|const)?\\s*${RegExp.escape(name)}\\s*(?:\\.\\w+)*\\s*=\\s*',
+    ).firstMatch(htmlContent);
+    if (assign == null) return null;
+
+    var depth = 0;
+    var quote = '';
+    var escaped = false;
+    for (var i = assign.end; i < htmlContent.length; i++) {
+      final c = htmlContent[i];
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (c == r'\' && quote.isNotEmpty) {
+        escaped = true;
+        continue;
+      }
+      if (quote.isNotEmpty) {
+        if (c == quote) quote = '';
+        continue;
+      }
+      if (c == '"' || c == "'") {
+        quote = c;
+        continue;
+      }
+      if (c == '[' || c == '{') depth++;
+      if (c == ']' || c == '}') {
+        depth--;
+        if (depth == 0) return htmlContent.substring(assign.end, i + 1);
+      }
+    }
+    return null;
+  }
+
+  dynamic _digValue(dynamic root, String dottedKey) {
+    var current = root;
+    for (final part in dottedKey.split('.')) {
+      if (current is Map && current.containsKey(part)) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  /// Video media referenced by a chapter page — direct mp4/webm or HLS
+  /// `master.m3u8` (issue #68: poster-only readers look broken).
+  /// Samplers use this to skip AI-animation chapters.
+  List<String> extractChapterVideoUrls(String htmlContent) {
+    final urls = <String>[];
+    final seen = <String>{};
+    for (final match in _videoUrlPattern.allMatches(htmlContent)) {
+      final url = match.group(1);
+      if (url == null || !seen.add(url)) continue;
+      urls.add(url);
+    }
+    return urls;
+  }
+
+  final _videoUrlPattern = RegExp(
+    r'''["'(]\s*((?:https?:)?//[^"' <>\s]+\.(?:m3u8|mp4|webm|mov)(?:\?[^"' <>\s]*)?)''',
+    caseSensitive: false,
+  );
+
+  static bool _isVideoUrl(String url) {
+    final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
+    return RegExp(r'\.(m3u8|mp4|webm|mov)$').hasMatch(path);
   }
 
   String sanitizeImageUrl(String value) {
@@ -451,9 +566,12 @@ class ReaderImageResolver {
     }
 
     // Bare relative paths (e.g. hentairead `upload/pages/...jpg`, no leading
-    // slash) resolve against the source baseUrl the same way.
+    // slash) resolve against the source baseUrl the same way. An empty value
+    // is NOT a relative path — resolving it would fabricate the baseUrl as an
+    // image URL.
     final hasScheme = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:').hasMatch(cleaned);
-    if (!hasScheme &&
+    if (cleaned.isNotEmpty &&
+        !hasScheme &&
         !cleaned.startsWith('/') &&
         !_urlBuilder.baseUrl.startsWith('/')) {
       cleaned = '${_urlBuilder.baseUrl}/$cleaned';
@@ -576,5 +694,4 @@ class ReaderImageResolver {
       return const {};
     }
   }
-
 }

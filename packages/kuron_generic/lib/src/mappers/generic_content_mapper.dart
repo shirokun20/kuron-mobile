@@ -257,27 +257,39 @@ class GenericContentMapper {
           obj['type']?.toString() ?? obj['namespace']?.toString() ?? 'tag';
       final id = (obj['id'] as num?)?.toInt() ?? 0;
       final count = (obj['count'] as num?)?.toInt() ?? 0;
+      // Preserve the source href slug so tag clicks hit the real archive
+      // instead of a re-slugified display name (CJK/parenthesis names do not
+      // round-trip). #69.
+      final slug = _slugOf(obj['slug']);
+
+      Tag make() => Tag(
+            id: id,
+            name: name,
+            type: type,
+            count: count,
+            slug: slug,
+          );
 
       switch (type) {
         case 'artist':
           artists.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(make());
         case 'character':
           characters.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(make());
         case 'parody':
           parodies.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(make());
         case 'group':
           groups.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(make());
         case 'language':
           if (name != 'translated') {
             languages.add(name);
-            tags.add(Tag(id: id, name: name, type: type, count: count));
+            tags.add(make());
           }
         default:
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(make());
       }
     }
 
@@ -375,6 +387,15 @@ class GenericContentMapper {
       if (values.isNotEmpty) return values;
     }
     return const [];
+  }
+
+  // Href-derived slug: trim, and drop anything that is not a usable path
+  // segment. Kept verbatim (including percent-escapes) because it is the
+  // site's own archive key. Empty means "no usable slug".
+  static String? _slugOf(dynamic raw) {
+    if (raw is! String) return null;
+    final slug = raw.trim();
+    return slug.isEmpty ? null : slug;
   }
 
   static String _normalizeEntityName(String raw) {

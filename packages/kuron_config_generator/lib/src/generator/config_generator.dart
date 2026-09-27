@@ -432,6 +432,35 @@ class ConfigGenerator {
         'url': '/genre/{tag}/page/{page}/',
         'inherits': 'home',
       };
+    } else {
+      // Madara (classic + tailwind) and unknown WordPress themes: every
+      // taxonomy is its own archive. Without authorSearch/artistSearch an
+      // author chip falls back to genreSearch → wrong archive, no results
+      // (#69). Defaults can be overridden per config with
+      // `authorSearchUrl` / `artistSearchUrl`.
+      for (final entry in {
+        'genreSearch': _str(a['genreSearchUrl']).isNotEmpty
+            ? _str(a['genreSearchUrl'])
+            : '/manga-genre/{tag}/',
+        'tagSearch': _str(a['tagSearchUrl']).isNotEmpty
+            ? _str(a['tagSearchUrl'])
+            : '/manga-tag/{tag}/',
+        'authorSearch': _str(a['authorSearchUrl']).isNotEmpty
+            ? _str(a['authorSearchUrl'])
+            : '/manga-author/{tag}/',
+        'artistSearch': _str(a['artistSearchUrl']).isNotEmpty
+            ? _str(a['artistSearchUrl'])
+            : '/manga-artist/{tag}/',
+      }.entries) {
+        urls[entry.key] = <String, Object?>{
+          'url': entry.value,
+          'inherits': 'home',
+        };
+        urls['${entry.key}Page'] = <String, Object?>{
+          'url': entry.value.replaceFirst(RegExp(r'/+$'), '/page/{page}/'),
+          'inherits': 'home',
+        };
+      }
     }
 
     // ── Detail & Chapter ──

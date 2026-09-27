@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:kuron_config_generator/src/validation/negative_probes.dart';
 import 'package:kuron_config_generator/src/validation/smoke_runner.dart';
 import 'package:kuron_config_generator/src/validation/skeleton_test_emitter.dart';
+import 'package:kuron_generic/kuron_generic.dart';
+import 'package:logger/logger.dart';
 import 'package:test/test.dart';
 
 // Offline unit tests for SmokeRunner using a local HttpServer as the
@@ -19,21 +22,62 @@ void main() {
     <img src="/images/c2.jpg" class="cover"></div>
 </div></body></html>''';
 
+  const searchHtml = '<html><body><div class="list">'
+      '<div class="item"><a href="/manga/one/">Naruto One</a></div>'
+      '</div></body></html>';
+
+  /// Detail page for the healthy case: every configured field is present, the
+  /// cover carries its real URL in `data-src` (the exact 2026-09-27 bug — a
+  /// config reading plain `src` grabbed a 1×1 placeholder).
+  ///
+  /// Images point at `127.0.0.1` while [baseUrl] is `localhost`: the adapter
+  /// upgrades same-host `http://` image URLs to `https://` (Android cleartext
+  /// guard), which a plain-HTTP test server cannot answer. A different host
+  /// skips the upgrade, and `127.0.0.1` needs no DNS override.
+  const healthyDetailHtml = '<html><body>'
+      '<h1>One</h1>'
+      '<div class="cover"><img src="data:image/gif;base64,R0lGOD" '
+      'data-src="http://127.0.0.1:PORT/img/cover-one.jpg"></div>'
+      '<div class="tags">'
+      '<a href="/tag/action/">Action</a><a href="/tag/comedy/">Comedy</a></div>'
+      '<div class="chapter"><a href="/manga/one/">Ch 1</a></div>'
+      '</body></html>';
+
+  String chapterHtml(int port) => '<html><body>'
+      '<div class="chapter">'
+      '<img src="http://127.0.0.1:$port/img/page-1.jpg"></div>'
+      '</body></html>';
+
   setUpAll(() async {
     server = await HttpServer.bind('127.0.0.1', 0);
-    baseUrl = 'http://127.0.0.1:${server.port}';
+    baseUrl = 'http://localhost:${server.port}';
     server.listen((req) async {
       final path = req.uri.path;
       if (path == '/') {
         req.response.headers.contentType = ContentType.html;
         req.response.write(homeHtml);
+      } else if (path.startsWith('/search')) {
+        req.response.headers.contentType = ContentType.html;
+        req.response.write(searchHtml);
+      } else if (path == '/manga/one/') {
+        req.response.headers.contentType = ContentType.html;
+        req.response
+            .write(healthyDetailHtml.replaceAll('PORT', '${server.port}'));
+      } else if (path == '/chapter/one/') {
+        req.response.headers.contentType = ContentType.html;
+        req.response.write(chapterHtml(server.port));
+      } else if (path.startsWith('/img') || path.startsWith('/cover')) {
+        // Real JPEG magic so the sniff fallback in _probeContentType passes
+        // even if a host/CDN mislabels or refuses HEAD.
+        req.response.headers.contentType = ContentType('image', 'jpeg');
+        req.response.add([0xFF, 0xD8, 0xFF, ...List.filled(2048, 1)]);
+      } else if (path.startsWith('/notimage')) {
+        req.response.headers.contentType = ContentType.html;
+        req.response.write('<html>not a picture</html>');
       } else if (path.startsWith('/api/detail')) {
         req.response.headers.contentType = ContentType.html;
         req.response.write('<html><body><h1>One</h1>'
             '<div class="chapter"><a href="/chapter/1/">Ch 1</a></div></body></html>');
-      } else if (path.startsWith('/img')) {
-        req.response.headers.contentType = ContentType('image', 'jpeg');
-        req.response.add(List.filled(2048, 1));
       } else {
         req.response.statusCode = 404;
       }
@@ -51,6 +95,76 @@ void main() {
         'baseUrl': baseUrl,
         'scraper': scraper,
       };
+
+  /// End-to-end config driving all five screens against the local server:
+  /// home → search → detail → chapters → reader, with a detail-field config
+  /// whose selectors are injected per test.
+  Map<String, dynamic> happyPathConfig(Map<String, dynamic> detailFields) => {
+        'source': 'smoketest',
+        'baseUrl': baseUrl,
+        'scraper': {
+          'urlPatterns': {
+            'home': {
+              'url': '/',
+              'list': {
+                'container': 'div.list > div.item',
+                'fields': {
+                  'id': {
+                    'selector': 'a',
+                    'attribute': 'href',
+                    'transform': 'slug',
+                  },
+                  'title': {'selector': 'a'},
+                  'coverUrl': {'selector': 'img', 'attribute': 'src'},
+                },
+              },
+            },
+            'search': {
+              'url': '/search/?q={query}',
+              'list': {
+                'container': 'div.list > div.item',
+                'fields': {
+                  'id': {
+                    'selector': 'a',
+                    'attribute': 'href',
+                    'transform': 'slug',
+                  },
+                  'title': {'selector': 'a'},
+                },
+              },
+            },
+            'detail': '/manga/{id}/',
+            'chapter': '/chapter/{id}/',
+          },
+          'selectors': {
+            'detail': {
+              'fields': detailFields,
+              'chapters': {
+                'container': 'div.chapter',
+                'fields': {
+                  'id': {
+                    'selector': 'a',
+                    'attribute': 'href',
+                    'transform': 'slug',
+                  },
+                  'title': {'selector': 'a'},
+                },
+              },
+            },
+            'reader': {
+              'images': {
+                'selector': 'div.chapter img',
+                'attribute': 'src',
+              },
+            },
+          },
+        },
+      };
+
+  SmokeRunner fastRunner() => SmokeRunner(
+        settleDelay: Duration.zero,
+        detailRetryDelay: Duration.zero,
+      );
 
   test('missing baseUrl fails fast with config screen failure', () async {
     final report = await SmokeRunner().run({'source': 'x'});
@@ -90,6 +204,140 @@ void main() {
     expect(report.allPassed, isFalse);
     expect(report.failures.single.screen, 'config');
     expect(report.failures.single.failure, contains('host mismatch'));
+  });
+
+  group('#64 detail-field gate', () {
+    test('healthy detail (lazy data-src cover, tags) passes all screens',
+        () async {
+      final report = await fastRunner().run(happyPathConfig({
+        'title': {'selector': 'h1'},
+        'coverUrl': {
+          'selector': '.cover img',
+          'attribute': ['data-src', 'src'],
+        },
+        'tags': {'selector': '.tags a', 'multi': true},
+      }));
+      expect(
+        report.findings.where((f) => f.probe.startsWith('detail-')),
+        isEmpty,
+        reason: 'no detail-field findings expected: ${report.findings}',
+      );
+      expect(report.allPassed, isTrue, reason: '${report.results}');
+    });
+
+    test('configured cover selector matching nothing is blocking', () async {
+      final report = await fastRunner().run(happyPathConfig({
+        'title': {'selector': 'h1'},
+        // Renamed container — the 2026-09-27 wave's failure mode.
+        'coverUrl': {'selector': '.thumb img', 'attribute': 'src'},
+      }));
+      final cover = report.findings.firstWhere(
+        (f) =>
+            f.probe == 'detail-field-empty' && f.message.contains('coverUrl'),
+      );
+      expect(cover.severity, FindingSeverity.blocking);
+      expect(report.allPassed, isFalse);
+    });
+
+    test('configured tag selector matching nothing is blocking', () async {
+      final report = await fastRunner().run(happyPathConfig({
+        'title': {'selector': 'h1'},
+        'tags': {'selector': '.genrelist a', 'multi': true},
+      }));
+      final tags = report.findings.firstWhere(
+        (f) => f.probe == 'detail-field-empty' && f.message.contains('tags'),
+      );
+      expect(tags.severity, FindingSeverity.blocking);
+      expect(report.allPassed, isFalse);
+    });
+
+    test('cover URL resolving to text/html is blocking', () async {
+      // A cover selector that grabs an <a> href lands on the content page
+      // itself — the selector matches, the URL is fetchable, it is just not
+      // a picture. Only a content-type probe catches this.
+      final findings = await probeDetailFields(
+        '<html><body><a class="thumb" href="/notimage/one.jpg">x</a></body></html>',
+        {
+          'coverUrl': {'selector': 'a.thumb', 'attribute': 'href'},
+        },
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        resolvedCoverUrl: '$baseUrl/notimage/one.jpg',
+        baseUrl: baseUrl,
+        contentTypeOf: (_) async => 'text/html',
+      );
+      final cover = findings.firstWhere(
+        (f) => f.probe == 'detail-cover-not-image',
+      );
+      expect(cover.severity, FindingSeverity.blocking);
+    });
+
+    test('cover URL that resolves to empty is blocking', () async {
+      final findings = await probeDetailFields(
+        healthyDetailHtml,
+        {
+          'coverUrl': {'selector': 'h1', 'attribute': 'href'},
+        },
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        resolvedCoverUrl: '',
+        baseUrl: baseUrl,
+        contentTypeOf: (_) async => 'image/jpeg',
+      );
+      // h1 has no href → selector matches, attribute empty → cover empty.
+      expect(
+        findings.any((f) => f.probe == 'detail-cover-not-image'),
+        isTrue,
+        reason: '$findings',
+      );
+    });
+
+    test('a CDN that refuses to answer is advisory, not blocking', () async {
+      // Hotlink guards / rate limits make contentTypeOf return null; a real
+      // broken image still fails the reader probe, so this must not block.
+      final findings = await probeDetailFields(
+        healthyDetailHtml,
+        {
+          'coverUrl': {
+            'selector': '.cover img',
+            'attribute': ['data-src', 'src'],
+          },
+        },
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        resolvedCoverUrl: '$baseUrl/img/cover-one.jpg',
+        baseUrl: baseUrl,
+        contentTypeOf: (_) async => null,
+      );
+      expect(findings, isEmpty);
+    });
+
+    test('unconfigured fields are never probed (gallery-only source passes)',
+        () async {
+      // hentaifox-family config: title + cover only, no author/tags at all.
+      final report = await fastRunner().run(happyPathConfig({
+        'title': {'selector': 'h1'},
+        'coverUrl': {
+          'selector': '.cover img',
+          'attribute': ['data-src', 'src'],
+        },
+      }));
+      expect(
+        report.findings.where((f) => f.probe.startsWith('detail-')),
+        isEmpty,
+        reason: '${report.findings}',
+      );
+      expect(report.allPassed, isTrue, reason: '${report.results}');
+    });
+
+    test('probeDetailFields is a no-op without configured selectors', () async {
+      final findings = await probeDetailFields(
+        healthyDetailHtml,
+        const {},
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        resolvedCoverUrl: '',
+        baseUrl: baseUrl,
+        contentTypeOf: (_) async => 'image/jpeg',
+      );
+      expect(findings, isEmpty);
+    });
   });
 
   test('fixture emitter writes html + manifest', () {

@@ -100,7 +100,6 @@ class GenericScraperAdapter implements GenericAdapter {
   final String _sourceId;
   late final ReaderImageResolver _readerImages;
 
-
   late final SearchQueryRouting _searchRouting;
   final Future<void> Function()? _delayApplier;
   final RateLimiter? _rateLimiter;
@@ -241,10 +240,10 @@ class GenericScraperAdapter implements GenericAdapter {
       final firstType = filter.includeTags.first.type.toLowerCase().trim();
       final useTagPattern =
           firstType == wantsPlainTag && urlPatternsCfg.containsKey('tagSearch');
-      final useAuthorPattern = firstType == 'author' &&
-          urlPatternsCfg.containsKey('authorSearch');
-      final useArtistPattern = firstType == 'artist' &&
-          urlPatternsCfg.containsKey('artistSearch');
+      final useAuthorPattern =
+          firstType == 'author' && urlPatternsCfg.containsKey('authorSearch');
+      final useArtistPattern =
+          firstType == 'artist' && urlPatternsCfg.containsKey('artistSearch');
       final baseKey = useTagPattern
           ? 'tagSearch'
           : useAuthorPattern
@@ -293,31 +292,45 @@ class GenericScraperAdapter implements GenericAdapter {
       return const AdapterSearchResult(items: [], hasNextPage: false);
     }
 
-    var pagedUrl = _resolveListRequestUrlFromCursorCache(
-      page: filter.page,
-      cacheKey: paginationCacheKey,
-    );
+    // POST-only search endpoints (FoOlSlide `/search/`, …): a GET renders an
+    // empty form, so the pattern has to be fetched as a form POST.
+    final postForm =
+        _resolvePatternPostForm(scraper, patternKey, filter: filter);
 
-    pagedUrl = await _tryPrimeCursorPagination(
-          requestUrl: pagedUrl,
-          page: filter.page,
-          patternKey: patternKey,
-          listConfig: listConfig,
-          rawConfig: rawConfig,
-          paginationCacheKey: paginationCacheKey,
-          initialUrl: url,
-        ) ??
-        pagedUrl;
+    // Cursor priming + page-query injection are GET-only concerns; a POST
+    // pattern pages through its form body instead.
+    var pagedUrl = postForm == null
+        ? _resolveListRequestUrlFromCursorCache(
+            page: filter.page,
+            cacheKey: paginationCacheKey,
+          )
+        : null;
 
-    pagedUrl ??= _searchRouting.ensurePageQueryForStandardSearch(
-      resolvedUrl: url,
-      patternKey: patternKey,
-      filter: filter,
-      rawConfig: rawConfig,
-      urlPatternsCfg: urlPatternsCfg,
-    );
+    if (postForm == null) {
+      pagedUrl = await _tryPrimeCursorPagination(
+            requestUrl: pagedUrl,
+            page: filter.page,
+            patternKey: patternKey,
+            listConfig: listConfig,
+            rawConfig: rawConfig,
+            paginationCacheKey: paginationCacheKey,
+            initialUrl: url,
+          ) ??
+          pagedUrl;
+    }
 
-    _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl');
+    pagedUrl ??= postForm != null
+        ? url
+        : _searchRouting.ensurePageQueryForStandardSearch(
+            resolvedUrl: url,
+            patternKey: patternKey,
+            filter: filter,
+            rawConfig: rawConfig,
+            urlPatternsCfg: urlPatternsCfg,
+          );
+
+    _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl'
+        '${postForm == null ? '' : ' [POST $postForm]'}');
     return _fetchListPage(
       pagedUrl,
       rawConfig,
@@ -325,7 +338,42 @@ class GenericScraperAdapter implements GenericAdapter {
       currentPage: filter.page,
       paginationCacheKey: paginationCacheKey,
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
+      postForm: postForm,
     );
+  }
+
+  /// Form body for a `"method": "post"` search/searchPage urlPattern, or null
+  /// when the pattern uses the default GET. Placeholders `{query}`, `{tag}`
+  /// and `{page}` are substituted the same way as in URL templates, but the
+  /// values stay unencoded — Dio encodes the form body.
+  Map<String, String>? _resolvePatternPostForm(
+    Map<String, dynamic> scraper,
+    String patternKey, {
+    required SearchFilter filter,
+  }) {
+    final urlPatternsCfg =
+        (scraper['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
+    final patternValue = urlPatternsCfg[patternKey];
+    if (patternValue is! Map<String, dynamic>) return null;
+    if ((patternValue['method'] as String?)?.toLowerCase() != 'post') {
+      return null;
+    }
+    final form = (patternValue['form'] as Map?)?.cast<String, dynamic>();
+    if (form == null || form.isEmpty) return null;
+
+    final rawQuery = filter.query == '{query}' ? '' : filter.query;
+    final rawTagValue = filter.includeTags.isNotEmpty
+        ? filter.includeTags.first.name
+        : rawQuery;
+    final tagValue = _transformTagValue(patternValue, rawTagValue);
+    return {
+      for (final entry in form.entries)
+        entry.key: entry.value
+            .toString()
+            .replaceAll('{query}', rawQuery)
+            .replaceAll('{tag}', tagValue)
+            .replaceAll('{page}', filter.page.toString()),
+    };
   }
 
   // Handle `raw:` query format produced by [DynamicFormSearchUI].
@@ -519,7 +567,8 @@ class GenericScraperAdapter implements GenericAdapter {
     }
 
     final hasPageInPathTemplate = basePath.contains('{page}');
-    final hasPageInQueryTemplate = _searchRouting.queryContainsPagePlaceholder(templateQuery);
+    final hasPageInQueryTemplate =
+        _searchRouting.queryContainsPagePlaceholder(templateQuery);
     // Substitute {page} if present in path (some sources embed page in path).
     basePath = basePath.replaceAll('{page}', page.toString());
 
@@ -611,7 +660,8 @@ class GenericScraperAdapter implements GenericAdapter {
         if (page > 1 && key.endsWith('[]')) {
           key = '${key.substring(0, key.length - 2)}[$i]';
         }
-        queryParts.add('$key=${_searchRouting.encodeRawQueryValue(key, values[i])}');
+        queryParts
+            .add('$key=${_searchRouting.encodeRawQueryValue(key, values[i])}');
       }
     });
 
@@ -653,18 +703,6 @@ class GenericScraperAdapter implements GenericAdapter {
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
     );
   }
-
-
-
-
-
-
-
-
-
-
-
-
 
   Future<Response<String>> _getWithRedirectFallback(
     String url, {
@@ -921,6 +959,19 @@ class GenericScraperAdapter implements GenericAdapter {
     return urls.toSet().toList();
   }
 
+  /// Absolute `/wp-admin/admin-ajax.php` endpoint for a page URL, keeping only
+  /// scheme + host. `Uri.replace(query: '')` still emits a trailing `?`, so
+  /// build from the parsed parts instead of string-concatenating the path.
+  static String adminAjaxUrl(String pageUrl) {
+    final uri = Uri.parse(pageUrl);
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+      path: '/wp-admin/admin-ajax.php',
+    ).toString();
+  }
+
   // ── fetchDetail ────────────────────────────────────────────────────────────
 
   @override
@@ -1048,14 +1099,10 @@ class GenericScraperAdapter implements GenericAdapter {
                     .attributes['data-id'] ??
                 '';
             if (dataId.isNotEmpty) {
-              final baseUri = Uri.parse(url);
-              final adminAjaxUrl = baseUri
-                  .replace(
-                      path: '/wp-admin/admin-ajax.php', query: '', fragment: '')
-                  .toString();
+              final adminAjax = adminAjaxUrl(url);
               final adminResponse = await _executeRequest<Response<String>>(
                 () => _dio.post<String>(
-                  adminAjaxUrl,
+                  adminAjax,
                   data: 'action=manga_get_chapters&manga=$dataId',
                   options: Options(
                     responseType: ResponseType.plain,
@@ -1101,16 +1148,10 @@ class GenericScraperAdapter implements GenericAdapter {
           final action = (chaptersCfg['action'] as String?) ?? 'get_chapters';
           final idParam = (chaptersCfg['idParam'] as String?) ?? 'id';
           if (postId.isNotEmpty) {
-            final baseUri = Uri.parse(url);
-            final adminAjaxUrl = baseUri
-                .replace(
-                    path: '/wp-admin/admin-ajax.php',
-                    query: '',
-                    fragment: '')
-                .toString();
+            final adminAjax = adminAjaxUrl(url);
             final adminResponse = await _executeRequest<Response<String>>(
               () => _dio.post<String>(
-                adminAjaxUrl,
+                adminAjax,
                 data: 'action=$action&$idParam=$postId',
                 options: Options(
                   responseType: ResponseType.plain,
@@ -1126,8 +1167,11 @@ class GenericScraperAdapter implements GenericAdapter {
                 .querySelectorAll('option[value]')
                 .map((opt) {
                   final curl = opt.attributes['value'] ?? '';
-                  final tail = curl.split('?').first.split('/').where(
-                      (seg) => seg.isNotEmpty);
+                  final tail = curl
+                      .split('?')
+                      .first
+                      .split('/')
+                      .where((seg) => seg.isNotEmpty);
                   return Chapter(
                     id: tail.isNotEmpty ? tail.last : curl,
                     title: opt.text.trim(),
@@ -1172,27 +1216,27 @@ class GenericScraperAdapter implements GenericAdapter {
                 .toList();
           }
           chapters = chList;
-           _logger.d(
-               '$_sourceId: extracted ${chapters.length} chapters for $contentId');
-         }
-         // Deduplicate chapters by url/id (handles duplicate pagination blocks
-         // like xiutaku top+bottom nav, or misskon repeated page-link).
-         if (chapters != null && chapters.isNotEmpty) {
-           final seen = <String>{};
-           final deduped = <Chapter>[];
-           for (final ch in chapters) {
-             final key = ch.url.isNotEmpty ? ch.url : ch.id;
-             if (seen.add(key)) deduped.add(ch);
-           }
-           chapters = deduped;
-           _logger.d(
-               '$_sourceId: deduped to ${chapters.length} chapters for $contentId');
-         }
-         // If chapters were extracted but current page is not among them,
-         // add it as chapter 1 so the detail page itself is readable.
-         // Requires explicit opt-in via chapters.addCurrentPageAsChapter=true.
-         final addCurrentPageAsChapter =
-             (chaptersCfg['addCurrentPageAsChapter'] as bool?) ?? false;
+          _logger.d(
+              '$_sourceId: extracted ${chapters.length} chapters for $contentId');
+        }
+        // Deduplicate chapters by url/id (handles duplicate pagination blocks
+        // like xiutaku top+bottom nav, or misskon repeated page-link).
+        if (chapters != null && chapters.isNotEmpty) {
+          final seen = <String>{};
+          final deduped = <Chapter>[];
+          for (final ch in chapters) {
+            final key = ch.url.isNotEmpty ? ch.url : ch.id;
+            if (seen.add(key)) deduped.add(ch);
+          }
+          chapters = deduped;
+          _logger.d(
+              '$_sourceId: deduped to ${chapters.length} chapters for $contentId');
+        }
+        // If chapters were extracted but current page is not among them,
+        // add it as chapter 1 so the detail page itself is readable.
+        // Requires explicit opt-in via chapters.addCurrentPageAsChapter=true.
+        final addCurrentPageAsChapter =
+            (chaptersCfg['addCurrentPageAsChapter'] as bool?) ?? false;
         if (addCurrentPageAsChapter &&
             chapters != null &&
             chapters.isNotEmpty) {
@@ -1573,7 +1617,8 @@ class GenericScraperAdapter implements GenericAdapter {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
         (scraper?['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
-    final chapterTemplate = _searchRouting.patternUrl(urlPatternsCfg, 'chapter');
+    final chapterTemplate =
+        _searchRouting.patternUrl(urlPatternsCfg, 'chapter');
     if (chapterTemplate.isEmpty) return null;
 
     // Normalize: strip the chapter template's static prefix from chapterId.
@@ -1726,7 +1771,8 @@ class GenericScraperAdapter implements GenericAdapter {
 
       final readerPageLinkDef = _toDefMap(readerConfig['readerPageLink']);
       if (readerPageLinkDef != null) {
-        final readerPageSelector = _readerImages.fieldDefToSelector(readerPageLinkDef);
+        final readerPageSelector =
+            _readerImages.fieldDefToSelector(readerPageLinkDef);
         final extractedReaderPageUrl = readerPageSelector == null
             ? null
             : _parser.extractString(workingDoc, readerPageSelector)?.trim();
@@ -1837,7 +1883,8 @@ class GenericScraperAdapter implements GenericAdapter {
           );
           final readerHtml = readerResp.data ?? '';
           final readerDoc = _parser.parse(readerHtml);
-          readerExtByPage = _readerImages.extractHentaiFoxExtensionsByPage(readerHtml);
+          readerExtByPage =
+              _readerImages.extractHentaiFoxExtensionsByPage(readerHtml);
 
           final readerImageSelector =
               (readerConfig['readerImageSelector'] as String?) ?? '#gimg';
@@ -2000,7 +2047,8 @@ class GenericScraperAdapter implements GenericAdapter {
       }
 
       if (imageUrls.isEmpty) {
-        imageUrls = _readerImages.extractScriptSlidesImageUrls(workingHtmlContent);
+        imageUrls =
+            _readerImages.extractScriptSlidesImageUrls(workingHtmlContent);
       }
 
       if (imageUrls.isEmpty) {
@@ -2016,8 +2064,7 @@ class GenericScraperAdapter implements GenericAdapter {
               imageUrls = _readerImages
                   .extractScriptJsonImages(
                     workingHtmlContent,
-                    scriptId:
-                        (scriptJson['id'] ?? '').toString(),
+                    scriptId: (scriptJson['id'] ?? '').toString(),
                     itemsKey: (scriptJson['items'] ?? 'images').toString(),
                     urlKey: (scriptJson['url'] ?? 'src').toString(),
                   )
@@ -2119,27 +2166,35 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
           if (pagImageSel != null) {
+            // `visited` holds every page accounted for (first page + queued
+            // sub-pages) so the maxPages guard cannot be gamed by re-queueing.
             final visited = <String>{workingUrl};
-            final pagEls = _parser.selectAll(workingDoc, pagNextSel);
-            final pendingUrls = <String>[];
-            for (final el in pagEls) {
-              if (el.classes.contains('is-current') ||
-                  el.classes.contains('current')) {
-                continue;
-              }
-              final href = (el.attributes['href'] ?? '').trim();
-              if (href.isEmpty || href == '#') continue;
-              final resolved = Uri.parse(workingUrl).resolve(href).toString();
-              if (!visited.contains(resolved) &&
-                  !pendingUrls.contains(resolved)) {
-                pendingUrls.add(resolved);
+            // BFS queue drained through an index cursor. Appending discovered
+            // URLs to the list a for-in loop is iterating threw
+            // ConcurrentModificationError and aborted aggregation after page 2
+            // (issue #66).
+            final queue = <String>[];
+            var fetched = 1;
+
+            final nextSel = pagNextSel;
+            void enqueueNextLinks(dom.Document doc, String baseUrl) {
+              for (final el in _parser.selectAll(doc, nextSel)) {
+                if (visited.length >= maxPages) break;
+                if (el.classes.contains('is-current') ||
+                    el.classes.contains('current')) {
+                  continue;
+                }
+                final href = (el.attributes['href'] ?? '').trim();
+                if (href.isEmpty || href == '#') continue;
+                final resolved = Uri.parse(baseUrl).resolve(href).toString();
+                if (visited.add(resolved)) queue.add(resolved);
               }
             }
-            // respect maxPages (first page counts as 1)
-            final toFetch = pendingUrls.take(maxPages - 1).toList();
+
+            enqueueNextLinks(workingDoc, workingUrl);
             // fetch each sub-page sequentially (respects rate limit via _executeRequest)
-            for (final extraUrl in toFetch) {
-              if (visited.length >= maxPages) break;
+            for (var cursor = 0; cursor < queue.length; cursor++) {
+              final extraUrl = queue[cursor];
               try {
                 final extraResp = await _executeRequest<Response<String>>(
                   () => _dio.get<String>(
@@ -2160,23 +2215,9 @@ class GenericScraperAdapter implements GenericAdapter {
                 if (extraImages.isNotEmpty) {
                   imageUrls.addAll(extraImages);
                 }
-                visited.add(extraUrl);
-                // discover further pagination from this page if truncated (e.g. 1..3 but actual 5)
-                if (toFetch.length < maxPages - 1) {
-                  final furtherEls = _parser.selectAll(extraDoc, pagNextSel);
-                  for (final el in furtherEls) {
-                    final href = (el.attributes['href'] ?? '').trim();
-                    if (href.isEmpty) continue;
-                    final resolved =
-                        Uri.parse(extraUrl).resolve(href).toString();
-                    if (!visited.contains(resolved) &&
-                        !pendingUrls.contains(resolved) &&
-                        !toFetch.contains(resolved) &&
-                        visited.length + toFetch.length < maxPages) {
-                      toFetch.add(resolved);
-                    }
-                  }
-                }
+                fetched++;
+                // discover further pagination from this page if truncated
+                enqueueNextLinks(extraDoc, extraUrl);
               } catch (e) {
                 _logger.w(
                   '$_sourceId reader pagination fetch failed $extraUrl',
@@ -2184,12 +2225,12 @@ class GenericScraperAdapter implements GenericAdapter {
                 );
               }
             }
-            if (toFetch.isNotEmpty) {
+            if (queue.isNotEmpty) {
               // dedup preserve order
               final seen = <String>{};
               imageUrls = imageUrls.where((u) => seen.add(u)).toList();
               _logger.i(
-                '$_sourceId reader pagination: aggregated ${imageUrls.length} images from ${visited.length} pages (first + ${toFetch.length} sub-pages)',
+                '$_sourceId reader pagination: aggregated ${imageUrls.length} images from $fetched pages (first + ${queue.length} sub-pages)',
               );
             }
           }
@@ -2200,7 +2241,8 @@ class GenericScraperAdapter implements GenericAdapter {
 
       if (imageUrls.isEmpty &&
           (readerConfig['cdnHost'] as String?)?.isNotEmpty == true) {
-        imageUrls = _readerImages.extractPreviewCdnImageUrls(workingHtmlContent);
+        imageUrls =
+            _readerImages.extractPreviewCdnImageUrls(workingHtmlContent);
       }
 
       imageUrls = _readerImages.normalizeChapterImageUrls(imageUrls);
@@ -2349,6 +2391,18 @@ class GenericScraperAdapter implements GenericAdapter {
   // - Plain String → URL only; `listConfig` is `null`.
   // - Object with `"list"` key → URL + list config.
   // - `"inherits"` borrows parent's `"list"` block; local overrides are merged.
+  /// Apply a pattern's `tagTransform` to a raw tag/query value.
+  String _transformTagValue(Map<String, dynamic>? patternMap, String raw) {
+    return switch ((patternMap?['tagTransform'] as String? ?? '').trim()) {
+      'urlEncode' => Uri.encodeComponent(raw),
+      'base64' => base64Encode(utf8.encode(raw)),
+      _ => raw
+          .toLowerCase()
+          .replaceAll(RegExp(r'\s+'), '-')
+          .replaceAll(RegExp(r'^-|-$'), ''),
+    };
+  }
+
   (String, Map<String, dynamic>?) _resolvePattern(
     Map<String, dynamic> scraper,
     String patternKey, {
@@ -2414,15 +2468,7 @@ class GenericScraperAdapter implements GenericAdapter {
         !rawTagValue.substring(prefixIdx + 1).startsWith('//')) {
       rawTagValue = rawTagValue.substring(prefixIdx + 1);
     }
-    final tagTransform = (patternMap?['tagTransform'] as String? ?? '').trim();
-    final tagValue = switch (tagTransform) {
-      'urlEncode' => Uri.encodeComponent(rawTagValue),
-      'base64' => base64Encode(utf8.encode(rawTagValue)),
-      _ => rawTagValue
-          .toLowerCase()
-          .replaceAll(RegExp(r'\s+'), '-')
-          .replaceAll(RegExp(r'^-|-$'), ''),
-    };
+    final tagValue = _transformTagValue(patternMap, rawTagValue);
     final params = <String, String>{
       'page': filter.page.toString(),
       'query': Uri.encodeQueryComponent(rawQuery),
@@ -2469,12 +2515,25 @@ class GenericScraperAdapter implements GenericAdapter {
     required int currentPage,
     String? paginationCacheKey,
     String? defaultLanguage,
+    Map<String, String>? postForm,
   }) async {
     try {
-      final response = await _getWithRedirectFallback(
-        url,
-        rawConfig: rawConfig,
-      );
+      final response = postForm == null
+          ? await _getWithRedirectFallback(url, rawConfig: rawConfig)
+          : await _executeRequest<Response<String>>(
+              () => _dio.post<String>(
+                url,
+                data: postForm,
+                options: Options(
+                  responseType: ResponseType.plain,
+                  contentType: Headers.formUrlEncodedContentType,
+                  headers: _resolveRequestHeaders(
+                    rawConfig,
+                    fallbackReferer: url,
+                  ),
+                ),
+              ),
+            );
       final doc = _parser.parse(response.data ?? '');
 
       final container = listConfig['container'] as String?;
@@ -2639,7 +2698,6 @@ class GenericScraperAdapter implements GenericAdapter {
   //   `(codePointAt(i) - 19968) ^ key.charCodeAt(i % key.length)`
   // The key is fixed per site (nicomanga: "NicoMangaX2"), config-driven
   // via `scraper.selectors.detail.chaoticKey` / `reader.chaoticKey`.
-
 
   Map<String, dynamic> _extractDocumentFields(
     dom.Document doc,
@@ -2836,7 +2894,9 @@ class GenericScraperAdapter implements GenericAdapter {
     final title = strVal(cfg['title'] ?? 'n');
     if (title.isNotEmpty) fields['title'] = title;
     final cover = strVal(cfg['coverUrl'] ?? 'c');
-    if (cover.isNotEmpty) fields['coverUrl'] = _readerImages.sanitizeImageUrl(cover);
+    if (cover.isNotEmpty) {
+      fields['coverUrl'] = _readerImages.sanitizeImageUrl(cover);
+    }
     final author = strVal(cfg['author'] ?? 'a');
     if (author.isNotEmpty) fields['author'] = author;
 
@@ -2965,7 +3025,6 @@ class GenericScraperAdapter implements GenericAdapter {
 
   // ── Private helpers ────────────────────────────────────────────────────────
 
-
   // Route to the urlPattern declared on whichever form field carries a value
   // (e.g. `genre` → `genreSearch`). Sites ignore query-string filters like
   // `?genre=x`; they expose tag browsing as dedicated paths instead.
@@ -3010,7 +3069,6 @@ class GenericScraperAdapter implements GenericAdapter {
     if (def is String) return <String, dynamic>{'selector': def};
     return null;
   }
-
 
   Content _emptyContent(String id) => Content(
         id: id,
@@ -3128,7 +3186,6 @@ class GenericScraperAdapter implements GenericAdapter {
       return _searchRouting.decodePercentEncodedSegments(slug) ?? slug;
     }
   }
-
 
   // Apply a regex pattern to extract a substring.
   // Returns the first capture group if it exists, else the entire match (group 0).
@@ -3307,15 +3364,6 @@ class GenericScraperAdapter implements GenericAdapter {
     return normalizedUrls;
   }
 
-
-
-
-
-
-
-
-
-
   bool _hasEnabledLink(dom.Document doc, String selector) {
     final link = doc.querySelector(selector);
     if (link == null) return false;
@@ -3458,9 +3506,6 @@ class GenericScraperAdapter implements GenericAdapter {
     if (page <= 1) return null;
     return _paginationCursorCache[_paginationCacheEntryKey(cacheKey, page)];
   }
-
-
-
 
   DateTime? _parseRelativeOrAbsoluteDate(String raw) {
     if (raw.isEmpty) return null;

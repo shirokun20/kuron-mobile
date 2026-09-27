@@ -60,8 +60,8 @@ class GenericHtmlParser {
             'GenericHtmlParser.extractString: selector="${selector.selector}", regex=${selector.regex}, found ${elements.length} elements');
 
         for (final element in elements) {
-          final value = selector.attribute != null
-              ? _resolveAttribute(element, selector.attribute!)
+          final value = selector.attributeChain.isNotEmpty
+              ? _resolveAttributeChain(element, selector.attributeChain)
               : element.text.trim();
           if (value == null || value.isEmpty) continue;
 
@@ -84,8 +84,8 @@ class GenericHtmlParser {
         return selector.fallback;
       }
       final element = elements.first;
-      final value = selector.attribute != null
-          ? _resolveAttribute(element, selector.attribute!)
+      final value = selector.attributeChain.isNotEmpty
+          ? _resolveAttributeChain(element, selector.attributeChain)
           : element.text.trim();
       if (value == null || value.isEmpty) {
         _logger.t(
@@ -109,8 +109,8 @@ class GenericHtmlParser {
           'GenericHtmlParser.extractList: selector="${selector.selector}", multi=true, regex=${selector.regex}, found ${elements.length} elements');
 
       final rawValues = elements
-          .map((el) => selector.attribute != null
-              ? (_resolveAttribute(el, selector.attribute!) ?? '')
+          .map((el) => selector.attributeChain.isNotEmpty
+              ? (_resolveAttributeChain(el, selector.attributeChain) ?? '')
               : el.text.trim())
           .where((s) => s.isNotEmpty)
           .toList();
@@ -158,8 +158,8 @@ class GenericHtmlParser {
     try {
       final children = _selectAll(element, selector.selector);
       final target = children.isNotEmpty ? children.first : element;
-      final value = selector.attribute != null
-          ? _resolveAttribute(target, selector.attribute!)
+      final value = selector.attributeChain.isNotEmpty
+          ? _resolveAttributeChain(target, selector.attributeChain)
           : target.text.trim();
       if (value == null || value.isEmpty) return selector.fallback;
       if (selector.regex != null) return _applyRegex(value, selector.regex!);
@@ -275,27 +275,47 @@ class GenericHtmlParser {
     return element.localName?.toLowerCase() == token.toLowerCase();
   }
 
-  String? _resolveAttribute(dom.Element element, String attribute) {
-    final value = (element.attributes[attribute] ?? '').trim();
+  /// First-non-empty-wins attribute chain. A chain shorter than the
+  /// lazy-load fallback list still runs that list after it, so a
+  /// single-attribute selector keeps its old behavior.
+  String? _resolveAttributeChain(dom.Element element, List<String> chain) {
+    if (chain.isEmpty) return null;
 
-    if (element.localName != 'img') return value.isEmpty ? null : value;
-
-    if (value.isNotEmpty &&
-        !value.startsWith('data:') &&
-        !_kPlaceholderSrcPattern.hasMatch(value)) {
+    var firstValue = '';
+    var resolved = false;
+    for (final attribute in chain) {
+      final value = (element.attributes[attribute] ?? '').trim();
+      if (attribute == chain.first) firstValue = value;
+      if (value.isEmpty) continue;
+      if (element.localName == 'img' &&
+          (value.startsWith('data:') ||
+              _kPlaceholderSrcPattern.hasMatch(value))) {
+        continue;
+      }
+      resolved = true;
+      if (attribute != chain.first) {
+        _logger.d('GenericHtmlParser: attribute chain ${chain.first} empty → '
+            '$attribute="$value"');
+      }
       return value;
     }
+    if (resolved) return firstValue;
 
+    if (element.localName != 'img') {
+      return firstValue.isEmpty ? null : firstValue;
+    }
+
+    // Nothing in the chain was usable — run the built-in lazy-load fallbacks.
     for (final fallbackAttr in _kImageFallbackAttributes) {
-      if (fallbackAttr == attribute) continue;
+      if (chain.contains(fallbackAttr)) continue;
       final fallbackValue = (element.attributes[fallbackAttr] ?? '').trim();
       if (fallbackValue.isEmpty || fallbackValue.startsWith('data:')) continue;
       _logger.d(
-          'GenericHtmlParser: image lazy-load fallback: $attribute=${value.isEmpty ? "null" : "placeholder"} → $fallbackAttr="$fallbackValue"');
+          'GenericHtmlParser: image lazy-load fallback: ${chain.first}=${firstValue.isEmpty ? "null" : "placeholder"} → $fallbackAttr="$fallbackValue"');
       return fallbackValue;
     }
 
-    return value.isEmpty ? null : value;
+    return firstValue.isEmpty ? null : firstValue;
   }
 
   String? _applyRegex(String input, String pattern) {

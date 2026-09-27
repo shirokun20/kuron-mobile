@@ -57,9 +57,21 @@ class SmokeReport {
 /// detail/reader); upgrade to parallel + multi-item sampling when a source
 /// needs deeper coverage than "does the happy path work".
 class SmokeRunner {
-  SmokeRunner({Logger? logger}) : _logger = logger ?? Logger(level: Level.off);
+  SmokeRunner({
+    Logger? logger,
+    this.settleDelay = const Duration(seconds: 3),
+    this.detailRetryDelay = const Duration(seconds: 8),
+  }) : _logger = logger ?? Logger(level: Level.off);
 
   final Logger _logger;
+
+  /// Delay between screen probes. Rate-limited hosts (akazascans/nginx) answer
+  /// a burst of back-to-back probes with 429 empty shells, so probes are
+  /// spaced. ponytail: injectable so tests don't pay the wall-clock.
+  final Duration settleDelay;
+
+  /// Extra wait before the one detail retry when chapters come back empty.
+  final Duration detailRetryDelay;
 
   Future<SmokeReport> run(Map<String, dynamic> config,
       {String? probedUrl}) async {
@@ -101,10 +113,12 @@ class SmokeRunner {
       // is what's under test, not HTTP status codes.
       validateStatus: (status) => status != null && status < 500,
     ));
+    final urlBuilder = GenericUrlBuilder(baseUrl: baseUrl);
+    final parser = GenericHtmlParser(logger: _logger);
     final adapter = GenericScraperAdapter(
       dio: dio,
-      urlBuilder: GenericUrlBuilder(baseUrl: baseUrl),
-      parser: GenericHtmlParser(logger: _logger),
+      urlBuilder: urlBuilder,
+      parser: parser,
       logger: _logger,
       sourceId: config['source'] as String? ?? 'smoke',
     );
@@ -113,8 +127,7 @@ class SmokeRunner {
     final fixtures = <String, String>{};
     final findings = <ProbeFinding>[];
 
-    // ponytail: akazascans 429s back-to-back probes; space them out.
-    const settle = Duration(seconds: 3);
+    final settle = settleDelay;
 
     // ── home ────────────────────────────────────────────────────────────────
     List<Content> homeItems = const [];
@@ -221,7 +234,7 @@ class SmokeRunner {
       detail = await adapter.fetchDetail(contentId, config);
       if (detail.content.chapters?.isEmpty ?? true) {
         // ponytail: 429-prone hosts serve an empty shell on the first hit.
-        await Future<void>.delayed(const Duration(seconds: 8));
+        await Future<void>.delayed(detailRetryDelay);
         detail = await adapter.fetchDetail(contentId, config);
       }
       final hasPages = detail.content.pageCount > 0 ||
@@ -237,6 +250,31 @@ class SmokeRunner {
     } catch (e) {
       results.add(
           ScreenResult(screen: 'detail', passed: false, failure: e.toString()));
+    }
+
+    // #64: `detail: OK` only proved title + pages, so a dead cover/tag/author
+    // selector still shipped 5/5 green. Re-read the live detail page and probe
+    // the remaining configured fields against it. Title is excluded — the
+    // detail screen assertion above already fails on an empty one.
+    if (detail != null) {
+      final fields = _detailFieldsConfig(config)..remove('title');
+      if (fields.isNotEmpty) {
+        final detailUrl = _detailUrl(config, contentId, urlBuilder);
+        if (detailUrl.isNotEmpty) {
+          await Future<void>.delayed(settle);
+          final html = await _fetchRaw(dio, detailUrl);
+          if (html.isNotEmpty) {
+            findings.addAll(await probeDetailFields(
+              html,
+              fields,
+              parser: parser,
+              resolvedCoverUrl: detail.content.coverUrl,
+              baseUrl: baseUrl,
+              contentTypeOf: (url) => _probeContentType(dio, url, config),
+            ));
+          }
+        }
+      }
     }
 
     // ── chapters + reader ───────────────────────────────────────────────────
@@ -296,8 +334,7 @@ class SmokeRunner {
       var sampledId = '';
       for (final ch in chapters.take(3)) {
         await Future<void>.delayed(settle);
-        final chapterData =
-            await adapter.fetchChapterImages(ch.id, config);
+        final chapterData = await adapter.fetchChapterImages(ch.id, config);
         images = chapterData?.images ?? const <String>[];
         sampledId = ch.id;
         if (images.isNotEmpty) break;
@@ -335,6 +372,35 @@ class SmokeRunner {
 
     return SmokeReport(
         results: results, fixtures: fixtures, findings: findings);
+  }
+
+  /// Detail page URL for [contentId], resolved exactly the way
+  /// `GenericScraperAdapter.fetchDetail` does. Empty when the config has no
+  /// `scraper.urlPatterns.detail` entry (REST sources take a different path).
+  /// `scraper.selectors.detail.fields` as a mutable copy, empty when absent.
+  Map<String, dynamic> _detailFieldsConfig(Map<String, dynamic> config) {
+    final selectors = (config['scraper'] as Map?)?['selectors'] as Map?;
+    final detailCfg = selectors?['detail'] as Map?;
+    return Map<String, dynamic>.from(
+        (detailCfg?['fields'] as Map?)?.cast<String, dynamic>() ??
+            const <String, dynamic>{});
+  }
+
+  String _detailUrl(
+    Map<String, dynamic> config,
+    String contentId,
+    GenericUrlBuilder urlBuilder,
+  ) {
+    final patterns = (config['scraper'] as Map?)?['urlPatterns'] as Map?;
+    final value = patterns?['detail'];
+    final template = value is String
+        ? value
+        : value is Map
+            ? value['url'] as String? ?? ''
+            : '';
+    return template.isEmpty
+        ? ''
+        : urlBuilder.buildDetailUrl(template, contentId);
   }
 
   Future<String> _fetchRaw(Dio dio, String path) async {
@@ -428,6 +494,117 @@ class SmokeRunner {
       return await sniff();
     }
   }
+}
+
+// ── #64: detail-field gate ───────────────────────────────────────────────
+
+/// Detail fields the gate probes when a config declares them. Fields the
+/// config omits are never probed, so a gallery-only source (hentaifox family:
+/// no author, no tags) keeps passing untouched.
+const _probedDetailFields = [
+  'coverUrl',
+  'title',
+  'description',
+  'author',
+  'artist',
+  'genres',
+  'tags',
+  'publisher',
+  'status',
+];
+
+/// Issue #64 — `detail: OK` proved only title + pages, so a config whose cover
+/// selector read `src` where the markup carries `data-src` (or whose tag
+/// selector pointed at a renamed container) shipped 5/5 green. 2026-09-27 wave:
+/// ~35 sources. For every declared detail field, confirm the selector matches
+/// the live page, and that a declared cover resolves to `image/*`.
+///
+/// Severity: **blocking** when a declared selector matches nothing (the config
+/// is provably wrong) or when the cover is empty / resolves to a non-image. A
+/// selector that matches but extracts nothing is a **warning** — hosts
+/// rate-limit and hotlink-protect, and a title/status block can legally render
+/// empty on one entry without the selector being dead.
+///
+/// [resolvedCoverUrl] is what the adapter actually resolved (after its lazy-attr
+/// fallback chain), so a relative or placeholder src it fixed up is not
+/// double-reported. [contentTypeOf] is injected to keep the DOM half pure.
+Future<List<ProbeFinding>> probeDetailFields(
+  String rawHtml,
+  Map<String, dynamic> fieldsConfig, {
+  required GenericHtmlParser parser,
+  required String resolvedCoverUrl,
+  required String baseUrl,
+  required Future<String?> Function(String url) contentTypeOf,
+}) async {
+  if (rawHtml.isEmpty || fieldsConfig.isEmpty) return const [];
+  final doc = parser.parse(rawHtml);
+  final findings = <ProbeFinding>[];
+
+  for (final key in _probedDetailFields) {
+    final def = fieldsConfig[key];
+    if (def is! Map) continue;
+    final selector = (def['selector'] as String?)?.trim();
+    if (selector == null || selector.isEmpty) continue;
+    // A declared fallback means the config already tolerates a miss.
+    if ((def['fallback'] as String?)?.isNotEmpty == true) continue;
+
+    final fieldSelector = FieldSelector.fromMap(def.cast<String, dynamic>());
+    final matched = parser.selectAll(doc, selector);
+    if (matched.isEmpty) {
+      findings.add(ProbeFinding(
+        probe: 'detail-field-empty',
+        severity: FindingSeverity.blocking,
+        message: 'detail field "$key" selector "$selector" matched 0 elements '
+            'on the live page',
+        suggestion: 'fix the selector or drop the field in '
+            'scraper.selectors.detail.fields',
+      ));
+      continue;
+    }
+
+    // Matched, but nothing usable came out of it.
+    final values = key == 'coverUrl'
+        ? [parser.extractFromElement(matched.first, fieldSelector) ?? '']
+        : parser.extractList(doc, fieldSelector);
+    if (values.every((v) => v.trim().isEmpty)) {
+      findings.add(ProbeFinding(
+        probe: 'detail-field-empty',
+        severity: FindingSeverity.warning,
+        message: 'detail field "$key" selector "$selector" matched '
+            '${matched.length} element(s) but extracted no value',
+        suggestion: 'check the attribute chain / text for "$key"',
+      ));
+    }
+  }
+
+  // Cover content-type: probe what the adapter resolved, not the raw attribute.
+  if (fieldsConfig['coverUrl'] is Map) {
+    final cover = resolvedCoverUrl.trim();
+    if (cover.isEmpty) {
+      findings.add(ProbeFinding(
+        probe: 'detail-cover-not-image',
+        severity: FindingSeverity.blocking,
+        message: 'detail coverUrl resolved to an empty URL',
+        suggestion: 'cover selector does not match, or the attribute is a '
+            'lazy-load placeholder the fallback chain misses',
+      ));
+    } else {
+      final absolute = cover.startsWith('http') ? cover : '$baseUrl$cover';
+      final type = await contentTypeOf(absolute);
+      // null = CDN refused HEAD/GET (rate limit, hotlink guard) — advisory
+      // only, a hard 4xx on every image would fail the reader probe anyway.
+      if (type != null && !type.startsWith('image/')) {
+        findings.add(ProbeFinding(
+          probe: 'detail-cover-not-image',
+          severity: FindingSeverity.blocking,
+          message: 'detail cover resolves to "$type", not image/*: $absolute',
+          suggestion: 'cover selector is probably grabbing a non-image node',
+        ));
+      }
+    }
+  }
+
+  return findings;
 }
 
 /// Writes golden fixtures (raw HTML per screen + manifest.json) next to the

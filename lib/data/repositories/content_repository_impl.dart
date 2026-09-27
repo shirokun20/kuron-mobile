@@ -248,12 +248,25 @@ class ContentRepositoryImpl implements ContentRepository {
       final List<FilterItem> parodies = [];
       final List<FilterItem> groups = [];
 
-      final filterItem = FilterItem.include(tag.name);
+      // The href slug is the exact archive key the site publishes
+      // (`/manga-author/hanse/`), so it wins over re-slugifying the display
+      // name. Only then fall back to the name. #69.
+      final slug = tag.slug?.trim();
+      final rawValue = (slug != null && slug.isNotEmpty) ? slug : tag.name;
 
       // We pass the raw slug as well using a special prefix so the scraper knows the exact type if it needs it.
       // E.g. 'artist:', 'magazine:'
-      final mappedItem =
-          FilterItem.include('${tag.type}:${tag.slug ?? tag.name}');
+      final mappedItem = FilterItem.include(
+        '${tag.type}:$rawValue',
+        tagType: tag.type,
+        tagName: tag.name,
+        tagSlug: rawValue == tag.name ? null : rawValue,
+      );
+
+      // `author` has no dedicated bucket in the app filter; it rides the
+      // artist channel but must keep its own type so the scraper picks
+      // `authorSearch` instead of `artistSearch`.
+      final filterItem = FilterItem.include(rawValue);
 
       switch (tag.type) {
         case TagType.artist:
@@ -584,10 +597,13 @@ class ContentRepositoryImpl implements ContentRepository {
 
     void process(List<FilterItem> items, String type) {
       for (final item in items) {
+        // `author` shares the artist bucket with `artist`; keep the real tag
+        // type so the scraper can route to authorSearch vs artistSearch.
+        final resolvedType = item.tagType == 'author' ? 'author' : type;
         final coreItem = core.FilterItem(
           id: 0, // App doesn't store ID for filter items
           name: item.value,
-          type: type,
+          type: resolvedType,
           isExcluded: item.isExcluded,
         );
         if (item.isExcluded) {

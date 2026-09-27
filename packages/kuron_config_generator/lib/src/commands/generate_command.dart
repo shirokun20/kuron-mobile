@@ -115,6 +115,33 @@ class GenerateCommand extends Command<void> {
     return '/';
   }
 
+  /// Re-points `network.headers` / `network.imageHeaders` values that still
+  /// carry the template host at the new baseUrl (#56). Hotlink-protected
+  /// sites answer 403 / `text/plain` for images fetched with a stale
+  /// `Referer`, which fails the reader smoke screen.
+  static void repointTemplateHeaders(
+    Map<String, dynamic> config, {
+    required String? oldBase,
+    required String newBase,
+  }) {
+    if (oldBase == null || oldBase.isEmpty) return;
+    final network = config['network'];
+    if (network is! Map) return;
+    for (final section in ['headers', 'imageHeaders']) {
+      final headers = network[section];
+      if (headers is! Map) continue;
+      for (final k in headers.keys.toList()) {
+        final v = headers[k];
+        if (v is String && v.contains(oldBase)) {
+          headers[k] = v
+              .replaceAll(oldBase, newBase)
+              .replaceAll('https://https://', 'https://')
+              .replaceAll('http://http://', 'http://');
+        }
+      }
+    }
+  }
+
   @override
   Future<void> run() async {
     // ponytail: DevelopmentFilter (logger default) drops ALL output when
@@ -198,25 +225,11 @@ class GenerateCommand extends Command<void> {
       config['ui']?.remove('iconPath');
       // Referer/image headers point at the template's host — re-point them
       // at the new host, else hotlink-protected images 403/text-plain.
-      if (oldBase != null && oldBase.isNotEmpty) {
-        final network = config['network'];
-        if (network is Map) {
-          for (final section in ['headers', 'imageHeaders']) {
-            final headers = network[section];
-            if (headers is Map) {
-              for (final k in headers.keys.toList()) {
-                final v = headers[k];
-                if (v is String && v.contains(oldBase)) {
-                  headers[k] = v
-                      .replaceAll(oldBase, config['baseUrl'] as String)
-                      .replaceAll('https://https://', 'https://')
-                      .replaceAll('http://http://', 'http://');
-                }
-              }
-            }
-          }
-        }
-      }
+      repointTemplateHeaders(
+        config,
+        oldBase: oldBase,
+        newBase: config['baseUrl'] as String,
+      );
       logger.i('📋 Template: $templateId (${oldBase ?? '?'}) → '
           '${config['baseUrl']}');
 
