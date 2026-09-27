@@ -241,7 +241,17 @@ class GenericScraperAdapter implements GenericAdapter {
       final firstType = filter.includeTags.first.type.toLowerCase().trim();
       final useTagPattern =
           firstType == wantsPlainTag && urlPatternsCfg.containsKey('tagSearch');
-      final baseKey = useTagPattern ? 'tagSearch' : 'genreSearch';
+      final useAuthorPattern = firstType == 'author' &&
+          urlPatternsCfg.containsKey('authorSearch');
+      final useArtistPattern = firstType == 'artist' &&
+          urlPatternsCfg.containsKey('artistSearch');
+      final baseKey = useTagPattern
+          ? 'tagSearch'
+          : useAuthorPattern
+              ? 'authorSearch'
+              : useArtistPattern
+                  ? 'artistSearch'
+                  : 'genreSearch';
       final pageKey = '${baseKey}Page';
       patternKey = filter.page > 1 && urlPatternsCfg.containsKey(pageKey)
           ? pageKey
@@ -2392,9 +2402,18 @@ class GenericScraperAdapter implements GenericAdapter {
     }
 
     final rawQuery = filter.query == '{query}' ? '' : filter.query;
-    final rawTagValue = filter.includeTags.isNotEmpty
+    var rawTagValue = filter.includeTags.isNotEmpty
         ? filter.includeTags.first.name
         : rawQuery;
+    // getContentByTag passes `type:value` (e.g. `artist:Hanse`); the slug
+    // carries the prefix, so strip it before slugify.
+    final prefixIdx = rawTagValue.indexOf(':');
+    if (filter.includeTags.isNotEmpty &&
+        prefixIdx > 0 &&
+        prefixIdx < rawTagValue.length - 1 &&
+        !rawTagValue.substring(prefixIdx + 1).startsWith('//')) {
+      rawTagValue = rawTagValue.substring(prefixIdx + 1);
+    }
     final tagTransform = (patternMap?['tagTransform'] as String? ?? '').trim();
     final tagValue = switch (tagTransform) {
       'urlEncode' => Uri.encodeComponent(rawTagValue),

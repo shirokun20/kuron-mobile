@@ -81,6 +81,17 @@ void main() {
     expect(report.results.where((r) => r.screen == 'home'), isNotEmpty);
   });
 
+  test('host mismatch fails fast so stored baseUrl cannot be masked (#62)',
+      () async {
+    final report = await SmokeRunner().run(
+      {'source': 'x', 'baseUrl': 'https://parked.test'},
+      probedUrl: 'https://real.test/',
+    );
+    expect(report.allPassed, isFalse);
+    expect(report.failures.single.screen, 'config');
+    expect(report.failures.single.failure, contains('host mismatch'));
+  });
+
   test('fixture emitter writes html + manifest', () {
     final dir = Directory.systemTemp.createTempSync('smoke_fixture_test');
     addTearDown(() => dir.deleteSync(recursive: true));

@@ -80,6 +80,41 @@ class GenerateCommand extends Command<void> {
   String get description =>
       'Generate a source config through interactive questions or URL discovery.';
 
+  /// Origin + non-root path, no trailing slash
+  /// (e.g. https://hentaikun.com/manga stays; https://a.com/ → https://a.com).
+  static String baseOrigin(Uri? uri) {
+    final origin = '${uri?.scheme}://${uri?.host}';
+    final p = uri?.path.replaceAll(RegExp(r'/+$'), '') ?? '';
+    return p.isEmpty ? origin : '$origin$p';
+  }
+
+  /// Validates a cloned template's home.url against the new host (#52).
+  /// Keeps it only when baseUrl + homeUrl probes 200 with ≥1 home-list
+  /// container match; else `/` + warning.
+  /// ponytail: skips probe when already `/` — no network for safe default.
+  static Future<String> resolveClonedHomeUrl({
+    required String baseUrl,
+    required String homeUrl,
+    required String container,
+    Future<ProbeResult> Function(String url)? fetch,
+    Logger? logger,
+  }) async {
+    if (homeUrl.isEmpty || homeUrl == '/' || container.isEmpty) return '/';
+    final candidate = homeUrl.startsWith('http')
+        ? homeUrl
+        : '$baseUrl${homeUrl.startsWith('/') ? '' : '/'}$homeUrl';
+    try {
+      final probe = await (fetch ?? probeUrl)(candidate);
+      if (probe.isSuccess &&
+          parse(probe.body).querySelectorAll(container).isNotEmpty) {
+        return homeUrl;
+      }
+    } catch (_) {}
+    logger?.w(
+        'Template home.url "$homeUrl" 404/empty on $baseUrl — reset to /');
+    return '/';
+  }
+
   @override
   Future<void> run() async {
     // ponytail: DevelopmentFilter (logger default) drops ALL output when
@@ -157,7 +192,7 @@ class GenerateCommand extends Command<void> {
       final uri = Uri.tryParse(url);
       final host = uri?.host.replaceAll(RegExp(r'^www\.'), '') ?? 'unknown';
       config['source'] = host.replaceAll(RegExp(r'[^a-z0-9]'), '');
-      config['baseUrl'] = '${uri?.scheme}://${uri?.host}';
+      config['baseUrl'] = baseOrigin(uri);
       config.remove('configUrl');
       // Icon path points at the template's asset — drop it.
       config['ui']?.remove('iconPath');
@@ -184,6 +219,22 @@ class GenerateCommand extends Command<void> {
       }
       logger.i('📋 Template: $templateId (${oldBase ?? '?'}) → '
           '${config['baseUrl']}');
+
+      // #52: verbatim home.url (e.g. manhwareads /new-2/) 404s on new host.
+      final patterns = config['scraper']?['urlPatterns'];
+      if (patterns is Map) {
+        final home = patterns['home'];
+        if (home is Map) {
+          final list =
+              home['list'] is Map ? home['list'] as Map : const {};
+          home['url'] = await GenerateCommand.resolveClonedHomeUrl(
+            baseUrl: config['baseUrl'] as String,
+            homeUrl: '${home['url'] ?? '/'}',
+            container: '${list['container'] ?? ''}',
+            logger: logger,
+          );
+        }
+      }
     } else {
       stderr.writeln('Error: --template requires --url for the new source.');
       exit(64);
@@ -271,8 +322,7 @@ class GenerateCommand extends Command<void> {
         await _emitRestConfig(
           api: hunt.inference,
           host: pageUri.host.replaceAll(RegExp(r'^www\.'), ''),
-          homeBase:
-              '${pageUri.scheme}://${pageUri.host}',
+          homeBase: baseOrigin(pageUri),
           output: output,
           logger: logger,
         );
@@ -478,7 +528,7 @@ class GenerateCommand extends Command<void> {
     await _emitRestConfig(
       api: api,
       host: host,
-      homeBase: '${uri?.scheme}://${uri?.host}',
+      homeBase: baseOrigin(uri),
       output: output,
       logger: logger,
     );
@@ -573,7 +623,8 @@ class GenerateCommand extends Command<void> {
     final outputDir = File(configPath).parent.path;
 
     logger.i('🌐 Live smoke validation via real adapter...');
-    final report = await SmokeRunner().run(config);
+    final report = await SmokeRunner()
+        .run(config, probedUrl: argResults?['url'] as String?);
 
     for (final r in report.results) {
       logger.i('  ${r.passed ? "✓" : "✗"} $r');

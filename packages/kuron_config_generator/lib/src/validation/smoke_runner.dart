@@ -61,13 +61,31 @@ class SmokeRunner {
 
   final Logger _logger;
 
-  Future<SmokeReport> run(Map<String, dynamic> config) async {
+  Future<SmokeReport> run(Map<String, dynamic> config,
+      {String? probedUrl}) async {
     final baseUrl = config['baseUrl'] as String?;
     if (baseUrl == null || baseUrl.isEmpty) {
       return SmokeReport(
         results: [
           ScreenResult(
               screen: 'config', passed: false, failure: 'missing baseUrl'),
+        ],
+        fixtures: const {},
+      );
+    }
+
+    // #62: live smoke must run the stored config, not --url. A parked-domain
+    // config passes 5/5 against the wrong host and masks the rot.
+    final storedHost = Uri.tryParse(baseUrl)?.host ?? '';
+    final probedHost = Uri.tryParse(probedUrl ?? '')?.host ?? '';
+    if (probedHost.isNotEmpty && storedHost != probedHost) {
+      return SmokeReport(
+        results: [
+          ScreenResult(
+              screen: 'config',
+              passed: false,
+              failure:
+                  'baseUrl host mismatch: stored $storedHost vs probed $probedHost'),
         ],
         fixtures: const {},
       );
