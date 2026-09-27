@@ -420,6 +420,13 @@ class ReaderCubit extends Cubit<ReaderState> {
           } else {
             _logger.w(
                 '⚠️ Fallback chapter image fetch returned empty for: $contentId');
+            // Video/HLS chapter (issue #68): 0 images is the *expected* result,
+            // not a failure — keep the stream so the reader can play it.
+            if (fallbackChapterData.videoUrls.isNotEmpty) {
+              chapterData ??= fallbackChapterData;
+              _logger.i(
+                  '🎬 Video chapter with ${fallbackChapterData.videoUrls.length} stream(s) for: $contentId');
+            }
           }
         } catch (e) {
           _logger.w('Fallback chapter image fetch failed for $contentId: $e');
@@ -1026,6 +1033,11 @@ class ReaderCubit extends Cubit<ReaderState> {
         }
       }
 
+      // A video chapter (issue #68) is already active — advancing must drop its
+      // stream, or the reader keeps playing the previous episode over the new
+      // chapter's images.
+      final wasVideoChapter = state.chapterData?.videoUrls.isNotEmpty ?? false;
+
       // Fallback to online API
       ChapterData? chapterData;
       if (!loadedFromOffline) {
@@ -1049,7 +1061,7 @@ class ReaderCubit extends Cubit<ReaderState> {
             sourceId: _parentContent?.sourceId ?? state.content?.sourceId,
           ));
 
-          if (chapterData.images.isEmpty) {
+          if (chapterData.images.isEmpty && chapterData.videoUrls.isEmpty) {
             emit(_withStatus(ReaderStatus.error)
                 .copyWithMessage('failedLoadChapterImages'));
             return;
@@ -1082,7 +1094,7 @@ class ReaderCubit extends Cubit<ReaderState> {
       emit(_withStatus(ReaderStatus.loaded)
           .copyWithContent(
               content: newContent,
-              chapterData: chapterData,
+              chapterData: wasVideoChapter ? null : chapterData,
               currentChapter: chapter)
           .copyWithPage(1)
           .copyWithTimer(Duration.zero)
@@ -1246,8 +1258,8 @@ class ReaderCubit extends Cubit<ReaderState> {
         content: state.content,
       );
       await addToHistoryUseCase(params);
-      _maybeRequestRecommendationRefresh(historyContentId, validPage,
-          totalPages, state.content!.sourceId);
+      _maybeRequestRecommendationRefresh(
+          historyContentId, validPage, totalPages, state.content!.sourceId);
       ContentReadCache.invalidateCache(
         historyContentId,
         sourceId: state.content!.sourceId,

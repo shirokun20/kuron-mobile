@@ -75,6 +75,7 @@ import 'package:logger/logger.dart';
 import '../mappers/generic_content_mapper.dart';
 import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
+import '../readers/chapter_protector.dart';
 import '../readers/reader_image_resolver.dart';
 import '../routing/search_query_routing.dart';
 import '../url_builder/generic_url_builder.dart';
@@ -99,6 +100,7 @@ class GenericScraperAdapter implements GenericAdapter {
   final Logger _logger;
   final String _sourceId;
   late final ReaderImageResolver _readerImages;
+  late final ChapterProtectorDecoder _chapterProtector;
 
   late final SearchQueryRouting _searchRouting;
   final Future<void> Function()? _delayApplier;
@@ -123,6 +125,10 @@ class GenericScraperAdapter implements GenericAdapter {
     _readerImages = ReaderImageResolver(
       urlBuilder: urlBuilder,
       parser: parser,
+      logger: logger,
+      sourceId: sourceId,
+    );
+    _chapterProtector = ChapterProtectorDecoder(
       logger: logger,
       sourceId: sourceId,
     );
@@ -2247,6 +2253,21 @@ class GenericScraperAdapter implements GenericAdapter {
 
       imageUrls = _readerImages.normalizeChapterImageUrls(imageUrls);
 
+      // Madara `wp-manga-chapter-images-protection`: pages ship only
+      // `.theimage > .loader` placeholders and the URL list is AES-encrypted
+      // in `#chapter-protector-data` (issue #63). Decrypt it only when normal
+      // extraction came up empty, so unprotected chapters are unaffected.
+      if (imageUrls.isEmpty &&
+          workingHtmlContent.contains('chapter-protector-data')) {
+        final decrypted =
+            _chapterProtector.extractImageUrls(workingHtmlContent);
+        if (decrypted.isNotEmpty) {
+          _logger.i(
+              '$_sourceId chapter-protector: ${decrypted.length} images decrypted');
+          imageUrls = _readerImages.normalizeChapterImageUrls(decrypted);
+        }
+      }
+
       // 3b. Re-write preview CDN → reader CDN if configured.
       final cdnHost = readerConfig['cdnHost'] as String?;
       if (cdnHost != null && cdnHost.isNotEmpty) {
@@ -2359,8 +2380,22 @@ class GenericScraperAdapter implements GenericAdapter {
       nextId ??= _extractNavChapterId(workingDoc, navCfg?['next']);
       prevId ??= _extractNavChapterId(workingDoc, navCfg?['prev']);
 
+      // Video/HLS chapter (issue #68): `<video><source src="…master.m3u8">`
+      // yields no images, so tag the chapter as a stream for the reader's
+      // WebView player. Empty for an ordinary image chapter — same behavior.
+      final videoUrls = _readerImages
+          .extractChapterVideoUrls(workingHtmlContent)
+          // Protocol-relative (`//cdn/x.m3u8`) and root-relative streams must be
+          // absolute for the reader's WebView to load them.
+          .map(_readerImages.sanitizeImageUrl)
+          .toList();
+      if (videoUrls.isNotEmpty) {
+        _logger.i('$_sourceId video chapter: ${videoUrls.length} stream(s)');
+      }
+
       return ChapterData(
         images: imageUrls,
+        videoUrls: videoUrls,
         nextChapterId: nextId,
         prevChapterId: prevId,
       );

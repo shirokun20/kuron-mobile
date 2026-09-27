@@ -42,6 +42,7 @@ import '../../widgets/error_widget.dart';
 import '../../widgets/extended_image_reader_widget.dart';
 import 'chapter_open_overlay.dart';
 import 'end_of_chapter_overlay.dart';
+import 'reader_video_chapter.dart';
 
 import 'reader_translation_widgets.dart';
 import 'reader_translation_draw_mode.dart';

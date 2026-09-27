@@ -86,6 +86,7 @@ ChapterData? readReaderChapterData(Object? value) {
 
   return ChapterData(
     images: images,
+    videoUrls: _readStringList(map['videoUrls']) ?? const [],
     prevChapterId: _readIdentifier(map['prevChapterId']),
     nextChapterId: _readIdentifier(map['nextChapterId']),
     prevChapterTitle: _readString(map['prevChapterTitle']),
@@ -161,6 +162,7 @@ Map<String, dynamic>? _serializeChapterData(ChapterData? chapterData) {
 
   return <String, dynamic>{
     'images': chapterData.images,
+    'videoUrls': chapterData.videoUrls,
     'prevChapterId': chapterData.prevChapterId,
     'nextChapterId': chapterData.nextChapterId,
     'prevChapterTitle': chapterData.prevChapterTitle,

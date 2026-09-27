@@ -4,6 +4,7 @@ import 'package:equatable/equatable.dart';
 class ChapterData extends Equatable {
   const ChapterData({
     required this.images,
+    this.videoUrls = const [],
     this.prevChapterId,
     this.nextChapterId,
     this.prevChapterTitle,
@@ -11,6 +12,11 @@ class ChapterData extends Equatable {
   });
 
   final List<String> images;
+
+  /// Direct video/HLS streams (`.m3u8`, `.mp4`, `.webm`, `.mov`) referenced by
+  /// the chapter page. Non-empty ⇒ this is a video chapter: the reader plays the
+  /// stream instead of paging images (issue #68).
+  final List<String> videoUrls;
   final String? prevChapterId;
   final String? nextChapterId;
   final String? prevChapterTitle;
@@ -19,6 +25,7 @@ class ChapterData extends Equatable {
   @override
   List<Object?> get props => [
         images,
+        videoUrls,
         prevChapterId,
         nextChapterId,
         prevChapterTitle,

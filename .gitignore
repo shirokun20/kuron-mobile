@@ -86,3 +86,6 @@ skills-lock.json
 # Widget Preview related
 .widget_preview/
 .playwright-cli/*
+
+# Kotlin compiler session artifacts (accidentally committed, then untracked)
+android/.kotlin/

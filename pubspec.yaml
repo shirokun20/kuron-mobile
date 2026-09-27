@@ -92,6 +92,7 @@ dependencies:
   device_info_plus: ^13.2.0
   collection: ^1.18.0
   crypto: ^3.0.3
+  pointycastle: ^3.9.1  # AES-CBC for Madara chapter-protector payload (issue #63)
 
   # PDF Generation
 

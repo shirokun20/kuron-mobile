@@ -483,6 +483,17 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
 
   Widget _buildReaderContent() {
     final state = widget.state;
+
+    // Video/HLS chapter (issue #68): no images to page, so play the stream.
+    // The image pager, end-of-chapter overlay and per-page translation all
+    // assume a non-empty imageUrls list.
+    if (isVideoChapter(state.chapterData)) {
+      return ReaderVideoChapter(
+        chapterData: state.chapterData!,
+        cubit: widget.cubit,
+      );
+    }
+
     final showNav =
         state.content != null && state.content!.imageUrls.isNotEmpty;
 
@@ -575,24 +586,28 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
                     onToggleSkipSfx: () => _translationCubit
                         .setSkipSfx(!_translationCubit.skipSfx),
                   ),
-                  bottomBar: state.readingMode != ReadingMode.continuousScroll
-                      ? _ReaderBottomBar(
-                          state: state,
-                          onPrevPage: widget.cubit.previousPage,
-                          onNextPage: widget.cubit.nextPage,
-                          onJumpToPage: widget.cubit.jumpToPage,
-                          onChangeReadingMode: () {
-                            final newMode = widget.getNextReadingMode(
-                              state.readingMode ?? ReadingMode.singlePage,
+                  // Video chapter (issue #68): pageCount is 0, so the pager
+                  // slider has no range — chapter nav lives on the player.
+                  bottomBar:
+                      state.readingMode != ReadingMode.continuousScroll &&
+                              !isVideoChapter(state.chapterData)
+                          ? _ReaderBottomBar(
+                              state: state,
+                              onPrevPage: widget.cubit.previousPage,
+                              onNextPage: widget.cubit.nextPage,
+                              onJumpToPage: widget.cubit.jumpToPage,
+                              onChangeReadingMode: () {
+                                final newMode = widget.getNextReadingMode(
+                                  state.readingMode ?? ReadingMode.singlePage,
+                                  disableContinuousScroll:
+                                      widget.isContinuousScrollDisabled(),
+                                );
+                                widget.cubit.changeReadingMode(newMode);
+                              },
                               disableContinuousScroll:
                                   widget.isContinuousScrollDisabled(),
-                            );
-                            widget.cubit.changeReadingMode(newMode);
-                          },
-                          disableContinuousScroll:
-                              widget.isContinuousScrollDisabled(),
-                        )
-                      : null,
+                            )
+                          : null,
                 ),
                 if (!drawMode)
                   _ReaderMiniChromeToggle(
@@ -610,7 +625,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
                     visiblePageNotifier: widget.visiblePageNotifier,
                     totalPages: state.content?.pageCount ?? 0,
                   ),
-                if (showOverlay)
+                if (showOverlay && !isVideoChapter(state.chapterData))
                   ChapterOpenOverlay(
                     title: state.content!.getDisplayTitle(),
                     totalPages: state.content!.pageCount,

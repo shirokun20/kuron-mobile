@@ -113,5 +113,21 @@ void main() {
       expect(chapterData, isNotNull);
       expect(chapterData!.nextChapterId, '__ehchunk__:%ZZ:bad');
     });
+
+    // Issue #68: the reader needs the stream after route navigation, so the
+    // field has to survive serialize → parse.
+    test('round-trips video chapter stream URLs', () {
+      const chapterData = ChapterData(
+        images: [],
+        videoUrls: ['https://cdn.example.com/hls/master.m3u8'],
+        nextChapterId: 'next',
+      );
+
+      final extra = buildReaderRouteExtra(chapterData: chapterData);
+      final parsed = readReaderChapterData(asReaderRouteExtra(extra)!['chapterData']);
+
+      expect(parsed, chapterData);
+      expect(parsed!.videoUrls, ['https://cdn.example.com/hls/master.m3u8']);
+    });
   });
 }

@@ -3338,4 +3338,119 @@ void main() {
       expect(result.items, isEmpty);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // fetchChapterImages() — Madara chapter-protector (AES) — issue #63
+  // ─────────────────────────────────────────────────────────────────────────
+
+  group('GenericScraperAdapter.fetchChapterImages() — chapterProtector', () {
+    const protectorBase = 'https://octopusmanga.com';
+    // Mirrors the real octopusmanga config: chapter template is `/manga/{id}/`.
+    const protectorChapter = '/manga/{id}/';
+    const protectorConfig = {
+      'source': 'octopusmanga',
+      'baseUrl': protectorBase,
+      'scraper': {
+        'urlPatterns': {
+          'chapter': protectorChapter,
+        },
+        'selectors': {
+          'reader': {
+            'mode': 'chapterDataScript',
+            'images': {
+              'selector': '.reading-content .page-break img',
+              'attribute': 'data-src',
+            },
+          },
+        },
+      },
+    };
+
+    GenericScraperAdapter protectorAdapter(Dio dio) => GenericScraperAdapter(
+          dio: dio,
+          urlBuilder: const GenericUrlBuilder(baseUrl: protectorBase),
+          parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+          logger: Logger(level: Level.off),
+          sourceId: 'octopusmanga',
+        );
+
+    test('decrypts the real octopusmanga payload when scraping finds 0 images',
+        () async {
+      final html =
+          _readFixtureFile('test/fixtures/octopusmanga_chapter_protector.html');
+      if (html == null) {
+        markTestSkipped(_missingFixtureReason(
+            'test/fixtures/octopusmanga_chapter_protector.html'));
+        return;
+      }
+
+      final dio = Dio(BaseOptions(baseUrl: protectorBase));
+      final dioAdapter =
+          DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
+      dioAdapter.onGet(
+        '$protectorBase/manga/alphas-trauma/chapter-48/',
+        (s) => s.reply(
+          200,
+          html,
+          headers: {
+            Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+          },
+        ),
+      );
+
+      final chapter = await protectorAdapter(dio).fetchChapterImages(
+        'alphas-trauma/chapter-48',
+        protectorConfig,
+      );
+
+      expect(chapter, isNotNull);
+      expect(chapter!.images, hasLength(15));
+      expect(
+        chapter.images.first,
+        'https://octopusmanga.com/wp-content/uploads/WP-manga/data/'
+        'manga_670dc3a015b3a/feb8d921babcd999796788e7e907aedf/1-(1).jpg',
+      );
+      expect(chapter.images.last, endsWith('/1-(15).jpg'));
+    });
+
+    test('chapter without the protector falls through to normal scraping',
+        () async {
+      // Same page shape, but plain <img> tags and no #chapter-protector-data.
+      const plainHtml = '<html><body><div class="reading-content">'
+          '<div class="page-break"><div class="theimage">'
+          '<img class="wp-manga-chapter-img" data-src="https://cdn.example.com/p1.jpg"/>'
+          '</div></div>'
+          '<div class="page-break"><div class="theimage">'
+          '<img class="wp-manga-chapter-img" data-src="https://cdn.example.com/p2.jpg"/>'
+          '</div></div>'
+          '</div></body></html>';
+
+      final dio = Dio(BaseOptions(baseUrl: protectorBase));
+      final dioAdapter =
+          DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
+      // Distinct chapter URL: the mock client keeps the protector handler
+      // registered for chapter-48.
+      dioAdapter.onGet(
+        '$protectorBase/manga/alphas-trauma/chapter-49/',
+        (s) => s.reply(
+          200,
+          plainHtml,
+          headers: {
+            Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+          },
+        ),
+      );
+
+      final chapter = await protectorAdapter(dio).fetchChapterImages(
+        'alphas-trauma/chapter-49',
+        protectorConfig,
+      );
+
+      expect(chapter, isNotNull);
+      expect(chapter!.images, [
+        'https://cdn.example.com/p1.jpg',
+        'https://cdn.example.com/p2.jpg',
+      ]);
+    });
+  });
 }
