@@ -74,6 +74,7 @@ lib/
 > Tracked via `openspec/` — Last updated: 2026-09-26
 
 ### Archived (in `openspec/changes/archive/`) — Newest first (showing recent ~15; full list in folder)
+- `2026-09-27-smooth-page-transitions` (10/10 — device gates diterima user "lumayan bagus"; spec `page-transitions` tersinkron ke `openspec/specs/`; follow-up: predictive back + container transform)
 - `2026-09-26-nclient-v2v3-import` (19/19 — device-verify 5.2 masih perlu user; spec `nclient-library-import` tersinkron ke `openspec/specs/`)
 - `2026-09-26-kuron-full-backup` (12/13 — 4.2 device-blocked, lihat Recent Sessions; spec `kuron-full-backup` tersinkron ke `openspec/specs/`)
 - `2026-09-02-show-last-update-on-cards`
@@ -189,7 +190,6 @@ lib/
 - `ai-image-upscaling`
 - `local-recommendation-engine`
 - `mangadex-search-language-to-detail`
-- `smooth-page-transitions` (4/10 tasks — code 1.1-1.3+2.1 done, 11/11 tests green, analyze clean; 2.2/2.3 code done pending device visual; 3.1/3.2/4.1 device gates milik user; 4.2 archive pending device pass)
 - `text-only-mode-export`
 
 ### Open Issues (in `openspec/changes/`)
