@@ -72,15 +72,15 @@ void main() {
   });
 
   testWidgets('banner shows title overlay on first slide', (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b'), _rec('c')]));
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b'), _rec('c')]));
 
     expect(find.text('Banner Title a'), findsOneWidget);
     expect(find.text('Because you read X'), findsWidgets);
     expect(find.byType(BannerDots), findsOneWidget);
   });
 
-  testWidgets('explore slide chips the source id without prefix', (tester) async {
+  testWidgets('explore slide chips the source id without prefix',
+      (tester) async {
     final c = _content('x');
     final explore = Recommendation(
       contentId: 'x',
@@ -99,22 +99,20 @@ void main() {
   });
 
   testWidgets('ghost rank numbers mark slide position', (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b'), _rec('c')]));
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b'), _rec('c')]));
 
     // PageView builds the active slide plus cached neighbors.
     expect(find.text('1'), findsWidgets);
     expect(find.text('2'), findsWidgets);
   });
 
-  testWidgets('autoplay progress shows for many, hidden for single',
-      (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b')]));
+  testWidgets('no autoplay progress bar, dots carry position', (tester) async {
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
     expect(
       find.byKey(const ValueKey('autoplay-progress')),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(find.byType(BannerDots), findsOneWidget);
 
     await tester.pumpWidget(_harness(items: [_rec('a')]));
     await tester.pump();
@@ -125,18 +123,16 @@ void main() {
   });
 
   testWidgets('cover drifts against the swipe direction', (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b')]));
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
 
     // Fling to the next slide; mid-flight the page offset is fractional,
     // so a working parallax must show a non-zero horizontal drift.
     await tester.drag(find.byType(PageView), const Offset(-400, 0));
     await tester.pump(const Duration(milliseconds: 100));
 
-    final shifted =
-        tester.widgetList<Transform>(find.byType(Transform)).where(
-      (t) => t.transform.getTranslation().x != 0,
-    );
+    final shifted = tester.widgetList<Transform>(find.byType(Transform)).where(
+          (t) => t.transform.getTranslation().x != 0,
+        );
     expect(shifted, isNotEmpty);
 
     await tester.pump(const Duration(milliseconds: 600));
@@ -155,8 +151,7 @@ void main() {
   });
 
   testWidgets('manual swipe moves to next slide', (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b')]));
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
 
     await tester.drag(find.byType(PageView), const Offset(-400, 0));
     // No pumpAndSettle: the autoplay progress animation is perpetual.
@@ -167,8 +162,7 @@ void main() {
   });
 
   testWidgets('autoplay advances after interval', (tester) async {
-    await tester.pumpWidget(
-        _harness(items: [_rec('a'), _rec('b')]));
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
 
     expect(find.text('Banner Title a'), findsOneWidget);
     await tester.pump(const Duration(seconds: 6));

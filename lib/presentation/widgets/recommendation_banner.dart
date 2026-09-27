@@ -33,13 +33,11 @@ class RecommendationBannerCarousel extends StatefulWidget {
 }
 
 class _RecommendationBannerCarouselState
-    extends State<RecommendationBannerCarousel>
-    with SingleTickerProviderStateMixin {
+    extends State<RecommendationBannerCarousel> {
   static const _autoPlayInterval = Duration(seconds: 5);
   static const _resumeDelay = Duration(seconds: 4);
 
   late final PageController _controller;
-  late final AnimationController _progress;
   Timer? _autoPlay;
   Timer? _resume;
   int _page = 0;
@@ -48,10 +46,6 @@ class _RecommendationBannerCarouselState
   void initState() {
     super.initState();
     _controller = PageController(viewportFraction: 0.92);
-    _progress = AnimationController(
-      vsync: this,
-      duration: _autoPlayInterval,
-    );
     _startAutoPlay();
   }
 
@@ -70,7 +64,6 @@ class _RecommendationBannerCarouselState
   void dispose() {
     _autoPlay?.cancel();
     _resume?.cancel();
-    _progress.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -78,7 +71,6 @@ class _RecommendationBannerCarouselState
   void _startAutoPlay() {
     _autoPlay?.cancel();
     if (widget.items.length < 2) return;
-    _progress.forward(from: 0);
     _autoPlay = Timer.periodic(_autoPlayInterval, (_) {
       if (!mounted || !_controller.hasClients) return;
       final next = (_page + 1) % widget.items.length;
@@ -105,7 +97,6 @@ class _RecommendationBannerCarouselState
         if (n is ScrollStartNotification) {
           _autoPlay?.cancel();
           _resume?.cancel();
-          _progress.stop();
         } else if (n is ScrollEndNotification) {
           _pauseForInteraction();
         }
@@ -121,7 +112,6 @@ class _RecommendationBannerCarouselState
               itemCount: widget.items.length,
               onPageChanged: (i) {
                 setState(() => _page = i);
-                _progress.forward(from: 0);
               },
               itemBuilder: (context, i) => _SlideFocus(
                 controller: _controller,
@@ -146,16 +136,6 @@ class _RecommendationBannerCarouselState
               ),
             ),
           ),
-          if (widget.items.length > 1) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _AutoPlayProgress(
-                key: const ValueKey('autoplay-progress'),
-                progress: _progress,
-              ),
-            ),
-          ],
           const SizedBox(height: 8),
           BannerDots(count: widget.items.length, active: _page),
         ],
@@ -207,41 +187,6 @@ class _SlideFocus extends StatelessWidget {
         );
       },
       child: child,
-    );
-  }
-}
-
-/// Thin autoplay countdown under the banner. Pauses while the user drags
-/// (mirrors the autoplay timer), resets on every page change.
-class _AutoPlayProgress extends StatelessWidget {
-  const _AutoPlayProgress({super.key, required this.progress});
-
-  final AnimationController progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: 2,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(1),
-        ),
-        child: AnimatedBuilder(
-          animation: progress,
-          builder: (context, _) => FractionallySizedBox(
-            alignment: Alignment.centerLeft,
-            widthFactor: progress.value.clamp(0.0, 1.0),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(1),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -322,8 +267,7 @@ class _BannerSlide extends StatelessWidget {
                     networkUrl: content.coverUrl,
                     httpHeaders: getIt<ContentSourceRegistry>()
                         .getSource(content.sourceId)
-                        ?.getImageDownloadHeaders(
-                            imageUrl: content.coverUrl),
+                        ?.getImageDownloadHeaders(imageUrl: content.coverUrl),
                     fit: BoxFit.cover,
                     memCacheWidth: 800,
                     memCacheHeight: 450,
@@ -438,13 +382,10 @@ class _ReasonChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final title = RecommendationCard.shortTitle(
-      item.contributorTitle.isNotEmpty
-          ? item.contributorTitle
-          : item.contentId,
+      item.contributorTitle.isNotEmpty ? item.contributorTitle : item.contentId,
     );
     final text = switch (item.contributorRelation) {
-      RecommendationRelation.favorite =>
-        l10n.recommendedReasonFavorite(title),
+      RecommendationRelation.favorite => l10n.recommendedReasonFavorite(title),
       // Explore items show the origin source as the chip — the title
       // already appears below, so no "Jelajahi:" prefix is needed.
       RecommendationRelation.similar => item.sourceId,
