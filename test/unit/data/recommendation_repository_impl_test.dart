@@ -168,6 +168,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('b', tagNames: ['action', 'fantasy', 'romance']),
             _content('c', tagNames: ['horror', 'slice of life']),
@@ -196,6 +197,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((inv) async {
         final id =
             (inv.namedArguments[#contentId] as ContentId).value;
@@ -228,6 +230,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('cand', tagNames: ['action']),
           ]);
@@ -278,6 +281,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('read-cand', tagNames: ['action']),
             _content('shown-cand', tagNames: ['action']),
@@ -317,6 +321,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('rep-1', tagNames: ['action']),
             _content('rep-2', tagNames: ['action']),
@@ -351,6 +356,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('cand', tagNames: ['action']),
           ]);
@@ -382,6 +388,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((inv) async {
         final id = (inv.namedArguments[#contentId] as ContentId).value;
         // The 4th seed (beyond the fetch budget of 3) feeds exploration.
@@ -416,6 +423,7 @@ void main() {
       final requested = verify(() => contentRepo.getRelatedContent(
             contentId: captureAny(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).captured;
       expect(
         {for (final c in requested) (c as ContentId).value},
@@ -436,6 +444,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => []);
       when(() => contentRepo.getPopularContent(
             timeframe: any(named: 'timeframe'),
@@ -482,6 +491,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((inv) async {
         final id =
             (inv.namedArguments[#contentId] as ContentId).value;
@@ -502,12 +512,22 @@ void main() {
       final requested = verify(() => contentRepo.getRelatedContent(
             contentId: captureAny(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: captureAny(named: 'sourceId'),
           )).captured;
       final requestedIds = {
-        for (final c in requested) (c as ContentId).value
+        for (var i = 0; i < requested.length; i += 2)
+          (requested[i] as ContentId).value
+      };
+      final requestedSources = {
+        for (var i = 1; i < requested.length; i += 2)
+          requested[i] as String?
       };
       expect(requestedIds, containsAll({'a', 'b'}));
       expect(requestedIds.length, 3);
+      // Each fetch is routed to its seed's own source — never the active
+      // source. (This was the multi-source blackout bug: ids asked to the
+      // wrong source come back empty.)
+      expect(requestedSources, {'nhentai', 'komik'});
       // The komik candidate survives scoring → multi-source output.
       expect(result.map((r) => r.contentId), contains('rel-komik'));
     });
@@ -523,6 +543,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('ranked', tagNames: ['action']),
           ]);
@@ -563,6 +584,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('cand', tagNames: ['action', 'fantasy']),
           ]);
@@ -593,6 +615,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => []);
 
       await engineForTest().getRecommendations(limit: 10);
@@ -613,6 +636,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => []);
 
       expect(await engineForTest().getRecommendations(limit: 10), isEmpty);
@@ -631,6 +655,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => []);
 
       await engineForTest().getRecommendations(limit: 10);
@@ -650,6 +675,7 @@ void main() {
       verifyNever(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           ));
     });
   });
@@ -666,6 +692,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('b', tagNames: ['action']),
           ]);
@@ -677,6 +704,7 @@ void main() {
       verify(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).called(1);
     });
 
@@ -691,6 +719,7 @@ void main() {
       when(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).thenAnswer((_) async => [
             _content('b', tagNames: ['action']),
           ]);
@@ -703,6 +732,7 @@ void main() {
       verify(() => contentRepo.getRelatedContent(
             contentId: any(named: 'contentId'),
             limit: any(named: 'limit'),
+            sourceId: any(named: 'sourceId'),
           )).called(2);
       verify(() => userData.recordRecommendationDismissed('b',
           sourceId: any(named: 'sourceId'))).called(1);

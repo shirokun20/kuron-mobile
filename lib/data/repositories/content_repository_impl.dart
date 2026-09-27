@@ -293,12 +293,19 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<List<Content>> getRelatedContent({
     required ContentId contentId,
     int limit = 10,
+    String? sourceId,
   }) async {
     try {
-      _logger.i('Getting related content for: ${contentId.value}');
-      // Use active source logic
+      _logger.i(
+          'Getting related content for: ${contentId.value} (source: $sourceId)');
+      // Route to the owning source when known — ids are meaningless on any
+      // other source. Falls back to the active source for legacy callers.
+      final source = sourceId != null
+          ? contentSourceRegistry.getSource(sourceId)
+          : null;
+      final target = source ?? _activeSource;
       try {
-        final coreRelated = await _activeSource.getRelated(contentId.value);
+        final coreRelated = await target.getRelated(contentId.value);
         if (coreRelated.isNotEmpty) {
           return coreRelated.take(limit).map(_mapToAppContent).toList();
         }

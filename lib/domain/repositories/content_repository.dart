@@ -25,6 +25,7 @@ abstract class ContentRepository {
   Future<List<Content>> getRelatedContent({
     required ContentId contentId,
     int limit = 10,
+    String? sourceId,
   });
 
   Future<List<Content>> getRandomGalleries({

@@ -90,6 +90,7 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
           final related = await _content.getRelatedContent(
             contentId: ContentId.fromString(seed.id),
             limit: relatedPerSeed,
+            sourceId: seed.sourceId,
           );
           for (final c in related) {
             pool.putIfAbsent(_key(c.sourceId, c.id), () => c);
@@ -108,6 +109,7 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
           final related = await _content.getRelatedContent(
             contentId: ContentId.fromString(seed.id),
             limit: relatedPerSeed,
+            sourceId: seed.sourceId,
           );
           for (final c in related) {
             final k = _key(c.sourceId, c.id);
@@ -241,6 +243,7 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
         related = await _content.getRelatedContent(
           contentId: ContentId.fromString(contentId),
           limit: 10,
+          sourceId: sourceId,
         );
       } catch (e) {
         _logger.d('Similar: no related for $contentId: $e');

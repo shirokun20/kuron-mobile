@@ -16,6 +16,7 @@ class GetRelatedContentUseCase
     return _contentRepository.getRelatedContent(
       contentId: params.contentId,
       limit: params.limit,
+      sourceId: params.sourceId,
     );
   }
 }
@@ -24,11 +25,13 @@ class GetRelatedContentParams extends UseCaseParams {
   const GetRelatedContentParams({
     required this.contentId,
     this.limit = 10,
+    this.sourceId,
   });
 
   final ContentId contentId;
   final int limit;
+  final String? sourceId;
 
   @override
-  List<Object?> get props => [contentId, limit];
+  List<Object?> get props => [contentId, limit, sourceId];
 }
