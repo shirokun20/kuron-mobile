@@ -8,10 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### ✨ Added
+
+- **Reader identity avatar in drawer** (openspec: `reader-avatars`): the drawer header now shows a tier avatar computed 100% locally from SQLite — read-count thresholds 1/10/50/200 (`Pembaca Santai → Kutu Buku → Otaku Akut → Resi Manga`, trilingual id/en/zh) with a fans override (`Pengocok Handal / Certified Shaker / 手冲大师`) when the top completed-download source is in the curated hentai set. Avatars are 5 bundled CC0 Open Peeps PNGs (`assets/avatars/`, no network, no account). One stats line ("N selesai • Fans X") refreshes every drawer open; missing asset falls back to an icon, never a broken image.
+- **Total app downloads in About** (openspec: `reader-avatars`): new row under the version badge showing the summed `download_count` of all GitHub Release assets, cached 24h in prefs; offline/failure hides the row instead of showing a misleading zero. Compact per-locale format (1,2rb / 1.2K / 1.2万).
+
 ### 🐛 Fixed
 
 - **Import from NClient failed on every backup** (`Invalid argument(s): Illegal argument in isolate message: object is unsendable`, surfaced as a snackbar): `Isolate.run(() => _parser.parseBytes(data))` captured the whole use case via the `_parser` field, dragging `ReaderRepositoryImpl` → `Logger` (which holds an unsendable internal `Future`) across the isolate boundary. The closure now receives only a hoisted field-less parser plus the file bytes. The Kuron restore path was audited and is safe (its closure constructs the parser inside the isolate). Reported on issue #50, fix shipped in v0.9.27+37.
 - **NClient import had zero logs on the tap path**: `pickAndParse` now logs pick started / picked byte size / parsed row counts per table / pick + parse failures with stack trace (and still rethrows, so UI behavior is unchanged); `import` logs started, per-category completion, and the final summary; pick and progress-flow failures are logged with the error. Reproduce on device and filter `adb logcat | grep -i nclient`.
+- **Recommendations blackout for multi-source readers** (openspec: `local-recommendation-engine`): `ContentRepositoryImpl.getRelatedContent` had no source parameter, so related fetches for seeds from N different sources were all answered by the single active source — ids asked to the wrong source come back empty, and the section collapsed to the "Mulai membaca" placeholder. `getRelatedContent` + `GetRelatedContentParams` now accept an optional `sourceId` (`registry.getSource(sourceId) ?? activeSource`, legacy callers unchanged) and the engine passes each seed's own source.
+- **Recommendations starved themselves within 24h** (openspec: `local-recommendation-engine`): shown items were hard-blocked for 24h, so a recompute against the same small pool returned empty and the home section vanished. Shown is now a soft block (fresh first, repeats only when nothing fresh remains; read/dismissed/home-excluded stay hard), and tag-table reads are try/caught so one throw can't kill the whole recompute. A `seeds=X pool=Y explore=Z result=N` log line was added — filter `adb logcat | grep -i "recommendations:"`.
 
 ### 🧪 Tests
 
