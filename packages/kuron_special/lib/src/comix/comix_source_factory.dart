@@ -115,6 +115,7 @@ class MangafireSourceFactory implements SourceFactory {
         logger: _logger,
         defaultBaseUrl: baseUrl,
         defaultSourceId: 'mangafire',
+        originKind: 'mangafire',
       ),
     );
   }

@@ -29,6 +29,10 @@ const List<String> comixAllowedHosts = [
 const List<String> mangafireAllowedHosts = [
   'mangafire.to',
   '.mangafire.to',
+  // React SPA shell + route chunks are served from the mfcdn static host.
+  // Without these the SPA never boots and no API traffic is captured.
+  's.mfcdn.nl',
+  '.s.mfcdn.nl',
   'challenges.cloudflare.com',
 ];
 
@@ -84,14 +88,21 @@ ${initializationScript ?? ''}
 ''';
 
 /// Browse/search capture script (fetch + XHR + JSON.parse hooks).
+///
+/// [apiPathMarker] selects the list API per origin (`/api/v1/manga` for
+/// comix, `/api/titles` for mangafire). The keyword gate matches when no
+/// keyword is expected or the raw URL contains it (covers both
+/// `?keyword=` and `/search/{kw}` styles).
 String buildBrowseScript({
   required String passPayloadName,
   required String expectedKeywordJson,
+  String apiPathMarker = '/api/v1/manga',
 }) =>
     '''
 (function () {
     const payloadKey = '__comixBrowsePayload';
     const expectedKeyword = $expectedKeywordJson;
+    const apiPathMarker = '$apiPathMarker';
     const capture = (parsed, allowEmpty = false) => {
         try {
             if (parsed && Array.isArray(parsed.items)) {
@@ -132,9 +143,9 @@ String buildBrowseScript({
     const shouldCaptureUrl = rawUrl => {
         try {
             const url = new URL(rawUrl || '', window.location.origin);
-            if (!url.pathname.includes('/api/v1/manga')) return false;
+            if (!url.pathname.includes(apiPathMarker)) return false;
             if (!expectedKeyword) return true;
-            return url.searchParams.get('keyword') === expectedKeyword;
+            return (rawUrl || '').includes(expectedKeyword);
         } catch (e) {
             return false;
         }
@@ -181,6 +192,91 @@ String buildBrowseScript({
         }
     });
     JSON.parse = proxiedParse;
+    return window[payloadKey] || null;
+})();
+''';
+
+/// Generic single-payload capture (fetch + XHR hooks).
+///
+/// Used for origins without an `initial-data` SSR blob (e.g. mangafire
+/// React SPA): the page JS issues its own signed/VRF requests and this
+/// posts the first JSON satisfying [captureTestJs] (a JS expression over
+/// `parsed`), optionally restricted to URLs containing [apiPathMarker].
+/// The SPA generates its own auth params, so Dart captures only.
+String buildApiCaptureScript({
+  required String payloadKey,
+  required String passPayloadName,
+  required String captureTestJs,
+  String apiPathMarker = '',
+}) =>
+    '''
+(function () {
+    const payloadKey = '$payloadKey';
+    const apiPathMarker = '$apiPathMarker';
+    const capture = parsed => {
+        try {
+            if (window[payloadKey]) return true;
+            let ok = false;
+            try { ok = ($captureTestJs); } catch (e) { ok = false; }
+            if (ok) {
+                window[payloadKey] = JSON.stringify(parsed);
+                window.$passPayloadName(window[payloadKey]);
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    };
+
+    if (window[payloadKey]) return window[payloadKey];
+    if (window.__comixApiCaptureInstalled) return null;
+    window.__comixApiCaptureInstalled = true;
+
+    const shouldCaptureUrl = rawUrl => {
+        if (!apiPathMarker) return true;
+        try {
+            const url = new URL(rawUrl || '', window.location.origin);
+            return url.pathname.includes(apiPathMarker);
+        } catch (e) {
+            return false;
+        }
+    };
+    const captureText = text => {
+        try {
+            if (text) capture(JSON.parse(text));
+        } catch (e) {}
+    };
+
+    const originalFetch = window.fetch;
+    if (typeof originalFetch === 'function') {
+        window.fetch = function () {
+            return originalFetch.apply(this, arguments).then(response => {
+                try {
+                    const url = response && response.url || '';
+                    if (shouldCaptureUrl(url)) {
+                        response.clone().text().then(captureText).catch(() => {});
+                    }
+                } catch (e) {}
+                return response;
+            });
+        };
+    }
+
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        this.__comixApiUrl = String(url || '');
+        return originalOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+        this.addEventListener('load', function () {
+            try {
+                if (shouldCaptureUrl(this.__comixApiUrl)) {
+                    captureText(this.responseText);
+                }
+            } catch (e) {}
+        });
+        return originalSend.apply(this, arguments);
+    };
     return window[payloadKey] || null;
 })();
 ''';

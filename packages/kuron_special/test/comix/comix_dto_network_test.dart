@@ -183,6 +183,86 @@ void main() {
     expect(comixAllowedHosts, contains('comix.ws'));
     expect(comixAllowedHosts, contains('challenges.cloudflare.com'));
     expect(mangafireAllowedHosts, contains('mangafire.to'));
+    // SPA bundle host — without it the shell never boots (timeout bug).
+    expect(mangafireAllowedHosts, contains('s.mfcdn.nl'));
+  });
+
+  test('SearchResponse parses mangafire top-level envelope', () {
+    final response = SearchResponse.fromJson({
+      'items': [
+        {
+          'hid': 'ro8ro',
+          'title': 'One Piece',
+          'poster': {'large': 'https://s.mfcdn.nl/poster.jpg'},
+          'status': 'releasing',
+          'type': 'manga',
+        },
+      ],
+      'meta': {'page': 1, 'lastPage': 9},
+    });
+    expect(response.items, hasLength(1));
+    expect(response.items.first.hid, 'ro8ro');
+    expect(response.hasNext, isTrue);
+  });
+
+  test('MangafireDetail maps live detail selectors', () {
+    final detail = MangafireDetail.fromJson({
+      'data': {
+        'hid': 'ro8ro',
+        'title': 'One Piece',
+        'synopsisHtml': '<p>Adventure <b>story</b></p>',
+        'poster': {'large': 'https://s.mfcdn.nl/p.jpg'},
+        'status': 'releasing',
+        'type': 'manga',
+        'languages': ['en', 'id'],
+        'genres': [
+          {'title': 'Adventure'},
+          {'title': 'Action'}
+        ],
+        'authors': [
+          {'title': 'Oda'}
+        ],
+      },
+    });
+    expect(detail.hid, 'ro8ro');
+    expect(detail.description(), 'Adventure story');
+    expect(detail.genres, ['Adventure', 'Action']);
+    expect(detail.authors, ['Oda']);
+    expect(detail.languages.first, 'en');
+  });
+
+  test('mangafire chapter epoch maps to upload date', () {
+    final chapter = ComixChapter.fromJson({
+      'id': 9451645,
+      'number': 164,
+      'name': '',
+      'language': 'en',
+      'type': 'unofficial',
+      'createdAt': 1790359203,
+    });
+    expect(chapter.createdAtEpoch, 1790359203);
+    expect(chapter.language, 'en');
+    final date = chapter.uploadDate()!;
+    expect(date.millisecondsSinceEpoch, 1790359203 * 1000);
+    expect(chapter.displayName(), 'Chapter 164');
+  });
+
+  test('generic api capture script embeds test + marker', () {
+    final script = buildApiCaptureScript(
+      payloadKey: '__mfDetailPayload',
+      passPayloadName: 'passC',
+      captureTestJs: 'parsed && parsed.data',
+      apiPathMarker: '/api/titles/',
+    );
+    expect(
+      script,
+      allOf(
+        contains('__mfDetailPayload'),
+        contains('window.passC('),
+        contains('/api/titles/'),
+        contains('parsed && parsed.data'),
+      ),
+    );
   });
 }
 

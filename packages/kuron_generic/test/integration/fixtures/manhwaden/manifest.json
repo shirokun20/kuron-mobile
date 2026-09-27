@@ -1,0 +1,8 @@
+{
+  "source": "manhwadencom",
+  "baseUrl": "https://www.manhwaden.com",
+  "probedAt": "2026-09-27T09:53:32.930361Z",
+  "screens": [
+    "home"
+  ]
+}

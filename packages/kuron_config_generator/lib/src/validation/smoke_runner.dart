@@ -331,38 +331,83 @@ class SmokeRunner {
     }
   }
 
+  /// Magic-byte sniffing for mislabeled CDNs (e.g. WebP served as
+  /// `text/plain; charset=koi8-r`). Returns `image/<fmt>` on match.
+  String? _sniffImageMagic(List<int> bytes) {
+    if (bytes.length >= 12 &&
+        bytes[0] == 0x52 && // R
+        bytes[1] == 0x49 && // I
+        bytes[2] == 0x46 && // F
+        bytes[3] == 0x46 && // F
+        bytes[8] == 0x57 && // W
+        bytes[9] == 0x45 && // E
+        bytes[10] == 0x42 && // B
+        bytes[11] == 0x50) {
+      // P
+      return 'image/webp';
+    }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'image/jpeg';
+    }
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 && // P
+        bytes[2] == 0x4E && // N
+        bytes[3] == 0x47) {
+      // G
+      return 'image/png';
+    }
+    if (bytes.length >= 6 &&
+        bytes[0] == 0x47 && // G
+        bytes[1] == 0x49 && // I
+        bytes[2] == 0x46) {
+      // F
+      return 'image/gif';
+    }
+    return null;
+  }
+
   Future<String?> _probeContentType(
     Dio dio,
     String url,
     Map<String, dynamic> config,
   ) async {
-    try {
-      final headers = (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
-              (config['network'] as Map?)?['headers'] as Map?)
-          ?.cast<String, dynamic>();
-      final res = await dio.head<Object?>(
-        url,
-        options: Options(headers: headers, followRedirects: true),
-      );
-      return res.headers.value('content-type');
-    } catch (_) {
-      // Some CDNs reject HEAD; fall back to ranged GET.
+    Map<String, dynamic>? headersOf() =>
+        (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
+                (config['network'] as Map?)?['headers'] as Map?)
+            ?.cast<String, dynamic>();
+    Future<String?> sniff() async {
       try {
-        final headers =
-            (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
-                    (config['network'] as Map?)?['headers'] as Map?)
-                ?.cast<String, dynamic>();
         final res = await dio.get<List<int>>(
           url,
           options: Options(
-            headers: {...?headers, 'range': 'bytes=0-1023'},
+            headers: {...?headersOf(), 'range': 'bytes=0-1023'},
             responseType: ResponseType.bytes,
           ),
         );
-        return res.headers.value('content-type');
+        return _sniffImageMagic(res.data ?? const <int>[]);
       } catch (_) {
         return null;
       }
+    }
+
+    try {
+      final res = await dio.head<Object?>(
+        url,
+        options: Options(headers: headersOf(), followRedirects: true),
+      );
+      final contentType = res.headers.value('content-type');
+      if (contentType != null && contentType.startsWith('image/')) {
+        return contentType;
+      }
+      // Header lies (or is missing) — verify actual bytes.
+      return await sniff();
+    } catch (_) {
+      // Some CDNs reject HEAD; fall back to ranged GET + magic sniff.
+      return await sniff();
     }
   }
 }

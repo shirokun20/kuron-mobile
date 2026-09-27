@@ -308,7 +308,11 @@ class SearchResponse {
   final bool hasNext;
 
   factory SearchResponse.fromJson(Map<String, dynamic> json) {
-    var node = json['result'];
+    dynamic node = json['result'];
+    if (node == null && json['items'] is List) {
+      // Mangafire envelope: top-level {items, meta} (live `$.items[*]`).
+      node = json;
+    }
     if (node is Map<String, dynamic> &&
         node['items'] == null &&
         node['result'] is Map) {
@@ -355,6 +359,8 @@ class ComixChapter {
     this.name = '',
     this.votes = 0,
     this.createdAtFormatted = '',
+    this.createdAtEpoch,
+    this.language,
     this.groupId,
     this.groupName,
     this.isOfficial = false,
@@ -366,12 +372,23 @@ class ComixChapter {
   final String name;
   final int votes;
   final String createdAtFormatted;
+
+  /// Epoch seconds (mangafire `createdAt`) — preferred over
+  /// [createdAtFormatted] when present.
+  final int? createdAtEpoch;
+
+  /// Chapter language code when provided (mangafire `language`).
+  final String? language;
   final int? groupId;
   final String? groupName;
   final bool isOfficial;
 
   factory ComixChapter.fromJson(Map<String, dynamic> json) {
     final group = json['group'] as Map<String, dynamic>?;
+    final createdAt = json['createdAt'];
+    final epoch = createdAt is num
+        ? createdAt.toInt()
+        : int.tryParse('${createdAt ?? ''}');
     return ComixChapter(
       id: (json['id'] as num).toInt(),
       url: json['url'] as String? ?? '',
@@ -381,6 +398,8 @@ class ComixChapter {
       createdAtFormatted: json['createdAtFormatted'] as String? ??
           json['created_at_formatted'] as String? ??
           '',
+      createdAtEpoch: epoch,
+      language: json['language'] as String?,
       groupId: (group?['id'] as num?)?.toInt(),
       groupName: group?['name'] as String?,
       isOfficial: json['isOfficial'] as bool? ?? false,
@@ -412,6 +431,12 @@ class ComixChapter {
   }
 
   DateTime? uploadDate() {
+    final epoch = createdAtEpoch;
+    if (epoch != null && epoch > 0) {
+      // Heuristic: seconds (<1e12) vs millis.
+      final millis = epoch < 1000000000000 ? epoch * 1000 : epoch;
+      return DateTime.fromMillisecondsSinceEpoch(millis);
+    }
     final parsed = parseRelativeDate(createdAtFormatted);
     return parsed == null ? null : DateTime.fromMillisecondsSinceEpoch(parsed);
   }
@@ -478,4 +503,73 @@ class ChapterPageDto {
 
 extension _StringBlank on String {
   bool get isNotBlank => trim().isNotEmpty;
+}
+
+/// MangaFire title detail envelope (`/api/titles/{hid}`).
+///
+/// Field selectors mirror the live `mangafire-config.json` detail mapping
+/// (`$.data.hid`, `$.data.synopsisHtml`, `$.data.poster.large`,
+/// `$.data.languages[*]`, tagRelations `$.data.genres[*]` /
+/// `$.data.authors[*]` with `title`). Accepts both `{data: {...}}` and
+/// flat envelopes defensively.
+class MangafireDetail {
+  const MangafireDetail({
+    required this.hid,
+    required this.title,
+    this.synopsisHtml,
+    this.posterLarge,
+    this.status = '',
+    this.type = '',
+    this.languages = const [],
+    this.genres = const [],
+    this.authors = const [],
+    this.year,
+  });
+
+  final String hid;
+  final String title;
+  final String? synopsisHtml;
+  final String? posterLarge;
+  final String status;
+  final String type;
+  final List<String> languages;
+  final List<String> genres;
+  final List<String> authors;
+  final int? year;
+
+  static List<String> _titles(dynamic v) {
+    if (v is List) {
+      return v
+          .map((e) => e is Map ? '${e['title'] ?? ''}' : '$e')
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
+  factory MangafireDetail.fromJson(Map<String, dynamic> json) {
+    final data = json['data'] is Map<String, dynamic>
+        ? json['data'] as Map<String, dynamic>
+        : json;
+    final poster = data['poster'];
+    return MangafireDetail(
+      hid: '${data['hid'] ?? ''}',
+      title: '${data['title'] ?? ''}',
+      synopsisHtml:
+          data['synopsisHtml'] as String? ?? data['synopsis'] as String?,
+      posterLarge: poster is Map ? poster['large'] as String? : null,
+      status: '${data['status'] ?? ''}',
+      type: '${data['type'] ?? ''}',
+      languages: _titles(data['languages']),
+      genres: _titles(data['genres'] ?? data['genre']),
+      authors: _titles(data['authors'] ?? data['author']),
+      year: (data['year'] as num?)?.toInt(),
+    );
+  }
+
+  /// Plain-text description (HTML stripped).
+  String description() {
+    final raw = synopsisHtml ?? '';
+    return raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+  }
 }

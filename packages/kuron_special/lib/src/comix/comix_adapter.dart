@@ -30,6 +30,7 @@ class ComixAdapter implements GenericAdapter {
     required Logger logger,
     this.defaultBaseUrl = 'https://comix.to',
     this.defaultSourceId = 'comix',
+    this.originKind = 'comix',
   })  : _dio = dio,
         _engine = engine,
         _logger = logger;
@@ -39,6 +40,13 @@ class ComixAdapter implements GenericAdapter {
   final Logger _logger;
   final String defaultBaseUrl;
   final String defaultSourceId;
+
+  /// Origin behavior: 'comix' (signed API + SSR scrape + WebView) or
+  /// 'mangafire' (React SPA shell everywhere — Tier-3 WebView only; the
+  /// SPA issues its own VRF-signed requests, Dart captures).
+  final String originKind;
+
+  bool get isMangafire => originKind == 'mangafire';
 
   final Map<String, List<String>> _tagIdCache = {};
   final Map<int, String> _chapterPathCache = {};
@@ -63,7 +71,9 @@ class ComixAdapter implements GenericAdapter {
   ) async {
     final base = _baseUrl(rawConfig);
     final params = _searchParams(filter, rawConfig);
-    final url = _browseUri(base, params);
+    final url = isMangafire
+        ? _mangafireListUri(base, filter)
+        : _browseUri(base, params);
     final page = await _mangaListFromBrowse(url, rawConfig);
     return AdapterSearchResult(
       items: page.items,
@@ -134,10 +144,55 @@ class ComixAdapter implements GenericAdapter {
     return Uri.parse('$base/browse').replace(queryParameters: query);
   }
 
+  /// Mangafire list route: home `/` for empty query, `/search/{q}` else.
+  /// The SPA boots on any route and issues its own `/api/titles` calls.
+  Uri _mangafireListUri(String base, SearchFilter filter) {
+    final query = filter.query.trim();
+    if (query.isEmpty) return Uri.parse('$base/');
+    return Uri.parse('$base/search/${Uri.encodeComponent(query)}');
+  }
+
+  /// Mangafire Tier-3 only: no cipher exists for the VRF API and the shell
+  /// has no SSR blob, so boot the SPA and capture `/api/titles` traffic.
+  /// Envelope is top-level `{items, meta}` (live `$.items[*]` selector).
+  Future<({List<Content> items, bool hasNext})> _mangafireListFromWebView(
+    Uri url,
+    Map<String, dynamic> rawConfig,
+  ) async {
+    final docResponse = await _dio.getUri(
+      url,
+      options: Options(responseType: ResponseType.plain),
+    );
+    final keyword = url.pathSegments.length > 1 &&
+            url.pathSegments[url.pathSegments.length - 2] == 'search'
+        ? url.pathSegments.last
+        : '';
+    final payload = await _engine.runInWebView(
+      pageUrl: url.toString(),
+      html: docResponse.data as String,
+      userAgent: _userAgent(),
+      buildScript: (pass, _) => buildBrowseScript(
+        passPayloadName: pass,
+        expectedKeywordJson: jsonEncode(keyword),
+        apiPathMarker: '/api/titles',
+      ),
+    );
+    final decoded = jsonDecode(payload);
+    final map = decoded is Map<String, dynamic> ? decoded : {'result': decoded};
+    final response = SearchResponse.fromJson(map);
+    return (
+      items: response.items.map((m) => _basicContent(m, rawConfig)).toList(),
+      hasNext: response.hasNext,
+    );
+  }
+
   Future<({List<Content> items, bool hasNext})> _mangaListFromBrowse(
     Uri url,
     Map<String, dynamic> rawConfig,
   ) async {
+    if (isMangafire) {
+      return _mangafireListFromWebView(url, rawConfig);
+    }
     // Tier 1 — native signed API.
     final signed = await getSigned<Map<String, dynamic>>(
       '/api/v1/manga',
@@ -311,6 +366,9 @@ class ComixAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig,
   ) async {
+    if (isMangafire) {
+      return _mangafireDetail(contentId, rawConfig);
+    }
     final base = _baseUrl(rawConfig);
     final slug = contentId.startsWith('title/')
         ? contentId.substring('title/'.length)
@@ -351,6 +409,72 @@ class ComixAdapter implements GenericAdapter {
       contentType: ContentType.manga,
       status: _statusOf(manga.status),
       sourceUrl: '$base/title${manga.detailPath}',
+      totalChapters: 0,
+    );
+    return AdapterDetailResult(content: content, imageUrls: const []);
+  }
+
+  /// Mangafire detail: boot the SPA on `/manga/{slug}` and capture the
+  /// `/api/titles/{hid}` response the page fetches itself (VRF-signed by
+  /// page JS — Dart captures only). Field mapping mirrors the live
+  /// `mangafire-config.json` detail selectors.
+  Future<AdapterDetailResult> _mangafireDetail(
+    String contentId,
+    Map<String, dynamic> rawConfig,
+  ) async {
+    final base = _baseUrl(rawConfig);
+    var slug = contentId.startsWith('manga/')
+        ? contentId.substring('manga/'.length)
+        : contentId;
+    slug = slug.startsWith('title/') ? slug.substring('title/'.length) : slug;
+    final pageUrl = '$base/manga/$slug';
+    final docResponse = await _dio.getUri(
+      Uri.parse(pageUrl),
+      options: Options(responseType: ResponseType.plain),
+    );
+    final payload = await _engine.runInWebView(
+      pageUrl: pageUrl,
+      html: docResponse.data as String,
+      userAgent: _userAgent(),
+      buildScript: (pass, _) => buildApiCaptureScript(
+        payloadKey: '__mfDetailPayload',
+        passPayloadName: pass,
+        captureTestJs:
+            'parsed && parsed.data && typeof parsed.data.hid === "string"',
+        apiPathMarker: '/api/titles/',
+      ),
+    );
+    final detail = MangafireDetail.fromJson(
+      jsonDecode(payload) as Map<String, dynamic>,
+    );
+    if (detail.hid.isEmpty) {
+      throw const FormatException('Could not capture mangafire detail');
+    }
+    var tagId = 0;
+    final tags = <Tag>[
+      for (final g in detail.genres)
+        Tag(id: tagId++, name: g, type: 'tag', count: 0),
+    ];
+    final content = Content(
+      id: detail.hid,
+      sourceId: _sourceId(rawConfig),
+      title: detail.title,
+      coverUrl: detail.posterLarge ?? '',
+      tags: tags,
+      artists: detail.authors,
+      characters: const [],
+      parodies: const [],
+      groups: const [],
+      language:
+          detail.languages.isNotEmpty ? detail.languages.first : 'unknown',
+      pageCount: 0,
+      imageUrls: const [],
+      uploadDate: DateTime.fromMillisecondsSinceEpoch(0),
+      url: pageUrl,
+      englishTitle: detail.title,
+      contentType: ContentType.manga,
+      status: _statusOf(detail.status),
+      sourceUrl: pageUrl,
       totalChapters: 0,
     );
     return AdapterDetailResult(content: content, imageUrls: const []);
@@ -398,6 +522,9 @@ class ComixAdapter implements GenericAdapter {
     int? offset,
     int? limit,
   }) async {
+    if (isMangafire) {
+      return _mangafireChapters(contentId, rawConfig, language: language);
+    }
     final base = _baseUrl(rawConfig);
     final slug = contentId.startsWith('title/')
         ? contentId.substring('title/'.length)
@@ -433,6 +560,70 @@ class ComixAdapter implements GenericAdapter {
         .toList();
     for (final c in dtos) {
       _chapterPathCache[c.id] = c.chapterPath(slug);
+      if (_chapterPathCache.length > 500) {
+        _chapterPathCache.remove(_chapterPathCache.keys.first);
+      }
+    }
+    return chapters;
+  }
+
+  /// Mangafire chapters: boot `/manga/{slug}`, capture the
+  /// `/api/titles/{hid}/chapters?language=..` response the SPA fetches
+  /// itself. Items match `mfw_ch.json` (`id/number/name/language/
+  /// createdAt` epoch). Ascending per live endpoint default; sorted desc
+  /// for the app list.
+  Future<List<Chapter>> _mangafireChapters(
+    String contentId,
+    Map<String, dynamic> rawConfig, {
+    String? language,
+  }) async {
+    final base = _baseUrl(rawConfig);
+    var slug = contentId.startsWith('manga/')
+        ? contentId.substring('manga/'.length)
+        : contentId;
+    final pageUrl = '$base/manga/$slug';
+    final docResponse = await _dio.getUri(
+      Uri.parse(pageUrl),
+      options: Options(responseType: ResponseType.plain),
+    );
+    final payload = await _engine.runInWebView(
+      pageUrl: pageUrl,
+      html: docResponse.data as String,
+      userAgent: _userAgent(),
+      buildScript: (pass, _) => buildApiCaptureScript(
+        payloadKey: '__mfChaptersPayload',
+        passPayloadName: pass,
+        captureTestJs:
+            'parsed && Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].number === "number"',
+        apiPathMarker: '/api/titles/',
+      ),
+      extendDeadlineOnApiTraffic: true,
+    );
+    final decoded = jsonDecode(payload) as Map<String, dynamic>;
+    final items = (decoded['items'] as List? ?? [])
+        .map((e) => ComixChapter.fromJson(e as Map<String, dynamic>))
+        .toList();
+    final lang = (language ?? 'en').toLowerCase();
+    final chapters = items
+        .where((c) =>
+            c.language == null ||
+            c.language!.isEmpty ||
+            c.language!.toLowerCase() == lang)
+        .map(
+          (c) => Chapter(
+            id: '${c.id}',
+            title: c.displayName(),
+            url: 'manga/$slug/${c.id}',
+            uploadDate: c.uploadDate(),
+            scanGroup: c.scanlator(),
+            language: lang,
+            pages: null,
+          ),
+        )
+        .toList()
+      ..sort((a, b) => b.title.compareTo(a.title));
+    for (final c in items) {
+      _chapterPathCache[c.id] = slug;
       if (_chapterPathCache.length > 500) {
         _chapterPathCache.remove(_chapterPathCache.keys.first);
       }
@@ -565,6 +756,9 @@ class ComixAdapter implements GenericAdapter {
     String chapterId,
     Map<String, dynamic> rawConfig,
   ) async {
+    if (isMangafire) {
+      return _mangafireChapterImages(chapterId, rawConfig);
+    }
     final base = _baseUrl(rawConfig);
     final numericId = int.tryParse(chapterId.split(':').first);
     if (numericId != null) {
@@ -603,6 +797,59 @@ class ComixAdapter implements GenericAdapter {
         ),
       ),
     );
+  }
+
+  /// Mangafire reader: boot `/chapter/{id}`, capture the chapter-images
+  /// API response (`/api/chapters/{id}` per live config). Page shape is
+  /// best-effort: comix-style `{result:{pages:{baseUrl,items}}}` first,
+  /// then generic `{items:[{url}]}` absolutized against the response
+  /// `baseUrl`/`base_url` when present. UNVERIFIED live — reader proof
+  /// pending on device.
+  Future<ChapterData?> _mangafireChapterImages(
+    String chapterId,
+    Map<String, dynamic> rawConfig,
+  ) async {
+    final base = _baseUrl(rawConfig);
+    final numericId = int.tryParse(chapterId.split(':').first) ?? -1;
+    final pageUrl = '$base/chapter/$numericId';
+    final docResponse = await _dio.getUri(
+      Uri.parse(pageUrl),
+      options: Options(responseType: ResponseType.plain),
+    );
+    final payload = await _engine.runInWebView(
+      pageUrl: pageUrl,
+      html: docResponse.data as String,
+      userAgent: _userAgent(),
+      buildScript: (pass, _) => buildApiCaptureScript(
+        payloadKey: '__mfPagesPayload',
+        passPayloadName: pass,
+        captureTestJs:
+            'parsed && ((parsed.result && parsed.result.pages) || (Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].url === "string"))',
+        apiPathMarker: '/api/chapters/',
+      ),
+    );
+    final decoded = jsonDecode(payload) as Map<String, dynamic>;
+    try {
+      return ChapterData(
+        images: buildPages(ChapterPagesResponse.fromJson(decoded)),
+      );
+    } catch (_) {
+      // Generic fallback: {items:[{url}], baseUrl?}.
+      final items = decoded['items'] as List? ?? const [];
+      final root = decoded['result'] is Map<String, dynamic>
+          ? decoded['result'] as Map<String, dynamic>
+          : decoded;
+      final baseUrl = '${root['baseUrl'] ?? root['base_url'] ?? base}';
+      final urls = items
+          .map((e) => '${(e as Map)['url'] ?? ''}')
+          .where((u) => u.isNotEmpty)
+          .map((u) => u.startsWith('http') ? u : '$baseUrl/$u')
+          .toList();
+      if (urls.isEmpty) {
+        throw const FormatException('Could not capture chapter images');
+      }
+      return ChapterData(images: urls);
+    }
   }
 
   /// Builds reader image URLs with V3 / legacy-scramble markers
@@ -644,6 +891,9 @@ class ComixAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig,
   ) async {
+    // Mangafire recommendations shape is unverified — skip instead of
+    // wasting a shell GET that can never contain SSR data.
+    if (isMangafire) return const [];
     final base = _baseUrl(rawConfig);
     final slug = contentId.startsWith('title/')
         ? contentId.substring('title/'.length)

@@ -28,8 +28,7 @@ void main() {
     for (final path in candidates) {
       final file = File(path);
       if (file.existsSync()) {
-        return jsonDecode(file.readAsStringSync())
-            as Map<String, dynamic>;
+        return jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
       }
     }
     fail('payload $name not found');
