@@ -51,7 +51,12 @@ class AppRouter {
       GoRoute(
         path: AppRoute.splash,
         name: AppRoute.splashName,
-        builder: (context, state) => const SplashScreen(),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          const SplashScreen(),
+          kind: RouteKind.tab,
+        ),
       ),
 
       // Home Screen
@@ -62,7 +67,7 @@ class AppRouter {
           context,
           state,
           const AppLockGate(child: MainScreenScrollable()),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -74,7 +79,7 @@ class AppRouter {
           context,
           state,
           const SearchScreen(),
-          type: RouteTransitionType.slideLeft,
+          kind: RouteKind.forward,
         ),
       ),
 
@@ -82,7 +87,7 @@ class AppRouter {
       GoRoute(
         path: AppRoute.filterData,
         name: AppRoute.filterDataName,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final filterType = state.uri.queryParameters['type'] ?? 'tag';
           final sourceId = state.uri.queryParameters['source'] ?? 'nhentai';
           final hideOtherTabs =
@@ -111,12 +116,17 @@ class AppRouter {
             }
           }
 
-          return FilterDataScreen(
-            filterType: filterType,
-            sourceId: sourceId,
-            selectedFilters: selectedFilters,
-            hideOtherTabs: hideOtherTabs,
-            supportsExclude: supportsExclude,
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            FilterDataScreen(
+              filterType: filterType,
+              sourceId: sourceId,
+              selectedFilters: selectedFilters,
+              hideOtherTabs: hideOtherTabs,
+              supportsExclude: supportsExclude,
+            ),
+            kind: RouteKind.upward,
           );
         },
       ),
@@ -124,9 +134,14 @@ class AppRouter {
       GoRoute(
         path: '${AppRoute.search}/:query',
         name: AppRoute.searchNameWithQuery,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final query = state.pathParameters['query']!;
-          return SearchScreen(query: query);
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            SearchScreen(query: query),
+            kind: RouteKind.forward,
+          );
         },
       ),
 
@@ -134,12 +149,17 @@ class AppRouter {
       GoRoute(
         path: AppRoute.contentByTag,
         name: AppRoute.contentByTagName,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final query = state.uri.queryParameters['q'] ?? '';
           final displayLabel = state.uri.queryParameters['label'];
-          return ContentByTagScreen(
-            tagQuery: query,
-            displayLabel: displayLabel,
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            ContentByTagScreen(
+              tagQuery: query,
+              displayLabel: displayLabel,
+            ),
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -162,7 +182,7 @@ class AppRouter {
               sourceId: sourceId,
               preloadedContent: preloaded,
             ),
-            type: RouteTransitionType.fadeSlide,
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -171,7 +191,7 @@ class AppRouter {
       GoRoute(
         path: AppRoute.reader,
         name: AppRoute.readerName,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final contentId =
               UriComponentUtils.safeDecode(state.pathParameters['id'] ?? '');
           final page =
@@ -192,20 +212,25 @@ class AppRouter {
             extra?['activeChapterLanguage'],
           );
 
-          return BlocProvider<ReaderCubit>(
-            create: (_) => getIt<ReaderCubit>(),
-            child: ReaderScreen(
-              contentId: contentId,
-              initialPage: page,
-              forceStartFromBeginning: forceStartFromBeginning,
-              preloadedContent: content,
-              imageMetadata: imageMetadata,
-              chapterData: chapterData,
-              parentContent: parentContent,
-              allChapters: allChapters,
-              currentChapter: currentChapter,
-              activeChapterLanguage: activeChapterLanguage,
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            BlocProvider<ReaderCubit>(
+              create: (_) => getIt<ReaderCubit>(),
+              child: ReaderScreen(
+                contentId: contentId,
+                initialPage: page,
+                forceStartFromBeginning: forceStartFromBeginning,
+                preloadedContent: content,
+                imageMetadata: imageMetadata,
+                chapterData: chapterData,
+                parentContent: parentContent,
+                allChapters: allChapters,
+                currentChapter: currentChapter,
+                activeChapterLanguage: activeChapterLanguage,
+              ),
             ),
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -214,7 +239,7 @@ class AppRouter {
       GoRoute(
         path: '/reader_pdf',
         name: 'reader_pdf',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra is Map<String, dynamic>
               ? state.extra as Map<String, dynamic>
               : <String, dynamic>{};
@@ -222,10 +247,15 @@ class AppRouter {
           final contentId = extra['contentId'] as String? ?? '';
           final title = extra['title'] as String? ?? '';
 
-          return ReaderPdfScreen(
-            filePath: filePath,
-            contentId: contentId,
-            title: title,
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            ReaderPdfScreen(
+              filePath: filePath,
+              contentId: contentId,
+              title: title,
+            ),
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -238,7 +268,7 @@ class AppRouter {
           context,
           state,
           const FavoritesScreen(),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -250,7 +280,7 @@ class AppRouter {
           context,
           state,
           const DownloadsScreen(),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -262,7 +292,7 @@ class AppRouter {
           context,
           state,
           const OfflineContentScreen(),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
       GoRoute(
@@ -293,7 +323,7 @@ class AppRouter {
                   sourceId ?? typedContentGroup!.representativeContent.sourceId,
               baseTitle: baseTitle ?? typedContentGroup!.baseTitle,
             ),
-            type: RouteTransitionType.slideLeft,
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -306,7 +336,7 @@ class AppRouter {
           context,
           state,
           const HistoryScreen(),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -318,7 +348,7 @@ class AppRouter {
           context,
           state,
           const SettingsScreen(),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.upward,
         ),
       ),
 
@@ -326,9 +356,15 @@ class AppRouter {
       GoRoute(
         path: AppRoute.tags,
         name: AppRoute.tagsName,
-        builder: (context, state) => Scaffold(
-          body: Center(
-              child: Text(AppLocalizations.of(context)!.tagsScreenPlaceholder)),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          Scaffold(
+            body: Center(
+                child:
+                    Text(AppLocalizations.of(context)!.tagsScreenPlaceholder)),
+          ),
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -336,10 +372,15 @@ class AppRouter {
       GoRoute(
         path: AppRoute.artists,
         name: AppRoute.artistsName,
-        builder: (context, state) => Scaffold(
-          body: Center(
-              child:
-                  Text(AppLocalizations.of(context)!.artistsScreenPlaceholder)),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          Scaffold(
+            body: Center(
+                child: Text(
+                    AppLocalizations.of(context)!.artistsScreenPlaceholder)),
+          ),
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -359,7 +400,7 @@ class AppRouter {
               slug: slug,
               sourceId: sourceId,
             ),
-            type: RouteTransitionType.fadeSlide,
+            kind: RouteKind.forward,
           );
         },
       ),
@@ -368,10 +409,15 @@ class AppRouter {
       GoRoute(
         path: AppRoute.status,
         name: AppRoute.statusName,
-        builder: (context, state) => Scaffold(
-          body: Center(
-              child:
-                  Text(AppLocalizations.of(context)!.statusScreenPlaceholder)),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          Scaffold(
+            body: Center(
+                child: Text(
+                    AppLocalizations.of(context)!.statusScreenPlaceholder)),
+          ),
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -383,7 +429,7 @@ class AppRouter {
           context,
           state,
           const AboutScreen(),
-          type: RouteTransitionType.fadeSlide,
+          kind: RouteKind.upward,
         ),
       ),
 
@@ -395,7 +441,7 @@ class AppRouter {
           context,
           state,
           const DohTestPage(),
-          type: RouteTransitionType.fadeSlide,
+          kind: RouteKind.forward,
         ),
       ),
 
@@ -407,7 +453,7 @@ class AppRouter {
           context,
           state,
           const AppLockGate(child: MainScreenScrollable()),
-          type: RouteTransitionType.fade,
+          kind: RouteKind.tab,
         ),
       ),
 
@@ -419,7 +465,7 @@ class AppRouter {
           context,
           state,
           SourceLoginPage(sourceId: 'crotpedia'),
-          type: RouteTransitionType.fadeSlide,
+          kind: RouteKind.forward,
         ),
       ),
 
@@ -433,14 +479,14 @@ class AppRouter {
             context,
             state,
             SourceLoginPage(sourceId: sourceId),
-            type: RouteTransitionType.fadeSlide,
+            kind: RouteKind.forward,
           );
         },
       ),
       GoRoute(
         path: AppRoute.captchaSolver,
         name: AppRoute.captchaSolverName,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final extra = state.extra;
           if (extra is! Map<String, dynamic>) {
             throw ArgumentError(
@@ -457,10 +503,15 @@ class AppRouter {
             );
           }
 
-          return CaptchaSolverPage(
-            provider: provider,
-            siteKey: siteKey,
-            baseUrl: baseUrl,
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            CaptchaSolverPage(
+              provider: provider,
+              siteKey: siteKey,
+              baseUrl: baseUrl,
+            ),
+            kind: RouteKind.upward,
           );
         },
       ),
@@ -469,21 +520,36 @@ class AppRouter {
       GoRoute(
         path: AppRoute.crotpediaGenreList,
         name: AppRoute.crotpediaGenreListName,
-        builder: (context, state) => const CrotpediaGenreListScreen(),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          const CrotpediaGenreListScreen(),
+          kind: RouteKind.forward,
+        ),
       ),
 
       // Crotpedia Doujin List
       GoRoute(
         path: AppRoute.crotpediaDoujinList,
         name: AppRoute.crotpediaDoujinListName,
-        builder: (context, state) => const CrotpediaDoujinListScreen(),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          const CrotpediaDoujinListScreen(),
+          kind: RouteKind.forward,
+        ),
       ),
 
       // Crotpedia Request List
       GoRoute(
         path: AppRoute.crotpediaRequestList,
         name: AppRoute.crotpediaRequestListName,
-        builder: (context, state) => const CrotpediaRequestListScreen(),
+        pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+          context,
+          state,
+          const CrotpediaRequestListScreen(),
+          kind: RouteKind.forward,
+        ),
       ),
 
       // Crotpedia Donation (Handler)

@@ -12,6 +12,19 @@ enum RouteTransitionType {
   fadeSlide,
 }
 
+// Navigation kind: encodes hierarchy direction so every route animates
+// with the same language instead of per-route snowflakes.
+enum RouteKind {
+  /// Drill-in: home -> search -> detail -> reader (horizontal, forward).
+  forward,
+
+  /// Layer above: settings, about, filters (vertical, rises).
+  upward,
+
+  /// Same-level switch: main tabs (cross-fade, no sliding).
+  tab,
+}
+
 // Types of staggered animations
 enum StaggeredAnimationType {
   fade,
@@ -39,6 +52,27 @@ class AppAnimations {
   static const Curve bounceOut = Curves.bounceOut;
   static const Curve elasticIn = Curves.elasticIn;
   static const Curve elasticOut = Curves.elasticOut;
+
+  // Page-transition durations: push lands softly, pop snaps back faster.
+  static const Duration pushDuration = Duration(milliseconds: 300);
+  static const Duration popDuration = Duration(milliseconds: 220);
+
+  // Page-transition curves: push starts fast and lands soft, pop accelerates
+  // away so back navigation never lingers.
+  static const Curve pushCurve = Curves.easeOutCubic;
+  static const Curve popCurve = Curves.easeIn;
+
+  /// Maps a navigation kind to its transition type.
+  static RouteTransitionType typeForKind(RouteKind kind) {
+    switch (kind) {
+      case RouteKind.forward:
+        return RouteTransitionType.fadeSlide;
+      case RouteKind.upward:
+        return RouteTransitionType.slideUp;
+      case RouteKind.tab:
+        return RouteTransitionType.fade;
+    }
+  }
 
   // Fade transition animation
   static Widget fadeTransition({
@@ -109,12 +143,14 @@ class AppAnimations {
   static PageRouteBuilder<T> createRoute<T>({
     required Widget page,
     RouteTransitionType type = RouteTransitionType.fadeSlide,
-    Duration duration = medium,
-    Curve curve = easeInOut,
+    Duration duration = pushDuration,
+    Duration reverseDuration = popDuration,
+    Curve curve = pushCurve,
   }) {
     return PageRouteBuilder<T>(
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionDuration: duration,
+      reverseTransitionDuration: reverseDuration,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
         switch (type) {
           case RouteTransitionType.fade:
@@ -166,18 +202,28 @@ class AppAnimations {
     LocalKey? key,
     Object? arguments,
     RouteTransitionType type = RouteTransitionType.fadeSlide,
-    Duration duration = medium,
-    Curve curve = easeInOut,
+    RouteKind? kind,
+    Duration duration = pushDuration,
+    Duration reverseDuration = popDuration,
+    Curve curve = pushCurve,
+    bool disableAnimations = false,
     String? restorationId,
   }) {
+    final resolvedType = disableAnimations
+        ? RouteTransitionType.fade
+        : (kind != null ? typeForKind(kind) : type);
+    final resolvedDuration = disableAnimations ? Duration.zero : duration;
+    final resolvedReverseDuration =
+        disableAnimations ? Duration.zero : reverseDuration;
     return CustomTransitionPage<T>(
       key: key ?? ValueKey(name),
       name: name,
       arguments: arguments,
       restorationId: restorationId,
       child: child,
-      transitionType: type,
-      transitionDuration: duration,
+      transitionType: resolvedType,
+      transitionDuration: resolvedDuration,
+      reverseTransitionDuration: resolvedReverseDuration,
       transitionCurve: curve,
     );
   }
@@ -187,13 +233,18 @@ class AppAnimations {
   // Uses [GoRouterState.pageKey] as the page key so that the same route
   // path visited multiple times in the navigation stack (e.g. cyclical
   // related-content navigation) does not produce duplicate [ValueKey]s.
+  // Pass [kind] to pick the transition from the shared language; an
+  // explicit [type] wins for one-off overrides. Reduced-motion
+  // ([MediaQuery.disableAnimations]) collapses to an instant switch.
   static Page<T> animatedPageBuilder<T>(
     BuildContext context,
     GoRouterState state,
     Widget child, {
     RouteTransitionType type = RouteTransitionType.fadeSlide,
-    Duration duration = medium,
-    Curve curve = easeInOut,
+    RouteKind? kind,
+    Duration duration = pushDuration,
+    Duration reverseDuration = popDuration,
+    Curve curve = pushCurve,
   }) {
     return createPage<T>(
       child: child,
@@ -201,8 +252,11 @@ class AppAnimations {
       key: state.pageKey, // unique per navigation event, not just per path
       arguments: state.extra,
       type: type,
+      kind: kind,
       duration: duration,
+      reverseDuration: reverseDuration,
       curve: curve,
+      disableAnimations: MediaQuery.disableAnimationsOf(context),
       restorationId: state.matchedLocation,
     );
   }
@@ -213,8 +267,9 @@ class CustomTransitionPage<T> extends Page<T> {
   const CustomTransitionPage({
     required this.child,
     required this.transitionType,
-    this.transitionDuration = AppAnimations.medium,
-    this.transitionCurve = AppAnimations.easeInOut,
+    this.transitionDuration = AppAnimations.pushDuration,
+    this.reverseTransitionDuration = AppAnimations.popDuration,
+    this.transitionCurve = AppAnimations.pushCurve,
     super.key,
     super.name,
     super.arguments,
@@ -224,7 +279,11 @@ class CustomTransitionPage<T> extends Page<T> {
   final Widget child;
   final RouteTransitionType transitionType;
   final Duration transitionDuration;
+  final Duration reverseTransitionDuration;
   final Curve transitionCurve;
+
+  // Outgoing-page parallax: transform-only (GPU), subtle by design.
+  static const double _parallaxEndScale = 0.98;
 
   @override
   Route<T> createRoute(BuildContext context) {
@@ -232,57 +291,81 @@ class CustomTransitionPage<T> extends Page<T> {
       settings: this,
       pageBuilder: (context, animation, secondaryAnimation) => child,
       transitionDuration: transitionDuration,
+      reverseTransitionDuration: reverseTransitionDuration,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        switch (transitionType) {
-          case RouteTransitionType.fade:
-            return AppAnimations.fadeTransition(
-              child: child,
-              animation: animation,
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.scale:
-            return AppAnimations.scaleTransition(
-              child: child,
-              animation: animation,
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.slideLeft:
-            return AppAnimations.slideTransition(
-              child: child,
-              animation: animation,
-              begin: const Offset(1.0, 0.0),
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.slideRight:
-            return AppAnimations.slideTransition(
-              child: child,
-              animation: animation,
-              begin: const Offset(-1.0, 0.0),
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.slideUp:
-            return AppAnimations.slideTransition(
-              child: child,
-              animation: animation,
-              begin: const Offset(0.0, 1.0),
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.slideDown:
-            return AppAnimations.slideTransition(
-              child: child,
-              animation: animation,
-              begin: const Offset(0.0, -1.0),
-              curve: transitionCurve,
-            );
-          case RouteTransitionType.fadeSlide:
-            return AppAnimations.fadeSlideTransition(
-              child: child,
-              animation: animation,
-              curve: transitionCurve,
-            );
-        }
+        final Widget entering = _buildEntering(
+          transitionType: transitionType,
+          transitionCurve: transitionCurve,
+          animation: animation,
+          child: child,
+        );
+        // When this page is covered by the next one, secondaryAnimation
+        // runs 0 -> 1: the outgoing page recedes slightly. Transform-only,
+        // so the entering page keeps its full first-frame budget.
+        return ScaleTransition(
+          scale: Tween<double>(begin: 1.0, end: _parallaxEndScale).animate(
+            CurvedAnimation(parent: secondaryAnimation, curve: Curves.easeOut),
+          ),
+          child: entering,
+        );
       },
     );
+  }
+
+  static Widget _buildEntering({
+    required RouteTransitionType transitionType,
+    required Curve transitionCurve,
+    required Animation<double> animation,
+    required Widget child,
+  }) {
+    switch (transitionType) {
+      case RouteTransitionType.fade:
+        return AppAnimations.fadeTransition(
+          child: child,
+          animation: animation,
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.scale:
+        return AppAnimations.scaleTransition(
+          child: child,
+          animation: animation,
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.slideLeft:
+        return AppAnimations.slideTransition(
+          child: child,
+          animation: animation,
+          begin: const Offset(1.0, 0.0),
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.slideRight:
+        return AppAnimations.slideTransition(
+          child: child,
+          animation: animation,
+          begin: const Offset(-1.0, 0.0),
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.slideUp:
+        return AppAnimations.slideTransition(
+          child: child,
+          animation: animation,
+          begin: const Offset(0.0, 1.0),
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.slideDown:
+        return AppAnimations.slideTransition(
+          child: child,
+          animation: animation,
+          begin: const Offset(0.0, -1.0),
+          curve: transitionCurve,
+        );
+      case RouteTransitionType.fadeSlide:
+        return AppAnimations.fadeSlideTransition(
+          child: child,
+          animation: animation,
+          curve: transitionCurve,
+        );
+    }
   }
 }
 

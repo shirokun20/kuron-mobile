@@ -189,6 +189,7 @@ lib/
 - `ai-image-upscaling`
 - `local-recommendation-engine`
 - `mangadex-search-language-to-detail`
+- `smooth-page-transitions` (4/10 tasks — code 1.1-1.3+2.1 done, 11/11 tests green, analyze clean; 2.2/2.3 code done pending device visual; 3.1/3.2/4.1 device gates milik user; 4.2 archive pending device pass)
 - `text-only-mode-export`
 
 ### Open Issues (in `openspec/changes/`)

@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### ✨ Added
 
+- **Unified page-transition language** (openspec: `smooth-page-transitions`): every GoRouter route now goes through `animatedPageBuilder` with a per-kind motion — `forward` drill-in slides horizontally with fade, `upward` layers (settings/about/filter/captcha) rise from the bottom, `tab` switches cross-fade. Push 300ms `easeOutCubic`, pop 220ms `easeIn`, plus a subtle GPU-only parallax on the outgoing page and an instant-switch fallback when reduced motion is on. No more half-default/half-custom transitions.
 - **Reader identity avatar in drawer** (openspec: `reader-avatars`): the drawer header now shows a tier avatar computed 100% locally from SQLite — read-count thresholds 1/10/50/200 (`Pembaca Santai → Kutu Buku → Otaku Akut → Resi Manga`, trilingual id/en/zh) with a fans override (`Pengocok Handal / Certified Shaker / 手冲大师`) when the top completed-download source is in the curated hentai set. Avatars are 5 bundled CC0 Open Peeps PNGs (`assets/avatars/`, no network, no account). One stats line ("N selesai • Fans X") refreshes every drawer open; missing asset falls back to an icon, never a broken image.
 - **Total app downloads in About** (openspec: `reader-avatars`): new row under the version badge showing the summed `download_count` of all GitHub Release assets, cached 24h in prefs; offline/failure hides the row instead of showing a misleading zero. Compact per-locale format (1,2rb / 1.2K / 1.2万).
 
