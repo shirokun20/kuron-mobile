@@ -85,17 +85,44 @@ class ReaderScreen extends StatefulWidget {
   final Chapter? currentChapter;
   final String? activeChapterLanguage;
 
+  /// Whether a heavy animated page must NOT auto-switch the reader out of
+  /// continuous scroll.
+  ///
+  /// Config-driven: a source opts out with
+  /// `scraper.selectors.reader.heavyImageAutoSwitch: false` (webtoon and
+  /// dual-page chapters have to keep continuous scroll even when one page is a
+  /// ≥2 MB animated WebP). Declared value wins in both directions.
+  ///
+  /// ponytail: [_legacyHeavyImageAutoSkipSources] is the pre-config list. It
+  /// stays only so already-published sources keep their behaviour before their
+  /// config declares the flag; it is deleted once every config says it.
+  static const Set<String> _legacyHeavyImageAutoSkipSources = {
+    'manga18.club',
+    'ehentai',
+    'komiktap',
+  };
+
   @visibleForTesting
-  static bool shouldSkipHeavyImageAutoSwitchForSource(String? sourceId) {
-    final normalized = (sourceId ?? '').toLowerCase();
-    switch (normalized) {
-      case 'manga18.club':
-      case 'ehentai':
-      case 'komiktap':
-        return true;
-      default:
-        return false;
-    }
+  static bool shouldSkipHeavyImageAutoSwitch({
+    required String? sourceId,
+    Map<String, dynamic>? rawConfig,
+  }) {
+    final declared = _readerFlag(rawConfig, 'heavyImageAutoSwitch');
+    if (declared != null) return !declared;
+    return _legacyHeavyImageAutoSkipSources
+        .contains((sourceId ?? '').toLowerCase());
+  }
+
+  /// Reads one key out of `scraper.selectors.reader` in a raw source config.
+  static bool? _readerFlag(Map<String, dynamic>? rawConfig, String key) {
+    final scraper = rawConfig?['scraper'];
+    if (scraper is! Map) return null;
+    final selectors = scraper['selectors'];
+    if (selectors is! Map) return null;
+    final reader = selectors['reader'];
+    if (reader is! Map) return null;
+    final value = reader[key];
+    return value is bool ? value : null;
   }
 
   @override
@@ -600,7 +627,13 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _onHeavyImageDetected() {
     if (!mounted) return;
     final sourceId = _readerCubit.state.content?.sourceId;
-    if (ReaderScreen.shouldSkipHeavyImageAutoSwitchForSource(sourceId)) {
+    final rawConfig = sourceId == null
+        ? null
+        : getIt<RemoteConfigService>().getRawConfig(sourceId);
+    if (ReaderScreen.shouldSkipHeavyImageAutoSwitch(
+      sourceId: sourceId,
+      rawConfig: rawConfig,
+    )) {
       return;
     }
 
