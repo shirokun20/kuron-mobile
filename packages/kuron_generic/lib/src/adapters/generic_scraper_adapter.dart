@@ -2383,12 +2383,21 @@ class GenericScraperAdapter implements GenericAdapter {
       // Video/HLS chapter (issue #68): `<video><source src="…master.m3u8">`
       // yields no images, so tag the chapter as a stream for the reader's
       // WebView player. Empty for an ordinary image chapter — same behavior.
-      final videoUrls = _readerImages
-          .extractChapterVideoUrls(workingHtmlContent)
-          // Protocol-relative (`//cdn/x.m3u8`) and root-relative streams must be
-          // absolute for the reader's WebView to load them.
-          .map(_readerImages.sanitizeImageUrl)
-          .toList();
+      //
+      // `reader.video` scopes this to the chapter's own video element; a
+      // config without the block gets the legacy page-wide scan unchanged.
+      final seenVideo = <String>{};
+      final videoUrls = <String>[];
+      for (final raw
+          in _readerImages.extractVideoUrls(workingHtmlContent, readerConfig)) {
+        // Protocol-relative (`//cdn/x.m3u8`) and root-relative streams must be
+        // absolute for the reader's WebView to load them. Dedupe runs AFTER
+        // normalization so `//host/x.m3u8` and `https://host/x.m3u8` — the two
+        // copies a wrapper + <source> pair can produce — collapse to one entry.
+        final videoUrl = _readerImages.sanitizeImageUrl(raw);
+        if (videoUrl.isEmpty || !seenVideo.add(videoUrl)) continue;
+        videoUrls.add(videoUrl);
+      }
       if (videoUrls.isNotEmpty) {
         _logger.i('$_sourceId video chapter: ${videoUrls.length} stream(s)');
       }

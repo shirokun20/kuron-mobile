@@ -505,16 +505,29 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         _buildContinuousReader(showNavigation: showNav),
     };
 
-    if ((state.readingMode ?? ReadingMode.singlePage) ==
-        ReadingMode.continuousScroll) {
-      return content;
+    final Widget body = (state.readingMode ?? ReadingMode.singlePage) ==
+            ReadingMode.continuousScroll
+        ? content
+        : _PaginatedTapWrapper(
+            state: state,
+            cubit: widget.cubit,
+            child: content,
+          );
+
+    // Mixed chapter: pages AND a stream. The pager is the reader — page
+    // numbering, history and translation all key off it — so the stream is a
+    // compact play strip above page 1, never a replacement for the pager.
+    final chapterData = state.chapterData;
+    if (chapterData != null && chapterData.videoUrls.isNotEmpty) {
+      return Column(
+        children: [
+          ReaderVideoStrip(chapterData: chapterData),
+          Expanded(child: body),
+        ],
+      );
     }
 
-    return _PaginatedTapWrapper(
-      state: state,
-      cubit: widget.cubit,
-      child: content,
-    );
+    return body;
   }
 
   @override

@@ -14,28 +14,50 @@ import '../../../l10n/app_localizations.dart';
 /// reader swaps the image pager for [ReaderVideoChapter] when and only when
 /// the chapter carries stream URLs **and no pages at all**.
 ///
-/// The empty-images half is load-bearing. [videoUrls] is harvested by a regex
-/// over the whole chapter HTML, so any embed on the page — an ad, a
-/// "watch the adaptation" teaser, a single animated page — tags the chapter as
-/// a video chapter. Swapping the pager on that signal threw away every real
-/// page, so a 60-page chapter with one stray `<video>` became a play card.
-/// ponytail: detection is page-wide, so the decision is made here instead of
-/// scoping the regex to a reader container; a container-scoped harvest needs
-/// per-source containers, which configs do not agree on.
+/// The empty-images half is load-bearing. When a source does not declare
+/// `reader.video`, [videoUrls] is still harvested by a regex over the whole
+/// chapter HTML, so any embed on the page — an ad, a "watch the adaptation"
+/// teaser, a single animated page — tags the chapter as a video chapter.
+/// Swapping the pager on that signal threw away every real page, so a
+/// 60-page chapter with one stray `<video>` became a play card. A config that
+/// declares `reader.video` scopes the harvest instead, but the guard stays
+/// either way: real pages always win.
+///
+/// A chapter with pages **and** a stream keeps its pager and gets
+/// [ReaderVideoStrip] above it.
 bool isVideoChapter(ChapterData? chapterData) =>
     chapterData != null &&
     chapterData.images.isEmpty &&
     chapterData.videoUrls.isNotEmpty;
 
-/// Play surface for a video/HLS chapter.
+/// Play a chapter stream in the platform web view (Custom Tabs).
 ///
-/// ponytail: playback opens in the platform WebView (Custom Tabs via
+/// ponytail: playback opens in the platform WebView via
 /// `KuronNative.openWebView`, the same path the reader already uses for
-/// undecodable AVIF pages). An in-app `WebViewWidget` would mean a live
+/// undecodable AVIF pages. An in-app `WebViewWidget` would mean a live
 /// platform view and a media stack sitting inside the reader for the whole
 /// time the chapter is open — for something the user may swipe past — and
 /// autoplaying a stream the moment a chapter loads is hostile anyway. The
 /// user taps, decides to watch, and the reader stays untouched underneath.
+Future<void> openChapterStream(String url) async {
+  final logger = Logger();
+  try {
+    await KuronNative.instance.openWebView(url: url);
+  } catch (e) {
+    // The native WebView is unavailable (no host, or a platform without the
+    // channel) — hand the URL to the system browser instead of dead-ending.
+    logger.w('video chapter native WebView failed, falling back: $e');
+    final uri = Uri.tryParse(url);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+/// Play surface for a video/HLS chapter with no pages at all.
+///
+/// Playback goes through [openChapterStream] (Custom Tabs, never an in-app
+/// web view).
 class ReaderVideoChapter extends StatelessWidget {
   const ReaderVideoChapter({
     super.key,
@@ -55,7 +77,7 @@ class ReaderVideoChapter extends StatelessWidget {
             child: VideoPosterCard(
               title: cubit.state.content?.title,
               streamCount: chapterData.videoUrls.length,
-              onPlay: () => _play(chapterData.videoUrls.first),
+              onPlay: () => openChapterStream(chapterData.videoUrls.first),
             ),
           ),
         ),
@@ -63,20 +85,84 @@ class ReaderVideoChapter extends StatelessWidget {
       ],
     );
   }
+}
 
-  Future<void> _play(String url) async {
-    final logger = Logger();
-    try {
-      await KuronNative.instance.openWebView(url: url);
-    } catch (e) {
-      // The native WebView is unavailable (no host, or a platform without the
-      // channel) — hand the URL to the system browser instead of dead-ending.
-      logger.w('video chapter native WebView failed, falling back: $e');
-      final uri = Uri.tryParse(url);
-      if (uri != null && await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-    }
+/// Play strip for a chapter that has pages **and** a stream.
+///
+/// The pager stays the reader — page numbering, history and translation all
+/// depend on it — and the stream is one compact tap above page 1. Additive by
+/// design: [isVideoChapter] is untouched, so a chapter without pages still
+/// gets the full [ReaderVideoChapter] surface.
+class ReaderVideoStrip extends StatelessWidget {
+  const ReaderVideoStrip({
+    super.key,
+    required this.chapterData,
+  });
+
+  final ChapterData chapterData;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context);
+    final streamCount = chapterData.videoUrls.length;
+
+    return Material(
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+      child: InkWell(
+        onTap: () => openChapterStream(chapterData.videoUrls.first),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DesignTokens.spaceLg,
+            vertical: DesignTokens.spaceMd,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [cs.primary, cs.secondary],
+                  ),
+                ),
+                child: Icon(
+                  Icons.play_arrow_rounded,
+                  size: 20,
+                  color: cs.onPrimary,
+                ),
+              ),
+              const SizedBox(width: DesignTokens.spaceMd),
+              Expanded(
+                child: Text(
+                  l10n?.readerVideoEyebrow ?? 'Video chapter',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (streamCount > 1)
+                Text(
+                  l10n?.readerVideoStreamCount(streamCount) ??
+                      '$streamCount streams available',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+                ),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: cs.onSurfaceVariant,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

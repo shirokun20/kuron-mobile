@@ -509,14 +509,120 @@ class ReaderImageResolver {
   /// Video media referenced by a chapter page — direct mp4/webm or HLS
   /// `master.m3u8` (issue #68: poster-only readers look broken).
   /// Samplers use this to skip AI-animation chapters.
+  ///
+  /// No dedupe here: normalization comes later, in the caller, and only a
+  /// normalized URL can be compared safely (`//host/x` vs `https://host/x`).
   List<String> extractChapterVideoUrls(String htmlContent) {
     final urls = <String>[];
-    final seen = <String>{};
     for (final match in _videoUrlPattern.allMatches(htmlContent)) {
       final url = match.group(1);
-      if (url == null || !seen.add(url)) continue;
+      if (url == null || url.isEmpty) continue;
       urls.add(url);
     }
+    return urls;
+  }
+
+  /// Config-scoped chapter video extraction.
+  ///
+  /// Reads `scraper.selectors.reader.video`, the sibling of `reader.images`:
+  ///
+  /// ```jsonc
+  /// "video": {
+  ///   "container": ".chapter-video-frame",   // absent ⇒ whole chapter HTML
+  ///   "selector": "video source, video",     // element carrying the stream
+  ///   "attribute": "src",                    // URL attribute (string or list)
+  ///   "dataAttribute": "data-vvl-src",       // wrapper carrying it in data-*
+  ///   "requireChapterType": "chapter-type-video"  // site's "this is video" mark
+  /// }
+  /// ```
+  ///
+  /// No `video` block ⇒ [extractChapterVideoUrls] (page-wide scan) — the
+  /// compatibility contract for every already-shipped config. Returns raw
+  /// values; the caller sanitizes and then dedupes.
+  /// `requireChapterType` carries the site's chapter marker: usually a bare
+  /// class token (`chapter-type-video`), sometimes a ready-made selector.
+  /// A bare token must become `[class~=…]` — `querySelector('x')` would look
+  /// for a TAG named x, find nothing, and gate every stream away.
+  static String _markerSelector(String marker) {
+    final m = marker.trim();
+    final looksLikeSelector = m.startsWith('.') ||
+        m.startsWith('#') ||
+        m.startsWith('[') ||
+        m.contains(' ') ||
+        m.contains('>');
+    return looksLikeSelector ? m : '[class~="$m"]';
+  }
+
+  List<String> extractVideoUrls(
+    String htmlContent,
+    Map<String, dynamic> readerConfig,
+  ) {
+    final raw = readerConfig['video'];
+    if (raw is! Map) return extractChapterVideoUrls(htmlContent);
+    final video = raw.cast<String, dynamic>();
+
+    final container = (video['container'] as String?)?.trim() ?? '';
+    final marker = (video['requireChapterType'] as String?)?.trim() ?? '';
+    final scopes = container
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    if (marker.isEmpty && scopes.isEmpty) {
+      // Declared but unscoped ⇒ behave exactly as the legacy path.
+      return extractChapterVideoUrls(htmlContent);
+    }
+
+    final doc = _parser.parse(htmlContent);
+    if (marker.isNotEmpty &&
+        doc.querySelector(_markerSelector(marker)) == null) {
+      _logger.t(
+        '$_sourceId reader.video: no "$marker" mark on page → no streams',
+      );
+      return const [];
+    }
+    if (scopes.isEmpty) {
+      // Marker-gated but unscoped ⇒ page-wide scan, gated by the mark.
+      return extractChapterVideoUrls(htmlContent);
+    }
+
+    final selector = (video['selector'] as String?)?.trim() ?? '';
+    final dataAttribute = (video['dataAttribute'] as String?)?.trim() ?? '';
+    final urls = <String>[];
+    for (final scope in scopes) {
+      if (dataAttribute.isNotEmpty) {
+        // The wrapper may be the container itself or live inside it.
+        for (final candidates in [
+          _parser.selectAll(doc, '$scope[$dataAttribute]'),
+          _parser.selectAll(doc, '$scope [$dataAttribute]'),
+        ]) {
+          for (final el in candidates) {
+            final value = (el.attributes[dataAttribute] ?? '').trim();
+            if (value.isNotEmpty) urls.add(value);
+          }
+        }
+      }
+      if (selector.isNotEmpty) {
+        // Scope EVERY comma-separated arm, not just the first — otherwise
+        // `video source, video` would leave the second arm page-wide.
+        final scopedSelector = selector
+            .split(',')
+            .map((arm) => arm.trim())
+            .where((arm) => arm.isNotEmpty)
+            .map((arm) => '$scope $arm')
+            .join(', ');
+        final def = <String, dynamic>{
+          'selector': scopedSelector,
+          'attribute': video['attribute'] ?? 'src',
+        };
+        final field = fieldDefToSelector(def);
+        if (field != null) urls.addAll(_parser.extractList(doc, field));
+      }
+    }
+    _logger.t(
+      '$_sourceId reader.video: $urls raw stream(s) in "$container"',
+    );
     return urls;
   }
 

@@ -137,6 +137,54 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   });
+
+  group('play strip for a chapter that has pages AND a stream', () {
+    // The pager stays the reader; the stream is one compact tap above it.
+    testWidgets('renders a play affordance with a single stream', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const ReaderVideoStrip(
+            chapterData: ChapterData(
+              images: ['https://cdn.example.com/p/001.jpg'],
+              videoUrls: ['https://cdn.example.com/hls/master.m3u8'],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(find.text('VIDEO CHAPTER'), findsOneWidget);
+      expect(find.byIcon(Icons.chevron_right_rounded), findsOneWidget);
+      expect(
+        find.textContaining('streams available'),
+        findsNothing,
+        reason: 'one stream needs no count',
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shows the stream count when there is more than one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const ReaderVideoStrip(
+            chapterData: ChapterData(
+              images: ['https://cdn.example.com/p/001.jpg'],
+              videoUrls: [
+                'https://cdn.example.com/hls/master.m3u8',
+                'https://cdn.example.com/hls/alt.m3u8',
+              ],
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('2 streams available'), findsOneWidget);
+    });
+  });
 }
 
 Future<void> _noop() async {}
