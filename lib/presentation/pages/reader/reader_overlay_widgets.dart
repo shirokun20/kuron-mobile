@@ -318,7 +318,11 @@ class _ReaderBottomBarState extends State<_ReaderBottomBar> {
   Widget build(BuildContext context) {
     final isOnNavigationPage = (widget.state.currentPage ?? 1) >
         (widget.state.content?.pageCount ?? 1);
-    final totalPages = widget.state.content?.pageCount ?? 1;
+    // A page-less video chapter reports 0 pages; `clamp(1, 0)` throws
+    // ArgumentError, so the slider works against a floor of 1.
+    final totalPages = (widget.state.content?.pageCount ?? 1) < 1
+        ? 1
+        : widget.state.content!.pageCount;
     final currentPage = isOnNavigationPage
         ? totalPages
         : (widget.state.currentPage ?? 1).clamp(1, totalPages);

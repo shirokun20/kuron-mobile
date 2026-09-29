@@ -21,6 +21,17 @@ bool shouldReuseEmbeddedRelated(Content content) {
   return content.sourceId == 'mangafire' || content.relatedContent.isNotEmpty;
 }
 
+/// Whether a fetched chapter is worth opening the reader for.
+///
+/// A stream-only chapter (video/HLS, issue #68) has no pages at all and is
+/// still readable — the reader plays it. `images.isEmpty` on its own is the
+/// "image logic" trap that stopped the reader from ever opening.
+bool isChapterReadable({
+  required List<String> images,
+  required int streamCount,
+}) =>
+    images.isNotEmpty || streamCount > 0;
+
 List<Chapter> mergeChaptersById(
   List<Chapter> existing,
   List<Chapter> incoming,
@@ -661,7 +672,14 @@ class DetailCubit extends BaseCubit<DetailState> {
 
       if (isClosed) return;
 
-      if (images.isEmpty) {
+      // A stream-only chapter (video/HLS, issue #68) has no pages at all and
+      // is still perfectly readable — the reader plays it. Reject only when
+      // there is neither an image nor a stream; `images.isEmpty` alone is the
+      // "no image logic" trap that kept the reader from ever opening.
+      if (!isChapterReadable(
+        images: images,
+        streamCount: chapterData?.videoUrls.length ?? 0,
+      )) {
         // Use ActionFailure to preserve UI instead of replacing with Error screen
         String message = 'Failed to load chapter images';
         bool needsLogin = false;

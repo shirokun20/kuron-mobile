@@ -93,4 +93,26 @@ void main() {
     expect(
         merged.map((chapter) => chapter.id).toList(), const ['en-1', 'es-1']);
   });
+
+  // Issue #68: a video chapter resolves to 0 images + N streams. Gating on
+  // `images.isEmpty` alone refused to open the reader at all.
+  test('stream-only chapter is readable, empty chapter is not', () {
+    expect(
+      isChapterReadable(images: const [], streamCount: 1),
+      isTrue,
+      reason: 'video/HLS chapter has no pages but is playable',
+    );
+    expect(isChapterReadable(images: const [], streamCount: 0), isFalse);
+    expect(
+      isChapterReadable(
+          images: const ['https://cdn.example/1.jpg'], streamCount: 0),
+      isTrue,
+    );
+    expect(
+      isChapterReadable(
+          images: const ['https://cdn.example/1.jpg'], streamCount: 3),
+      isTrue,
+      reason: 'mixed chapter keeps both',
+    );
+  });
 }

@@ -547,7 +547,7 @@ class ReaderCubit extends Cubit<ReaderState> {
       final maxPage = hasNavigationPage ? pageCount + 1 : pageCount;
 
       if (currentPage < maxPage) {
-        final newPage = (currentPage + 1).clamp(1, maxPage);
+        final newPage = _clampToPages(currentPage + 1, maxPage);
 
         _logger.d(
             'Next page: $currentPage -> $newPage (total: $pageCount, max with nav: $maxPage)');
@@ -565,7 +565,7 @@ class ReaderCubit extends Cubit<ReaderState> {
   void previousPage() {
     if (!state.isFirstPage && !isClosed && state.content != null) {
       final currentPage = state.currentPage ?? 1;
-      final newPage = (currentPage - 1).clamp(1, state.content!.pageCount);
+      final newPage = _clampToPages(currentPage - 1, state.content!.pageCount);
 
       _logger.d(
           'Previous page: $currentPage -> $newPage (total: ${state.content!.pageCount})');
@@ -1109,6 +1109,12 @@ class ReaderCubit extends Cubit<ReaderState> {
     }
   }
 
+  /// Page clamp that survives a page-less chapter (a video chapter reports 0
+  /// pages). `page.clamp(1, 0)` throws ArgumentError, which took the reader
+  /// screen down the moment a video chapter opened.
+  int _clampToPages(int page, int pageCount) =>
+      page.clamp(1, pageCount < 1 ? 1 : pageCount);
+
   void jumpToPage(int page) {
     goToPage(page);
   }
@@ -1116,7 +1122,7 @@ class ReaderCubit extends Cubit<ReaderState> {
   void goToPage(int page) {
     if (!isClosed && state.content != null) {
       final totalPages = state.content!.pageCount;
-      final validPage = page.clamp(1, totalPages);
+      final validPage = _clampToPages(page, totalPages);
 
       if (page != validPage) {
         _logger.w(
@@ -1145,7 +1151,7 @@ class ReaderCubit extends Cubit<ReaderState> {
           state.content!.imageUrls.isNotEmpty;
       final maxPage = hasNavigationPage ? totalPages + 1 : totalPages;
 
-      final validPage = page.clamp(1, maxPage);
+      final validPage = _clampToPages(page, maxPage);
 
       _logger.d(
           'Updating page from swipe: $validPage (total: $totalPages, max with nav: $maxPage)');
@@ -1166,7 +1172,7 @@ class ReaderCubit extends Cubit<ReaderState> {
     if (!isClosed && state.content == null) return;
 
     final totalPages = state.content!.pageCount;
-    final validPage = page.clamp(1, totalPages);
+    final validPage = _clampToPages(page, totalPages);
 
     _lastTrackedPage = validPage;
 
@@ -2591,7 +2597,8 @@ class ReaderCubit extends Cubit<ReaderState> {
         _logger.d('📖 NON-CHAPTER MODE: contentId=$historyContentId');
       }
 
-      final safePage = _lastTrackedPage.clamp(1, state.content!.pageCount);
+      final safePage =
+          _clampToPages(_lastTrackedPage, state.content!.pageCount);
 
       final params = AddToHistoryParams.fromString(
         historyContentId,

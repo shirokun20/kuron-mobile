@@ -24,7 +24,7 @@ import '../../../l10n/app_localizations.dart';
 /// either way: real pages always win.
 ///
 /// A chapter with pages **and** a stream keeps its pager and gets
-/// [ReaderVideoStrip] above it.
+/// [ReaderVideoStrip] below them.
 bool isVideoChapter(ChapterData? chapterData) =>
     chapterData != null &&
     chapterData.images.isEmpty &&
@@ -87,12 +87,14 @@ class ReaderVideoChapter extends StatelessWidget {
   }
 }
 
-/// Play strip for a chapter that has pages **and** a stream.
+/// Play card for a chapter that has pages **and** a stream.
 ///
-/// The pager stays the reader — page numbering, history and translation all
-/// depend on it — and the stream is one compact tap above page 1. Additive by
-/// design: [isVideoChapter] is untouched, so a chapter without pages still
-/// gets the full [ReaderVideoChapter] surface.
+/// Sits in the content flow right after the last image — the site's own
+/// order — shaped like the image loading card but full content width with
+/// flexible height, so it reads as part of the chapter instead of chrome
+/// pinned to a screen edge. No SafeArea here: an in-flow item inherits the
+/// list's own insets, and edge-pinning is what once parked the strip above
+/// the app bar.
 class ReaderVideoStrip extends StatelessWidget {
   const ReaderVideoStrip({
     super.key,
@@ -107,21 +109,26 @@ class ReaderVideoStrip extends StatelessWidget {
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final streamCount = chapterData.videoUrls.length;
+    final radius = BorderRadius.circular(DesignTokens.radiusXl);
 
-    return Material(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.55),
+    return Card(
+      elevation: 6,
+      shadowColor: cs.shadow.withValues(alpha: 0.2),
+      shape: RoundedRectangleBorder(borderRadius: radius),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => openChapterStream(chapterData.videoUrls.first),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceLg,
-            vertical: DesignTokens.spaceMd,
+            vertical: DesignTokens.space2xl,
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -130,34 +137,30 @@ class ReaderVideoStrip extends StatelessWidget {
                 ),
                 child: Icon(
                   Icons.play_arrow_rounded,
-                  size: 20,
+                  size: 36,
                   color: cs.onPrimary,
                 ),
               ),
-              const SizedBox(width: DesignTokens.spaceMd),
-              Expanded(
-                child: Text(
-                  l10n?.readerVideoEyebrow ?? 'Video chapter',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: DesignTokens.spaceMd),
+              Text(
+                l10n?.readerVideoEyebrow ?? 'Video chapter',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              if (streamCount > 1)
+              if (streamCount > 1) ...[
+                const SizedBox(height: DesignTokens.spaceSm),
                 Text(
                   l10n?.readerVideoStreamCount(streamCount) ??
                       '$streamCount streams available',
+                  textAlign: TextAlign.center,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
                 ),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: cs.onSurfaceVariant,
-              ),
+              ],
             ],
           ),
         ),

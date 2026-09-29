@@ -260,4 +260,88 @@ void main() {
     expect(cubit.state.content?.imageUrls,
         ['https://images.hentainexus.com/1.webp']);
   });
+
+  // Issue #68 follow-up: a video chapter resolves to 0 images + 1 stream. Every
+  // page clamp then ran against `clamp(1, 0)`, which throws ArgumentError — the
+  // reader screen died instead of showing the play card.
+  test('page-less video chapter never throws on page clamps', () async {
+    final getContentDetailUseCase = _MockGetContentDetailUseCase();
+    final getChapterImagesUseCase = _MockGetChapterImagesUseCase();
+    final addToHistoryUseCase = _MockAddToHistoryUseCase();
+    final getReaderSettingsUseCase = _MockGetReaderSettingsUseCase();
+    final saveReaderSettingsUseCase = _MockSaveReaderSettingsUseCase();
+    final saveReaderPositionUseCase = _MockSaveReaderPositionUseCase();
+    final clearAllReaderPositionsUseCase =
+        _MockClearAllReaderPositionsUseCase();
+    final getReaderPositionUseCase = _MockGetReaderPositionUseCase();
+    final readerSettingsEntityRepository =
+        _MockReaderSettingsEntityRepository();
+    final readerRepository = _MockReaderRepository();
+    final offlineContentManager = _MockOfflineContentManager();
+    final networkCubit = _MockNetworkCubit();
+    final imageMetadataService = _MockImageMetadataService();
+    final contentSourceRegistry = _MockContentSourceRegistry();
+    final ehentaiCookieJar = _MockPersistCookieJar();
+    final remoteConfigService = _MockRemoteConfigService();
+
+    when(() => networkCubit.isConnected).thenReturn(true);
+    when(() => offlineContentManager.isContentAvailableOffline(any()))
+        .thenAnswer((_) async => false);
+    when(() => readerSettingsEntityRepository.getReaderSettingsEntity())
+        .thenAnswer((_) async => const ReaderSettingsEntity());
+    when(() => readerRepository.getReaderPosition(any()))
+        .thenAnswer((_) async => null);
+    when(() => readerRepository.saveReaderPosition(any()))
+        .thenAnswer((_) async {});
+    when(() => addToHistoryUseCase(any())).thenAnswer((_) async {});
+    when(() => getChapterImagesUseCase(any())).thenAnswer(
+      (_) async => const ChapterData(
+        images: [],
+        videoUrls: ['https://sv1.example.com/videos/ep1/master.m3u8'],
+      ),
+    );
+
+    final cubit = ReaderCubit(
+      getContentDetailUseCase: getContentDetailUseCase,
+      getChapterImagesUseCase: getChapterImagesUseCase,
+      addToHistoryUseCase: addToHistoryUseCase,
+      getReaderSettingsUseCase: getReaderSettingsUseCase,
+      saveReaderSettingsUseCase: saveReaderSettingsUseCase,
+      saveReaderPositionUseCase: saveReaderPositionUseCase,
+      clearAllReaderPositionsUseCase: clearAllReaderPositionsUseCase,
+      getReaderPositionUseCase: getReaderPositionUseCase,
+      readerSettingsEntityRepository: readerSettingsEntityRepository,
+      readerRepository: readerRepository,
+      offlineContentManager: offlineContentManager,
+      networkCubit: networkCubit,
+      imageMetadataService: imageMetadataService,
+      httpClient: Dio(),
+      contentSourceRegistry: contentSourceRegistry,
+      ehentaiCookieJar: ehentaiCookieJar,
+      remoteConfigService: remoteConfigService,
+      logger: Logger(level: Level.all),
+    );
+
+    final preloadedContent = buildContent(
+      id: 'ai-animation-catastrophic/ep1/',
+      sourceId: 'mangadistrict',
+      imageUrls: const [],
+    );
+
+    await cubit.loadContent(
+      preloadedContent.id,
+      preloadedContent: preloadedContent,
+    );
+
+    expect(cubit.state.chapterData?.videoUrls, hasLength(1));
+    expect(cubit.state.content?.imageUrls, isEmpty);
+
+    // Every entry point a reader touches on open must survive 0 pages.
+    expect(() => cubit.goToPage(3), returnsNormally);
+    expect(() => cubit.updateCurrentPageSilent(2), returnsNormally);
+    expect(() => cubit.updateCurrentPageFromSwipe(4), returnsNormally);
+    expect(() => cubit.previousPage(), returnsNormally);
+    expect(() => cubit.nextPage(), returnsNormally);
+    expect(() => cubit.jumpToPage(1), returnsNormally);
+  });
 }

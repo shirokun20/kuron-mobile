@@ -275,10 +275,12 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     );
   }
 
-  Widget _buildSinglePageReader({bool showNavigation = false}) {
+  Widget _buildSinglePageReader(
+      {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
-    final totalItems = showNavigation ? pageCount + 1 : pageCount;
+    final totalItems =
+        pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
     widget.logger.d(
         '📖 SinglePageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems');
@@ -313,7 +315,12 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       },
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        if (showNavigation && index == pageCount) {
+        // The video card sits right after the last image — the site's own
+        // order — and the end-of-chapter nav (if any) moves one slot down.
+        if (hasVideoStrip && index == pageCount) {
+          return _buildVideoStripPage();
+        }
+        if (showNavigation && index == pageCount + (hasVideoStrip ? 1 : 0)) {
           return _buildChapterNavigationPage();
         }
         final imageUrl = state.content?.imageUrls[index] ?? '';
@@ -333,10 +340,12 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     );
   }
 
-  Widget _buildVerticalPageReader({bool showNavigation = false}) {
+  Widget _buildVerticalPageReader(
+      {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
-    final totalItems = showNavigation ? pageCount + 1 : pageCount;
+    final totalItems =
+        pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
     widget.logger.d(
         '📖 VerticalPageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems');
@@ -371,7 +380,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       },
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        if (showNavigation && index == pageCount) {
+        if (hasVideoStrip && index == pageCount) {
+          return _buildVideoStripPage();
+        }
+        if (showNavigation && index == pageCount + (hasVideoStrip ? 1 : 0)) {
           return _buildChapterNavigationPage();
         }
         final imageUrl = state.content?.imageUrls[index] ?? '';
@@ -391,10 +403,12 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     );
   }
 
-  Widget _buildContinuousReader({bool showNavigation = false}) {
+  Widget _buildContinuousReader(
+      {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
-    final totalItems = showNavigation ? pageCount + 1 : pageCount;
+    final totalItems =
+        pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
     final enableZoom = state.enableZoom ?? true;
     final isHeavySource = widget.isHeavyPrefetchSource(state.content?.sourceId);
@@ -441,7 +455,17 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
           addAutomaticKeepAlives: true,
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            if (showNavigation && index == pageCount) {
+            if (hasVideoStrip && index == pageCount) {
+              final chapterData = state.chapterData;
+              if (chapterData == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(
+                    bottom: ReaderScreen.kReaderContinuousGap),
+                child: ReaderVideoStrip(chapterData: chapterData),
+              );
+            }
+            if (showNavigation &&
+                index == pageCount + (hasVideoStrip ? 1 : 0)) {
               return SizedBox(
                 height: MediaQuery.of(context).size.height * 0.8,
                 child: _buildChapterNavigationPage(
@@ -497,12 +521,22 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     final showNav =
         state.content != null && state.content!.imageUrls.isNotEmpty;
 
+    // Mixed chapter: pages AND a stream. isVideoChapter already returned
+    // above, so images are non-empty here. The strip rides the content flow
+    // as an item right after the last image — the site's own order — never a
+    // replacement for the pager, and with no edge-pinning.
+    final chapterData = state.chapterData;
+    final hasVideoStrip = chapterData != null &&
+        chapterData.images.isNotEmpty &&
+        chapterData.videoUrls.isNotEmpty;
+
     final content = switch (state.readingMode ?? ReadingMode.singlePage) {
-      ReadingMode.singlePage => _buildSinglePageReader(showNavigation: showNav),
-      ReadingMode.verticalPage =>
-        _buildVerticalPageReader(showNavigation: showNav),
-      ReadingMode.continuousScroll =>
-        _buildContinuousReader(showNavigation: showNav),
+      ReadingMode.singlePage => _buildSinglePageReader(
+          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
+      ReadingMode.verticalPage => _buildVerticalPageReader(
+          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
+      ReadingMode.continuousScroll => _buildContinuousReader(
+          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
     };
 
     final Widget body = (state.readingMode ?? ReadingMode.singlePage) ==
@@ -514,20 +548,22 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
             child: content,
           );
 
-    // Mixed chapter: pages AND a stream. The pager is the reader — page
-    // numbering, history and translation all key off it — so the stream is a
-    // compact play strip above page 1, never a replacement for the pager.
-    final chapterData = state.chapterData;
-    if (chapterData != null && chapterData.videoUrls.isNotEmpty) {
-      return Column(
-        children: [
-          ReaderVideoStrip(chapterData: chapterData),
-          Expanded(child: body),
-        ],
-      );
-    }
-
     return body;
+  }
+
+  /// The video card as a content-flow item for the paged readers: full width,
+  /// own height. A PageView forces tight viewport constraints on its pages,
+  /// so top-align instead of stretching to fill.
+  Widget _buildVideoStripPage() {
+    final chapterData = widget.state.chapterData;
+    if (chapterData == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+        child: ReaderVideoStrip(chapterData: chapterData),
+      ),
+    );
   }
 
   @override
