@@ -115,6 +115,12 @@ void main() {
     expect(query['queryParam'], 'keyword');
     expect(query['type'], 'text');
 
+    // By-tag taps resolve via navigation.tagQueryMapping mode=name
+    // (produces `type:name` for adapter routing, not raw names).
+    final navigation = config['navigation'] as Map<String, dynamic>;
+    final mapping = navigation['tagQueryMapping'] as Map<String, dynamic>;
+    expect((mapping['default'] as Map)['mode'], 'name');
+
     final features = config['features'] as Map<String, dynamic>;
     for (final key in [
       'home',

@@ -35,12 +35,27 @@ class TagSearchResponse {
 }
 
 class TagSearchHit {
-  const TagSearchHit(this.id);
+  const TagSearchHit({required this.id, this.label = '', this.slug = ''});
 
   final int id;
+  final String label;
+  final String slug;
 
-  factory TagSearchHit.fromJson(Map<String, dynamic> json) =>
-      TagSearchHit((json['id'] as num).toInt());
+  factory TagSearchHit.fromJson(Map<String, dynamic> json) => TagSearchHit(
+        id: (json['id'] as num).toInt(),
+        label: json['label'] as String? ?? '',
+        slug: json['slug'] as String? ?? '',
+      );
+
+  /// Exact-name match against a tap/search name (case-insensitive label,
+  /// or slugified name). Live tags/search returns near-synonym mashups
+  /// alongside the exact tag — AND-ing them all yields empty results.
+  bool matchesName(String name) {
+    final want = name.trim().toLowerCase();
+    if (want.isEmpty) return false;
+    if (label.trim().toLowerCase() == want) return true;
+    return slug.toLowerCase() == want.replaceAll(RegExp(r'\s+'), '-');
+  }
 }
 
 class ComixPoster {
@@ -272,25 +287,53 @@ class _PagedItems<T> {
   final _Meta? meta;
   final _Meta? pagination;
 
-  bool hasNextPage() {
-    if (meta != null) return meta!.page < meta!.actualLastPage;
-    if (pagination != null) {
-      return pagination!.page < pagination!.actualLastPage;
-    }
-    return false;
-  }
+  _Meta? get _active => meta ?? pagination;
+
+  bool hasNextPage() => _active?.resolveHasNext() ?? false;
+
+  int? totalItems() => _active?.total;
+
+  int? totalPages() => _active?.effectiveLastPage;
 
   static _Meta? _parseMeta(dynamic v) =>
       v == null ? null : _Meta.fromJson(v as Map<String, dynamic>);
 }
 
 class _Meta {
-  const _Meta({this.page = 1, this.lastPage = 1});
+  const _Meta({
+    this.page = 1,
+    this.lastPage = 1,
+    this.total,
+    this.perPage,
+    this.hasNext,
+  });
 
   final int page;
   final int lastPage;
 
+  /// Live `meta.total` (e.g. 48536 for the romance genre) — null when the
+  /// envelope carries no totals, in which case callers keep their fallback.
+  final int? total;
+  final int? perPage;
+
+  /// Explicit live `meta.hasNext` flag. Wins over `page < lastPage` when
+  /// present (`hasPrev` is parsed nowhere — it never overrides forward
+  /// pagination).
+  final bool? hasNext;
+
   int get actualLastPage => lastPage;
+
+  /// `lastPage` when the server sends it, else derived from
+  /// `ceil(total / perPage)` so totals-only envelopes still paginate.
+  int? get effectiveLastPage {
+    if (lastPage > 1) return lastPage;
+    if (total != null && perPage != null && perPage! > 0) {
+      return max(1, (total! / perPage!).ceil());
+    }
+    return lastPage;
+  }
+
+  bool resolveHasNext() => hasNext ?? page < (effectiveLastPage ?? 1);
 
   factory _Meta.fromJson(Map<String, dynamic> json) => _Meta(
         page: (json['page'] as num?)?.toInt() ?? 1,
@@ -298,14 +341,21 @@ class _Meta {
           (json['lastPage'] as num?)?.toInt() ?? 1,
           (json['last_page'] as num?)?.toInt() ?? 1,
         ),
+        total: (json['total'] as num?)?.toInt(),
+        perPage: (json['perPage'] as num?)?.toInt() ??
+            (json['per_page'] as num?)?.toInt(),
+        hasNext: json['hasNext'] as bool?,
       );
 }
 
 class SearchResponse {
-  const SearchResponse(this.items, this.hasNext);
+  const SearchResponse(this.items, this.hasNext,
+      {this.totalItems, this.totalPages});
 
   final List<ComixManga> items;
   final bool hasNext;
+  final int? totalItems;
+  final int? totalPages;
 
   factory SearchResponse.fromJson(Map<String, dynamic> json) {
     dynamic node = json['result'];
@@ -327,15 +377,23 @@ class SearchResponse {
       meta: _PagedItems._parseMeta(map['meta']),
       pagination: _PagedItems._parseMeta(map['pagination']),
     );
-    return SearchResponse(items, paged.hasNextPage());
+    return SearchResponse(
+      items,
+      paged.hasNextPage(),
+      totalItems: paged.totalItems(),
+      totalPages: paged.totalPages(),
+    );
   }
 }
 
 class ChapterDetailsResponse {
-  const ChapterDetailsResponse(this.items, this.hasNext);
+  const ChapterDetailsResponse(this.items, this.hasNext,
+      {this.totalItems, this.totalPages});
 
   final List<ComixChapter> items;
   final bool hasNext;
+  final int? totalItems;
+  final int? totalPages;
 
   factory ChapterDetailsResponse.fromJson(Map<String, dynamic> json) {
     final map = json['result'] as Map<String, dynamic>? ?? {};
@@ -347,7 +405,12 @@ class ChapterDetailsResponse {
       meta: _PagedItems._parseMeta(map['meta']),
       pagination: _PagedItems._parseMeta(map['pagination']),
     );
-    return ChapterDetailsResponse(items, paged.hasNextPage());
+    return ChapterDetailsResponse(
+      items,
+      paged.hasNextPage(),
+      totalItems: paged.totalItems(),
+      totalPages: paged.totalPages(),
+    );
   }
 }
 

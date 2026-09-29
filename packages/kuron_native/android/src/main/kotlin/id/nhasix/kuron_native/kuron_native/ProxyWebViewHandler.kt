@@ -101,8 +101,12 @@ class ProxyWebViewHandler(private val context: Context) {
                 "captured ${payload.length} chars for $pageUrl",
             )
             main.removeCallbacksAndMessages(null)
-            runCatching { webView.stopLoading() }
-            runCatching { webView.destroy() }
+            // Bridges fire on the JavaBridge thread: WebView methods must
+            // run on the main thread (StrictMode violation otherwise).
+            main.post {
+                runCatching { webView.stopLoading() }
+                runCatching { webView.destroy() }
+            }
             result.success(payload)
         }
 
@@ -110,8 +114,10 @@ class ProxyWebViewHandler(private val context: Context) {
             if (!settled.compareAndSet(false, true)) return
             android.util.Log.w(TAG, "failed for $pageUrl: $message")
             main.removeCallbacksAndMessages(null)
-            runCatching { webView.stopLoading() }
-            runCatching { webView.destroy() }
+            main.post {
+                runCatching { webView.stopLoading() }
+                runCatching { webView.destroy() }
+            }
             result.error("WEBVIEW_PROXY", message, null)
         }
 

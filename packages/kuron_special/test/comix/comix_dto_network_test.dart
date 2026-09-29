@@ -38,6 +38,36 @@ void main() {
     expect(last.hasNext, isFalse);
   });
 
+  test('SearchResponse exposes meta total/lastPage + explicit flags', () {
+    // Live by-tag shape: romance genre page 1 (48.536 items, 1734 pages).
+    final response = SearchResponse.fromJson({
+      'result': {
+        'items': [jsonDecode(_mangaJson)],
+        'meta': {
+          'total': 48536,
+          'perPage': 28,
+          'page': 1,
+          'lastPage': 1734,
+          'from': 1,
+          'to': 28,
+          'hasNext': true,
+          'hasPrev': false,
+        },
+      },
+    });
+    expect(response.hasNext, isTrue);
+    expect(response.totalItems, 48536);
+    expect(response.totalPages, 1734);
+    // An explicit hasNext:false wins over page < lastPage.
+    final flagged = SearchResponse.fromJson({
+      'result': {
+        'items': [jsonDecode(_mangaJson)],
+        'meta': {'page': 1, 'lastPage': 5, 'hasNext': false},
+      },
+    });
+    expect(flagged.hasNext, isFalse);
+  });
+
   test('ComixChapter mapping (upstream shape)', () {
     final chapter = ComixChapter.fromJson({
       'id': 11383042,

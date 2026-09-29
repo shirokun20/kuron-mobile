@@ -76,7 +76,7 @@ class ComixAdapter implements GenericAdapter {
     Map<String, dynamic> rawConfig,
   ) async {
     final base = _baseUrl(rawConfig);
-    final params = _searchParams(filter, rawConfig);
+    final params = await _searchParams(filter, rawConfig);
     final url = isMangafire
         ? _mangafireListUri(base, filter)
         : _browseUri(base, params);
@@ -84,20 +84,60 @@ class ComixAdapter implements GenericAdapter {
     return AdapterSearchResult(
       items: page.items,
       hasNextPage: page.hasNext,
-      totalPages: null,
-      totalItems: null,
+      totalPages: page.totalPages,
+      totalItems: page.totalItems,
     );
   }
 
-  Map<String, List<String>> _searchParams(
+  /// Parses `type:name` queries produced by detail tag taps
+  /// (navigation.tagQueryMapping mode=name, e.g. `tag:Romance`).
+  static ({String type, String name})? _parseTypeQuery(String query) {
+    final idx = query.indexOf(':');
+    if (idx <= 0) return null;
+    final type = query.substring(0, idx).trim().toLowerCase();
+    final name = query.substring(idx + 1).trim();
+    if (type.isEmpty || name.isEmpty || type.contains(' ')) return null;
+    return (type: type, name: name);
+  }
+
+  /// API id-list param for a tag kind (keiyoushi Filters.kt mapping).
+  static String _idsParam(String type) => switch (type) {
+        'artist' => 'artists[]',
+        'author' => 'authors[]',
+        _ => 'genres_in[]',
+      };
+
+  /// tags/search API type for a tag kind.
+  static String _resolveKind(String type) => switch (type) {
+        'artist' => 'artist',
+        'author' => 'author',
+        _ => 'tag',
+      };
+
+  Future<Map<String, List<String>>> _searchParams(
     SearchFilter filter,
     Map<String, dynamic> rawConfig,
-  ) {
+  ) async {
     final params = <String, List<String>>{};
     final radios = filter.radioGroupSelections;
 
-    if (filter.query.trim().isNotEmpty) {
-      params['keyword'] = [filter.query.trim()];
+    final queryText = filter.query.trim();
+    final typed = queryText.isEmpty ? null : _parseTypeQuery(queryText);
+    if (typed != null) {
+      // Tag tap: resolve the name to API ids instead of title keyword.
+      final ids = await resolveTagIds(
+        _resolveKind(typed.type),
+        typed.name,
+        rawConfig,
+      );
+      if (ids.isNotEmpty) {
+        params[_idsParam(typed.type)] = ids;
+      } else {
+        params['keyword'] = [typed.name];
+        params['order[relevance]'] = ['desc'];
+      }
+    } else if (queryText.isNotEmpty) {
+      params['keyword'] = [queryText];
       params['order[relevance]'] = ['desc'];
     } else {
       switch (filter.sort) {
@@ -112,7 +152,12 @@ class ComixAdapter implements GenericAdapter {
       }
     }
 
-    final contentRating = radios['content_rating'] ?? 'suggestive';
+    // The API matches content_rating as an exact set, not a ceiling:
+    // suggestive-only hides safe/erotica/pornographic results (proven
+    // live: 1 vs 4 items for the same genre). Default to all ratings
+    // when the UI specifies none; explicit radio choices still win.
+    final contentRating =
+        radios['content_rating'] ?? 'safe,suggestive,erotica,pornographic';
     for (final v in contentRating.split(',').map((e) => e.trim())) {
       if (v.isNotEmpty) {
         (params['content_rating[]'] ??= []).add(v);
@@ -126,11 +171,26 @@ class ComixAdapter implements GenericAdapter {
       final v = d.trim();
       if (v.isNotEmpty) (params['demographics[]'] ??= []).add(v);
     }
+    // App-side FilterItems carry id=0 (no stored ids) — resolve by name.
     for (final tag in filter.includeTags) {
-      (params['genres_in[]'] ??= []).add(tag.id.toString());
+      final ids = await resolveTagIds(
+        _resolveKind(tag.type),
+        tag.name,
+        rawConfig,
+      );
+      if (ids.isNotEmpty) {
+        (params[_idsParam(tag.type)] ??= []).addAll(ids);
+      }
     }
     for (final tag in filter.excludeTags) {
-      (params['genres_ex[]'] ??= []).add(tag.id.toString());
+      final ids = await resolveTagIds(
+        _resolveKind(tag.type),
+        tag.name,
+        rawConfig,
+      );
+      if (ids.isNotEmpty) {
+        (params['genres_ex[]'] ??= []).addAll(ids);
+      }
     }
     params['page'] = [filter.page < 1 ? '1' : '${filter.page}'];
     return params;
@@ -161,7 +221,13 @@ class ComixAdapter implements GenericAdapter {
   /// Mangafire Tier-3 only: no cipher exists for the VRF API and the shell
   /// has no SSR blob, so boot the SPA and capture `/api/titles` traffic.
   /// Envelope is top-level `{items, meta}` (live `$.items[*]` selector).
-  Future<({List<Content> items, bool hasNext})> _mangafireListFromWebView(
+  Future<
+      ({
+        List<Content> items,
+        bool hasNext,
+        int? totalItems,
+        int? totalPages
+      })> _mangafireListFromWebView(
     Uri url,
     Map<String, dynamic> rawConfig,
   ) async {
@@ -189,10 +255,18 @@ class ComixAdapter implements GenericAdapter {
     return (
       items: response.items.map((m) => _basicContent(m, rawConfig)).toList(),
       hasNext: response.hasNext,
+      totalItems: response.totalItems,
+      totalPages: response.totalPages,
     );
   }
 
-  Future<({List<Content> items, bool hasNext})> _mangaListFromBrowse(
+  Future<
+      ({
+        List<Content> items,
+        bool hasNext,
+        int? totalItems,
+        int? totalPages
+      })> _mangaListFromBrowse(
     Uri url,
     Map<String, dynamic> rawConfig,
   ) async {
@@ -212,6 +286,8 @@ class ComixAdapter implements GenericAdapter {
           items:
               response.items.map((m) => _basicContent(m, rawConfig)).toList(),
           hasNext: response.hasNext,
+          totalItems: response.totalItems,
+          totalPages: response.totalPages,
         );
       }
     }
@@ -227,6 +303,8 @@ class ComixAdapter implements GenericAdapter {
       return (
         items: scraped.items.map((m) => _basicContent(m, rawConfig)).toList(),
         hasNext: scraped.hasNext,
+        totalItems: scraped.totalItems,
+        totalPages: scraped.totalPages,
       );
     }
 
@@ -249,6 +327,8 @@ class ComixAdapter implements GenericAdapter {
     return (
       items: webResponse.items.map((m) => _basicContent(m, rawConfig)).toList(),
       hasNext: webResponse.hasNext,
+      totalItems: webResponse.totalItems,
+      totalPages: webResponse.totalPages,
     );
   }
 
@@ -486,34 +566,54 @@ class ComixAdapter implements GenericAdapter {
     return AdapterDetailResult(content: content, imageUrls: const []);
   }
 
-  /// Resolves tag names to API ids with a 50-entry LRU cache
-  /// (`/api/v1/tags/search?type=&q=`).
+  /// Resolves a tag name to API ids with a 50-entry LRU cache
+  /// (`/api/v1/tags/search?type=&q=`). Returns at most ONE id: the genre
+  /// namespace first (curated ids — Romance=23 with 48k items vs the tag
+  /// namespace's 106871 with 24), then the requested type's exact
+  /// label/slug match, else its first hit. Returning every near-synonym
+  /// hit ANDs them on the server and empties the result.
   Future<List<String>> resolveTagIds(
       String type, String name, Map<String, dynamic> rawConfig) async {
     final key = '$type\x00${name.toLowerCase()}';
     final cached = _tagIdCache[key];
     if (cached != null) return cached;
     try {
-      final response = await _dio.getUri(
-        Uri.parse(
-          '${_baseUrl(rawConfig)}/api/v1/tags/search',
-        ).replace(queryParameters: {'type': type, 'q': name}),
-      );
-      final data = response.data is String
-          ? jsonDecode(response.data as String) as Map<String, dynamic>
-          : response.data as Map<String, dynamic>;
-      final ids = TagSearchResponse.fromJson(data)
-          .result
-          .map((e) => e.id.toString())
-          .toList();
-      if (_tagIdCache.length >= _tagCacheSize) {
-        _tagIdCache.remove(_tagIdCache.keys.first);
+      var ids = const <String>[];
+      if (type == 'tag') {
+        ids = await _searchTagIds('genre', name, rawConfig);
       }
-      _tagIdCache[key] = ids;
-      return ids;
+      ids = ids.isNotEmpty ? ids : await _searchTagIds(type, name, rawConfig);
+      return _cacheTagIds(key, ids);
     } catch (_) {
       return const [];
     }
+  }
+
+  Future<List<String>> _searchTagIds(
+    String type,
+    String name,
+    Map<String, dynamic> rawConfig,
+  ) async {
+    final response = await _dio.getUri(
+      Uri.parse(
+        '${_baseUrl(rawConfig)}/api/v1/tags/search',
+      ).replace(queryParameters: {'type': type, 'q': name}),
+    );
+    final data = response.data is String
+        ? jsonDecode(response.data as String) as Map<String, dynamic>
+        : response.data as Map<String, dynamic>;
+    final hits = TagSearchResponse.fromJson(data).result;
+    for (final hit in hits) {
+      if (hit.matchesName(name)) return [hit.id.toString()];
+    }
+    return hits.isEmpty ? const [] : [hits.first.id.toString()];
+  }
+
+  List<String> _cacheTagIds(String key, List<String> ids) {
+    if (_tagIdCache.length >= _tagCacheSize) {
+      _tagIdCache.remove(_tagIdCache.keys.first);
+    }
+    return _tagIdCache[key] = ids;
   }
 
   // --------------------------------------------------------------- chapters
