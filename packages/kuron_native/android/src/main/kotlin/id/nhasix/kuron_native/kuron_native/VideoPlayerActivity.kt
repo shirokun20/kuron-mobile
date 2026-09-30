@@ -1,6 +1,7 @@
 package id.nhasix.kuron_native.kuron_native
 import android.widget.FrameLayout
 
+import android.content.pm.ActivityInfo
 import android.annotation.SuppressLint
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -171,6 +172,14 @@ class VideoPlayerActivity : AppCompatActivity() {
                 // The inset padding belongs to the chrome, not to the video:
                 // keeping it would letterbox fullscreen against the status bar.
                 root.setPadding(0, 0, 0, 0)
+                // Android WebView does not implement the Screen Orientation
+                // Lock API, so the page's own <video> can never ask for a
+                // rotation. Native has to request it, and this overrides the
+                // system auto-rotate switch — which is usually off. Landscape
+                // rather than free rotation: the reader itself is portrait, so
+                // fullscreen is the one moment landscape is what the user wants.
+                requestedOrientation =
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 if (view != null) {
                     root.addView(
                         view,
@@ -198,6 +207,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 customView = null
                 webView.visibility = View.VISIBLE
                 webView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
+                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             }
         }
 
