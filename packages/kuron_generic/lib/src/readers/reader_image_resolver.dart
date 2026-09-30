@@ -615,18 +615,10 @@ class ReaderImageResolver {
         if (field != null) urls.addAll(_parser.extractList(doc, field));
       }
     }
-    // Video URLs bypass sanitizeImageUrl (that is the image path), so a
-    // protocol-relative stream such as mangadistrict's
-    // `//sv1-*.mangadistrict.com/videos/.../master.m3u8` would reach the
-    // player and the download manager with no scheme at all. Handlers get
-    // a parsed Uri, not a page to infer from, so it must be absolute here.
-    final absolute = urls
-        .map((url) => url.startsWith('//') ? 'https:$url' : url)
-        .toList(growable: false);
     _logger.t(
-      '$_sourceId reader.video: ${absolute.length} stream(s) in "$container"',
+      '$_sourceId reader.video: ${urls.length} stream(s) in "$container"',
     );
-    return absolute;
+    return urls;
   }
 
   /// The chapter's stream URLs plus where the stream sits in the chapter's own
