@@ -105,12 +105,19 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('convertImagesToPdf() has not been implemented.');
   }
 
-  // Open a URL in a native WebView (Custom Tabs on Android)
+  /// Opens [url] in a Custom Tab on Android, or in this plugin's own WebView
+  /// when [referer] is set.
+  /// [referer] is sent as the request's `Referer` header. Hotlink-protected
+  /// players (cossora.stream) reject requests that lack the embedder's origin,
+  /// and Android Custom Tabs cannot carry headers — a non-null [referer]
+  /// therefore routes to the plugin's own WebView instead of a Custom Tab.
   Future<void> openWebView({
     required String url,
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
+    String? referer,
+    String? title,
   }) {
     throw UnimplementedError('openWebView() has not been implemented.');
   }

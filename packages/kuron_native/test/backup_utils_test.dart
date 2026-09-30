@@ -98,6 +98,8 @@ class MockKuronNativePlatform
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
+    String? referer,
+    String? title,
   }) async {}
 
   @override

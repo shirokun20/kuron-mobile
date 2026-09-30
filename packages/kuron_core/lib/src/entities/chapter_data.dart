@@ -6,6 +6,7 @@ class ChapterData extends Equatable {
     required this.images,
     this.videoUrls = const [],
     this.videoIndex,
+    this.videoReferer,
     this.prevChapterId,
     this.nextChapterId,
     this.prevChapterTitle,
@@ -28,6 +29,14 @@ class ChapterData extends Equatable {
   /// pager. Null means "unknown": the reader then falls back to the end of the
   /// chapter, which is where the old behaviour put it.
   final int? videoIndex;
+
+  /// Origin to present as `Referer` when opening [videoUrls].
+  ///
+  /// Hotlink-protected players reject the request outright without it —
+  /// cossora.stream answers `{"error":true,"message":"Unknown Error xD"}` and
+  /// validates the host, so this is the source page that framed the player.
+  /// Null falls back to a plain Custom Tab, which cannot send the header.
+  final String? videoReferer;
   final String? prevChapterId;
   final String? nextChapterId;
   final String? prevChapterTitle;
@@ -38,6 +47,7 @@ class ChapterData extends Equatable {
         images,
         videoUrls,
         videoIndex,
+        videoReferer,
         prevChapterId,
         nextChapterId,
         prevChapterTitle,

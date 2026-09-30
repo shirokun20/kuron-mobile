@@ -124,12 +124,16 @@ class KuronNative {
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
+    String? referer,
+    String? title,
   }) {
     return KuronNativePlatform.instance.openWebView(
       url: url,
       enableJavaScript: enableJavaScript,
       backgroundColor: backgroundColor,
       textColor: textColor,
+      referer: referer,
+      title: title,
     );
   }
 

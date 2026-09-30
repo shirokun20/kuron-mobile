@@ -830,9 +830,37 @@ class KuronNativePlugin :
         try {
             val url = call.argument<String>("url")
             val enableJs = call.argument<Boolean>("enableJavaScript") ?: true
+            val referer = call.argument<String>("referer")
             
             if (url == null) {
                 result.error("INVALID_ARGS", "URL is required", null)
+                return
+            }
+
+            // Hotlink-protected players (cossora.stream) answer
+            // {"error":true} unless the request carries the embedder's origin as
+            // Referer, and Custom Tabs cannot send headers — so a referer means
+            // our own WebView. No referer keeps the Custom Tabs path untouched.
+            if (!referer.isNullOrBlank()) {
+                val webViewIntent = android.content.Intent(
+                    context,
+                    id.nhasix.kuron_native.kuron_native.WebViewActivity::class.java
+                ).apply {
+                    putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_URL, url)
+                    putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_REFERER, referer)
+                    call.argument<String>("title")?.let {
+                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_TITLE, it)
+                    }
+                    call.argument<String>("backgroundColor")?.let {
+                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_BACKGROUND_COLOR, it)
+                    }
+                    call.argument<String>("textColor")?.let {
+                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_TEXT_COLOR, it)
+                    }
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(webViewIntent)
+                result.success(null)
                 return
             }
 

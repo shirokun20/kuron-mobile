@@ -59,7 +59,7 @@ int readerPageIndexFor(int itemIndex, int videoAt) =>
 int readerNavSlot({required int pageCount, required bool hasVideoStrip}) =>
     pageCount + (hasVideoStrip ? 1 : 0);
 
-/// Play a chapter stream in the platform web view (Custom Tabs).
+/// Play a chapter stream in the platform web view.
 ///
 /// ponytail: playback opens in the platform WebView via
 /// `KuronNative.openWebView`, the same path the reader already uses for
@@ -68,10 +68,14 @@ int readerNavSlot({required int pageCount, required bool hasVideoStrip}) =>
 /// time the chapter is open — for something the user may swipe past — and
 /// autoplaying a stream the moment a chapter loads is hostile anyway. The
 /// user taps, decides to watch, and the reader stays untouched underneath.
-Future<void> openChapterStream(String url) async {
+///
+/// [referer] is the page that framed the player. Hotlink-protected hosts
+/// reject the request without it, and Custom Tabs cannot carry headers, so
+/// passing one switches the native side to its own WebView.
+Future<void> openChapterStream(String url, {String? referer}) async {
   final logger = Logger();
   try {
-    await KuronNative.instance.openWebView(url: url);
+    await KuronNative.instance.openWebView(url: url, referer: referer);
   } catch (e) {
     // The native WebView is unavailable (no host, or a platform without the
     // channel) — hand the URL to the system browser instead of dead-ending.
@@ -85,8 +89,7 @@ Future<void> openChapterStream(String url) async {
 
 /// Play surface for a video/HLS chapter with no pages at all.
 ///
-/// Playback goes through [openChapterStream] (Custom Tabs, never an in-app
-/// web view).
+/// Playback goes through [openChapterStream], never an in-app web view.
 class ReaderVideoChapter extends StatelessWidget {
   const ReaderVideoChapter({
     super.key,
@@ -106,7 +109,10 @@ class ReaderVideoChapter extends StatelessWidget {
             child: VideoPosterCard(
               title: cubit.state.content?.title,
               streamCount: chapterData.videoUrls.length,
-              onPlay: () => openChapterStream(chapterData.videoUrls.first),
+              onPlay: () => openChapterStream(
+                chapterData.videoUrls.first,
+                referer: chapterData.videoReferer,
+              ),
             ),
           ),
         ),
@@ -141,7 +147,10 @@ class ReaderVideoStrip extends StatelessWidget {
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => openChapterStream(chapterData.videoUrls.first),
+        onTap: () => openChapterStream(
+          chapterData.videoUrls.first,
+          referer: chapterData.videoReferer,
+        ),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceLg,

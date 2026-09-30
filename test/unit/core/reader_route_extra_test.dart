@@ -129,5 +129,25 @@ void main() {
       expect(parsed, chapterData);
       expect(parsed!.videoUrls, ['https://cdn.example.com/hls/master.m3u8']);
     });
+
+    // The reader is entered from the detail screen through this route, so a
+    // dropped videoIndex/videoReferer silently moved the card to the end of the
+    // chapter and sent playback without the origin the player demands.
+    test('round-trips a mixed chapter video position and origin', () {
+      const chapterData = ChapterData(
+        images: ['https://cosplaytele.example/01.webp'],
+        videoUrls: ['https://cossora.stream/embed/c74c438d'],
+        videoIndex: 0,
+        videoReferer: 'https://cosplaytele.example/hiyuki-2/',
+      );
+
+      final extra = buildReaderRouteExtra(chapterData: chapterData);
+      final parsed =
+          readReaderChapterData(asReaderRouteExtra(extra)!['chapterData']);
+
+      expect(parsed, chapterData);
+      expect(parsed!.videoIndex, 0);
+      expect(parsed.videoReferer, 'https://cosplaytele.example/hiyuki-2/');
+    });
   });
 }

@@ -336,4 +336,105 @@ void main() {
       );
     });
   });
+
+  group('the origin the player must be shown as', () {
+    // cossora.stream answers `{"error":true,"message":"Unknown Error xD"}`
+    // unless the request carries the embedder's origin as Referer, and it
+    // validates the host — `example.com` is rejected, cosplaytele.com is not.
+    // Custom Tabs cannot send headers, so the reader needs this value to route
+    // playback through the plugin's own WebView instead.
+    late Dio dio;
+    late DioAdapter dioAdapter;
+    late GenericScraperAdapter adapter;
+
+    Map<String, dynamic> configWithVideoBlock(Map<String, dynamic> video) => {
+          'source': 'cosplaytele',
+          'baseUrl': _baseUrl,
+          'scraper': {
+            'urlPatterns': {'detail': '/{id}/', 'chapter': '/{id}'},
+            'selectors': {
+              'detail': {
+                'fields': {
+                  'title': {'selector': 'h1'},
+                },
+              },
+              'reader': {
+                'container': '.entry-content.single-page',
+                'images': {
+                  'selector': '.entry-content.single-page .gallery-item img',
+                  'attribute': 'src',
+                },
+                'video': video,
+              },
+            },
+          },
+        };
+
+    setUp(() {
+      dio = Dio(BaseOptions(baseUrl: _baseUrl));
+      dioAdapter = DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
+      adapter = GenericScraperAdapter(
+        dio: dio,
+        urlBuilder: const GenericUrlBuilder(baseUrl: _baseUrl),
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        logger: Logger(level: Level.off),
+        sourceId: 'cosplaytele',
+      );
+      dioAdapter.onGet(
+        '$_baseUrl/hiyuki-2/',
+        (s) => s.reply(200, _embedFirstHtml, headers: {
+          Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+        }),
+      );
+    });
+
+    test('a declared referer reaches the chapter data', () async {
+      final chapter = await adapter.fetchChapterImages(
+        'hiyuki-2/',
+        configWithVideoBlock({
+          'container': '.entry-content.single-page',
+          'selector': 'iframe[src]',
+          'attribute': 'src',
+          'referer': 'https://cosplaytele.com/',
+        }),
+      );
+
+      expect(chapter?.videoReferer, 'https://cosplaytele.com/');
+    });
+
+    test('without one the chapter page itself is the origin', () async {
+      final chapter = await adapter.fetchChapterImages(
+        'hiyuki-2/',
+        configWithVideoBlock({
+          'container': '.entry-content.single-page',
+          'selector': 'iframe[src]',
+          'attribute': 'src',
+        }),
+      );
+
+      expect(
+        chapter?.videoReferer,
+        '$_baseUrl/hiyuki-2/',
+        reason: 'the page that framed the player is the truthful default',
+      );
+    });
+
+    test('a chapter with no video carries no origin', () async {
+      final chapter = await adapter.fetchChapterImages(
+        'hiyuki-2/',
+        configWithVideoBlock({
+          'container': '.entry-content.single-page',
+          'selector': 'iframe[src="https://ads.example/promo.html"]',
+          'attribute': 'src',
+        }),
+      );
+
+      expect(chapter?.videoUrls, isEmpty);
+      expect(
+        chapter?.videoReferer,
+        isNull,
+        reason: 'nothing to play means nothing to present an origin for',
+      );
+    });
+  });
 }

@@ -217,12 +217,16 @@ class MethodChannelKuronNative extends KuronNativePlatform {
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
+    String? referer,
+    String? title,
   }) async {
     await methodChannel.invokeMethod('openWebView', {
       'url': url,
       'enableJavaScript': enableJavaScript,
       'backgroundColor': backgroundColor,
       'textColor': textColor,
+      'referer': referer,
+      'title': title,
     });
   }
 

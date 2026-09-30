@@ -2411,10 +2411,24 @@ class GenericScraperAdapter implements GenericAdapter {
             '${videoIndex == null ? '' : ', after $videoIndex page(s)'}');
       }
 
+      // Where the player came from. Hotlink-protected hosts validate it against
+      // the page that framed them, so the chapter URL is the truthful default;
+      // `reader.video.referer` overrides it when the site expects another origin.
+      String? videoReferer;
+      if (videoUrls.isNotEmpty) {
+        final configured = readerConfig['video'];
+        final declared = configured is Map
+            ? (configured['referer'] as String?)?.trim()
+            : null;
+        videoReferer =
+            (declared == null || declared.isEmpty) ? url : declared;
+      }
+
       return ChapterData(
         images: imageUrls,
         videoUrls: videoUrls,
         videoIndex: videoIndex,
+        videoReferer: videoReferer,
         nextChapterId: nextId,
         prevChapterId: prevId,
       );
