@@ -91,7 +91,9 @@ class RemoteConfigService {
   // Initialise config using the Smart Sync strategy.
   ///
   // [isFirstRun] — when true, a critical failure rethrows the exception.
-  // [onProgress] — optional 0.0–1.0 progress callback.
+  // [onProgress] — optional 0.0–1.0 progress callback. `message` is an
+  //   **l10n key**, never display text: the splash resolver looks it up and
+  //   anything it cannot map would otherwise be painted on screen raw.
   Future<void> smartInitialize({
     bool isFirstRun = false,
     void Function(double progress, String message)? onProgress,
@@ -100,7 +102,7 @@ class RemoteConfigService {
 
     try {
       final configDir = await _getConfigDirectory();
-      onProgress?.call(0.05, 'Loading bundled defaults…');
+      onProgress?.call(0.05, 'loadingBundledDefaults');
 
       // Preload guaranteed bundled defaults first so critical sources like
       // nhentai are always available.
@@ -110,7 +112,7 @@ class RemoteConfigService {
       // Manifest CDN mode is disabled. Keep in-memory manifest empty.
       _manifest = null;
 
-      onProgress?.call(0.25, 'Restoring installed local sources…');
+      onProgress?.call(0.25, 'restoringLocalSources');
       await _restoreInstalledSourcesFromCache(configDir);
 
       // Safety net: bundled sources must always be available.
@@ -123,10 +125,10 @@ class RemoteConfigService {
       }
 
       // Tags manifest is always loaded from asset (it's metadata, not config)
-      onProgress?.call(0.55, 'Loading tags config…');
+      onProgress?.call(0.55, 'loadingTagsConfig');
       await _loadTagsManifest();
 
-      onProgress?.call(0.85, 'Source configs ready…');
+      onProgress?.call(0.85, 'sourceConfigsReady');
 
       // Persist sync timestamp
       final prefs = await SharedPreferences.getInstance();
@@ -135,7 +137,7 @@ class RemoteConfigService {
         DateTime.now().millisecondsSinceEpoch,
       );
 
-      onProgress?.call(1.0, 'Config ready');
+      onProgress?.call(1.0, 'configReady');
       _logger.i(
         '✅ RemoteConfigService ready — ${_sourceConfigs.length} sources loaded',
       );

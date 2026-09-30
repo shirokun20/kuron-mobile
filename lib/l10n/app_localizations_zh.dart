@@ -4291,6 +4291,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get connectingMsg => '连接中...';
 
   @override
+  String get loadingBundledDefaults => '正在加载内置源...';
+
+  @override
+  String get restoringLocalSources => '正在恢复已安装的源...';
+
+  @override
+  String get loadingTagsConfig => '正在加载标签分类...';
+
+  @override
+  String get sourceConfigsReady => '源库已就绪';
+
+  @override
+  String get configReady => '资料库已就绪';
+
+  @override
+  String readyLastSync(String time) {
+    return '就绪（上次同步 $time）';
+  }
+
+  @override
+  String get readyLastSyncUnavailable => '就绪（尚未同步）';
+
+  @override
+  String offlineModeAvailable(int count) {
+    return '离线模式：已有 $count 个已下载作品';
+  }
+
+  @override
+  String get noOfflineContentAvailable => '暂无离线内容。在联网时下载一些内容，即可离线阅读。';
+
+  @override
   String failedLoadOffline(String error) {
     return '加载离线内容失败：$error';
   }
@@ -5279,9 +5310,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get readerScreenGoToFirstPage => '回到第一页';
-
-  @override
-  String get readerVideoEyebrow => '视频章节';
 
   @override
   String get readerVideoPlay => '播放视频';

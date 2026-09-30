@@ -2562,6 +2562,15 @@
   "downloadingInitConfig": "Mengunduh konfigurasi awal...",
   "readyOffline": "Siap (Mode Luring)",
   "connectingMsg": "Menghubungkan...",
+  "loadingBundledDefaults": "Memuat sumber bawaan...",
+  "restoringLocalSources": "Memulihkan sumber terpasang...",
+  "loadingTagsConfig": "Memuat kategori tag...",
+  "sourceConfigsReady": "Pustaka sumber siap",
+  "configReady": "Pustaka siap",
+  "readyLastSync": "Siap (sinkron terakhir {time})",
+  "readyLastSyncUnavailable": "Siap (belum pernah sinkron)",
+  "offlineModeAvailable": "Mode luring: {count} judul terunduh tersedia",
+  "noOfflineContentAvailable": "Belum ada konten luring. Unduh sesuatu saat online untuk dibaca nanti.",
   "failedLoadOffline": "Gagal memuat konten offline: {error}",
   "@failedLoadOffline": {
     "placeholders": {
@@ -3034,7 +3043,6 @@
   "readerScreenThanks": "Terima Kasih Sudah Membaca!",
   "readerScreenThanksDesc": "Semoga kamu menikmati chapter ini. Sampai jumpa di chapter berikutnya!",
   "readerScreenGoToFirstPage": "Baca dari Awal",
-  "readerVideoEyebrow": "CHAPTER VIDEO",
   "readerVideoPlay": "Putar video",
   "readerVideoStreamCount": "{count} stream tersedia",
   "@readerVideoStreamCount": {

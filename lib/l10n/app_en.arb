@@ -3183,6 +3183,29 @@
   "downloadingInitConfig": "Downloading initial configuration...",
   "readyOffline": "Ready (Offline Mode)",
   "connectingMsg": "Connecting...",
+  "loadingBundledDefaults": "Loading bundled sources...",
+  "restoringLocalSources": "Restoring installed sources...",
+  "loadingTagsConfig": "Loading tag categories...",
+  "sourceConfigsReady": "Source library ready",
+  "configReady": "Library ready",
+  "readyLastSync": "Ready (last synced {time})",
+  "@readyLastSync": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "readyLastSyncUnavailable": "Ready (not synced yet)",
+  "offlineModeAvailable": "Offline mode: {count} downloaded titles available",
+  "@offlineModeAvailable": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "noOfflineContentAvailable": "No offline content yet. Download something while you are online to read it later.",
   "failedLoadOffline": "Failed to load offline content: {error}",
   "@failedLoadOffline": {
     "placeholders": {
@@ -4048,7 +4071,6 @@
   "readerScreenThanks": "Thank You for Reading!",
   "readerScreenThanksDesc": "Hope you enjoyed this chapter. See you in the next one!",
   "readerScreenGoToFirstPage": "Go to First Page",
-  "readerVideoEyebrow": "VIDEO CHAPTER",
   "readerVideoPlay": "Play video",
   "readerVideoStreamCount": "{count} streams available",
   "@readerVideoStreamCount": {

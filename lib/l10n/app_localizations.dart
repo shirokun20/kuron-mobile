@@ -7602,6 +7602,60 @@ abstract class AppLocalizations {
   /// **'Connecting...'**
   String get connectingMsg;
 
+  /// No description provided for @loadingBundledDefaults.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading bundled sources...'**
+  String get loadingBundledDefaults;
+
+  /// No description provided for @restoringLocalSources.
+  ///
+  /// In en, this message translates to:
+  /// **'Restoring installed sources...'**
+  String get restoringLocalSources;
+
+  /// No description provided for @loadingTagsConfig.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading tag categories...'**
+  String get loadingTagsConfig;
+
+  /// No description provided for @sourceConfigsReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Source library ready'**
+  String get sourceConfigsReady;
+
+  /// No description provided for @configReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Library ready'**
+  String get configReady;
+
+  /// No description provided for @readyLastSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready (last synced {time})'**
+  String readyLastSync(String time);
+
+  /// No description provided for @readyLastSyncUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready (not synced yet)'**
+  String get readyLastSyncUnavailable;
+
+  /// No description provided for @offlineModeAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline mode: {count} downloaded titles available'**
+  String offlineModeAvailable(int count);
+
+  /// No description provided for @noOfflineContentAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No offline content yet. Download something while you are online to read it later.'**
+  String get noOfflineContentAvailable;
+
   /// No description provided for @failedLoadOffline.
   ///
   /// In en, this message translates to:
@@ -9257,12 +9311,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Go to First Page'**
   String get readerScreenGoToFirstPage;
-
-  /// No description provided for @readerVideoEyebrow.
-  ///
-  /// In en, this message translates to:
-  /// **'VIDEO CHAPTER'**
-  String get readerVideoEyebrow;
 
   /// No description provided for @readerVideoPlay.
   ///

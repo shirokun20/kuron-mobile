@@ -3158,6 +3158,15 @@
   "downloadingInitConfig": "正在下载初始配置...",
   "readyOffline": "就绪（离线模式）",
   "connectingMsg": "连接中...",
+  "loadingBundledDefaults": "正在加载内置源...",
+  "restoringLocalSources": "正在恢复已安装的源...",
+  "loadingTagsConfig": "正在加载标签分类...",
+  "sourceConfigsReady": "源库已就绪",
+  "configReady": "资料库已就绪",
+  "readyLastSync": "就绪（上次同步 {time}）",
+  "readyLastSyncUnavailable": "就绪（尚未同步）",
+  "offlineModeAvailable": "离线模式：已有 {count} 个已下载作品",
+  "noOfflineContentAvailable": "暂无离线内容。在联网时下载一些内容，即可离线阅读。",
   "failedLoadOffline": "加载离线内容失败：{error}",
   "@failedLoadOffline": {
     "placeholders": {
@@ -3630,7 +3639,6 @@
   "readerScreenThanks": "感谢阅读！",
   "readerScreenThanksDesc": "希望你享受这一章节。下一章再见！",
   "readerScreenGoToFirstPage": "回到第一页",
-  "readerVideoEyebrow": "视频章节",
   "readerVideoPlay": "播放视频",
   "readerVideoStreamCount": "有 {count} 个可用流",
   "@readerVideoStreamCount": {

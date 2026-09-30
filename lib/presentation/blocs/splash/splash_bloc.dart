@@ -97,6 +97,20 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
     }
   }
 
+  /// Success message for the splash, as an l10n token.
+  ///
+  /// The screen resolves `key[:payload]`, so the sync time travels as a
+  /// payload instead of being formatted here — three call sites used to build
+  /// the same English sentence inline, which the resolver could not translate
+  /// and printed raw on the success screen.
+  @visibleForTesting
+  static String readyMessage(DateTime? lastSync) {
+    if (lastSync == null) return 'readyLastSync';
+    final hh = lastSync.hour.toString().padLeft(2, '0');
+    final mm = lastSync.minute.toString().padLeft(2, '0');
+    return 'readyLastSync:$hh:$mm';
+  }
+
   // static const Duration _initialDelay = Duration(seconds: 1); // Removed for optimization
 
   Future<void> _onSplashStarted(
@@ -210,9 +224,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
       if (!needsLegacyCloudflare(contentSourceRegistry)) {
         _logger.i('SplashBloc: active source does not use the legacy '
             'Cloudflare scraper path, skipping bypass check');
-        emit(SplashSuccess(
-            message:
-                'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
+        emit(SplashSuccess(message: readyMessage(lastSync)));
         return;
       }
 
@@ -223,9 +235,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
           DateTime.now().millisecondsSinceEpoch - verifiedAt <
               cfCacheTtl.inMilliseconds) {
         _logger.i('SplashBloc: Cloudflare verified recently, using cache');
-        emit(SplashSuccess(
-            message:
-                'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
+        emit(SplashSuccess(message: readyMessage(lastSync)));
         return;
       }
 
@@ -236,9 +246,7 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
         _logger.i('SplashBloc: Cloudflare already bypassed');
         await prefs.setInt(
             _cfVerifiedAtKey, DateTime.now().millisecondsSinceEpoch);
-        emit(SplashSuccess(
-            message:
-                'Ready (Last Sync: ${lastSync != null ? "${lastSync.hour}:${lastSync.minute}" : "Unknown"})'));
+        emit(SplashSuccess(message: readyMessage(lastSync)));
         return;
       }
 
@@ -480,13 +488,11 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
             'SplashBloc: Offline mode activated with ${completedDownloads.length} contents');
         emit(SplashOfflineSuccess(
           downloadCount: completedDownloads.length,
-          message:
-              'Offline mode: ${completedDownloads.length} downloaded contents available',
+          message: 'offlineModeAvailable:${completedDownloads.length}',
         ));
       } else {
         emit(SplashError(
-          message:
-              'No offline content available.\nPlease download content when internet is available.',
+          message: 'noOfflineContentAvailable',
           canRetry: true,
           canUseOffline: false,
         ));

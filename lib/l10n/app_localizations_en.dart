@@ -4402,6 +4402,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String get connectingMsg => 'Connecting...';
 
   @override
+  String get loadingBundledDefaults => 'Loading bundled sources...';
+
+  @override
+  String get restoringLocalSources => 'Restoring installed sources...';
+
+  @override
+  String get loadingTagsConfig => 'Loading tag categories...';
+
+  @override
+  String get sourceConfigsReady => 'Source library ready';
+
+  @override
+  String get configReady => 'Library ready';
+
+  @override
+  String readyLastSync(String time) {
+    return 'Ready (last synced $time)';
+  }
+
+  @override
+  String get readyLastSyncUnavailable => 'Ready (not synced yet)';
+
+  @override
+  String offlineModeAvailable(int count) {
+    return 'Offline mode: $count downloaded titles available';
+  }
+
+  @override
+  String get noOfflineContentAvailable =>
+      'No offline content yet. Download something while you are online to read it later.';
+
+  @override
   String failedLoadOffline(String error) {
     return 'Failed to load offline content: $error';
   }
@@ -5427,9 +5459,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get readerScreenGoToFirstPage => 'Go to First Page';
-
-  @override
-  String get readerVideoEyebrow => 'VIDEO CHAPTER';
 
   @override
   String get readerVideoPlay => 'Play video';

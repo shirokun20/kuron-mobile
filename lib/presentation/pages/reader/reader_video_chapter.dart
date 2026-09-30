@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/design_tokens.dart';
+import '../../../core/constants/text_style_const.dart';
 import '../../cubits/reader/reader_cubit.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -90,11 +91,10 @@ class ReaderVideoChapter extends StatelessWidget {
 /// Play card for a chapter that has pages **and** a stream.
 ///
 /// Sits in the content flow right after the last image — the site's own
-/// order — shaped like the image loading card but full content width with
-/// flexible height, so it reads as part of the chapter instead of chrome
-/// pinned to a screen edge. No SafeArea here: an in-flow item inherits the
-/// list's own insets, and edge-pinning is what once parked the strip above
-/// the app bar.
+/// order — so it wears the app's stock card (flat, hairline side) and reads as
+/// one more item in the page flow rather than chrome pinned to a screen edge.
+/// One row, one focal accent, no gradient: the play tile already says what
+/// happens on tap, and the chevron says it opens something.
 class ReaderVideoStrip extends StatelessWidget {
   const ReaderVideoStrip({
     super.key,
@@ -109,61 +109,80 @@ class ReaderVideoStrip extends StatelessWidget {
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
     final streamCount = chapterData.videoUrls.length;
-    final radius = BorderRadius.circular(DesignTokens.radiusXl);
 
     return Card(
-      elevation: 6,
-      shadowColor: cs.shadow.withValues(alpha: 0.2),
-      shape: RoundedRectangleBorder(borderRadius: radius),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => openChapterStream(chapterData.videoUrls.first),
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: DesignTokens.spaceLg,
-            vertical: DesignTokens.space2xl,
+            vertical: DesignTokens.spaceMd,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Row(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [cs.primary, cs.secondary],
-                  ),
-                ),
-                child: Icon(
-                  Icons.play_arrow_rounded,
-                  size: 36,
-                  color: cs.onPrimary,
+              const _PlayTile(),
+              const SizedBox(width: DesignTokens.spaceMd),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      l10n?.readerVideoPlay ?? 'Play video',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyleConst.contentTitle
+                          .copyWith(color: cs.onSurface),
+                    ),
+                    if (streamCount > 1) ...[
+                      const SizedBox(height: DesignTokens.spaceXs),
+                      Text(
+                        l10n?.readerVideoStreamCount(streamCount) ??
+                            '$streamCount streams available',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleConst.bodySmall
+                            .copyWith(color: cs.onSurfaceVariant),
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: DesignTokens.spaceMd),
-              Text(
-                l10n?.readerVideoEyebrow ?? 'Video chapter',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: cs.onSurface,
-                  fontWeight: FontWeight.w700,
-                ),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: cs.onSurfaceVariant,
               ),
-              if (streamCount > 1) ...[
-                const SizedBox(height: DesignTokens.spaceSm),
-                Text(
-                  l10n?.readerVideoStreamCount(streamCount) ??
-                      '$streamCount streams available',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// The surface's single accent: a flat container tile playing the role the
+/// gradient blob was reaching for, at the 40dp the rest of the app's controls
+/// use.
+class _PlayTile extends StatelessWidget {
+  const _PlayTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: cs.primaryContainer,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
+      child: Icon(
+        Icons.play_arrow_rounded,
+        size: 22,
+        color: cs.onPrimaryContainer,
       ),
     );
   }
@@ -194,121 +213,49 @@ class VideoPosterCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final l10n = AppLocalizations.of(context);
-    final radius = BorderRadius.circular(DesignTokens.radius2xl);
+    final heading = title?.trim() ?? '';
 
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(DesignTokens.spaceXl),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 360),
-          child: Material(
-            color: Colors.transparent,
-            clipBehavior: Clip.antiAlias,
-            borderRadius: radius,
-            child: InkWell(
-              onTap: onPlay,
-              child: Ink(
-                decoration: BoxDecoration(
-                  borderRadius: radius,
-                  border: Border.all(color: cs.primary.withValues(alpha: 0.20)),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      cs.primary.withValues(alpha: 0.16),
-                      cs.surfaceContainerHighest.withValues(alpha: 0.55),
-                      cs.secondary.withValues(alpha: 0.12),
-                    ],
-                  ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (heading.isNotEmpty) ...[
+                Text(
+                  heading,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      TextStyleConst.headingSmall.copyWith(color: cs.onSurface),
                 ),
-                child: Padding(
+                const SizedBox(height: DesignTokens.spaceXl),
+              ],
+              FilledButton.icon(
+                onPressed: onPlay,
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: Text(l10n?.readerVideoPlay ?? 'Play video'),
+                style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: DesignTokens.spaceXl,
-                    vertical: DesignTokens.space3xl,
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        l10n?.readerVideoEyebrow ?? 'Video chapter',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.primary,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      if (title != null && title!.trim().isNotEmpty) ...[
-                        const SizedBox(height: DesignTokens.spaceSm),
-                        Text(
-                          title!.trim(),
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: DesignTokens.space2xl),
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [cs.primary, cs.secondary],
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: cs.primary.withValues(alpha: 0.45),
-                              blurRadius: 24,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.play_arrow_rounded,
-                          size: 48,
-                          color: cs.onPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: DesignTokens.spaceLg),
-                      Text(
-                        l10n?.readerVideoPlay ?? 'Play video',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurface,
-                        ),
-                      ),
-                      if (streamCount > 1) ...[
-                        const SizedBox(height: DesignTokens.spaceMd),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: DesignTokens.spaceMd,
-                            vertical: DesignTokens.spaceXs,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.onSurface.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(
-                              DesignTokens.radiusFull,
-                            ),
-                          ),
-                          child: Text(
-                            l10n?.readerVideoStreamCount(streamCount) ??
-                                '$streamCount streams available',
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                    vertical: DesignTokens.spaceLg,
                   ),
                 ),
               ),
-            ),
+              if (streamCount > 1) ...[
+                const SizedBox(height: DesignTokens.spaceMd),
+                Text(
+                  l10n?.readerVideoStreamCount(streamCount) ??
+                      '$streamCount streams available',
+                  textAlign: TextAlign.center,
+                  style: TextStyleConst.bodySmall
+                      .copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
+            ],
           ),
         ),
       ),

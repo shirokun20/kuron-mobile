@@ -2,6 +2,9 @@
 
 > Visual identity & component design language for Kuron mobile reading app.
 > Reflects actual tokens in code — not aspirational.
+> **Values mirror the code.** If a hex here disagrees with
+> `lib/core/constants/colors_const.dart`, the code is right and this file is
+> stale — fix this file. Re-synced 2026-09-30 after the warm-palette revision.
 
 ---
 
@@ -42,38 +45,56 @@ Core Brand
   brandMuted  #E0827E
   brandDusty  #9D555B
   brandDark   #1A1A1F
+  warm        #D48A6A  (secondary accent)
+  readGold    #C8A06A  (read / completed)
 
-Light Theme
-  bg       #FBF9F7  Warm off-white
-  surface  #F3F0EC  Cream
-  card     #FFFFFF  Pure white
-  text     #2C2926  Warm black
-  textSub  #7A716A  Muted brown
-  border   #FFBE69  Warm accent
+Light Theme — warm cream, aged paper
+  bg       #EFE6DC
+  surface  #F5EDE4
+  card     #FCF7F0
+  cardAlt  #FAF3EC
+  border   #D6C8BC
+  text     #2E2722
+  textSub  #7A6E66
+  accent   #C76A62  (lightCoral, deepened for AA)
 
-Dark Theme
-  bg       #121215  Deep dark
-  surface  #1A1A1F  Brand dark base
-  card     #222228  Elevated card
-  text     #FFFFFF  Warm white
-  textSub  #9A9590  Muted
-  border   #593734  Subtle borders
+Dark Theme — warm dark, library at night (default)
+  bg       #1C1816
+  surface  #221E1C
+  card     #2A2522
+  cardAlt  #2E2926
+  border   #4A3D36
+  text     #D4CCC4
+  textSub  #9E948C
 
-AMOLED Theme
-  bg       #000000  Pure black
-  surface  #0A0A0F  Slight tint
-  card     #141418  Card surface
-  border   #282830  Border
+AMOLED — pure black, warm text
+  bg       #000000
+  surface  #0C0A08
+  card     #12100E
+  cardAlt  #161412
+  border   #362C28
+  text     #CCC4BC
+  textSub  #8E847C
+
+Note — pure monochrome (note-dark mirrors it inverted)
+  bg       #FFFFFF
+  surface  #F5F5F5
+  card     #EEEEEE
+  cardAlt  #E0E0E0
+  border   #BDBDBD
+  text     #000000
+  textSub  #757575
 
 Semantic
-  primary    brandCoral
-  secondary  brandDusty
-  tertiary   brandMuted
+  primary           brandCoral  (light: lightCoral)
+  primaryContainer  #4A2A28 dark · #B87054 light
+  secondary         warm
+  tertiary          brandMuted
 
 Status
-  error    #FF6B6B
-  success  #7DD3A8
-  warning  #FFD076
+  error    #C86858  muted brick
+  success  #8AB87A  muted leaf green
+  warning  #D4A060
   info     #7BB8FF
 ```
 
@@ -81,10 +102,11 @@ Status
 
 | Role | Usage |
 |------|-------|
-| **Primary** | Accent actions, FAB, selected nav, active controls |
-| **Primary Container** | Selected states, badge bg (dark) |
-| **Surface** | Scaffold, drawers, bottom sheets |
-| **Card** | Content cards, list tiles, elevated containers |
+| **Primary** | Accent actions, FAB, selected nav, active controls — one per surface |
+| **Primary Container** | Selected states, badge and affordance-tile backgrounds |
+| **Background** | Scaffold, the page the content sits on |
+| **Surface** | Drawers, sheets, anything above the background |
+| **Card** | Content cards, list tiles — defined by a border, not a shadow |
 | **Border** | Card outlines — primary visual boundary (flat look) |
 | **Text** | Body, headings |
 | **Text Sub** | Captions, secondary info, metadata |
@@ -92,17 +114,23 @@ Status
 
 ### Theme Variants
 
-| Variant | Background | Surface |
-|---------|-----------|---------|
-| **Light** | `#FBF9F7` | `#F3F0EC` |
-| **Dark** | `#121215` | `#1A1A1F` (default) |
-| **AMOLED** | `#000000` | `#0A0A0F` |
+| Variant | Background | Surface | Character |
+|---------|-----------|---------|-----------|
+| **Light** | `#EFE6DC` | `#F5EDE4` | Warm cream, aged paper |
+| **Dark** | `#1C1816` | `#221E1C` | Warm dark, library at night (default) |
+| **AMOLED** | `#000000` | `#0C0A08` | Pure black, warm text |
+| **Note** | `#FFFFFF` | `#F5F5F5` | Pure monochrome, for reading text |
+| **Note dark** | `#000000` | `#111111` | Monochrome at night, no accent at all |
 
 ---
 
 ## Typography
 
-**Font**: System sans-serif (no explicit `fontFamily`). Monospace only for debug.
+**Font**: `google_fonts` — **Playfair Display** for display/headline, **Inter** for
+body and labels, applied to `ThemeData.textTheme` in all five themes
+(`theme_cubit.dart` `_googleFontsTextTheme`). `TextStyleConst` styles are plain
+`TextStyle`s, so they fall back to the system face — using one directly opts that
+run of text out of Inter. Monospace only for debug output.
 
 ### Weight Scale
 
@@ -133,7 +161,7 @@ Full scale in `lib/core/constants/text_style_const.dart`. Includes component-spe
 
 ---
 
-## Design Tokens (NEW)
+## Design Tokens
 
 **`lib/core/constants/design_tokens.dart`** — central token scale, replacing inline numeric literals.
 
@@ -158,7 +186,7 @@ Full scale in `lib/core/constants/text_style_const.dart`. Includes component-spe
 | `radiusLg` | 12 | Input fields (most used) |
 | `radiusXl` | 16 | Cards |
 | `radius2xl` | 20 | Bottom sheets, modals |
-| `radiusFull` | 999 | Circular elements |
+| `radiusFull` | 999 | Status pills, circular elements |
 
 ### Elevation
 
@@ -197,7 +225,7 @@ Full scale in `lib/core/constants/text_style_const.dart`. Includes component-spe
 ### Cards
 ```
 CardThemeData(
-  color: {light: white, dark: #222228, amoled: #141418},
+  color: {light: #FCF7F0, dark: #2A2522, amoled: #12100E, note: #EEEEEE},
   elevation: elevationNone,
   shape: RoundedRectangleBorder(
     borderRadius: radiusXl (16),
@@ -229,8 +257,10 @@ CardThemeData(
 | `lib/core/constants/design_tokens.dart` | Spacing, radius, elevation, duration, curves |
 | `lib/core/utils/tag_color_palette.dart` | Tag→color mapping (12 categories) |
 | `lib/core/constants/app_constants.dart` | Config-driven UI values |
-| `lib/presentation/cubits/theme/theme_cubit.dart` | ThemeData (light/dark/amoled) |
+| `lib/presentation/cubits/theme/theme_cubit.dart` | ThemeData (light / dark / amoled / note / note-dark) |
 
 ---
 
-*Updated 2026-06-24 — matches codebase. Design tokens now live in `DesignTokens` class, 45+ files migrated.*
+*Updated 2026-09-30 — palette, fonts, and card values re-synced to the code after the
+warm-palette revision (2026-06-24) had left this file describing the old cool greys.
+Type scale and token scales were already accurate.*

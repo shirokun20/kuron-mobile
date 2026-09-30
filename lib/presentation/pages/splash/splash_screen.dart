@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/constants/colors_const.dart'
     show AppColors, KuronColors;
 import 'package:nhasixapp/core/constants/design_tokens.dart';
@@ -235,71 +236,12 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
     BuildContext context,
     String messageKeyOrText, {
     int? offlineCount,
-  }) {
-    final l10n = AppLocalizations.of(context)!;
-
-    final separatorIndex = messageKeyOrText.indexOf(':');
-    final key = separatorIndex == -1
-        ? messageKeyOrText
-        : messageKeyOrText.substring(0, separatorIndex);
-    final payload = separatorIndex == -1
-        ? ''
-        : messageKeyOrText.substring(separatorIndex + 1).trim();
-
-    switch (key) {
-      case 'Initializing...':
-      case 'initializingApplication':
-        return l10n.initializingApplication;
-      case 'Bypassing Cloudflare protection...':
-        return l10n.bypassingProtection;
-      case 'Successfully bypassed Cloudflare protection':
-        return l10n.connectedSuccess;
-      case 'No internet connection. Checking offline content...':
-        return l10n.noInternetCheckOffline;
-      case 'Offline Mode (Limited Features)':
-        return l10n.offlineLimitedFeatures;
-      case 'loadingConfigMsg':
-        return l10n.loadingConfigMsg;
-      case 'initTagsDbMsg':
-        return l10n.initTagsDbMsg;
-      case 'downloadingTagsMsg':
-        return payload.isNotEmpty
-            ? l10n.downloadingTagsMsg(payload)
-            : l10n.loadingConfigMsg;
-      case 'initBypassMsg':
-        return l10n.initBypassMsg;
-      case 'connectingToSite':
-        return l10n.connectingToSite;
-      case 'connectedSuccess':
-        return l10n.connectedSuccess;
-      case 'failedToConnect':
-        return l10n.failedToConnect;
-      case 'bypassFailed':
-        return l10n.bypassFailed;
-      case 'offlineBypassFailed':
-        return l10n.offlineBypassFailed;
-      case 'readyOfflineLimited':
-        return l10n.readyOfflineLimited;
-      case 'downloadingInitConfig':
-        return l10n.downloadingInitConfig;
-      case 'readyOffline':
-        return l10n.readyOffline;
-      case 'connectingMsg':
-        return l10n.connectingMsg;
-      case 'noInternetCheckOffline':
-        return l10n.noInternetCheckOffline;
-      case 'foundOfflineItems':
-        return l10n.foundOfflineItems(offlineCount ?? 0);
-      case 'noInternetNoOffline':
-        return l10n.noInternetNoOffline;
-      case 'offlineLimitedFeatures':
-        return l10n.offlineLimitedFeatures;
-      case 'readyOfflineLimitedFeatures':
-        return l10n.readyOfflineLimitedFeatures;
-      default:
-        return messageKeyOrText;
-    }
-  }
+  }) =>
+      resolveSplashMessage(
+        AppLocalizations.of(context)!,
+        messageKeyOrText,
+        offlineCount: offlineCount,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -911,5 +853,132 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
         );
       },
     );
+  }
+}
+
+final _splashLogger = Logger();
+
+/// Resolve a splash message token to text the reader can read.
+///
+/// `token` is `key` or `key:payload`. Public and pure so the whole emission
+/// surface can be walked in a test: while this was a private method that
+/// returned its argument for anything unmapped, nine tokens — including two
+/// inline English sentences — reached the screen untranslated.
+String resolveSplashMessage(
+  AppLocalizations l10n,
+  String token, {
+  int? offlineCount,
+}) {
+  final separatorIndex = token.indexOf(':');
+  final key = separatorIndex == -1 ? token : token.substring(0, separatorIndex);
+  final payload =
+      separatorIndex == -1 ? '' : token.substring(separatorIndex + 1).trim();
+
+  // Every error key takes an `{error}` placeholder. Emitted without one, the
+  // sentence would end in a dangling colon, so fall back to the generic.
+  String errorMessage(String Function(String) withError) =>
+      payload.isNotEmpty ? withError(payload) : l10n.unexpectedError;
+
+  switch (key) {
+    // Legacy English sentences still emitted by SplashState defaults.
+    case 'Initializing...':
+    case 'initializingApplication':
+      return l10n.initializingApplication;
+    case 'Bypassing Cloudflare protection...':
+      return l10n.bypassingProtection;
+    case 'Successfully bypassed Cloudflare protection':
+      return l10n.connectedSuccess;
+    case 'No internet connection. Checking offline content...':
+      return l10n.noInternetCheckOffline;
+    case 'Offline Mode (Limited Features)':
+      return l10n.offlineLimitedFeatures;
+
+    // SplashBloc — configuration and tags.
+    case 'loadingConfigMsg':
+      return l10n.loadingConfigMsg;
+    case 'initTagsDbMsg':
+      return l10n.initTagsDbMsg;
+    case 'downloadingTagsMsg':
+      return payload.isNotEmpty
+          ? l10n.downloadingTagsMsg(payload)
+          : l10n.loadingConfigMsg;
+    case 'downloadingInitConfig':
+      return l10n.downloadingInitConfig;
+
+    // RemoteConfigService.smartInitialize, while the app boots.
+    case 'loadingBundledDefaults':
+      return l10n.loadingBundledDefaults;
+    case 'restoringLocalSources':
+      return l10n.restoringLocalSources;
+    case 'loadingTagsConfig':
+      return l10n.loadingTagsConfig;
+    case 'sourceConfigsReady':
+      return l10n.sourceConfigsReady;
+    case 'configReady':
+      return l10n.configReady;
+
+    // SplashBloc — bypass and connectivity.
+    case 'checkingConnection':
+      return l10n.checkingConnection;
+    case 'connectingMsg':
+      return l10n.connectingMsg;
+    case 'connectingToSite':
+      return l10n.connectingToSite;
+    case 'initBypassMsg':
+      return l10n.initBypassMsg;
+    case 'connectedSuccess':
+      return l10n.connectedSuccess;
+    case 'readyLastSync':
+      return payload.isNotEmpty
+          ? l10n.readyLastSync(payload)
+          : l10n.readyLastSyncUnavailable;
+
+    // SplashBloc — failures.
+    case 'initFailedMsg':
+      return errorMessage(l10n.initFailedMsg);
+    case 'failedToConnect':
+      return l10n.failedToConnect;
+    case 'failedInitBypass':
+      return errorMessage(l10n.failedInitBypass);
+    case 'bypassFailed':
+      return l10n.bypassFailed;
+    case 'offlineBypassFailed':
+      return l10n.offlineBypassFailed;
+    case 'errorBypassResult':
+      return errorMessage(l10n.errorBypassResult);
+    case 'failedEnableOffline':
+      return errorMessage(l10n.failedEnableOffline);
+
+    // SplashBloc — offline path.
+    case 'noInternetCheckOffline':
+      return l10n.noInternetCheckOffline;
+    case 'noInternetNoOffline':
+      return l10n.noInternetNoOffline;
+    case 'unableCheckOffline':
+      return errorMessage(l10n.unableCheckOffline);
+    case 'failedCheckOffline':
+      return errorMessage(l10n.failedCheckOffline);
+    case 'failedLoadOffline':
+      return errorMessage(l10n.failedLoadOffline);
+    case 'foundOfflineItems':
+      return l10n.foundOfflineItems(offlineCount ?? 0);
+    case 'offlineModeAvailable':
+      return l10n.offlineModeAvailable(offlineCount ?? 0);
+    case 'noOfflineContentAvailable':
+      return l10n.noOfflineContentAvailable;
+    case 'offlineLimitedFeatures':
+      return l10n.offlineLimitedFeatures;
+    case 'readyOfflineLimited':
+      return l10n.readyOfflineLimited;
+    case 'readyOfflineLimitedFeatures':
+      return l10n.readyOfflineLimitedFeatures;
+    case 'readyOffline':
+      return l10n.readyOffline;
+    default:
+      // Returning the argument here is what let an unmapped token paint its
+      // own camelCase key on screen. Log it where a developer looks; show the
+      // reader something readable.
+      _splashLogger.w('unmapped splash message token "$key"');
+      return l10n.initializingApplication;
   }
 }

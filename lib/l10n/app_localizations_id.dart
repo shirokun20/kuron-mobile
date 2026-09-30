@@ -4423,6 +4423,38 @@ class AppLocalizationsId extends AppLocalizations {
   String get connectingMsg => 'Menghubungkan...';
 
   @override
+  String get loadingBundledDefaults => 'Memuat sumber bawaan...';
+
+  @override
+  String get restoringLocalSources => 'Memulihkan sumber terpasang...';
+
+  @override
+  String get loadingTagsConfig => 'Memuat kategori tag...';
+
+  @override
+  String get sourceConfigsReady => 'Pustaka sumber siap';
+
+  @override
+  String get configReady => 'Pustaka siap';
+
+  @override
+  String readyLastSync(String time) {
+    return 'Siap (sinkron terakhir $time)';
+  }
+
+  @override
+  String get readyLastSyncUnavailable => 'Siap (belum pernah sinkron)';
+
+  @override
+  String offlineModeAvailable(int count) {
+    return 'Mode luring: $count judul terunduh tersedia';
+  }
+
+  @override
+  String get noOfflineContentAvailable =>
+      'Belum ada konten luring. Unduh sesuatu saat online untuk dibaca nanti.';
+
+  @override
   String failedLoadOffline(String error) {
     return 'Gagal memuat konten offline: $error';
   }
@@ -5450,9 +5482,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get readerScreenGoToFirstPage => 'Baca dari Awal';
-
-  @override
-  String get readerVideoEyebrow => 'CHAPTER VIDEO';
 
   @override
   String get readerVideoPlay => 'Putar video';

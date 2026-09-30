@@ -155,7 +155,7 @@ void main() {
       );
 
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-      expect(find.text('VIDEO CHAPTER'), findsOneWidget);
+      expect(find.text('Play video'), findsOneWidget);
       expect(
         find.textContaining('streams available'),
         findsNothing,
