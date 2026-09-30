@@ -11,7 +11,7 @@
           android:windowSoftInputMode="adjustResize"/>
         <activity
           android:name=".VideoPlayerActivity"
-          android:theme="@style/Theme.AppCompat.NoActionBar"
+          android:theme="@style/Theme.KuronVideoPlayer"
           android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
           android:windowSoftInputMode="adjustResize"/>
       <activity

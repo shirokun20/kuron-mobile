@@ -69,6 +69,9 @@ class VideoPlayerActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    // System-bar padding, remembered so fullscreen can drop it and leaving
+    // fullscreen can put it back without waiting for another inset pass.
+    private val barPadding = intArrayOf(0, 0, 0, 0)
 
     private val pageUrl: String by lazy { intent.getStringExtra(EXTRA_URL).orEmpty() }
     private val referer: String? by lazy { intent.getStringExtra(EXTRA_REFERER) }
@@ -91,9 +94,23 @@ class VideoPlayerActivity : AppCompatActivity() {
         }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            barPadding[0] = bars.left; barPadding[1] = bars.top
+            barPadding[2] = bars.right; barPadding[3] = bars.bottom
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
             WindowInsetsCompat.CONSUMED
         }
+
+        // Order matters: a FrameLayout draws children in the order they were
+        // added, and the WebView is opaque and full-screen, so the toolbar has
+        // to be added last or it sits underneath and is never seen.
+        webView = WebView(this).apply {
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            setBackgroundColor(Color.BLACK)
+        }
+        root.addView(webView)
 
         val toolbar = Toolbar(this).apply {
             setBackgroundColor(Color.BLACK)
@@ -107,18 +124,11 @@ class VideoPlayerActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ),
         )
+        setContentView(root)
+        // After setContentView: AppCompat binds the action bar to the toolbar
+        // once it is in the hierarchy, which is the order it documents.
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
-        webView = WebView(this).apply {
-            layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
-            setBackgroundColor(Color.BLACK)
-        }
-        root.addView(webView)
-        setContentView(root)
 
         // Third-party cookies stay on: hosts that gate the media segments behind
         // the embed's own cookies would otherwise stall on a blank player.
@@ -158,6 +168,9 @@ class VideoPlayerActivity : AppCompatActivity() {
                 customView = view
                 customViewCallback = callback
                 webView.visibility = View.GONE
+                // The inset padding belongs to the chrome, not to the video:
+                // keeping it would letterbox fullscreen against the status bar.
+                root.setPadding(0, 0, 0, 0)
                 if (view != null) {
                     root.addView(
                         view,
@@ -181,6 +194,7 @@ class VideoPlayerActivity : AppCompatActivity() {
                 customViewCallback?.onCustomViewHidden()
                 customViewCallback = null
                 customView?.let { root.removeView(it) }
+                root.setPadding(barPadding[0], barPadding[1], barPadding[2], barPadding[3])
                 customView = null
                 webView.visibility = View.VISIBLE
                 webView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
