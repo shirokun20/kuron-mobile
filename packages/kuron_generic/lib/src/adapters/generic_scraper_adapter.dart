@@ -2388,8 +2388,9 @@ class GenericScraperAdapter implements GenericAdapter {
       // config without the block gets the legacy page-wide scan unchanged.
       final seenVideo = <String>{};
       final videoUrls = <String>[];
-      for (final raw
-          in _readerImages.extractVideoUrls(workingHtmlContent, readerConfig)) {
+      final placement =
+          _readerImages.extractVideoPlacement(workingHtmlContent, readerConfig);
+      for (final raw in placement.urls) {
         // Protocol-relative (`//cdn/x.m3u8`) and root-relative streams must be
         // absolute for the reader's WebView to load them. Dedupe runs AFTER
         // normalization so `//host/x.m3u8` and `https://host/x.m3u8` — the two
@@ -2398,13 +2399,22 @@ class GenericScraperAdapter implements GenericAdapter {
         if (videoUrl.isEmpty || !seenVideo.add(videoUrl)) continue;
         videoUrls.add(videoUrl);
       }
+      // Counted against the pages the image selector matched, then clamped to
+      // the surviving list: the reader inserts the card as an item among the
+      // pages, and an out-of-range slot would drop it.
+      int? videoIndex;
+      if (videoUrls.isNotEmpty && placement.index != null) {
+        videoIndex = placement.index!.clamp(0, imageUrls.length);
+      }
       if (videoUrls.isNotEmpty) {
-        _logger.i('$_sourceId video chapter: ${videoUrls.length} stream(s)');
+        _logger.i('$_sourceId video chapter: ${videoUrls.length} stream(s)'
+            '${videoIndex == null ? '' : ', after $videoIndex page(s)'}');
       }
 
       return ChapterData(
         images: imageUrls,
         videoUrls: videoUrls,
+        videoIndex: videoIndex,
         nextChapterId: nextId,
         prevChapterId: prevId,
       );

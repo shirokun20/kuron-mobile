@@ -279,6 +279,16 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
+    // The play card goes where the site put the video, which is not always
+    // the end: a gallery can carry the embed above or between its photos.
+    // `videoIndex` counts the pages before it; null ⇒ after the last page.
+    final videoAt = readerVideoSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+      videoIndex: state.chapterData?.videoIndex,
+    );
+    final navAt =
+        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
@@ -291,7 +301,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       scrollDirection: Axis.horizontal,
       clipBehavior: Clip.none,
       onPageChanged: (index) {
-        final reportPage = index + 1;
+        // The card is an item, not a page: indices after it shift by one.
+        final imageIndex = readerPageIndexFor(index, videoAt);
+        final reportPage =
+            (imageIndex + 1).clamp(1, pageCount == 0 ? 1 : pageCount);
         widget.visiblePageNotifier.value = reportPage;
         widget.animatedPauseNotifier.value = reportPage;
         // New page → clear stale translation overlay
@@ -302,7 +315,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
             '📖 VerticalPageView changed to index=$index (reporting page $reportPage)');
 
         final imageUrls = state.content?.imageUrls ?? [];
-        if (index < pageCount) {
+        if (imageIndex < pageCount) {
           if (state.readingMode != ReadingMode.singlePage &&
               state.readingMode != ReadingMode.verticalPage) {
             widget.prefetchImages(reportPage, imageUrls, state.imageMetadata,
@@ -315,16 +328,15 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       },
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        // The video card sits right after the last image — the site's own
-        // order — and the end-of-chapter nav (if any) moves one slot down.
-        if (hasVideoStrip && index == pageCount) {
+        if (hasVideoStrip && index == videoAt) {
           return _buildVideoStripPage();
         }
-        if (showNavigation && index == pageCount + (hasVideoStrip ? 1 : 0)) {
+        if (showNavigation && index == navAt) {
           return _buildChapterNavigationPage();
         }
-        final imageUrl = state.content?.imageUrls[index] ?? '';
-        final pageNumber = index + 1;
+        final imageIndex = readerPageIndexFor(index, videoAt);
+        final imageUrl = state.content?.imageUrls[imageIndex] ?? '';
+        final pageNumber = imageIndex + 1;
 
         return _ReaderImageViewer(
           imageUrl: imageUrl,
@@ -344,6 +356,15 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
+    // See _buildSinglePageReader: the card is an item at the video's own
+    // position, so indices after it shift by one.
+    final videoAt = readerVideoSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+      videoIndex: state.chapterData?.videoIndex,
+    );
+    final navAt =
+        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
@@ -356,7 +377,9 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       scrollDirection: Axis.vertical,
       clipBehavior: Clip.none,
       onPageChanged: (index) {
-        final reportPage = index + 1;
+        final imageIndex = readerPageIndexFor(index, videoAt);
+        final reportPage =
+            (imageIndex + 1).clamp(1, pageCount == 0 ? 1 : pageCount);
         widget.visiblePageNotifier.value = reportPage;
         widget.animatedPauseNotifier.value = reportPage;
         // New page → clear stale translation overlay
@@ -367,7 +390,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
             '📖 Vertical PageView changed to index=$index (reporting page $reportPage)');
 
         final imageUrls = state.content?.imageUrls ?? [];
-        if (index < pageCount) {
+        if (imageIndex < pageCount) {
           widget.prefetchImages(reportPage, imageUrls, state.imageMetadata,
               sourceId: state.content?.sourceId, contentId: state.content?.id);
           widget.evictDistantPages(reportPage, imageUrls,
@@ -380,14 +403,15 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       },
       itemCount: totalItems,
       itemBuilder: (context, index) {
-        if (hasVideoStrip && index == pageCount) {
+        if (hasVideoStrip && index == videoAt) {
           return _buildVideoStripPage();
         }
-        if (showNavigation && index == pageCount + (hasVideoStrip ? 1 : 0)) {
+        if (showNavigation && index == navAt) {
           return _buildChapterNavigationPage();
         }
-        final imageUrl = state.content?.imageUrls[index] ?? '';
-        final pageNumber = index + 1;
+        final imageIndex = readerPageIndexFor(index, videoAt);
+        final imageUrl = state.content?.imageUrls[imageIndex] ?? '';
+        final pageNumber = imageIndex + 1;
         return _ReaderImageViewer(
           imageUrl: imageUrl,
           pageNumber: pageNumber,
@@ -407,6 +431,15 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       {bool showNavigation = false, bool hasVideoStrip = false}) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
+    // See _buildSinglePageReader: the card is an item at the video's own
+    // position in the chapter, not always after the last photo.
+    final videoAt = readerVideoSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+      videoIndex: state.chapterData?.videoIndex,
+    );
+    final navAt =
+        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
@@ -455,7 +488,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
           addAutomaticKeepAlives: true,
           itemCount: totalItems,
           itemBuilder: (context, index) {
-            if (hasVideoStrip && index == pageCount) {
+            if (hasVideoStrip && index == videoAt) {
               final chapterData = state.chapterData;
               if (chapterData == null) return const SizedBox.shrink();
               return Padding(
@@ -464,8 +497,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
                 child: ReaderVideoStrip(chapterData: chapterData),
               );
             }
-            if (showNavigation &&
-                index == pageCount + (hasVideoStrip ? 1 : 0)) {
+            if (showNavigation && index == navAt) {
               return SizedBox(
                 height: MediaQuery.of(context).size.height * 0.8,
                 child: _buildChapterNavigationPage(
@@ -478,8 +510,9 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
               );
             }
 
-            final pageNumber = index + 1;
-            final imageUrl = state.content?.imageUrls[index] ?? '';
+            final imageIndex = readerPageIndexFor(index, videoAt);
+            final pageNumber = imageIndex + 1;
+            final imageUrl = state.content?.imageUrls[imageIndex] ?? '';
             final resolvedHeight = widget.resolveContinuousItemHeight(
               pageNumber,
               viewportHeight,

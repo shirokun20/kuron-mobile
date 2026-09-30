@@ -31,6 +31,34 @@ bool isVideoChapter(ChapterData? chapterData) =>
     chapterData.images.isEmpty &&
     chapterData.videoUrls.isNotEmpty;
 
+/// Item index the play card occupies in a reader list, or `-1` when the
+/// chapter has no stream.
+///
+/// [videoIndex] is how many pages precede the stream on the site. Null means the
+/// parser could not attribute a position, and the card falls back to after the
+/// last page — where it used to always be.
+///
+/// All three reader modes index the same list, so the arithmetic lives here
+/// instead of being written out three times: the card is an *item*, not a page,
+/// and forgetting the shift below it is what makes a page counter drift.
+int readerVideoSlot({
+  required int pageCount,
+  required bool hasVideoStrip,
+  int? videoIndex,
+}) =>
+    hasVideoStrip ? (videoIndex ?? pageCount) : -1;
+
+/// Map a list item index to the page it shows, skipping the card.
+int readerPageIndexFor(int itemIndex, int videoAt) =>
+    videoAt >= 0 && itemIndex > videoAt ? itemIndex - 1 : itemIndex;
+
+/// Item index the end-of-chapter navigation occupies.
+///
+/// Always after the last page, never right after the card: with the card at
+/// slot 0 a `videoAt + 1` nav would occupy page 1's own slot.
+int readerNavSlot({required int pageCount, required bool hasVideoStrip}) =>
+    pageCount + (hasVideoStrip ? 1 : 0);
+
 /// Play a chapter stream in the platform web view (Custom Tabs).
 ///
 /// ponytail: playback opens in the platform WebView via

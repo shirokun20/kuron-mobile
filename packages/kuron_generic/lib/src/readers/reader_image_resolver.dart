@@ -606,12 +606,7 @@ class ReaderImageResolver {
       if (selector.isNotEmpty) {
         // Scope EVERY comma-separated arm, not just the first — otherwise
         // `video source, video` would leave the second arm page-wide.
-        final scopedSelector = selector
-            .split(',')
-            .map((arm) => arm.trim())
-            .where((arm) => arm.isNotEmpty)
-            .map((arm) => '$scope $arm')
-            .join(', ');
+        final scopedSelector = _scopedTo(scope, selector);
         final def = <String, dynamic>{
           'selector': scopedSelector,
           'attribute': video['attribute'] ?? 'src',
@@ -624,6 +619,122 @@ class ReaderImageResolver {
       '$_sourceId reader.video: $urls raw stream(s) in "$container"',
     );
     return urls;
+  }
+
+  /// The chapter's stream URLs plus where the stream sits in the chapter's own
+  /// order.
+  ///
+  /// [index] is how many pages the chapter's own `reader.images` selector
+  /// matches *before* the first stream element, so the reader can put its play
+  /// card where the site put the video instead of always after the last page.
+  /// Null when the config declares no `video` block, when the harvest is
+  /// unscoped (the legacy page-wide scan cannot attribute a position), or when
+  /// there is no image selector to count against.
+  ///
+  /// Counting happens inside the stream's own scope only, so a promo embed
+  /// elsewhere on the page can neither contribute nor shift the position.
+  ({List<String> urls, int? index}) extractVideoPlacement(
+    String htmlContent,
+    Map<String, dynamic> readerConfig,
+  ) {
+    final urls = extractVideoUrls(htmlContent, readerConfig);
+    if (urls.isEmpty) return (urls: urls, index: null);
+
+    final raw = readerConfig['video'];
+    if (raw is! Map) return (urls: urls, index: null);
+    final video = raw.cast<String, dynamic>();
+    final container = (video['container'] as String?)?.trim() ?? '';
+    if (container.isEmpty) return (urls: urls, index: null);
+
+    final imageDef = readerConfig['images'];
+    if (imageDef is! Map) return (urls: urls, index: null);
+    final imageSelector = (imageDef['selector'] as String?)?.trim() ?? '';
+    final videoSelector = (video['selector'] as String?)?.trim() ?? '';
+    if (imageSelector.isEmpty || videoSelector.isEmpty) {
+      return (urls: urls, index: null);
+    }
+
+    final marker = (video['requireChapterType'] as String?)?.trim() ?? '';
+    final doc = _parser.parse(htmlContent);
+    if (marker.isNotEmpty &&
+        doc.querySelector(_markerSelector(marker)) == null) {
+      return (urls: urls, index: null);
+    }
+
+    for (final scope in container
+        .split(',')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)) {
+      final scopeElement = doc.querySelector(scope);
+      if (scopeElement == null) continue;
+      final first =
+          _parser.selectAll(doc, _scopedTo(scope, videoSelector)).firstOrNull;
+      if (first == null) continue;
+
+      // Document order IS the site's order: count the page images that precede
+      // the stream element and nothing else. `html` 0.15 has no
+      // compareDocumentPosition, so rank every element under the scope once
+      // and compare ranks.
+      //
+      // The two selectors are scoped differently on purpose. `video.selector`
+      // is container-relative by contract (`container: .chapter-video-frame`,
+      // `selector: video source, video`), so it gets the scope prefix.
+      // `images.selector` is authored page-absolute (`.reading-content img…`,
+      // `.entry-content.single-page .gallery-item img`) and prefixing it would
+      // produce `.entry-content.single-page .entry-content.single-page …`.
+      // Containment comes from the rank map instead: it only holds elements
+      // under the scope, so an image elsewhere on the page is simply absent.
+      final ranks = _documentRanks(scopeElement);
+      final videoRank = ranks[first];
+      if (videoRank == null) continue;
+
+      var index = 0;
+      for (final arm in imageSelector.split(',')) {
+        final trimmed = arm.trim();
+        if (trimmed.isEmpty) continue;
+        for (final image in _parser.selectAll(doc, trimmed)) {
+          final rank = ranks[image];
+          if (rank != null && rank < videoRank) index++;
+        }
+      }
+      _logger.i(
+        '$_sourceId reader.video: stream sits after $index page(s) in "$scope"',
+      );
+      return (urls: urls, index: index);
+    }
+    return (urls: urls, index: null);
+  }
+
+  /// Scope every comma-separated arm, not just the first — `video source,
+  /// video` would otherwise leave the second arm page-wide.
+  static String _scopedTo(String scope, String selector) => selector
+      .split(',')
+      .map((arm) => arm.trim())
+      .where((arm) => arm.isNotEmpty)
+      .map((arm) => '$scope $arm')
+      .join(', ');
+
+  /// Rank every element under [root] by document order. The root itself ranks
+  /// first so a selector that matches the container still sorts before its
+  /// own children. Elements outside the subtree are absent from the map.
+  static Map<dom.Element, int> _documentRanks(dom.Element root) {
+    final ranks = <dom.Element, int>{};
+    var next = 0;
+    void walk(dom.Node node) {
+      if (node is dom.Element) {
+        ranks[node] = next++;
+        for (final child in node.children) {
+          walk(child);
+        }
+      }
+    }
+
+    walk(root);
+    // Shift so the root outranks everything it contains.
+    for (final entry in ranks.entries.toList()) {
+      ranks[entry.key] = entry.value - 1;
+    }
+    return ranks;
   }
 
   final _videoUrlPattern = RegExp(
