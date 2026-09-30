@@ -374,12 +374,27 @@ class ReaderCubit extends Cubit<ReaderState> {
         }
       }
 
-      // Fallback: detail payload has no image URLs, fetch from chapter endpoint
-      if (content.imageUrls.isEmpty &&
+      // Fallback: detail payload has no image URLs, fetch from chapter endpoint.
+      //
+      // The chapter endpoint is also the ONLY place a `reader.video` block gets
+      // resolved into `videoUrls`/`videoIndex`. For a gallery source whose
+      // detail page IS the chapter (cosplaytele: `features.chapters=false`, no
+      // `detail.chapters`, `urlPatterns.chapter = /{id}`), `getDetail`
+      // hydrates `content.imageUrls` from that same page — so an
+      // `imageUrls.isEmpty` gate never fires, the video block is never read,
+      // and the reader shows 110 photos with no video card at all.
+      final missingVideoMetadata = chapterData == null &&
+          _sourceDeclaresReaderVideo(content.sourceId) &&
+          isConnected;
+
+      if ((content.imageUrls.isEmpty || missingVideoMetadata) &&
           (isConnected || shouldUseNoChapterPreloaded)) {
         try {
           _logger.i(
-              '🖼️ Content has no imageUrls, fetching chapter images fallback: $contentId');
+            missingVideoMetadata && content.imageUrls.isNotEmpty
+                ? '🎬 Reader video metadata: fetching chapter data for: $contentId'
+                : '🖼️ Content has no imageUrls, fetching chapter images fallback: $contentId',
+          );
           final fallbackChapterData =
               await getChapterImagesUseCase(GetChapterImagesParams.fromString(
             contentId,
@@ -387,10 +402,12 @@ class ReaderCubit extends Cubit<ReaderState> {
           ));
 
           if (fallbackChapterData.images.isNotEmpty) {
-            content = content.copyWith(
-              imageUrls: fallbackChapterData.images,
-              pageCount: fallbackChapterData.images.length,
-            );
+            if (content.imageUrls.isEmpty) {
+              content = content.copyWith(
+                imageUrls: fallbackChapterData.images,
+                pageCount: fallbackChapterData.images.length,
+              );
+            }
 
             // Preserve any previously fetched chapterData, but if absent,
             // keep fallback navigation so next/prev can still work.
@@ -461,6 +478,21 @@ class ReaderCubit extends Cubit<ReaderState> {
             .copyWithMessage('failedLoadContentError'));
       }
     }
+  }
+
+  /// Whether the source config declares a scoped `reader.video` block.
+  ///
+  /// Typed [SourceConfig] has no video field (json_serializable drops it), so
+  /// this reads the raw JSON map — the same shape adapters receive.
+  bool _sourceDeclaresReaderVideo(String sourceId) {
+    final scraper = remoteConfigService.getRawConfig(sourceId)?['scraper'];
+    if (scraper is! Map) return false;
+    final selectors = scraper['selectors'];
+    if (selectors is! Map) return false;
+    final reader = selectors['reader'];
+    if (reader is! Map) return false;
+    final video = reader['video'];
+    return video is Map && video.isNotEmpty;
   }
 
   Future<void> _backgroundSeedBypassCaches() async {
