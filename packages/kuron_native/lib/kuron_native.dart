@@ -124,16 +124,32 @@ class KuronNative {
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
-    String? referer,
-    String? title,
   }) {
     return KuronNativePlatform.instance.openWebView(
       url: url,
       enableJavaScript: enableJavaScript,
       backgroundColor: backgroundColor,
       textColor: textColor,
+    );
+  }
+
+  /// Play [url] in the app's own player screen rather than a Custom Tab.
+  ///
+  /// [referer] is sent as the request's `Referer` header — required by
+  /// hotlink-protected players, and impossible to send from a Custom Tab.
+  Future<void> openVideoPlayer({
+    required String url,
+    String? referer,
+    String? title,
+    String? openInBrowserLabel,
+    String? copyLinkLabel,
+  }) {
+    return KuronNativePlatform.instance.openVideoPlayer(
+      url: url,
       referer: referer,
       title: title,
+      openInBrowserLabel: openInBrowserLabel,
+      copyLinkLabel: copyLinkLabel,
     );
   }
 

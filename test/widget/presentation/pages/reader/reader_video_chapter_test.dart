@@ -136,6 +136,35 @@ void main() {
       expect(find.text('Play video'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('offers Save only when a file can actually be saved', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(const VideoPosterCard(streamCount: 1, onPlay: _noop)),
+      );
+      expect(
+        find.byIcon(Icons.download_rounded),
+        findsNothing,
+        reason: 'nothing to offer without a downloadable file',
+      );
+
+      var saved = false;
+      await tester.pumpWidget(
+        _app(
+          VideoPosterCard(
+            streamCount: 1,
+            onPlay: _noop,
+            onSave: () async => saved = true,
+          ),
+        ),
+      );
+      expect(find.byIcon(Icons.download_rounded), findsOneWidget);
+      expect(find.text('Save video'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.download_rounded));
+      expect(saved, isTrue);
+    });
   });
 
   group('play strip for a chapter that has pages AND a stream', () {
@@ -182,6 +211,73 @@ void main() {
       );
 
       expect(find.text('2 streams available'), findsOneWidget);
+    });
+  });
+  group('isDirectFileStream()', () {
+    // Only a file can be handed to the downloader as-is. An HLS playlist is a
+    // list of segments, and an embed page computes its stream in JavaScript —
+    // offering Save for those would be a button that cannot deliver.
+    test('accepts a direct video file', () {
+      expect(isDirectFileStream('https://cdn.example.com/clip.mp4'), isTrue);
+      expect(isDirectFileStream('https://cdn.example.com/clip.WEBM'), isTrue);
+    });
+
+    test('survives a query string on the file', () {
+      expect(
+        isDirectFileStream('https://cdn.example.com/clip.mp4?token=abc'),
+        isTrue,
+      );
+    });
+
+    test('rejects an HLS playlist', () {
+      expect(
+        isDirectFileStream('https://cdn.example.com/hls/master.m3u8'),
+        isFalse,
+      );
+    });
+
+    test('rejects an embed page', () {
+      expect(
+        isDirectFileStream('https://cossora.stream/embed/c74c438d'),
+        isFalse,
+      );
+    });
+  });
+
+  group('videoFileName()', () {
+    test('names the file after the chapter, not after the host', () {
+      expect(
+        videoFileName(
+          title: 'Episode 12 - The Arrival',
+          url: 'https://cdn.example.com/v/8891.mp4',
+        ),
+        'Episode 12 - The Arrival.mp4',
+      );
+    });
+
+    test('strips characters a filesystem rejects', () {
+      expect(
+        videoFileName(
+          title: 'A/B: "C" <D> | E',
+          url: 'https://cdn.example.com/v/8891.mp4',
+        ),
+        'AB C D  E.mp4',
+      );
+    });
+
+    test('falls back when the chapter has no usable title', () {
+      expect(
+        videoFileName(title: '  ', url: 'https://cdn.example.com/v/8891.mp4'),
+        'video.mp4',
+      );
+    });
+
+    test('keeps a long CJK title inside the filesystem limit', () {
+      final name = videoFileName(
+        title: '\u4e00' * 200,
+        url: 'https://cdn.example.com/v/8891.mp4',
+      );
+      expect(name.length, lessThanOrEqualTo(64));
     });
   });
 }

@@ -9318,6 +9318,18 @@ abstract class AppLocalizations {
   /// **'Play video'**
   String get readerVideoPlay;
 
+  /// No description provided for @readerVideoSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save video'**
+  String get readerVideoSave;
+
+  /// No description provided for @readerVideoSaveStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading to your Downloads folder'**
+  String get readerVideoSaveStarted;
+
   /// No description provided for @readerVideoStreamCount.
   ///
   /// In en, this message translates to:

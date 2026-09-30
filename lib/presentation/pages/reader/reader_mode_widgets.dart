@@ -494,7 +494,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
               return Padding(
                 padding: const EdgeInsets.only(
                     bottom: ReaderScreen.kReaderContinuousGap),
-                child: ReaderVideoStrip(chapterData: chapterData),
+                child: ReaderVideoStrip(
+                  chapterData: chapterData,
+                  title: state.content?.title,
+                ),
               );
             }
             if (showNavigation && index == navAt) {
@@ -594,7 +597,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       alignment: Alignment.topCenter,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        child: ReaderVideoStrip(chapterData: chapterData),
+        child: ReaderVideoStrip(
+          chapterData: chapterData,
+          title: widget.state.content?.title,
+        ),
       ),
     );
   }

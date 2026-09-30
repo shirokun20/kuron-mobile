@@ -42,8 +42,6 @@ class WebViewActivity : AppCompatActivity() {
         const val EXTRA_BLOCK_NETWORK_IMAGES = "extra_block_network_images"
         const val EXTRA_BACKGROUND_COLOR = "extra_background_color"
         const val EXTRA_TEXT_COLOR = "extra_text_color"
-        const val EXTRA_REFERER = "extra_referer"
-        const val EXTRA_TITLE = "extra_title"
 
         const val RESULT_USED_SSL_FALLBACK = "result_used_ssl_fallback"
         const val RESULT_COOKIES = "result_cookies" // ArrayList<String>
@@ -160,9 +158,6 @@ class WebViewActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Login"
 
-        // "Login" is this activity's original job; video playback reuses it
-        // and needs its own label.
-        intent.getStringExtra(EXTRA_TITLE)?.let { supportActionBar?.title = it }
 
         // WebView
         webView = WebView(this).apply {
@@ -516,16 +511,7 @@ class WebViewActivity : AppCompatActivity() {
             }
         }
         
-        // Hotlink-protected players (cossora.stream) reject the request unless
-        // the embedder's origin arrives as Referer — the source page that framed
-        // the player. Custom Tabs cannot send headers, so this WebView path is
-        // the only one that can.
-        val referer = intent.getStringExtra(EXTRA_REFERER)
-        if (referer.isNullOrBlank()) {
-            webView.loadUrl(url)
-        } else {
-            webView.loadUrl(url, mapOf("Referer" to referer))
-        }
+        webView.loadUrl(url)
     }
     
     private fun getDomainFromUrl(url: String): String {

@@ -4072,6 +4072,8 @@
   "readerScreenThanksDesc": "Hope you enjoyed this chapter. See you in the next one!",
   "readerScreenGoToFirstPage": "Go to First Page",
   "readerVideoPlay": "Play video",
+  "readerVideoSave": "Save video",
+  "readerVideoSaveStarted": "Downloading to your Downloads folder",
   "readerVideoStreamCount": "{count} streams available",
   "@readerVideoStreamCount": {
     "placeholders": {

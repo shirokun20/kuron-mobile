@@ -183,6 +183,9 @@ class KuronNativePlugin :
             "openWebView" -> {
                 handleOpenWebView(call, result)
             }
+            "openVideoPlayer" -> {
+                handleOpenVideoPlayer(call, result)
+            }
             "openPdf" -> {
                 handleOpenPdf(call, result)
             }
@@ -607,7 +610,11 @@ class KuronNativePlugin :
                 )
             }
             
-            // request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            // A download the user cannot see finishing is indistinguishable
+            // from a button that did nothing.
+            request.setNotificationVisibility(
+                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+            )
             
             val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
             val downloadId = manager.enqueue(request)
@@ -830,37 +837,9 @@ class KuronNativePlugin :
         try {
             val url = call.argument<String>("url")
             val enableJs = call.argument<Boolean>("enableJavaScript") ?: true
-            val referer = call.argument<String>("referer")
             
             if (url == null) {
                 result.error("INVALID_ARGS", "URL is required", null)
-                return
-            }
-
-            // Hotlink-protected players (cossora.stream) answer
-            // {"error":true} unless the request carries the embedder's origin as
-            // Referer, and Custom Tabs cannot send headers — so a referer means
-            // our own WebView. No referer keeps the Custom Tabs path untouched.
-            if (!referer.isNullOrBlank()) {
-                val webViewIntent = android.content.Intent(
-                    context,
-                    id.nhasix.kuron_native.kuron_native.WebViewActivity::class.java
-                ).apply {
-                    putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_URL, url)
-                    putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_REFERER, referer)
-                    call.argument<String>("title")?.let {
-                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_TITLE, it)
-                    }
-                    call.argument<String>("backgroundColor")?.let {
-                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_BACKGROUND_COLOR, it)
-                    }
-                    call.argument<String>("textColor")?.let {
-                        putExtra(id.nhasix.kuron_native.kuron_native.WebViewActivity.EXTRA_TEXT_COLOR, it)
-                    }
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(webViewIntent)
-                result.success(null)
                 return
             }
 
@@ -877,6 +856,50 @@ class KuronNativePlugin :
             result.success(null)
         } catch (e: Exception) {
             result.error("WEBVIEW_ERROR", e.message, null)
+        }
+    }
+
+    private fun handleOpenVideoPlayer(call: MethodCall, result: Result) {
+        try {
+            val url = call.argument<String>("url")
+            if (url == null) {
+                result.error("INVALID_ARGS", "URL is required", null)
+                return
+            }
+            val referer = call.argument<String>("referer")
+
+            val playerIntent = android.content.Intent(
+                context,
+                id.nhasix.kuron_native.kuron_native.VideoPlayerActivity::class.java
+            ).apply {
+                putExtra(id.nhasix.kuron_native.kuron_native.VideoPlayerActivity.EXTRA_URL, url)
+                if (!referer.isNullOrBlank()) {
+                    putExtra(
+                        id.nhasix.kuron_native.kuron_native.VideoPlayerActivity.EXTRA_REFERER,
+                        referer,
+                    )
+                }
+                call.argument<String>("title")?.let {
+                    putExtra(id.nhasix.kuron_native.kuron_native.VideoPlayerActivity.EXTRA_TITLE, it)
+                }
+                call.argument<String>("openInBrowserLabel")?.let {
+                    putExtra(
+                        id.nhasix.kuron_native.kuron_native.VideoPlayerActivity.EXTRA_OPEN_IN_BROWSER_LABEL,
+                        it,
+                    )
+                }
+                call.argument<String>("copyLinkLabel")?.let {
+                    putExtra(
+                        id.nhasix.kuron_native.kuron_native.VideoPlayerActivity.EXTRA_COPY_LINK_LABEL,
+                        it,
+                    )
+                }
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(playerIntent)
+            result.success(null)
+        } catch (e: Exception) {
+            result.error("VIDEO_PLAYER_ERROR", e.message, null)
         }
     }
 

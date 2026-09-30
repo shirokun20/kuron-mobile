@@ -98,8 +98,15 @@ class MockKuronNativePlatform
     bool enableJavaScript = true,
     String? backgroundColor,
     String? textColor,
+  }) async {}
+
+  @override
+  Future<void> openVideoPlayer({
+    required String url,
     String? referer,
     String? title,
+    String? openInBrowserLabel,
+    String? copyLinkLabel,
   }) async {}
 
   @override

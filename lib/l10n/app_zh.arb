@@ -3640,6 +3640,8 @@
   "readerScreenThanksDesc": "希望你享受这一章节。下一章再见！",
   "readerScreenGoToFirstPage": "回到第一页",
   "readerVideoPlay": "播放视频",
+  "readerVideoSave": "保存视频",
+  "readerVideoSaveStarted": "正在下载到你的下载文件夹",
   "readerVideoStreamCount": "有 {count} 个可用流",
   "@readerVideoStreamCount": {
     "placeholders": {

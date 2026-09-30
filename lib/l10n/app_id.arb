@@ -3044,6 +3044,8 @@
   "readerScreenThanksDesc": "Semoga kamu menikmati chapter ini. Sampai jumpa di chapter berikutnya!",
   "readerScreenGoToFirstPage": "Baca dari Awal",
   "readerVideoPlay": "Putar video",
+  "readerVideoSave": "Simpan video",
+  "readerVideoSaveStarted": "Mengunduh ke folder Download",
   "readerVideoStreamCount": "{count} stream tersedia",
   "@readerVideoStreamCount": {
     "placeholders": {

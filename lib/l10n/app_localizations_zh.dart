@@ -5315,6 +5315,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerVideoPlay => '播放视频';
 
   @override
+  String get readerVideoSave => '保存视频';
+
+  @override
+  String get readerVideoSaveStarted => '正在下载到你的下载文件夹';
+
+  @override
   String readerVideoStreamCount(int count) {
     return '有 $count 个可用流';
   }

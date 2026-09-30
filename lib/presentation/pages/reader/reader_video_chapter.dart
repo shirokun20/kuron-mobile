@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/text_style_const.dart';
+import '../../../core/utils/snackbar_utils.dart';
 import '../../cubits/reader/reader_cubit.dart';
 import '../../../l10n/app_localizations.dart';
 
@@ -59,32 +60,103 @@ int readerPageIndexFor(int itemIndex, int videoAt) =>
 int readerNavSlot({required int pageCount, required bool hasVideoStrip}) =>
     pageCount + (hasVideoStrip ? 1 : 0);
 
-/// Play a chapter stream in the platform web view.
+/// Play a chapter stream in the app's own player screen.
 ///
-/// ponytail: playback opens in the platform WebView via
-/// `KuronNative.openWebView`, the same path the reader already uses for
-/// undecodable AVIF pages. An in-app `WebViewWidget` would mean a live
-/// platform view and a media stack sitting inside the reader for the whole
-/// time the chapter is open — for something the user may swipe past — and
-/// autoplaying a stream the moment a chapter loads is hostile anyway. The
-/// user taps, decides to watch, and the reader stays untouched underneath.
-///
-/// [referer] is the page that framed the player. Hotlink-protected hosts
-/// reject the request without it, and Custom Tabs cannot carry headers, so
-/// passing one switches the native side to its own WebView.
-Future<void> openChapterStream(String url, {String? referer}) async {
+/// ponytail: playback opens the plugin's `VideoPlayerActivity` via
+/// `KuronNative.openVideoPlayer` — not a Custom Tab, which cannot send the
+/// `Referer` a hotlink-protected host demands, and not an in-app
+/// `WebViewWidget`, which would keep a live platform view and a media stack
+/// inside the reader for as long as the chapter is open. The user taps,
+/// decides to watch, and the reader stays untouched underneath.
+Future<void> openChapterStream(
+  BuildContext context,
+  String url, {
+  String? title,
+  String? referer,
+}) async {
   final logger = Logger();
+  final l10n = AppLocalizations.of(context);
   try {
-    await KuronNative.instance.openWebView(url: url, referer: referer);
+    await KuronNative.instance.openVideoPlayer(
+      url: url,
+      referer: referer,
+      title: title,
+      // A browser cannot send Referer either, so offering the action for a
+      // protected host would reproduce the error this player exists to avoid.
+      openInBrowserLabel: referer == null ? l10n?.openInBrowser : null,
+      copyLinkLabel: l10n?.copyLink,
+    );
   } catch (e) {
-    // The native WebView is unavailable (no host, or a platform without the
-    // channel) — hand the URL to the system browser instead of dead-ending.
-    logger.w('video chapter native WebView failed, falling back: $e');
+    // No native player on this platform — hand the URL to the system browser
+    // instead of dead-ending.
+    logger.w('video chapter native player failed, falling back: $e');
     final uri = Uri.tryParse(url);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
+}
+
+/// Whether [url] is a playable file rather than a playlist or an embed page.
+///
+/// Only a direct file can be saved as-is: an HLS `.m3u8` is a list of segments
+/// and an embed page computes its stream in JavaScript, so both would need
+/// machinery that does not exist. Save is offered for these alone.
+bool isDirectFileStream(String url) {
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+  return const ['.mp4', '.webm', '.mov', '.m4v', '.mkv']
+      .any((extension) => path.endsWith(extension));
+}
+
+/// Save a chapter's video to the public Downloads folder.
+///
+/// Success is reported by the system download notification; only a refusal
+/// needs a message here, since a silent button looks broken.
+Future<void> saveChapterVideo(
+  BuildContext context,
+  String url, {
+  String? title,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final fileName = videoFileName(title: title, url: url);
+  try {
+    await KuronNative.instance.startDownload(
+      url: url,
+      fileName: fileName,
+      title: title,
+      mimeType: mimeTypeForFileName(fileName),
+    );
+  } catch (e) {
+    Logger().w('video chapter download failed: $e');
+    if (context.mounted) {
+      CoreSnackbar.showError(
+          context, l10n?.downloadFailed ?? 'Download failed');
+    }
+  }
+}
+
+/// Filename for a saved video: the chapter title when it has one, the URL's own
+/// last segment otherwise — never a host's generic `video.mp4`.
+String videoFileName({String? title, required String url}) {
+  final heading =
+      (title?.trim() ?? '').replaceAll(RegExp(r'[\\/:*?"<>|\r\n]'), '');
+  final base = heading.isEmpty ? 'video' : heading;
+  final extension =
+      Uri.tryParse(url)?.path.split('.').last.toLowerCase() ?? 'mp4';
+  // Filesystem-safe on every Android volume: 255 bytes, and these titles are
+  // mostly CJK where a character is three bytes.
+  final maxBaseLength = 60;
+  return '${base.length > maxBaseLength ? base.substring(0, maxBaseLength) : base}.$extension';
+}
+
+String mimeTypeForFileName(String fileName) {
+  final extension = fileName.split('.').last.toLowerCase();
+  return switch (extension) {
+    'webm' => 'video/webm',
+    'mov' => 'video/quicktime',
+    'mkv' => 'video/x-matroska',
+    _ => 'video/mp4',
+  };
 }
 
 /// Play surface for a video/HLS chapter with no pages at all.
@@ -110,9 +182,18 @@ class ReaderVideoChapter extends StatelessWidget {
               title: cubit.state.content?.title,
               streamCount: chapterData.videoUrls.length,
               onPlay: () => openChapterStream(
+                context,
                 chapterData.videoUrls.first,
+                title: cubit.state.content?.title,
                 referer: chapterData.videoReferer,
               ),
+              onSave: isDirectFileStream(chapterData.videoUrls.first)
+                  ? () => saveChapterVideo(
+                        context,
+                        chapterData.videoUrls.first,
+                        title: cubit.state.content?.title,
+                      )
+                  : null,
             ),
           ),
         ),
@@ -133,9 +214,13 @@ class ReaderVideoStrip extends StatelessWidget {
   const ReaderVideoStrip({
     super.key,
     required this.chapterData,
+    this.title,
   });
 
   final ChapterData chapterData;
+
+  /// Chapter title, shown in the player header and used as the saved filename.
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
@@ -148,7 +233,9 @@ class ReaderVideoStrip extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => openChapterStream(
+          context,
           chapterData.videoUrls.first,
+          title: title,
           referer: chapterData.videoReferer,
         ),
         child: Padding(
@@ -186,6 +273,17 @@ class ReaderVideoStrip extends StatelessWidget {
                   ],
                 ),
               ),
+              if (isDirectFileStream(chapterData.videoUrls.first))
+                IconButton(
+                  onPressed: () => saveChapterVideo(
+                    context,
+                    chapterData.videoUrls.first,
+                    title: title,
+                  ),
+                  icon: const Icon(Icons.download_rounded, size: 20),
+                  color: cs.onSurfaceVariant,
+                  tooltip: l10n?.readerVideoSave ?? 'Save video',
+                ),
               Icon(
                 Icons.chevron_right,
                 size: 20,
@@ -236,6 +334,7 @@ class VideoPosterCard extends StatelessWidget {
     required this.streamCount,
     required this.onPlay,
     this.title,
+    this.onSave,
   });
 
   final int streamCount;
@@ -244,6 +343,11 @@ class VideoPosterCard extends StatelessWidget {
   /// Chapter title, shown so a chapter with no page indicator and no bottom bar
   /// still identifies itself.
   final String? title;
+
+  /// Save action, shown only for a directly downloadable file. An HLS playlist
+  /// or an embed page has nothing to hand the downloader, so the caller passes
+  /// null rather than the card pretending.
+  final Future<void> Function()? onSave;
 
   @override
   Widget build(BuildContext context) {
@@ -282,6 +386,17 @@ class VideoPosterCard extends StatelessWidget {
                   ),
                 ),
               ),
+              if (onSave != null) ...[
+                const SizedBox(height: DesignTokens.spaceSm),
+                TextButton.icon(
+                  onPressed: onSave,
+                  icon: const Icon(Icons.download_rounded, size: 20),
+                  label: Text(l10n?.readerVideoSave ?? 'Save video'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: cs.onSurfaceVariant,
+                  ),
+                ),
+              ],
               if (streamCount > 1) ...[
                 const SizedBox(height: DesignTokens.spaceMd),
                 Text(

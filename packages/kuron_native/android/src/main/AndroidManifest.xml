@@ -9,6 +9,11 @@
           android:name=".CaptchaWebViewActivity"
           android:theme="@style/Theme.AppCompat.Light.NoActionBar"
           android:windowSoftInputMode="adjustResize"/>
+        <activity
+          android:name=".VideoPlayerActivity"
+          android:theme="@style/Theme.AppCompat.NoActionBar"
+          android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|smallestScreenSize"
+          android:windowSoftInputMode="adjustResize"/>
       <activity
           android:name=".CustomTabFallbackActivity"
           android:theme="@android:style/Theme.Translucent.NoTitleBar"

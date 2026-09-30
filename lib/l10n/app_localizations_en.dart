@@ -5464,6 +5464,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerVideoPlay => 'Play video';
 
   @override
+  String get readerVideoSave => 'Save video';
+
+  @override
+  String get readerVideoSaveStarted => 'Downloading to your Downloads folder';
+
+  @override
   String readerVideoStreamCount(int count) {
     return '$count streams available';
   }
