@@ -261,6 +261,8 @@ class GenericContentMapper {
       // instead of a re-slugified display name (CJK/parenthesis names do not
       // round-trip). #69.
       final slug = _slugOf(obj['slug']);
+      final urlRaw = obj['url'];
+      final url = urlRaw is String ? urlRaw.trim() : '';
 
       Tag make() => Tag(
             id: id,
@@ -268,6 +270,7 @@ class GenericContentMapper {
             type: type,
             count: count,
             slug: slug,
+            url: url,
           );
 
       switch (type) {

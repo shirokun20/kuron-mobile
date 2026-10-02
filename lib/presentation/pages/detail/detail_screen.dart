@@ -84,6 +84,67 @@ class DetailScreen extends StatefulWidget {
 
     return firstImage;
   }
+  /// Names of creator tags (`artist`/`author`) for [type], matched
+  /// case-insensitively. Source of truth is `content.tags`; `content.artists`
+  /// supplements `artist` for old cached data whose tags lack the type.
+  @visibleForTesting
+  static List<String> creatorNamesForTesting(Content content, String type) {
+    final normalized = type.toLowerCase().trim();
+    final seen = <String>{};
+    final names = <String>[];
+    void add(String name) {
+      final key = name.toLowerCase().trim();
+      if (key.isNotEmpty && seen.add(key)) names.add(name);
+    }
+
+    for (final tag in content.tags) {
+      if (tag.type.toLowerCase().trim() == normalized) add(tag.name);
+    }
+    if (normalized == 'artist') {
+      for (final a in content.artists) {
+        add(a);
+      }
+    }
+    return names;
+  }
+  /// Resolve the full [Tag] for a creator tap so `_searchByTag` receives the
+  /// numeric id (preferred) instead of re-guessing from the display name.
+  @visibleForTesting
+  static Tag? resolveCreatorTagForTesting(
+    Content content,
+    String name,
+    String type,
+  ) {
+    final normalized = name.toLowerCase().trim();
+    final wantType = type.toLowerCase().trim();
+    for (final tag in content.tags) {
+      if (tag.type.toLowerCase().trim() == wantType &&
+          tag.name.toLowerCase().trim() == normalized) {
+        return tag;
+      }
+    }
+    return null;
+  }
+  /// Tags visible in the tag block: creator types (`artist`/`author`) live in
+  /// the info section instead, so they are excluded here for every source.
+  @visibleForTesting
+  static List<Tag> visibleDetailTagsForTesting(List<Tag> tags) {
+    return tags.where((tag) {
+      final type = tag.type.toLowerCase().trim();
+      if (type == 'artist' || type == 'author') return false;
+      if (tag.type.startsWith('__mangafire_') ||
+          tag.type == 'available_language') {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+  /// Synopsis lines rendered above the tag block. Empty (the nhentai case —
+  /// the v2 API carries no gallery-level synopsis) renders nothing at all.
+  @visibleForTesting
+  static String synopsisForTesting(Content content) {
+    return (content.subTitle ?? '').trim();
+  }
 
   static String? _deriveHentainexusDetailThumbUrlForTesting(String imageUrl) {
     final uri = Uri.tryParse(imageUrl);
@@ -774,8 +835,8 @@ class _DetailScreenState extends State<DetailScreen> {
         const SizedBox(height: DesignTokens.spaceXl),
         _buildMetadataSection(content),
         const SizedBox(height: DesignTokens.spaceXl),
+        ..._buildSynopsisSection(content),
         _buildTagsSection(content),
-        const SizedBox(height: DesignTokens.spaceXl),
         if (state.content.sourceId == 'mangafire')
           _buildMangaFireToggle(state.content),
         _buildActionButtons(state),
@@ -954,6 +1015,26 @@ class _DetailScreenState extends State<DetailScreen> {
           label: l10n.artistsLabel,
           value: content.artists.join(', '),
           icon: Icons.person,
+          links: [
+            for (final name in content.artists)
+              DetailMetadataLink(
+                text: name,
+                onTap: () => _searchByCreator(content, name, 'artist'),
+              ),
+          ],
+        ),
+      if (_creatorNames(content, 'author').isNotEmpty)
+        DetailMetadataItem(
+          label: l10n.authorLabel,
+          value: _creatorNames(content, 'author').join(', '),
+          icon: Icons.edit,
+          links: [
+            for (final name in _creatorNames(content, 'author'))
+              DetailMetadataLink(
+                text: name,
+                onTap: () => _searchByCreator(content, name, 'author'),
+              ),
+          ],
         ),
       if (content.characters.isNotEmpty)
         DetailMetadataItem(
@@ -1026,18 +1107,44 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
+
+  List<String> _creatorNames(Content content, String type) =>
+      DetailScreen.creatorNamesForTesting(content, type);
+
+
+  void _searchByCreator(Content content, String name, String type) {
+    final tag = DetailScreen.resolveCreatorTagForTesting(content, name, type);
+    final tagId = tag == null
+        ? null
+        : (tag.id != 0 ? tag.id.toString() : tag.slug ?? tag.id.toString());
+    _searchByTag(
+      name,
+      tagId: tagId,
+      tagType: type,
+      sourceId: content.sourceId,
+    );
+  }
+
+
+  List<Widget> _buildSynopsisSection(Content content) {
+    final text = DetailScreen.synopsisForTesting(content);
+    if (text.isEmpty) return const [];
+    return [
+      DetailSynopsisSection(text: text),
+      const SizedBox(height: 20),
+    ];
+  }
+
   Widget _buildTagsSection(Content content) {
     // Build a unified tag list. New API data has all types in content.tags;
     // old cached data may only have type='tag' there, with artist/language
     // stored in separate string fields. Always merge and deduplicate.
+    // Creator types (artist/author) are excluded: they render as tappable
+    // rows in the info section instead.
     final seen = <String>{};
     final allTags = <Tag>[];
 
     void addTag(Tag tag) {
-      if (tag.type.startsWith('__mangafire_') ||
-          tag.type == 'available_language') {
-        return;
-      }
       final key = '${tag.type}:${tag.name.toLowerCase()}';
       if (seen.add(key)) allTags.add(tag);
     }
@@ -1046,12 +1153,10 @@ class _DetailScreenState extends State<DetailScreen> {
       addTag(tag);
     }
 
-    // Supplement from typed string fields (no-op if already present from tags)
+    // Supplement from typed string fields (no-op if already present from tags).
+    // No artist supplement: artists render in the info section, not in tags.
     if (content.language.isNotEmpty && content.language != 'unknown') {
       addTag(Tag(id: 0, name: content.language, type: 'language', count: 0));
-    }
-    for (final a in content.artists) {
-      addTag(Tag(id: 0, name: a, type: 'artist', count: 0));
     }
     for (final c in content.characters) {
       addTag(Tag(id: 0, name: c, type: 'character', count: 0));
@@ -1063,14 +1168,16 @@ class _DetailScreenState extends State<DetailScreen> {
       addTag(Tag(id: 0, name: g, type: 'group', count: 0));
     }
 
+    final visibleTags =
+        DetailScreen.visibleDetailTagsForTesting(allTags);
     return DetailTagSection(
       title: AppLocalizations.of(context)!.tagsLabel,
-      tags: allTags,
+      tags: visibleTags,
       resolveColor: (type) => _getTagColor(context, type),
       formatCount: _formatNumber,
       onTagTap: (tag) => _searchByTag(
         tag.name,
-        tagId: tag.slug ?? tag.id.toString(),
+        tagId: tag.id != 0 ? tag.id.toString() : tag.slug ?? tag.id.toString(),
         tagType: tag.type,
         sourceId: content.sourceId,
       ),

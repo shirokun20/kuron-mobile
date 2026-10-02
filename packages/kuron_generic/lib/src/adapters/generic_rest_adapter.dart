@@ -2398,30 +2398,44 @@ class GenericRestAdapter implements GenericAdapter {
           obj['type']?.toString() ?? obj['namespace']?.toString() ?? 'tag';
       final id = (obj['id'] as num?)?.toInt() ?? 0;
       final count = (obj['count'] as num?)?.toInt() ?? 0;
+      final slugRaw = obj['slug'];
+      final slug = slugRaw is String && slugRaw.trim().isNotEmpty
+          ? slugRaw.trim()
+          : null;
+      final urlRaw = obj['url'];
+      final url = urlRaw is String ? urlRaw.trim() : '';
+      Tag makeTag() => Tag(
+            id: id,
+            name: name,
+            type: type,
+            count: count,
+            slug: slug,
+            url: url,
+          );
 
-      // Always add to tags list (preserves id/count for display).
+      // Always add to tags list (preserves id/count/slug/url for display).
       // Also populate the typed string lists used by metadata section.
       switch (type) {
         case 'artist':
           artists.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(makeTag());
         case 'character':
           characters.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(makeTag());
         case 'parody':
           parodies.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(makeTag());
         case 'group':
           groups.add(name);
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(makeTag());
         case 'language':
           if (name != 'translated') {
             languages.add(name);
-            tags.add(Tag(id: id, name: name, type: type, count: count));
+            tags.add(makeTag());
           }
         default:
           // 'tag', 'category', any unknown type
-          tags.add(Tag(id: id, name: name, type: type, count: count));
+          tags.add(makeTag());
       }
     }
 

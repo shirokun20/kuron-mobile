@@ -54,6 +54,65 @@ void main() {
 
       expect(result.query, 'raw:tag_id=12345');
     });
+    test('nhentai artist resolves via explicit mapping to tag_id', () {
+      final result = resolver.resolve(
+        sourceId: 'nhentai',
+        tagName: 'koari',
+        tagId: '9063',
+        tagType: 'artist',
+        rawConfig: {
+          'navigation': {
+            'tagQueryMapping': {
+              'artist': {
+                'mode': 'rawParam',
+                'param': 'tag_id',
+                'valueSource': 'tagId',
+                'requiredPattern': r'^\d+$',
+              },
+              'default': {
+                'mode': 'rawParam',
+                'param': 'tag_id',
+                'valueSource': 'tagId',
+                'requiredPattern': r'^\d+$',
+              },
+            },
+          },
+        },
+      );
+
+      expect(result.explicitMappingFailed, isFalse);
+      expect(result.query, 'raw:tag_id=9063');
+    });
+
+    test('nhentai author resolves via explicit mapping to tag_id', () {
+      final result = resolver.resolve(
+        sourceId: 'nhentai',
+        tagName: 'somebody',
+        tagId: '4242',
+        tagType: 'author',
+        rawConfig: {
+          'navigation': {
+            'tagQueryMapping': {
+              'author': {
+                'mode': 'rawParam',
+                'param': 'tag_id',
+                'valueSource': 'tagId',
+                'requiredPattern': r'^\d+$',
+              },
+              'default': {
+                'mode': 'rawParam',
+                'param': 'tag_id',
+                'valueSource': 'tagId',
+                'requiredPattern': r'^\d+$',
+              },
+            },
+          },
+        },
+      );
+
+      expect(result.explicitMappingFailed, isFalse);
+      expect(result.query, 'raw:tag_id=4242');
+    });
 
     test('applies explicit mapping transform and resolved tag id', () {
       final result = resolver.resolve(

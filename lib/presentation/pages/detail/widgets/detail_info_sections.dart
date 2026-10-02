@@ -218,18 +218,29 @@ class DetailMetadataSection extends StatelessWidget {
   }
 }
 
+class DetailMetadataLink {
+  const DetailMetadataLink({required this.text, required this.onTap});
+
+  final String text;
+  final VoidCallback onTap;
+}
+
 class DetailMetadataItem {
   const DetailMetadataItem({
     required this.label,
     required this.value,
     this.icon,
+    this.links,
   });
 
   final String label;
   final String value;
   final IconData? icon;
-}
 
+  /// When non-empty, the value renders as independently tappable names
+  /// (e.g. multiple artists) instead of plain text.
+  final List<DetailMetadataLink>? links;
+}
 class DetailMetadataRow extends StatelessWidget {
   const DetailMetadataRow(this.item, {super.key});
 
@@ -271,15 +282,71 @@ class DetailMetadataRow extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(
-              item.value,
-              style: TextStyleConst.bodyLarge.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
+            child: (item.links != null && item.links!.isNotEmpty)
+                ? Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      for (var i = 0; i < item.links!.length; i++) ...[
+                        if (i > 0)
+                          Text(
+                            ', ',
+                            style: TextStyleConst.bodyLarge.copyWith(
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                        InkWell(
+                          onTap: item.links![i].onTap,
+                          child: Text(
+                            item.links![i].text,
+                            style: TextStyleConst.bodyLarge.copyWith(
+                              color: colorScheme.primary,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  )
+                : Text(
+                    item.value,
+                    style: TextStyleConst.bodyLarge.copyWith(
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
           ),
         ],
       ),
+    );
+  }
+}
+class DetailSynopsisSection extends StatelessWidget {
+  const DetailSynopsisSection({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          AppLocalizations.of(context)!.descriptionLabel,
+          style: TextStyleConst.headingSmall.copyWith(
+            color: colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          text,
+          style: TextStyleConst.bodyMedium.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            height: 1.5,
+          ),
+        ),
+      ],
     );
   }
 }
