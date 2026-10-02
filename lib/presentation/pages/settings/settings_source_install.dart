@@ -815,46 +815,105 @@ Future<List<_GlobalManifestEntry>> _selectGlobalManifestEntries({
   }
 
   final selected = <_GlobalManifestEntry>{};
+  var searchQuery = '';
   final result = await showModalBottomSheet<List<_GlobalManifestEntry>>(
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setModalState) => SafeArea(
-        child: SizedBox(
-          height: MediaQuery.of(ctx).size.height * 0.75,
-          child: Column(
-            children: [
-              ListTile(
-                title: Text(
-                    AppLocalizations.of(context)!.selectSourceFromManifest),
-                subtitle:
-                    Text(AppLocalizations.of(context)!.chooseMultipleSources),
-              ),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: entries.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
-                    final entry = entries[index];
-                    final isSelected = selected.contains(entry);
-                    return CheckboxListTile(
-                      value: isSelected,
-                      title: Text(entry.displayName ?? entry.id),
-                      subtitle: Text('${entry.id} • v${entry.version}'),
-                      onChanged: (value) {
-                        setModalState(() {
-                          if (value == true) {
-                            selected.add(entry);
-                          } else {
-                            selected.remove(entry);
-                          }
-                        });
-                      },
-                    );
-                  },
+      builder: (ctx, setModalState) {
+        final theme = Theme.of(ctx);
+        final query = searchQuery.trim().toLowerCase();
+        final filtered = query.isEmpty
+            ? entries
+            : entries.where((entry) {
+                final name =
+                    (entry.displayName ?? entry.id).toLowerCase();
+                return name.contains(query) ||
+                    entry.id.toLowerCase().contains(query);
+              }).toList(growable: false);
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.75,
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(
+                      AppLocalizations.of(context)!.selectSourceFromManifest),
+                  subtitle: Text(
+                      AppLocalizations.of(context)!.chooseMultipleSources),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    onChanged: (value) {
+                      setModalState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    style: TextStyleConst.bodyMedium.copyWith(
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!
+                          .sourceSelectorSearchHint,
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              AppLocalizations.of(context)!
+                                  .sourceSelectorNoResults,
+                              textAlign: TextAlign.center,
+                              style: TextStyleConst.bodyMedium.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (_, index) {
+                            final entry = filtered[index];
+                            final isSelected = selected.contains(entry);
+                            return CheckboxListTile(
+                              value: isSelected,
+                              title: Text(entry.displayName ?? entry.id),
+                              subtitle:
+                                  Text('${entry.id} • v${entry.version}'),
+                              onChanged: (value) {
+                                setModalState(() {
+                                  if (value == true) {
+                                    selected.add(entry);
+                                  } else {
+                                    selected.remove(entry);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                 child: Row(
@@ -886,8 +945,8 @@ Future<List<_GlobalManifestEntry>> _selectGlobalManifestEntries({
             ],
           ),
         ),
-      ),
-    ),
+        );
+      }),
   );
 
   return result ?? const [];
