@@ -1020,6 +1020,8 @@ class _DetailScreenState extends State<DetailScreen> {
               DetailMetadataLink(
                 text: name,
                 onTap: () => _searchByCreator(content, name, 'artist'),
+                type: 'artist',
+                resolveColor: (type) => _getTagColor(context, type),
               ),
           ],
         ),
@@ -1033,6 +1035,8 @@ class _DetailScreenState extends State<DetailScreen> {
               DetailMetadataLink(
                 text: name,
                 onTap: () => _searchByCreator(content, name, 'author'),
+                type: 'author',
+                resolveColor: (type) => _getTagColor(context, type),
               ),
           ],
         ),

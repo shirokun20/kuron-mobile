@@ -219,10 +219,17 @@ class DetailMetadataSection extends StatelessWidget {
 }
 
 class DetailMetadataLink {
-  const DetailMetadataLink({required this.text, required this.onTap});
+  const DetailMetadataLink({
+    required this.text,
+    required this.onTap,
+    required this.type,
+    required this.resolveColor,
+  });
 
   final String text;
   final VoidCallback onTap;
+  final String type;
+  final Color Function(String type) resolveColor;
 }
 
 class DetailMetadataItem {
@@ -284,28 +291,11 @@ class DetailMetadataRow extends StatelessWidget {
           Expanded(
             child: (item.links != null && item.links!.isNotEmpty)
                 ? Wrap(
-                    spacing: 4,
-                    runSpacing: 4,
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      for (var i = 0; i < item.links!.length; i++) ...[
-                        if (i > 0)
-                          Text(
-                            ', ',
-                            style: TextStyleConst.bodyLarge.copyWith(
-                              color: colorScheme.onSurface,
-                            ),
-                          ),
-                        InkWell(
-                          onTap: item.links![i].onTap,
-                          child: Text(
-                            item.links![i].text,
-                            style: TextStyleConst.bodyLarge.copyWith(
-                              color: colorScheme.primary,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      ],
+                      for (final link in item.links!)
+                        _CreatorChip(link: link),
                     ],
                   )
                 : Text(
@@ -316,6 +306,35 @@ class DetailMetadataRow extends StatelessWidget {
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+/// Creator chip — same construction as [DetailTagSection] chips: 1px
+/// type-colored border, tinted fill, no underline. One visual language for
+/// everything tappable on this screen.
+class _CreatorChip extends StatelessWidget {
+  const _CreatorChip({required this.link});
+
+  final DetailMetadataLink link;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = link.resolveColor(link.type);
+    return InkWell(
+      onTap: link.onTap,
+      borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+          border: Border.all(color: color.withValues(alpha: 0.8)),
+        ),
+        child: Text(
+          link.text,
+          style: TextStyleConst.bodyMedium.copyWith(color: color),
+        ),
       ),
     );
   }
