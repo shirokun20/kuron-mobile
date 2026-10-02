@@ -837,10 +837,10 @@ class _DetailScreenState extends State<DetailScreen> {
         const SizedBox(height: DesignTokens.spaceXl),
         ..._buildSynopsisSection(content),
         _buildTagsSection(content),
+        const SizedBox(height: DesignTokens.spaceXl),
         if (state.content.sourceId == 'mangafire')
           _buildMangaFireToggle(state.content),
         _buildActionButtons(state),
-        const SizedBox(height: DesignTokens.spaceXl),
         if (state.relatedContent != null &&
             state.relatedContent!.isNotEmpty) ...[
           _buildRelatedContentSection(state),
