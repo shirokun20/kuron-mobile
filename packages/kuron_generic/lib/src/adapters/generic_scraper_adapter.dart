@@ -2352,6 +2352,8 @@ class GenericScraperAdapter implements GenericAdapter {
           return replaced;
         }).toList();
 
+
+
         // Extrapolate missing image URLs if lazy-loading only provided a few
         if (imageUrls.isNotEmpty) {
           int maxPage = imageUrls.length;
@@ -2408,6 +2410,28 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
         }
+      }
+      // 3c. Re-write dead image hosts (madarascans `madascans.com` → live
+      // `madarascans.net`: same path serves 200 on the new host, 520 on the
+      // old). Config: `reader.imageHostRewrite: {old: new}`. Skipped when
+      // absent — no other reader affected.
+      final hostRewrite = readerConfig['imageHostRewrite'];
+      if (hostRewrite is Map && hostRewrite.isNotEmpty) {
+        final rewriteLower = <String, String>{
+          for (final e in hostRewrite.entries)
+            e.key.toString().toLowerCase(): e.value.toString(),
+        };
+        imageUrls = imageUrls.map((url) {
+          try {
+            final uri = Uri.tryParse(url);
+            if (uri == null || uri.host.isEmpty) return url;
+            final replacement = rewriteLower[uri.host.toLowerCase()];
+            if (replacement == null || replacement.isEmpty) return url;
+            return uri.replace(host: replacement).toString();
+          } catch (_) {
+            return url;
+          }
+        }).toList();
       }
 
       // 4. DOM fallback for navigation via reader.nav.{next,prev}.
@@ -2512,8 +2536,17 @@ class GenericScraperAdapter implements GenericAdapter {
   String? _taxonomyBaseKey(
       Map<String, dynamic> urlPatternsCfg, String rawType) {
     final type = rawType.toLowerCase().trim();
+    // `tag` and `genre` are separate archives when both routes exist
+    // (hentai4free /hentai-tag/ vs /hentai-genre/). Plain tags fall back to
+    // the genre archive only on single-taxonomy sources (legacy WP style).
     if (type == 'tag' && urlPatternsCfg.containsKey('tagSearch')) {
       return 'tagSearch';
+    }
+    if (type == 'genre' && urlPatternsCfg.containsKey('genreSearch')) {
+      return 'genreSearch';
+    }
+    if (type == 'tag' && urlPatternsCfg.containsKey('genreSearch')) {
+      return 'genreSearch';
     }
     if (type == 'author' && urlPatternsCfg.containsKey('authorSearch')) {
       return 'authorSearch';
@@ -2840,7 +2873,20 @@ class GenericScraperAdapter implements GenericAdapter {
       final sel = _readerImages.fieldDefToSelector(defMap);
       if (sel == null) continue;
 
-      if (entry.key == 'tags' && defMap['extractTagObjects'] == true) {
+      // Any taxonomy key (`tags/genre/author/artist`, singular or plural)
+      // can request full Tag objects with href slug + url preserved.
+      const taxonomyKeys = {
+        'tags',
+        'tag',
+        'genres',
+        'genre',
+        'authors',
+        'author',
+        'artists',
+        'artist',
+      };
+      if (taxonomyKeys.contains(entry.key) &&
+          defMap['extractTagObjects'] == true) {
         final elements = _parser.selectAll(doc, sel.selector);
         final tagObjects = <Tag>[];
         for (final el in elements) {
@@ -2853,10 +2899,15 @@ class GenericScraperAdapter implements GenericAdapter {
           String name = nameEl.text.replaceAll(RegExp(r'\s+'), ' ').trim();
           if (name.isEmpty) continue;
 
+          // Keep the original archive URL: without it, taps re-derive the
+          // route from the display name and can land on the wrong taxonomy
+          // (hentai4free genre vs tag vs author vs artist archives).
           String type = 'tag';
           String slug = '';
+          String tagUrl = '';
           final href = el.attributes['href'] ?? '';
           if (href.isNotEmpty) {
+            tagUrl = href;
             final uri = Uri.tryParse(href);
             if (uri != null && uri.pathSegments.isNotEmpty) {
               final segments =
@@ -2869,10 +2920,18 @@ class GenericScraperAdapter implements GenericAdapter {
               }
             }
           }
+          // Map site path segments to app tag types.
+          type = switch (type) {
+            'hentai-tag' || 'tag' => 'tag',
+            'hentai-genre' || 'genre' => 'genre',
+            'hentai-artist' || 'artist' => 'artist',
+            'hentai-author' || 'author' => 'author',
+            'circle' => 'publisher',
+            _ => type,
+          };
 
-          // Map source-specific path segments to standard app tag types if necessary
-          if (type == 'circle') type = 'publisher';
-          if (type == 'author') type = 'artist'; // fallback normalization
+          // (`author` stays `author` here; the old collapse to `artist`
+          // broke authorSearch routing — see author_tag_routing_test.)
 
           int count = 0;
           if (spans.length > 1) {
@@ -2916,8 +2975,9 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
 
-          tagObjects.add(
-              Tag(id: 0, name: name, type: type, slug: slug, count: count));
+          tagObjects.add(Tag(
+              id: 0, name: name, type: type, slug: slug, count: count,
+              url: tagUrl));
         }
 
         final seenValues = <String>{};

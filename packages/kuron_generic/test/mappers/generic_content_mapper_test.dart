@@ -447,6 +447,24 @@ void main() {
       );
       expect(result.tags, hasLength(2));
       expect(result.tags.map((t) => t.name), containsAll(['romance', 'drama']));
+      // `genre` keeps its own type so taps route to genreSearch, and both
+      // keys merge instead of first-key-wins (hentai4free tags + genres).
+      expect(result.tags.map((t) => t.type).toSet(), {'genre'});
+    });
+
+    test('detail merges tags and genres with their own types', () {
+      final result = GenericContentMapper.toDetail(
+        'x',
+        {
+          'tags': ['big-breasts'],
+          'genres': ['doujinshi'],
+        },
+        sourceId: sourceId,
+      );
+      expect(result.tags, hasLength(2));
+      final byName = {for (final t in result.tags) t.name: t.type};
+      expect(byName['big-breasts'], 'tag');
+      expect(byName['doujinshi'], 'genre');
     });
   });
 

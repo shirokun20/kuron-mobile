@@ -223,6 +223,32 @@ class DetailTagQueryResolver {
   }) {
     final scraper = _asMap(rawConfig?['scraper']);
     final urlPatterns = _asMap(scraper['urlPatterns']);
+
+    final normalizedTagType = (tagType ?? '').toLowerCase().trim();
+
+    // Typed taxonomy taps go straight to their own archive route —
+    // never through genreSearch. Without this, hentai4free `tag`,
+    // `author`, `artist` taps all landed on /hentai-genre/ because the
+    // config has no `navigation` block and the genre fallback claimed
+    // every genre-like type.
+    const directRoutes = {
+      'tag': 'tagSearch',
+      'author': 'authorSearch',
+      'artist': 'artistSearch',
+    };
+    final directPattern = directRoutes[normalizedTagType];
+    if (directPattern != null && urlPatterns.containsKey(directPattern)) {
+      var slug = tagName.toLowerCase().trim();
+      if (tagId != null && int.tryParse(tagId) == null) {
+        slug = tagId.toLowerCase().trim();
+      }
+      slug = slug
+          .replaceAll(RegExp(r'\s+'), '-')
+          .replaceAll(RegExp(r'-+'), '-')
+          .replaceAll(RegExp(r'^-|-$'), '');
+      return '$normalizedTagType:$slug';
+    }
+
     final hasGenreSearch = urlPatterns.containsKey('genreSearch');
 
     final genrePrefix =
@@ -231,7 +257,6 @@ class DetailTagQueryResolver {
     final genreTagType =
         (navigation['genreTagType'] as String? ?? 'genre').trim().toLowerCase();
 
-    final normalizedTagType = (tagType ?? '').toLowerCase().trim();
     final isGenreLikeTag = normalizedTagType.isEmpty ||
         normalizedTagType == 'tag' ||
         normalizedTagType == genreTagType;

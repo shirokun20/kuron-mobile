@@ -316,28 +316,74 @@ class GenericContentMapper {
       if (objects.isNotEmpty) return splitTagObjects(objects);
     }
 
-    // Priority 2: List<Tag> already resolved (e.g. from detail page)
-    final rawTags = fields['tags'];
-    if (rawTags is List<Tag>) {
+    // Priority 2: List<Tag> already resolved — under `tags` or any taxonomy
+    // key (`extractTagObjects` on genres/author/artist fields keeps the
+    // original href slug + url per item, so taps hit the exact archive
+    // instead of a re-slugified guess). Bucketed by type like
+    // splitTagObjects so creator rows and fallbacks stay clean.
+    final tagged = <Tag>[];
+    for (final key in const [
+      'tags',
+      'tag',
+      'genres',
+      'genre',
+      'authors',
+      'author',
+      'artists',
+      'artist',
+    ]) {
+      final v = fields[key];
+      if (v is List) tagged.addAll(v.whereType<Tag>());
+    }
+    if (tagged.isNotEmpty) {
+      final artists = <String>[];
+      final characters = <String>[];
+      final parodies = <String>[];
+      final groups = <String>[];
+      String language = '';
+      for (final t in tagged) {
+        switch (t.type) {
+          case 'artist':
+            artists.add(t.name);
+          case 'character':
+            characters.add(t.name);
+          case 'parody':
+            parodies.add(t.name);
+          case 'group':
+          case 'publisher':
+            groups.add(t.name);
+          case 'language':
+            if (t.name != 'translated' && language.isEmpty) {
+              language = t.name;
+            }
+        }
+      }
       return TagSplit(
-        tags: rawTags,
-        artists: const [],
-        characters: const [],
-        parodies: const [],
-        groups: const [],
-        language: '',
+        tags: tagged,
+        artists: artists,
+        characters: characters,
+        parodies: parodies,
+        groups: groups,
+        language: language,
       );
     }
 
-    // Priority 3: List<String> tag names
-    final tagNames = _strListAny(
-      fields,
-      const ['tags', 'tag', 'genre', 'genres'],
+    // Priority 3: List<String> tag names. `genre`/`genres` keep their own
+    // type so tag taps route to genreSearch instead of tagSearch
+    // (hentai4free has separate /hentai-genre/ vs /hentai-tag/ archives;
+    // previously both flattened to `tag` and every tap hit genreSearch).
+    // Also additive: _strListAny used to return only the first non-empty
+    // key, silently dropping `genres` whenever `tags` existed.
+    final resolved = _strListAny(fields, const ['tags', 'tag'])
+        .map((n) => Tag(id: 0, name: n, type: 'tag', count: 0))
+        .toList();
+    resolved.addAll(
+      _strListAny(fields, const ['genre', 'genres']).map(
+        (n) => Tag(id: 0, name: n, type: 'genre', count: 0),
+      ),
     );
     return TagSplit(
-      tags: tagNames
-          .map((n) => Tag(id: 0, name: n, type: 'tag', count: 0))
-          .toList(),
+      tags: resolved,
       artists: const [],
       characters: const [],
       parodies: const [],

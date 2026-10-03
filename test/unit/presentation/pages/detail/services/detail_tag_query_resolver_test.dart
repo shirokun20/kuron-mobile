@@ -160,6 +160,67 @@ void main() {
 
       expect(result.query, 'genre:action-comedy');
     });
+    test('typed taps reach their own archive, never genreSearch', () {
+      // hentai4free: separate /hentai-tag/ vs /hentai-genre/ vs
+      // /hentai-author/ vs /hentai-artist/ archives, no navigation block.
+      Map<String, dynamic> config() => {
+            'scraper': {
+              'urlPatterns': {
+                'genreSearch': {'url': '/hentai-genre/{tag}/'},
+                'tagSearch': {'url': '/hentai-tag/{tag}/'},
+                'authorSearch': {'url': '/hentai-author/{tag}/'},
+                'artistSearch': {'url': '/hentai-artist/{tag}/'},
+              },
+            },
+          };
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'hentai4freenet',
+              tagName: 'big breasts',
+              tagId: 'big-breasts',
+              tagType: 'tag',
+              rawConfig: config(),
+            )
+            .query,
+        'tag:big-breasts',
+      );
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'hentai4freenet',
+              tagName: 'nyan kotatsu',
+              tagId: 'nyan-kotatsu',
+              tagType: 'author',
+              rawConfig: config(),
+            )
+            .query,
+        'author:nyan-kotatsu',
+      );
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'hentai4freenet',
+              tagName: 'nyaruko',
+              tagType: 'artist',
+              rawConfig: config(),
+            )
+            .query,
+        'artist:nyaruko',
+      );
+      expect(
+        resolver
+            .resolve(
+              sourceId: 'hentai4freenet',
+              tagName: 'Doujinshi',
+              tagId: 'doujinshi',
+              tagType: 'genre',
+              rawConfig: config(),
+            )
+            .query,
+        'genre:doujinshi',
+      );
+    });
 
     test('builds SpyFakku artist query with explicit namespace', () {
       final result = resolver.resolve(
