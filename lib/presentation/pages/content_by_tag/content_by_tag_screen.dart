@@ -39,9 +39,50 @@ class ContentByTagScreen extends StatefulWidget {
 
   final String tagQuery;
   final String? displayLabel;
-
   @override
   State<ContentByTagScreen> createState() => _ContentByTagScreenState();
+
+  /// Split an incoming tag query into typed filter items.
+  ///
+  /// `author:name` / `artist:name` keep their creator type (routed to
+  /// authorSearch / artistSearch); plain names become untyped tags.
+  /// `hasTagRoute` mirrors the engine: at least one taxonomy pattern must
+  /// exist or everything stays a text query.
+  @visibleForTesting
+  static ({List<FilterItem> tags, List<FilterItem> artists}) splitTagQuery(
+    String tagQuery, {
+    required bool hasTagRoute,
+  }) {
+    final normalized = tagQuery.trim().toLowerCase();
+    if (!hasTagRoute ||
+        normalized.isEmpty ||
+        normalized.startsWith('raw:')) {
+      return (tags: const [], artists: const []);
+    }
+    final creatorMatch =
+        RegExp(r'^(author|artist):(.*)$').firstMatch(normalized);
+    if (creatorMatch != null && creatorMatch.group(2)!.trim().isNotEmpty) {
+      return (
+        tags: const [],
+        artists: [
+          FilterItem.include(
+            creatorMatch.group(2)!.trim().replaceAll(' ', '-'),
+            tagType: creatorMatch.group(1),
+          )
+        ],
+      );
+    }
+    if (!normalized.contains(':')) {
+      return (
+        tags: [
+          FilterItem.include(normalized.replaceAll(' ', '-'))
+        ],
+        artists: const [],
+      );
+    }
+    return (tags: const [], artists: const []);
+  }
+
 }
 
 class _ContentByTagScreenState extends State<ContentByTagScreen> {
@@ -112,20 +153,20 @@ class _ContentByTagScreenState extends State<ContentByTagScreen> {
               const <String, dynamic>{};
       final hasTagRoute = urlPatterns.containsKey('tagSearch') ||
           urlPatterns.containsKey('genreSearch') ||
+          urlPatterns.containsKey('authorSearch') ||
+          urlPatterns.containsKey('artistSearch') ||
           urlPatterns.containsKey('tag');
 
-      final normalizedTag = widget.tagQuery.trim().toLowerCase();
-      final includeTag = hasTagRoute &&
-              normalizedTag.isNotEmpty &&
-              !normalizedTag.startsWith('raw:') &&
-              !normalizedTag.contains(':')
-          ? [FilterItem.include(normalizedTag.replaceAll(' ', '-'))]
-          : const <FilterItem>[];
+      final split = ContentByTagScreen.splitTagQuery(
+        widget.tagQuery,
+        hasTagRoute: hasTagRoute,
+      );
 
       // Create search filter for the tag
       final searchFilter = SearchFilter(
         query: widget.tagQuery == '{query}' ? '' : widget.tagQuery,
-        tags: includeTag,
+        tags: split.tags,
+        artists: split.artists,
         sortBy: _currentSortOption,
         source: SearchSource.detailScreen,
       );

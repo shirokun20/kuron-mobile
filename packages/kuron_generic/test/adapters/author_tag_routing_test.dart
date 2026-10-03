@@ -51,6 +51,7 @@ Map<String, dynamic> _configWith(List<String> patterns) {
     'authorSearch': '/manga-author/{tag}/',
     'artistSearch': '/manga-artist/{tag}/',
     'genreSearch': '/manga-genre/{tag}/',
+    'search': '/search/?q={query}',
   };
   return {
     'source': 'tag-routing',
@@ -161,6 +162,45 @@ void main() {
           includeTags: [FilterItem(id: 0, name: 'Hanse', type: 'artist')],
         ),
         _configWith(const ['artistSearch', 'genreSearch']),
+      );
+
+      expect(result.items, hasLength(1));
+    });
+
+    test('author routes to authorSearch without genreSearch gate', () async {
+      final dio = Dio(BaseOptions(baseUrl: _baseUrl));
+      final (adapter, dioAdapter) = _buildAdapter(dio);
+      _stub(dioAdapter, '$_baseUrl/manga-author/jeon-sun-wook/');
+
+      final result = await adapter.search(
+        const SearchFilter(
+          query: '',
+          page: 1,
+          includeTags: [
+            FilterItem(id: 0, name: 'Jeon Sun-Wook', type: 'author')
+          ],
+        ),
+        _configWith(const ['authorSearch']),
+      );
+
+      expect(result.items, hasLength(1));
+      expect(result.items.first.title, 'Result One');
+    });
+
+    test('no taxonomy routes falls through to text search', () async {
+      final dio = Dio(BaseOptions(baseUrl: _baseUrl));
+      final (adapter, dioAdapter) = _buildAdapter(dio);
+      _stub(dioAdapter, '$_baseUrl/search/?q=hanse');
+
+      final result = await adapter.search(
+        const SearchFilter(
+          query: 'hanse',
+          page: 1,
+          includeTags: [
+            FilterItem(id: 0, name: 'hanse', type: 'author')
+          ],
+        ),
+        _configWith(const ['search']),
       );
 
       expect(result.items, hasLength(1));

@@ -241,22 +241,10 @@ class GenericScraperAdapter implements GenericAdapter {
               ? prefixPatternKey.last
               : prefixPatternKey.first;
     } else if (filter.includeTags.isNotEmpty &&
-        urlPatternsCfg.containsKey('genreSearch')) {
-      const wantsPlainTag = 'tag';
-      final firstType = filter.includeTags.first.type.toLowerCase().trim();
-      final useTagPattern =
-          firstType == wantsPlainTag && urlPatternsCfg.containsKey('tagSearch');
-      final useAuthorPattern =
-          firstType == 'author' && urlPatternsCfg.containsKey('authorSearch');
-      final useArtistPattern =
-          firstType == 'artist' && urlPatternsCfg.containsKey('artistSearch');
-      final baseKey = useTagPattern
-          ? 'tagSearch'
-          : useAuthorPattern
-              ? 'authorSearch'
-              : useArtistPattern
-                  ? 'artistSearch'
-                  : 'genreSearch';
+        _taxonomyBaseKey(urlPatternsCfg, filter.includeTags.first.type) !=
+            null) {
+      final baseKey = _taxonomyBaseKey(
+          urlPatternsCfg, filter.includeTags.first.type)!;
       final pageKey = '${baseKey}Page';
       patternKey = filter.page > 1 && urlPatternsCfg.containsKey(pageKey)
           ? pageKey
@@ -2516,6 +2504,27 @@ class GenericScraperAdapter implements GenericAdapter {
           .replaceAll(RegExp(r'\s+'), '-')
           .replaceAll(RegExp(r'^-|-$'), ''),
     };
+  }
+  /// Resolve the taxonomy URL pattern for an includeTags entry, or null
+  /// when the config declares no usable route for its type (caller falls
+  /// through to text search). Type-specific archives win; genre archive is
+  /// the legacy fallback only when it exists.
+  String? _taxonomyBaseKey(
+      Map<String, dynamic> urlPatternsCfg, String rawType) {
+    final type = rawType.toLowerCase().trim();
+    if (type == 'tag' && urlPatternsCfg.containsKey('tagSearch')) {
+      return 'tagSearch';
+    }
+    if (type == 'author' && urlPatternsCfg.containsKey('authorSearch')) {
+      return 'authorSearch';
+    }
+    if (type == 'artist' && urlPatternsCfg.containsKey('artistSearch')) {
+      return 'artistSearch';
+    }
+    if (urlPatternsCfg.containsKey('genreSearch')) {
+      return 'genreSearch';
+    }
+    return null;
   }
 
   (String, Map<String, dynamic>?) _resolvePattern(
