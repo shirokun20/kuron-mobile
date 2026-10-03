@@ -239,6 +239,24 @@ void main() {
       );
     });
 
+    test('pwa .webmanifest link is not a video (hentai4free ghost card)', () {
+      const html = '''
+        <head>
+          <link rel="manifest" href="https://hentai4free.net/h4f-pwa-manifest.webmanifest?rev=20260908-1">
+        </head>
+        <div><img src="https://cdn/001.jpg"></div>''';
+      expect(_resolver().extractChapterVideoUrls(html), isEmpty);
+    });
+
+    test('video url with query string still matches', () {
+      expect(
+        _resolver().extractChapterVideoUrls(
+          '<video><source src="https://cdn/clip.mp4?token=abc"></video>',
+        ),
+        ['https://cdn/clip.mp4?token=abc'],
+      );
+    });
+
     test('normalize drops video urls scraped by a broad selector', () {
       expect(
         _resolver().normalizeChapterImageUrls([
