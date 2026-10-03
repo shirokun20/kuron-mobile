@@ -842,6 +842,23 @@ Future<List<_GlobalManifestEntry>> _selectGlobalManifestEntries({
                       AppLocalizations.of(context)!.selectSourceFromManifest),
                   subtitle: Text(
                       AppLocalizations.of(context)!.chooseMultipleSources),
+                  // ponytail: filtered-scoped toggle; select-all installs
+                  // everything visible, tap again clears just that scope.
+                  trailing: TextButton(
+                    onPressed: filtered.isEmpty
+                        ? null
+                        : () => setModalState(() {
+                              if (filtered.every(selected.contains)) {
+                                selected.removeAll(filtered);
+                              } else {
+                                selected.addAll(filtered);
+                              }
+                            }),
+                    child: Text(filtered.isNotEmpty &&
+                            filtered.every(selected.contains)
+                        ? AppLocalizations.of(context)!.clearSelection
+                        : AppLocalizations.of(context)!.selectAll),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
