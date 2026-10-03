@@ -75,4 +75,17 @@ void main() {
       );
     });
   });
+
+  group('DynamicFormSearchUI.emitsQueryParam', () {
+    test('1.1 empty queryParam emits nothing', () {
+      expect(DynamicFormSearchUI.emitsQueryParam(''), isFalse);
+      expect(DynamicFormSearchUI.emitsQueryParam('   '), isFalse);
+      expect(DynamicFormSearchUI.emitsQueryParam(null), isFalse);
+    });
+
+    test('1.1 normal queryParam still emits', () {
+      expect(DynamicFormSearchUI.emitsQueryParam('sort'), isTrue);
+      expect(DynamicFormSearchUI.emitsQueryParam('q'), isTrue);
+    });
+  });
 }

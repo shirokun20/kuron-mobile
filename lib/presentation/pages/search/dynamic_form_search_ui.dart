@@ -57,7 +57,6 @@ class DynamicFormSearchUI extends StatefulWidget {
   final String sourceId;
   final DynamicSearchFormContract? canonicalContract;
   final int reloadSignal;
-
   const DynamicFormSearchUI({
     super.key,
     required this.config,
@@ -65,6 +64,13 @@ class DynamicFormSearchUI extends StatefulWidget {
     this.canonicalContract,
     this.reloadSignal = 0,
   });
+
+  /// A field participates in the built query only when it declares a
+  /// non-empty `queryParam`. Empty params would emit garbage `=value` pairs
+  /// the server ignores (ext-config-audit-fixes 1.1).
+  @visibleForTesting
+  static bool emitsQueryParam(String? queryParam) =>
+      queryParam != null && queryParam.trim().isNotEmpty;
 
   @override
   State<DynamicFormSearchUI> createState() => _DynamicFormSearchUIState();
@@ -2170,7 +2176,7 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       final name = entry.key;
       final field = entry.value;
       final qp = field.queryParam;
-      if (qp == null) continue;
+      if (qp == null || !DynamicFormSearchUI.emitsQueryParam(qp)) continue;
       final rawField = _rawFieldConfig(name);
       final joinMode = (rawField?['joinMode'] as String?)?.trim();
 
