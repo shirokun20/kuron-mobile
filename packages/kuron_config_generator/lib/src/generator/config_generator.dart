@@ -381,15 +381,6 @@ class ConfigGenerator {
         'url': '/search/label/{tag}?max-results=12',
         'inherits': 'home',
       };
-    } else if (ct == 'blogger') {
-      urls['genreSearch'] = <String, Object?>{
-        'url': '/genre/{tag}/',
-        'inherits': 'home',
-      };
-      urls['genreSearchPage'] = <String, Object?>{
-        'url': '/genre/{tag}/page/{page}/',
-        'inherits': 'home',
-      };
     } else if (ct == 'mangathemesia') {
       urls['genreSearch'] = <String, Object?>{
         'url': '/genres/{tag}/',
@@ -572,8 +563,8 @@ class ConfigGenerator {
           'attribute': 'data-src',
         },
         'description': {'selector': '.series-infoz, .series-infolist'},
-        'author': {'selector': "a[href*='/author/']"},
-        'artist': {'selector': "a[href*='/artist/']"},
+        'author': {'selector': "a[href*='/author/']", 'multi': true},
+        'artist': {'selector': "a[href*='/artist/']", 'multi': true},
         'genres': {'selector': "a[href*='/genre/']", 'multi': true},
         'tags': {'selector': "a[href*='/tag/']", 'multi': true},
         'status': {'selector': '.status'},
@@ -638,8 +629,8 @@ class ConfigGenerator {
       'title': {'selector': 'h1'},
       'coverUrl': {'selector': 'img', 'attribute': 'src'},
       'description': {'selector': 'p'},
-      'author': {'selector': "a[href*='/author/']"},
-      'artist': {'selector': "a[href*='/artist/']"},
+      'author': {'selector': "a[href*='/author/']", 'multi': true},
+      'artist': {'selector': "a[href*='/artist/']", 'multi': true},
       'genres': {'selector': "a[href*='/genre/']", 'multi': true},
       'tags': {'selector': "a[href*='/tag/']", 'multi': true},
       'status': {'selector': '[class*="status"]'},

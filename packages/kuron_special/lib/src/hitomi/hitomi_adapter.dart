@@ -23,7 +23,7 @@ class HitomiAdapter implements GenericAdapter {
   final Map<int, int> _offsetMap = <int, int>{};
   String _commonImageId = '';
   DateTime? _ggFetchedAt;
-  DateTime? _lastRequestAt;
+  RateLimiter? _rateLimiter;
 
   HitomiAdapter({
     required Dio dio,
@@ -1012,29 +1012,10 @@ class HitomiAdapter implements GenericAdapter {
   }
 
   Future<void> _throttle(Map<String, dynamic> rawConfig) async {
-    final network = (rawConfig['network'] as Map?)?.cast<String, dynamic>() ??
-        const <String, dynamic>{};
-    final rateLimit = (network['rateLimit'] as Map?)?.cast<String, dynamic>() ??
-        const <String, dynamic>{};
-    final requestsPerSecond =
-        (rateLimit['requestsPerSecond'] as num?)?.toDouble() ?? 0;
-
-    if (requestsPerSecond <= 0) {
-      return;
-    }
-
-    final minIntervalMs = (1000 / requestsPerSecond).ceil();
-    final now = DateTime.now();
-
-    if (_lastRequestAt != null) {
-      final elapsed = now.difference(_lastRequestAt!).inMilliseconds;
-      final waitMs = minIntervalMs - elapsed;
-      if (waitMs > 0) {
-        await Future.delayed(Duration(milliseconds: waitMs));
-      }
-    }
-
-    _lastRequestAt = DateTime.now();
+    _rateLimiter ??= RateLimiter.fromNetwork(
+      (rawConfig['network'] as Map?)?.cast<String, dynamic>(),
+    );
+    await _rateLimiter?.throttle();
   }
 }
 

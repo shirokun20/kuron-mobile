@@ -130,6 +130,30 @@ class WizardBuilder {
         type: QuestionType.text,
         isRequired: false,
       ),
+      WizardQuestion(
+        id: 'genreSearchUrl',
+        prompt: 'Genre archive URL pattern (empty = theme default):',
+        type: QuestionType.text,
+        isRequired: false,
+      ),
+      WizardQuestion(
+        id: 'tagSearchUrl',
+        prompt: 'Tag archive URL pattern (empty = theme default):',
+        type: QuestionType.text,
+        isRequired: false,
+      ),
+      WizardQuestion(
+        id: 'authorSearchUrl',
+        prompt: 'Author archive URL pattern (empty = theme default):',
+        type: QuestionType.text,
+        isRequired: false,
+      ),
+      WizardQuestion(
+        id: 'artistSearchUrl',
+        prompt: 'Artist archive URL pattern (empty = theme default):',
+        type: QuestionType.text,
+        isRequired: false,
+      ),
     ];
   }
 

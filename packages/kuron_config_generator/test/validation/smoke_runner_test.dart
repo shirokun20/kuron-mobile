@@ -59,6 +59,9 @@ void main() {
       } else if (path.startsWith('/search')) {
         req.response.headers.contentType = ContentType.html;
         req.response.write(searchHtml);
+      } else if (path.startsWith('/tag/')) {
+        req.response.headers.contentType = ContentType.html;
+        req.response.write(searchHtml);
       } else if (path == '/manga/one/') {
         req.response.headers.contentType = ContentType.html;
         req.response
@@ -99,7 +102,10 @@ void main() {
   /// End-to-end config driving all five screens against the local server:
   /// home → search → detail → chapters → reader, with a detail-field config
   /// whose selectors are injected per test.
-  Map<String, dynamic> happyPathConfig(Map<String, dynamic> detailFields) => {
+  Map<String, dynamic> happyPathConfig(
+    Map<String, dynamic> detailFields, {
+    Map<String, dynamic>? extraPatterns,
+  }) => {
         'source': 'smoketest',
         'baseUrl': baseUrl,
         'scraper': {
@@ -135,6 +141,7 @@ void main() {
             },
             'detail': '/manga/{id}/',
             'chapter': '/chapter/{id}/',
+            if (extraPatterns != null) ...extraPatterns,
           },
           'selectors': {
             'detail': {
@@ -370,5 +377,61 @@ void main() {
     expect(content, contains("const _sourceId = 'demo';"));
     expect(content, contains('group('));
     expect(content, contains('LIVE'));
+  });
+
+  group('taxonomy screen probe (conformance-loop 2.1)', () {
+    test('live taxonomy archive passes the sixth screen', () async {
+      final report = await fastRunner().run(
+        happyPathConfig(
+          {
+            'title': {'selector': 'h1'},
+            'tags': {'selector': '.tags a', 'multi': true},
+          },
+          extraPatterns: {
+            'tagSearch': {
+              'url': '/tag/{tag}/',
+              'inherits': 'home',
+            },
+            'genreSearch': {
+              'url': '/tag/{tag}/',
+              'inherits': 'home',
+            },
+          },
+        ),
+      );
+
+      final taxonomy = report.results.firstWhere(
+          (r) => r.screen == 'taxonomy',
+          orElse: () => throw StateError('no taxonomy screen'));
+      expect(taxonomy.passed, isTrue, reason: '${report.results}');
+      expect(report.allPassed, isTrue, reason: '${report.results}');
+    });
+
+    test('dead taxonomy archive fails the run (blocking)', () async {
+      final report = await fastRunner().run(
+        happyPathConfig(
+          {
+            'title': {'selector': 'h1'},
+            'tags': {'selector': '.tags a', 'multi': true},
+          },
+          extraPatterns: {
+            'tagSearch': {
+              'url': '/dead/{tag}/',
+              'inherits': 'home',
+            },
+            'genreSearch': {
+              'url': '/dead/{tag}/',
+              'inherits': 'home',
+            },
+          },
+        ),
+      );
+
+      final taxonomy = report.results.firstWhere(
+          (r) => r.screen == 'taxonomy',
+          orElse: () => throw StateError('no taxonomy screen'));
+      expect(taxonomy.passed, isFalse);
+      expect(report.allPassed, isFalse);
+    });
   });
 }

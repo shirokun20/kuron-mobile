@@ -4,7 +4,6 @@
 import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:kuron_config_generator/src/commands/generate_command.dart';
-import 'package:kuron_config_generator/src/commands/discover_command.dart';
 import 'package:kuron_config_generator/src/commands/validate_command.dart';
 
 Future<void> main(List<String> args) async {
@@ -13,7 +12,6 @@ Future<void> main(List<String> args) async {
     'Generate and validate Kuron source configs.',
   )
     ..addCommand(GenerateCommand())
-    ..addCommand(DiscoverCommand())
     ..addCommand(ValidateCommand());
 
   try {

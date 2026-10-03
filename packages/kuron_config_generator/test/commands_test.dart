@@ -1,6 +1,6 @@
 import 'package:test/test.dart';
+import 'package:args/command_runner.dart';
 import 'package:kuron_config_generator/src/commands/generate_command.dart';
-import 'package:kuron_config_generator/src/commands/discover_command.dart';
 import 'package:kuron_config_generator/src/commands/validate_command.dart';
 import 'package:kuron_config_generator/src/discovery/http_probe.dart';
 
@@ -12,10 +12,13 @@ void main() {
       expect(cmd.description, contains('Generate'));
     });
 
-    test('DiscoverCommand has expected name and description', () {
-      final cmd = DiscoverCommand();
-      expect(cmd.name, 'discover');
-      expect(cmd.description, contains('Discover'));
+    test('runner registers generate + validate only (discover stub gone)',
+        () {
+      final runner = CommandRunner<void>('kuron_config_generator', 'test')
+        ..addCommand(GenerateCommand())
+        ..addCommand(ValidateCommand());
+      expect(runner.commands.keys, containsAll(['generate', 'validate-generated']));
+      expect(runner.commands.keys, isNot(contains('discover')));
     });
 
     test('ValidateCommand has expected name and description', () {
@@ -28,6 +31,20 @@ void main() {
       final cmd = GenerateCommand();
       expect(cmd.argParser.options, contains('url'));
       expect(cmd.argParser.options, contains('interactive'));
+    });
+
+    test('GenerateCommand exposes taxonomy overrides + report contract', () {
+      final cmd = GenerateCommand();
+      for (final flag in [
+        'genre-search-url',
+        'tag-search-url',
+        'author-search-url',
+        'artist-search-url',
+        'fix',
+        'report-output',
+      ]) {
+        expect(cmd.argParser.options, contains(flag));
+      }
     });
   });
 

@@ -904,9 +904,35 @@ class GenericScraperAdapter implements GenericAdapter {
     return isolated;
   }
 
+  /// Build a `Cookie` header value from a `reader.cookies` declaration.
+  /// Both names and values support `{id}` / `{contentId}` substitution
+  /// with the normalized chapter id (hentaikun: slug, e.g.
+  /// `{"{id}/read": "2"}` → `my-slug-18117/read=2`). Returns null when
+  /// the declaration is absent or yields no pairs.
+  String? _readerCookiesHeader(dynamic cookiesDef, String idValue) {
+    if (cookiesDef is! Map || cookiesDef.isEmpty) return null;
+    final pairs = <String>[];
+    for (final entry in cookiesDef.entries) {
+      final name = entry.key
+          .toString()
+          .replaceAll('{id}', idValue)
+          .replaceAll('{contentId}', idValue);
+      final value = entry.value
+          .toString()
+          .replaceAll('{id}', idValue)
+          .replaceAll('{contentId}', idValue);
+      if (name.isEmpty) continue;
+      pairs.add('$name=$value');
+    }
+    if (pairs.isEmpty) return null;
+    return pairs.join('; ');
+  }
+
   Map<String, dynamic> _resolveRequestHeaders(
     Map<String, dynamic> rawConfig, {
     required String fallbackReferer,
+    Map? readerConfig,
+    String? cookieId,
   }) {
     final headers = <String, dynamic>{};
     final network = rawConfig['network'];
@@ -914,6 +940,22 @@ class GenericScraperAdapter implements GenericAdapter {
       final rawHeaders = network['headers'];
       if (rawHeaders is Map<String, dynamic>) {
         headers.addAll(rawHeaders);
+      }
+    }
+
+    // ponytail: reader.cookies — per-request cookies for cookie-gated readers
+    // (hentaikun `{slug}/read=2` all-pages mode). Scoped to reader fetches
+    // only; never clobbers an explicit config `Cookie`.
+    if (cookieId != null) {
+      final cookieValue = _readerCookiesHeader(
+        readerConfig?['cookies'],
+        cookieId,
+      );
+      if (cookieValue != null && cookieValue.isNotEmpty) {
+        final existing = headers['Cookie']?.toString();
+        headers['Cookie'] = (existing == null || existing.isEmpty)
+            ? cookieValue
+            : '$existing; $cookieValue';
       }
     }
 
@@ -1635,9 +1677,14 @@ class GenericScraperAdapter implements GenericAdapter {
     final normalizedId =
         _normalizeChapterIdForTemplate(chapterId, chapterTemplate);
     final url = _urlBuilder.buildDetailUrl(chapterTemplate, normalizedId);
-    _logger.d('$_sourceId scraper chapter: $url');
-    final chapterRequestHeaders =
-        _resolveRequestHeaders(rawConfig, fallbackReferer: url);
+    final selectors = (scraper?['selectors'] as Map<String, dynamic>?) ?? {};
+    final readerConfig = selectors['reader'] as Map<String, dynamic>?;
+    final chapterRequestHeaders = _resolveRequestHeaders(
+      rawConfig,
+      fallbackReferer: url,
+      readerConfig: readerConfig,
+      cookieId: normalizedId,
+    );
 
     try {
       final response = await _executeRequest<Response<String>>(
@@ -1666,8 +1713,6 @@ class GenericScraperAdapter implements GenericAdapter {
         } catch (_) {}
       }
 
-      final selectors = (scraper?['selectors'] as Map<String, dynamic>?) ?? {};
-      final readerConfig = selectors['reader'] as Map<String, dynamic>?;
       if (readerConfig == null) return null;
 
       // Next.js obfuscated JSON reader (nicomanga redesign): images live in
@@ -2210,6 +2255,8 @@ class GenericScraperAdapter implements GenericAdapter {
                       headers: _resolveRequestHeaders(
                         rawConfig,
                         fallbackReferer: extraUrl,
+                        readerConfig: readerConfig,
+                        cookieId: normalizedId,
                       ),
                     ),
                   ),

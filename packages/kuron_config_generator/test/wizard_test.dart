@@ -19,6 +19,22 @@ void main() {
       expect(identityQuestions.any((q) => q.id == 'sourceId'), isTrue);
       expect(identityQuestions.any((q) => q.id == 'homeUrl'), isTrue);
     });
+    test('Scraper section asks taxonomy overrides (optional)', () {
+      final flow = WizardBuilder.buildFlow();
+      final questions = {
+        for (final q in flow.sections['scraper']!) q.id: q
+      };
+
+      for (final id in [
+        'genreSearchUrl',
+        'tagSearchUrl',
+        'authorSearchUrl',
+        'artistSearchUrl'
+      ]) {
+        expect(questions, contains(id));
+        expect(questions[id]!.isRequired, isFalse);
+      }
+    });
 
     test('ConfigGenerator produces valid config structure', () {
       final answers = {

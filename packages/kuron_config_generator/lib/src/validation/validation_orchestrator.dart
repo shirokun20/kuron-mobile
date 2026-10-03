@@ -33,13 +33,14 @@ class ValidationOrchestrator {
   ///
   // [reportFormat] controls display format (text/json/markdown).
   // [showAllSuggestions] shows fix suggestions even when compatible.
-  Future<void> runValidationLoop({
+  Future<ParsedReport?> runValidationLoop({
     required String configPath,
     String reportFormat = 'text',
     bool showAllSuggestions = false,
   }) async {
     // R8.1–R8.4: Backup on first entry only
     await BackupManager.createBackup(configPath);
+    ParsedReport? last;
 
     for (var i = 0; i < 20; i++) {
       // R4.6: Check config file still exists
@@ -58,7 +59,7 @@ class ValidationOrchestrator {
         );
         break;
       }
-
+      last = parsed;
       final suggestions = FixSuggestionMapper.map(parsed.diagnostics);
 
       // R4.1: Display report using the formatter
@@ -96,10 +97,11 @@ class ValidationOrchestrator {
         }
         if (input.toLowerCase() == 'q') {
           print('Validation loop ended. Generated config at: $configPath');
-          return; // exit loop (R4.3)
+          return last; // exit loop (R4.3)
         }
         // R4.8: Other input → re-prompt
       }
     }
+    return last;
   }
 }

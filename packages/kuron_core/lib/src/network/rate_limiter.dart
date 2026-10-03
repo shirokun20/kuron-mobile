@@ -67,16 +67,77 @@ class RateLimiter {
   Future<T> execute<T>(Future<T> Function() request) async {
     await _semaphore.acquire();
     try {
-      if (_lastRequest != null) {
-        final elapsed = DateTime.now().difference(_lastRequest!);
-        if (elapsed < delay) {
-          await Future<void>.delayed(delay - elapsed);
-        }
-      }
-      _lastRequest = DateTime.now();
+      await _waitTurn();
       return await request();
     } finally {
       _semaphore.release();
     }
+  }
+
+  /// Wait for the minimum delay without holding a permit afterwards. Use
+  /// when the request itself runs elsewhere and only pacing is needed.
+  Future<void> throttle() async {
+    await _semaphore.acquire();
+    try {
+      await _waitTurn();
+    } finally {
+      _semaphore.release();
+    }
+  }
+
+  Future<void> _waitTurn() async {
+    if (_lastRequest != null) {
+      final elapsed = DateTime.now().difference(_lastRequest!);
+      if (elapsed < delay) {
+        await Future<void>.delayed(delay - elapsed);
+      }
+    }
+    _lastRequest = DateTime.now();
+  }
+
+  /// Build a limiter from a config `network` block, or null when the
+  /// config declares no usable limit. Mirrors the keys generic sources use:
+  /// `rateLimit: {enabled, minDelayMs, requestsPerSecond, requestsPerMinute,
+  /// maxConcurrentRequests}`.
+  static RateLimiter? fromNetwork(Map<String, dynamic>? network) {
+    final rateLimit =
+        (network?['rateLimit'] as Map?)?.cast<String, dynamic>();
+    if (rateLimit == null) return null;
+    final enabled = rateLimit['enabled'];
+    if (enabled is bool && !enabled) return null;
+
+    final minDelayMs = _resolveMinDelayMs(rateLimit);
+    if (minDelayMs == null || minDelayMs <= 0) return null;
+
+    return RateLimiter(
+      delay: Duration(milliseconds: minDelayMs),
+      maxConcurrent: _readPositiveInt(rateLimit['maxConcurrentRequests']) ?? 1,
+    );
+  }
+
+  static int? _resolveMinDelayMs(Map<String, dynamic> rateLimit) {
+    final configuredDelay = _readPositiveInt(rateLimit['minDelayMs']);
+    if (configuredDelay != null) return configuredDelay;
+
+    final requestsPerSecond =
+        _readPositiveDouble(rateLimit['requestsPerSecond']);
+    if (requestsPerSecond != null) return (1000 / requestsPerSecond).ceil();
+
+    final requestsPerMinute =
+        _readPositiveDouble(rateLimit['requestsPerMinute']);
+    if (requestsPerMinute != null) return (60000 / requestsPerMinute).ceil();
+
+    return null;
+  }
+
+  static int? _readPositiveInt(Object? value) {
+    if (value is int && value > 0) return value;
+    if (value is num && value > 0) return value.toInt();
+    return null;
+  }
+
+  static double? _readPositiveDouble(Object? value) {
+    if (value is num && value > 0) return value.toDouble();
+    return null;
   }
 }

@@ -1,0 +1,84 @@
+Request URL
+https://hentaikun.com/manga/original-doujins-series/if-you-win-i-ll-do-anything-you-want-18140/read/
+Request method
+GET
+Status code
+200 OK
+Remote address
+104.21.31.173:443
+Referrer policy
+strict-origin-when-cross-origin
+alt-svc
+h3=":443"; ma=86400
+cache-control
+no-store, no-cache, must-revalidate, post-check=0, pre-check=0
+cf-cache-status
+DYNAMIC
+cf-ray
+a4488c38eed5a029-SIN
+content-encoding
+zstd
+content-type
+text/html; charset=UTF-8
+date
+Sat, 03 Oct 2026 02:34:26 GMT
+expires
+Thu, 19 Nov 1981 08:52:00 GMT
+nel
+{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+pragma
+no-cache
+priority
+u=0,i
+report-to
+{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=EUaVtffUYNlvKO7Zdm9vSLHdhvc6dRl%2FL%2F6LZ1nTp9it17zKXm5hZ%2FOvSvX%2Fblkm3yBNh7Nw02YODG77B7MtjzO7i5OztpmTs2mWzcp9y1AhNA%2BUhtCtAwxhsrlbzWCP"}]}
+server
+cloudflare
+server-timing
+cfExtPri
+set-cookie
+JuicyPop0=deleted; expires=Thu, 01-Jan-1970 00:00:01 GMT; Max-Age=0; path=/
+x-powered-by
+PHP/5.6.40
+:authority
+hentaikun.com
+:method
+GET
+:path
+/manga/original-doujins-series/if-you-win-i-ll-do-anything-you-want-18140/read/
+:scheme
+https
+accept
+text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8
+accept-encoding
+gzip, deflate, br, zstd
+accept-language
+en-US,en;q=0.8
+cache-control
+max-age=0
+cookie
+PHPSESSID=19jampnm8vduubjv77aqjvcuk0; my-girlfried-is-a-gravure-idol-18117/read=2; if-you-win-i-ll-do-anything-you-want-18140/read=1
+priority
+u=0, i
+referer
+https://hentaikun.com/manga/original-doujins-series/if-you-win-i-ll-do-anything-you-want-18140/read/
+sec-ch-ua
+"Chromium";v="154", "Brave";v="154", "Not A(Brand";v="99"
+sec-ch-ua-mobile
+?1
+sec-ch-ua-platform
+"Android"
+sec-fetch-dest
+document
+sec-fetch-mode
+navigate
+sec-fetch-site
+same-origin
+sec-fetch-user
+?1
+sec-gpc
+1
+upgrade-insecure-requests
+1
+user-agent
+Mozilla/5.0 (Linux; Android 16; Pixel 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Mobile Safari/537.36

@@ -2,7 +2,6 @@
 library;
 
 export 'src/commands/generate_command.dart';
-export 'src/commands/discover_command.dart';
 export 'src/commands/validate_command.dart';
 export 'src/validation/backup_manager.dart';
 export 'src/validation/fix_suggestion.dart';

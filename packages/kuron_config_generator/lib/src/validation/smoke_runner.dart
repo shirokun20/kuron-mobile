@@ -27,7 +27,7 @@ class ScreenResult {
       passed ? '$screen: OK ($itemCount items)' : '$screen: FAIL — $failure';
 }
 
-/// Aggregate outcome of the 5-screen live smoke run.
+/// Aggregate outcome of the 6-screen live smoke run.
 class SmokeReport {
   const SmokeReport({
     required this.results,
@@ -49,9 +49,16 @@ class SmokeReport {
       results.where((r) => !r.passed).toList(growable: false);
 }
 
+/// One taxonomy value to walk through tag-routing in the smoke probe.
+class _TaxonomyTarget {
+  const _TaxonomyTarget(this.type, this.value);
+
+  final String type;
+  final String value;
+}
 /// Runs a generated scraper config through the real [GenericScraperAdapter]
-/// and asserts the five app screens (home, search, detail, chapters, reader)
-/// return usable data. Captures raw HTML per screen for fixture emission.
+/// and asserts the six app screens (home, search, detail, taxonomy, chapters,
+/// reader) return usable data. Captures raw HTML per screen for fixture emission.
 ///
 /// ponytail: probes are sequential and shallow (first item walked into
 /// detail/reader); upgrade to parallel + multi-item sampling when a source
@@ -276,8 +283,57 @@ class SmokeRunner {
         }
       }
     }
+    // ── taxonomy (6th screen) ─────────────────────────────────────────────
+    // A green detail screen once masked dead taxonomy archives (authorSearch
+    // 404 etc.). Walk one live value per taxonomy type through the real
+    // tag-routing path; empty results fail the run (blocking).
+    if (detail != null) {
+      final patterns =
+          (config['scraper'] as Map?)?['urlPatterns'] as Map?;
+      final hasTaxonomyRoute = patterns != null &&
+          (patterns.containsKey('genreSearch') ||
+              patterns.containsKey('tagSearch') ||
+              patterns.containsKey('authorSearch') ||
+              patterns.containsKey('artistSearch'));
+      if (!hasTaxonomyRoute) {
+        findings.add(ProbeFinding(
+          probe: 'taxonomy-skipped',
+          severity: FindingSeverity.info,
+          message: 'no taxonomy patterns configured — screen skipped',
+        ));
+      } else {
+        final taxonomyTargets = _taxonomyTargets(detail.content);
+        var taxonomyOk = true;
+        String? taxonomyFailure;
+        for (final target in taxonomyTargets.take(4)) {
+          await Future<void>.delayed(settle);
+          try {
+            final res = await adapter.search(
+              SearchFilter(query: '', page: 1, includeTags: [
+                FilterItem(id: 0, name: target.value, type: target.type),
+              ]),
+              config,
+            );
+            if (res.items.isEmpty) {
+              taxonomyOk = false;
+              taxonomyFailure = '${target.type}:${target.value} → 0 items';
+              break;
+            }
+          } catch (e) {
+            taxonomyOk = false;
+            taxonomyFailure = '${target.type}:${target.value} → $e';
+            break;
+          }
+        }
+        results.add(ScreenResult(
+          screen: 'taxonomy',
+          passed: taxonomyOk,
+          itemCount: taxonomyTargets.length,
+          failure: taxonomyFailure,
+        ));
+      }
+    }
 
-    // ── chapters + reader ───────────────────────────────────────────────────
     final chapters = detail?.content.chapters;
     if (chapters == null || chapters.isEmpty) {
       // Gallery-only source (hentaifox family etc.): reader images come from
@@ -372,6 +428,30 @@ class SmokeRunner {
 
     return SmokeReport(
         results: results, fixtures: fixtures, findings: findings);
+  }
+  /// One live value per taxonomy type present on the detail [content],
+  /// for the taxonomy screen probe. Artist names supplement from the
+  /// typed string field for cached configs whose tags lack the type.
+  List<_TaxonomyTarget> _taxonomyTargets(Content content) {
+    const types = ['tag', 'genre', 'author', 'artist'];
+    final seen = <String>{};
+    final targets = <_TaxonomyTarget>[];
+    void add(String type, String name) {
+      final value = name.trim();
+      if (value.isEmpty) return;
+      if (seen.add('$type:${value.toLowerCase()}')) {
+        targets.add(_TaxonomyTarget(type, value));
+      }
+    }
+
+    for (final tag in content.tags) {
+      final type = tag.type.toLowerCase().trim();
+      if (types.contains(type)) add(type, tag.name);
+    }
+    for (final name in content.artists) {
+      add('artist', name);
+    }
+    return targets;
   }
 
   /// Detail page URL for [contentId], resolved exactly the way

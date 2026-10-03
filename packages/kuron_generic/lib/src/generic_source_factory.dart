@@ -64,66 +64,8 @@ class GenericSourceFactory implements SourceFactory {
   }
 
   RateLimiter? _createRateLimiter(Map<String, dynamic> config) {
-    final network = (config['network'] as Map?)?.cast<String, dynamic>();
-    final rateLimit = (network?['rateLimit'] as Map?)?.cast<String, dynamic>();
-    if (rateLimit == null) {
-      return null;
-    }
-
-    final enabled = rateLimit['enabled'];
-    if (enabled is bool && !enabled) {
-      return null;
-    }
-
-    final minDelayMs = _resolveMinDelayMs(rateLimit);
-    if (minDelayMs == null || minDelayMs <= 0) {
-      return null;
-    }
-
-    final maxConcurrent =
-        _readPositiveInt(rateLimit['maxConcurrentRequests']) ?? 1;
-
-    return RateLimiter(
-      delay: Duration(milliseconds: minDelayMs),
-      maxConcurrent: maxConcurrent,
+    return RateLimiter.fromNetwork(
+      (config['network'] as Map?)?.cast<String, dynamic>(),
     );
-  }
-
-  int? _resolveMinDelayMs(Map<String, dynamic> rateLimit) {
-    final configuredDelay = _readPositiveInt(rateLimit['minDelayMs']);
-    if (configuredDelay != null) {
-      return configuredDelay;
-    }
-
-    final requestsPerSecond =
-        _readPositiveDouble(rateLimit['requestsPerSecond']);
-    if (requestsPerSecond != null) {
-      return (1000 / requestsPerSecond).ceil();
-    }
-
-    final requestsPerMinute =
-        _readPositiveDouble(rateLimit['requestsPerMinute']);
-    if (requestsPerMinute != null) {
-      return (60000 / requestsPerMinute).ceil();
-    }
-
-    return null;
-  }
-
-  int? _readPositiveInt(Object? value) {
-    if (value is int && value > 0) {
-      return value;
-    }
-    if (value is num && value > 0) {
-      return value.toInt();
-    }
-    return null;
-  }
-
-  double? _readPositiveDouble(Object? value) {
-    if (value is num && value > 0) {
-      return value.toDouble();
-    }
-    return null;
   }
 }

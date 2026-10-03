@@ -7,7 +7,6 @@ class CmsSignature {
     required this.themeType,
     required this.hints,
     required this.selectors,
-    this.urlPatterns,
     this.searchDefaults,
     this.readerDefaults,
   });
@@ -17,7 +16,6 @@ class CmsSignature {
       themeType; // 'madara-classic', 'madara-tailwind', 'wordpress', 'custom'
   final List<String> hints;
   final Map<String, String> selectors;
-  final Map<String, String>? urlPatterns;
   final Map<String, Object?>? searchDefaults;
   final Map<String, Object?>? readerDefaults;
 
@@ -48,15 +46,6 @@ class CmsSignature {
         'detail.status': '.post-status .status, .summary-content .status',
         'chapters.item': 'a[href*="chapter"]',
         'reader.image': 'img[class*="page-image"], .reading-content img',
-      },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}&post_type=wp-manga',
-        'searchPage': '/page/{page}/?s={query}&post_type=wp-manga',
-        'genreSearch': '/genre/{tag}/',
-        'genreSearchPage': '/genre/{tag}/page/{page}/',
-        'detail': '/manhwa/{id}',
-        'chapter': '/manhwa/{id}',
       },
       searchDefaults: {
         'searchUrl': '/?s={query}&post_type=wp-manga',
@@ -91,17 +80,6 @@ class CmsSignature {
         'detail.status': '[class*="status"]',
         'chapters.item': 'a.chapter-item',
         'reader.image': 'img.reading-image',
-      },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}&post_type=wp-manga',
-        'searchPage': '/page/{page}/?s={query}&post_type=wp-manga',
-        'genreSearch': '/genre/{tag}/',
-        'genreSearchPage': '/genre/{tag}/page/{page}/',
-        'tagSearch': '/tag/{tag}/',
-        'tagSearchPage': '/tag/{tag}/page/{page}/',
-        'detail': '/manhwa/{id}',
-        'chapter': '/manhwa/{id}',
       },
       searchDefaults: {
         'searchUrl': '/?s={query}&post_type=wp-manga',
@@ -140,14 +118,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="chapter"], li.chapter',
         'reader.image': 'img[class*="page-image"], #readerarea img',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}&post_type=manga',
-        'searchPage': '/page/{page}/?s={query}&post_type=manga',
-        'genreSearch': '/genre/{tag}/',
-        'detail': '/manga/{id}',
-        'chapter': '/manga/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/?s={query}',
         'queryParam': 's',
@@ -177,13 +147,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="/read/"]',
         'reader.image': 'img[class*="page_image"], .page img',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/search?q={query}',
-        'searchPage': '/search?q={query}&page={page}',
-        'detail': '/series/{id}',
-        'chapter': '/read/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/search?q={query}',
         'queryParam': 'q',
@@ -212,12 +175,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="chapter"]',
         'reader.image': 'img[class*="page"], #content img',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/search?q={query}',
-        'detail': '/manga/{id}',
-        'chapter': '/manga/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/search?q={query}',
         'queryParam': 'q',
@@ -245,12 +202,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="chapter"]',
         'reader.image': 'img[class*="page"], img[class*="chapter"]',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
-        'detail': '/manga/{id}',
-        'chapter': '/manga/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/?s={query}',
         'queryParam': 's',
@@ -277,12 +228,6 @@ class CmsSignature {
         'detail.genre': 'a[href*="/genre/"]',
         'chapters.item': 'a[href*="chapter"]',
         'reader.image': 'img[class*="page"], img[class*="chapter"]',
-      },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
-        'detail': '/manga/{id}',
-        'chapter': '/manga/{id}',
       },
       searchDefaults: {
         'searchUrl': '/?s={query}',
@@ -316,13 +261,6 @@ class CmsSignature {
         'chapters.item': '.chapter a, a[href*="/series/"]',
         'reader.image': '.reader-area img[class*="lazyload"]',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
-        'searchPage': '/page/{page}/?s={query}',
-        'detail': '/series/{id}',
-        'chapter': '/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/?s={query}',
         'queryParam': 's',
@@ -348,12 +286,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="chapter"], a[href*="comic"]',
         'reader.image': 'img[class*="page"], .comic-page img',
       },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
-        'detail': '/comic/{id}',
-        'chapter': '/comic/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/?s={query}',
         'queryParam': 's',
@@ -372,10 +304,6 @@ class CmsSignature {
         'detail.title': 'h1',
         'chapters.item': 'a[href*="chapter"], a[href*="episode"]',
         'reader.image': 'img',
-      },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
       },
       searchDefaults: {
         'queryParam': 's',
@@ -403,16 +331,6 @@ class CmsSignature {
         'detail.genre': '.label-name, a[rel="tag"]',
         'chapters.item': 'a[href*="chapter"], .char a',
         'reader.image': '.separator img, .entry-content img, .post-body img',
-      },
-      urlPatterns: {
-        'homePage': '/search?max-results=20',
-        'homePagePage': '/search?max-results=20&start={start}',
-        'search': '/search?q={query}&max-results=20',
-        'searchPage': '/search?q={query}&start={start}&max-results=20',
-        'labelSearch': '/search/label/{tag}?max-results=20',
-        'labelSearchPage': '/search/label/{tag}?start={start}&max-results=20',
-        'detail': '/{id}',
-        'chapter': '/{id}',
       },
       searchDefaults: {
         'searchUrl': '/search?q={query}&max-results=20',
@@ -445,16 +363,6 @@ class CmsSignature {
         'chapters.item': 'a[href*="chapter"], .char a',
         'reader.image': '.separator img, .entry-content img, .post-body img',
       },
-      urlPatterns: {
-        'homePage': '/search?max-results=20',
-        'homePagePage': '/search?max-results=20&start={start}',
-        'search': '/search?q={query}&max-results=20',
-        'searchPage': '/search?q={query}&start={start}&max-results=20',
-        'labelSearch': '/search/label/{tag}?max-results=20',
-        'labelSearchPage': '/search/label/{tag}?start={start}&max-results=20',
-        'detail': '/{id}',
-        'chapter': '/{id}',
-      },
       searchDefaults: {
         'searchUrl': '/search?q={query}&max-results=20',
         'queryParam': 'q',
@@ -483,15 +391,6 @@ class CmsSignature {
         'list.cover': '.inner_thumb img, .image img, img',
         'detail.title': 'h1',
         'reader.image': '#gimg, .full_gallery img',
-      },
-      urlPatterns: {
-        'homePage': '/?page={page}',
-        'search': '/search/?key={query}',
-        'searchPage': '/search/?key={query}&page={page}',
-        'genreSearch': '/tag/{tag}/',
-        'genreSearchPage': '/tag/{tag}/?page={page}',
-        'detail': '/gallery/{id}/',
-        'chapter': '/gallery/{id}/',
       },
       searchDefaults: {
         'searchUrl': '/search/?key={query}',
@@ -523,15 +422,6 @@ class CmsSignature {
         'detail.genre': '.genre-list a',
         'chapters.item': '.chapter-grid .chapter-row',
         'reader.image': "img[src*='gudangkomik'], img[src*='warungkomikcdn']",
-      },
-      urlPatterns: {
-        'homePage': '/page/{page}/',
-        'search': '/?s={query}',
-        'searchPage': '/page/{page}/?s={query}',
-        'genreSearch': '/genre/{tag}/',
-        'genreSearchPage': '/genre/{tag}/page/{page}/',
-        'detail': '/series/{id}/',
-        'chapter': '/chapter/{id}/',
       },
       searchDefaults: {
         'searchUrl': '/?s={query}',
@@ -572,7 +462,6 @@ class CmsResult {
     required this.themeType,
     required this.confidence,
     required this.selectors,
-    this.urlPatterns,
     this.searchDefaults,
     this.readerDefaults,
     this.fallbackSelectors,
@@ -582,7 +471,6 @@ class CmsResult {
   final String themeType;
   final double confidence;
   final Map<String, String> selectors;
-  final Map<String, String>? urlPatterns;
   final Map<String, Object?>? searchDefaults;
   final Map<String, Object?>? readerDefaults;
   final Map<String, String>? fallbackSelectors;
@@ -617,8 +505,6 @@ CmsResult detectCms(String html) {
     confidence: confidence.clamp(0.0, 1.0),
     selectors: Map.from(detected.selectors),
     fallbackSelectors: _fallbackFor(detected.id, detected.themeType),
-    urlPatterns:
-        detected.urlPatterns != null ? Map.from(detected.urlPatterns!) : null,
     searchDefaults: detected.searchDefaults != null
         ? Map.from(detected.searchDefaults!)
         : null,

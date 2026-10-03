@@ -87,6 +87,7 @@ class ReportPrinter {
     List<FixSuggestion> suggestions,
   ) {
     final output = <String, Object?>{
+      'schemaVersion': '1.0',
       'sourceId': report.sourceId,
       'overallStatus': report.overallStatus,
       'featureStatuses': report.featureStatuses,

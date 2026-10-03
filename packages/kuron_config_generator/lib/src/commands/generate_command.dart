@@ -11,6 +11,9 @@ import '../discovery/cms_detector.dart';
 import '../discovery/api_detector.dart';
 import '../discovery/api_endpoint_hunter.dart';
 import '../validation/validation_orchestrator.dart';
+import '../validation/fix_suggestion.dart';
+import '../validation/fix_applier.dart';
+import '../validation/report_printer.dart';
 import '../validation/smoke_runner.dart';
 import '../validation/skeleton_test_emitter.dart';
 import 'package:html/parser.dart' show parse;
@@ -66,10 +69,38 @@ class GenerateCommand extends Command<void> {
             ' as the theme (e.g. --template hentaiera). Selectors/URL '
             'patterns are copied verbatim; only identity fields change.',
       )
+      ..addOption(
+        'genre-search-url',
+        help: 'Override genre archive URL pattern '
+            '(e.g. /manhwa-genre/{tag}/). Wins over theme default.',
+      )
+      ..addOption(
+        'tag-search-url',
+        help: 'Override tag archive URL pattern.',
+      )
+      ..addOption(
+        'author-search-url',
+        help: 'Override author archive URL pattern.',
+      )
+      ..addOption(
+        'artist-search-url',
+        help: 'Override artist archive URL pattern.',
+      )
       ..addFlag(
         'fix-suggestions',
         negatable: false,
         help: 'Show fix suggestions even when config is compatible.',
+      )
+      ..addFlag(
+        'fix',
+        negatable: false,
+        help: 'Auto-apply deterministic fixes before validating '
+            '(allowlisted codes only; the rest are reported as skipped).',
+      )
+      ..addOption(
+        'report-output',
+        help: 'Write the final validation report to this file '
+            '(in --validate-format).',
       );
   }
 
@@ -79,6 +110,23 @@ class GenerateCommand extends Command<void> {
   @override
   String get description =>
       'Generate a source config through interactive questions or URL discovery.';
+
+  /// CLI taxonomy flags win over wizard answers and theme defaults.
+  /// Empty/absent flags leave answers untouched.
+  void _applyTaxonomyFlagOverrides(Map<String, String?> answers) {
+    const flagToAnswer = {
+      'genre-search-url': 'genreSearchUrl',
+      'tag-search-url': 'tagSearchUrl',
+      'author-search-url': 'authorSearchUrl',
+      'artist-search-url': 'artistSearchUrl',
+    };
+    for (final entry in flagToAnswer.entries) {
+      final value = (argResults?[entry.key] as String?)?.trim();
+      if (value != null && value.isNotEmpty) {
+        answers[entry.value] = value;
+      }
+    }
+  }
 
   /// Origin + non-root path, no trailing slash
   /// (e.g. https://hentaikun.com/manga stays; https://a.com/ → https://a.com).
@@ -274,6 +322,7 @@ class GenerateCommand extends Command<void> {
     final answers = await runner.run();
 
     logger.i('Generating config...');
+    _applyTaxonomyFlagOverrides(answers);
     final config = ConfigGenerator.generateConfig(answers);
 
     // Write config to output directory
@@ -497,6 +546,7 @@ class GenerateCommand extends Command<void> {
     }
 
     logger.i('Generating config...');
+    _applyTaxonomyFlagOverrides(answers);
     final config = ConfigGenerator.generateConfig(answers);
 
     // Write config
@@ -591,6 +641,8 @@ class GenerateCommand extends Command<void> {
   }
 
   // If --validate flag is set, run the validation loop on [configPath].
+  // --fix applies deterministic fixes first; --report-output writes the
+  // final report to a file; a non-compatible result sets exitCode 1.
   Future<void> _maybeRunValidation(String configPath) async {
     final validate = argResults?['validate'] as bool? ?? false;
     if (!validate) return; // R1.4: preserve existing behavior
@@ -599,15 +651,53 @@ class GenerateCommand extends Command<void> {
 
     // R5.5: validate format value is already enforced by argParser allowed list
     final showAll = argResults?['fix-suggestions'] as bool? ?? false;
+    final reportOutput = argResults?['report-output'] as String?;
+
+    if (argResults?['fix'] as bool? ?? false) {
+      await _maybeApplyFixes(configPath);
+    }
 
     final orchestrator = ValidationOrchestrator();
-    await orchestrator.runValidationLoop(
+    final report = await orchestrator.runValidationLoop(
       configPath: configPath,
       reportFormat: format,
       showAllSuggestions: showAll,
     );
 
+    if (report != null && reportOutput != null && reportOutput.isNotEmpty) {
+      final suggestions = FixSuggestionMapper.map(report.diagnostics);
+      final content = format == 'json'
+          ? ReportPrinter.formatJson(report, suggestions)
+          : ReportPrinter.formatMarkdown(report, suggestions,
+              showAllSuggestions: showAll);
+      File(reportOutput).writeAsStringSync('$content\n');
+    }
+
+    if (report == null || report.overallStatus != 'compatible') {
+      exitCode = 1;
+    }
+
     await _maybeRunLiveSmoke(configPath);
+  }
+
+  /// Applies deterministic fixes (--fix) and logs what was applied/skipped.
+  Future<void> _maybeApplyFixes(String configPath) async {
+    final orchestrator = ValidationOrchestrator();
+    final report = await orchestrator.runValidator(configPath);
+    if (report == null) return;
+    final suggestions = FixSuggestionMapper.map(report.diagnostics);
+    final result = FixApplier.applyFile(configPath, suggestions);
+    final logger = Logger(
+      filter: ProductionFilter(),
+      printer: SimplePrinter(),
+      level: Level.info,
+    );
+    for (final code in result.applied) {
+      logger.i('🔧 --fix applied: $code');
+    }
+    for (final reason in result.skipped) {
+      logger.i('⏭ --fix skipped: $reason');
+    }
   }
 
   // If --live flag is set, run live smoke validation through the real

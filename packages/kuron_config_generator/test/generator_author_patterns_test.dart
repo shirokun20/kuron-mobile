@@ -83,4 +83,43 @@ void main() {
       expect((urls['artistSearch']! as Map)['url'], '/artist/{tag}/');
     });
   });
+  group('creator detail fields carry multi:true (conformance-loop 1.1)', () {
+    test('madara author/artist fields are multi', () {
+      final config = ConfigGenerator.generateConfig(_madaraAnswers());
+      final fields = ((config['scraper']! as Map)['selectors']! as Map)['detail']!
+          as Map<String, Object?>;
+      final detailFields = fields['fields']! as Map<String, Object?>;
+
+      expect((detailFields['author']! as Map)['multi'], isTrue);
+      expect((detailFields['artist']! as Map)['multi'], isTrue);
+    });
+
+    test('zmanga author/artist fields are multi', () {
+      final config = ConfigGenerator.generateConfig(
+          {..._madaraAnswers(), 'cmsThemeType': 'zmanga'});
+      final fields = ((config['scraper']! as Map)['selectors']! as Map)['detail']!
+          as Map<String, Object?>;
+      final detailFields = fields['fields']! as Map<String, Object?>;
+
+      expect((detailFields['author']! as Map)['multi'], isTrue);
+      expect((detailFields['artist']! as Map)['multi'], isTrue);
+    });
+  });
+  group('taxonomy overrides win end-to-end (conformance-loop 1.3)', () {
+    test('all four overrides reach emitted patterns', () {
+      final urls = _patterns({
+        ..._madaraAnswers(),
+        'genreSearchUrl': '/g/{tag}/',
+        'tagSearchUrl': '/t/{tag}/',
+        'authorSearchUrl': '/a/{tag}/',
+        'artistSearchUrl': '/r/{tag}/',
+      });
+
+      expect((urls['genreSearch']! as Map)['url'], '/g/{tag}/');
+      expect((urls['tagSearch']! as Map)['url'], '/t/{tag}/');
+      expect((urls['authorSearch']! as Map)['url'], '/a/{tag}/');
+      expect((urls['artistSearch']! as Map)['url'], '/r/{tag}/');
+      expect((urls['genreSearchPage']! as Map)['url'], '/g/{tag}/page/{page}/');
+    });
+  });
 }

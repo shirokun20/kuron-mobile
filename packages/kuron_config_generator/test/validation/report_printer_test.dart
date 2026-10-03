@@ -96,6 +96,12 @@ void main() {
       final parsed = jsonDecode(output) as Map<String, dynamic>;
       expect(parsed['featureStatuses']['home'], 'compatible');
     });
+
+    test('JSON carries contract schemaVersion', () {
+      final output = ReportPrinter.formatJson(compatibleReport, []);
+      final parsed = jsonDecode(output) as Map<String, dynamic>;
+      expect(parsed['schemaVersion'], '1.0');
+    });
   });
 
   group('ReportPrinter.formatMarkdown (R5.3)', () {
