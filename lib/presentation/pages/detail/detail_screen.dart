@@ -841,6 +841,7 @@ class _DetailScreenState extends State<DetailScreen> {
         if (state.content.sourceId == 'mangafire')
           _buildMangaFireToggle(state.content),
         _buildActionButtons(state),
+        const SizedBox(height: DesignTokens.spaceXl),
         if (state.relatedContent != null &&
             state.relatedContent!.isNotEmpty) ...[
           _buildRelatedContentSection(state),
