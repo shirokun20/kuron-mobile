@@ -62,18 +62,22 @@ const _config = {
           'author': {
             'selector': '.author-content a',
             'extractTagObjects': true,
+            'tagType': 'author',
           },
           'artist': {
             'selector': '.artist-content a',
             'extractTagObjects': true,
+            'tagType': 'artist',
           },
           'genres': {
             'selector': '.genres-content a',
             'extractTagObjects': true,
+            'tagType': 'genre',
           },
           'tags': {
             'selector': '.tags-content a',
             'extractTagObjects': true,
+            'tagType': 'tag',
           },
         },
       },
@@ -134,6 +138,116 @@ void main() {
       final tag =
           detail.content.tags.firstWhere((t) => t.name == 'big breasts');
       expect(tag.slug, 'big-breasts');
+    });
+    test('tagTypeMap maps mixed segments without hardcode', () async {
+      const mixedHtml = '''
+<html><body>
+<div class="mix"><a href="https://x.example.com/category/action/">Action</a><a href="https://x.example.com/circle/some-circle/">Some Circle</a><a href="https://x.example.com/parody/some-series/">Some Series</a></div>
+<h1>T</h1>
+''';
+      const mixedConfig = {
+        'source': 'mixed',
+        'baseUrl': 'https://x.example.com',
+        'scraper': {
+          'urlPatterns': {
+            'detail': '/hentai/{id}/',
+            'chapter': '/hentai/{id}/',
+          },
+          'selectors': {
+            'detail': {
+              'fields': {
+                'title': {'selector': 'h1'},
+                'tags': {
+                  'selector': '.mix a',
+                  'extractTagObjects': true,
+                  'tagTypeMap': {
+                    'category': 'tag',
+                    'circle': 'publisher',
+                    'parody': 'parody',
+                  },
+                },
+              },
+            },
+            'reader': {
+              'images': {'selector': '#readerarea img', 'attribute': 'src'},
+            },
+          },
+        },
+      };
+      final dio = Dio(BaseOptions(baseUrl: 'https://x.example.com'));
+      final dioAdapter =
+          DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
+      final adapter = GenericScraperAdapter(
+        dio: dio,
+        urlBuilder: const GenericUrlBuilder(baseUrl: 'https://x.example.com'),
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        logger: Logger(level: Level.off),
+        sourceId: 'mixed',
+      );
+      dioAdapter.onGet(
+        'https://x.example.com/hentai/t/',
+        (s) => s.reply(200, mixedHtml, headers: {
+          Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+        }),
+      );
+
+      final detail = await adapter.fetchDetail('t', mixedConfig);
+      final byName = {for (final t in detail.content.tags) t.name: t.type};
+      expect(byName['Action'], 'tag');
+      expect(byName['Some Circle'], 'publisher');
+      expect(byName['Some Series'], 'parody');
+    });
+
+    test('tagTypeRegex derives type from segment pattern', () async {
+      const exoticHtml = '''
+<html><body>
+<div class="mix"><a href="https://x.example.com/t-action/abc/">Abc</a></div>
+<h1>T</h1>
+''';
+      const exoticConfig = {
+        'source': 'exotic',
+        'baseUrl': 'https://x.example.com',
+        'scraper': {
+          'urlPatterns': {
+            'detail': '/hentai/{id}/',
+            'chapter': '/hentai/{id}/',
+          },
+          'selectors': {
+            'detail': {
+              'fields': {
+                'title': {'selector': 'h1'},
+                'tags': {
+                  'selector': '.mix a',
+                  'extractTagObjects': true,
+                  'tagTypeRegex': r'^t-(.+)$',
+                },
+              },
+            },
+            'reader': {
+              'images': {'selector': '#readerarea img', 'attribute': 'src'},
+            },
+          },
+        },
+      };
+      final dio = Dio(BaseOptions(baseUrl: 'https://x.example.com'));
+      final dioAdapter =
+          DioAdapter(dio: dio, matcher: const UrlRequestMatcher());
+      final adapter = GenericScraperAdapter(
+        dio: dio,
+        urlBuilder: const GenericUrlBuilder(baseUrl: 'https://x.example.com'),
+        parser: GenericHtmlParser(logger: Logger(level: Level.off)),
+        logger: Logger(level: Level.off),
+        sourceId: 'exotic',
+      );
+      dioAdapter.onGet(
+        'https://x.example.com/hentai/t/',
+        (s) => s.reply(200, exoticHtml, headers: {
+          Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+        }),
+      );
+
+      final detail = await adapter.fetchDetail('t', exoticConfig);
+      expect(detail.content.tags.single.type, 'action');
     });
   });
 }

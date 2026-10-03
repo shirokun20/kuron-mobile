@@ -343,6 +343,41 @@ ui              （必填）App UI 显示元数据
 }
 ```
 
+### 详情分类标签对象（可选）
+
+详情字段通常提取纯字符串。当分类点击必须落到准确归档（genre vs tag vs
+author vs artist）时，声明 `extractTagObjects` 以保留每个链接的 href slug
+与原始 URL：
+
+```jsonc
+"genres": {
+  "selector": ".genres-content a",
+  "extractTagObjects": true,
+  "tagType": "genre"          // 固定类型：选择器已隔离单一分类
+},
+"tags": {
+  "selector": ".mixed-list a",
+  "extractTagObjects": true,
+  "tagTypeMap": {             // 混合列表按路径段映射
+    "category": "tag",
+    "circle": "publisher",
+    "parody": "parody"
+  }
+}
+```
+
+| Key | 类型 | 说明 |
+|-----|------|-------------|
+| `extractTagObjects` | boolean | 输出完整 `Tag` 对象（名称 + href slug + url），而非字符串 |
+| `tagType` | string | 该字段所有条目的固定应用标签类型 |
+| `tagTypeMap` | map | href 路径段 → 应用标签类型（混合列表） |
+| `tagTypeRegex` | string | 对路径段的正则，第一捕获组即类型 |
+
+优先级：`tagType` > `tagTypeRegex` > `tagTypeMap[segment]` > 原始 segment
+> `'tag'`（遗留：`circle` → `publisher`）。适用于所有分类键
+（`tags`/`tag`/`genres`/`genre`/`authors`/`author`/`artists`/`artist`）。
+
+
 ---
 
 ## 解密（特殊源）

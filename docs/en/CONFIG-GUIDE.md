@@ -351,6 +351,41 @@ Maps tag types to search query format when user taps a tag.
 }
 ```
 
+### Detail Taxonomy Tag Objects (Optional)
+
+Detail fields normally extract plain strings. When a taxonomy tap must land
+on the exact archive (genre vs tag vs author vs artist), declare
+`extractTagObjects` so each link keeps its href slug + original URL:
+
+```jsonc
+"genres": {
+  "selector": ".genres-content a",
+  "extractTagObjects": true,
+  "tagType": "genre"          // fixed type: selector already isolates one taxonomy
+},
+"tags": {
+  "selector": ".mixed-list a",
+  "extractTagObjects": true,
+  "tagTypeMap": {             // per-segment mapping for mixed lists
+    "category": "tag",
+    "circle": "publisher",
+    "parody": "parody"
+  }
+}
+```
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `extractTagObjects` | boolean | Emit full `Tag` objects (name + href slug + url) instead of strings |
+| `tagType` | string | Fixed app tag type for every item in this field |
+| `tagTypeMap` | map | Href path segment → app tag type (mixed lists) |
+| `tagTypeRegex` | string | Regex on the segment; first capture group is the type |
+
+Precedence: `tagType` > `tagTypeRegex` > `tagTypeMap[segment]` > raw segment
+> `'tag'` (legacy: bare `circle` → `publisher`). Works on any taxonomy key
+(`tags`/`tag`/`genres`/`genre`/`authors`/`author`/`artists`/`artist`).
+
+
 ---
 
 ## Decryption (Special Sources)

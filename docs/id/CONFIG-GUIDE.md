@@ -349,6 +349,41 @@ Memetakan tipe tag ke format query pencarian saat user mengetuk tag.
 }
 ```
 
+### Objek Tag Taksonomi Detail (Opsional)
+
+Field detail biasanya mengekstrak string polos. Bila ketukan taksonomi harus
+mendarat di arsip yang tepat (genre vs tag vs author vs artist), deklarasikan
+`extractTagObjects` agar tiap link menyimpan slug href + URL aslinya:
+
+```jsonc
+"genres": {
+  "selector": ".genres-content a",
+  "extractTagObjects": true,
+  "tagType": "genre"          // tipe tetap: selector sudah isolasi satu taksonomi
+},
+"tags": {
+  "selector": ".mixed-list a",
+  "extractTagObjects": true,
+  "tagTypeMap": {             // pemetaan per-segmen untuk list campuran
+    "category": "tag",
+    "circle": "publisher",
+    "parody": "parody"
+  }
+}
+```
+
+| Key | Tipe | Deskripsi |
+|-----|------|-------------|
+| `extractTagObjects` | boolean | Keluarkan objek `Tag` penuh (nama + slug href + url), bukan string |
+| `tagType` | string | Tipe tag app tetap untuk semua item di field ini |
+| `tagTypeMap` | map | Segmen path href → tipe tag app (list campuran) |
+| `tagTypeRegex` | string | Regex pada segmen; grup capture pertama adalah tipenya |
+
+Preseden: `tagType` > `tagTypeRegex` > `tagTypeMap[segment]` > segmen mentah
+> `'tag'` (legacy: `circle` → `publisher`). Berlaku untuk semua key taksonomi
+(`tags`/`tag`/`genres`/`genre`/`authors`/`author`/`artists`/`artist`).
+
+
 ---
 
 ## Dekripsi (Sumber Khusus)

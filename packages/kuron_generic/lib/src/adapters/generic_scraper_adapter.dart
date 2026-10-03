@@ -2899,13 +2899,22 @@ class GenericScraperAdapter implements GenericAdapter {
           String name = nameEl.text.replaceAll(RegExp(r'\s+'), ' ').trim();
           if (name.isEmpty) continue;
 
-          // Keep the original archive URL: without it, taps re-derive the
-          // route from the display name and can land on the wrong taxonomy
-          // (hentai4free genre vs tag vs author vs artist archives).
+          // Resolve the app tag type from config — never from hardcoded site
+          // segments. `extractTagObjects` accepts:
+          // - `tagType: "genre"` — fixed type (field selector already
+          //   isolates one taxonomy, e.g. hentai4free `.genres-content a`).
+          //   (`type` is taken: FieldSelector kind, e.g. `css`/`regex`.)
+          // - `tagTypeMap: {segment: type}` — per-segment mapping for mixed
+          //   lists (e.g. `{"category": "tag", "circle": "publisher"}`).
+          // - `tagTypeRegex` — first capture group is the type (exotic hrefs).
+          // Fallback chain: tagType > tagTypeRegex > tagTypeMap[segment] >
+          // raw `segment` > 'tag'. Legacy default: bare `circle` →
+          // `publisher` (doujin circles); overridable via tagTypeMap.
           String type = 'tag';
           String slug = '';
           String tagUrl = '';
           final href = el.attributes['href'] ?? '';
+          String segment = '';
           if (href.isNotEmpty) {
             tagUrl = href;
             final uri = Uri.tryParse(href);
@@ -2913,25 +2922,15 @@ class GenericScraperAdapter implements GenericAdapter {
               final segments =
                   uri.pathSegments.where((s) => s.isNotEmpty).toList();
               if (segments.length >= 2) {
-                type = segments[segments.length - 2].toLowerCase();
+                segment = segments[segments.length - 2].toLowerCase();
                 slug = segments.last.toLowerCase();
               } else if (segments.isNotEmpty) {
                 slug = segments.last.toLowerCase();
               }
             }
           }
-          // Map site path segments to app tag types.
-          type = switch (type) {
-            'hentai-tag' || 'tag' => 'tag',
-            'hentai-genre' || 'genre' => 'genre',
-            'hentai-artist' || 'artist' => 'artist',
-            'hentai-author' || 'author' => 'author',
-            'circle' => 'publisher',
-            _ => type,
-          };
+          type = _resolveTaxonomyType(defMap, segment);
 
-          // (`author` stays `author` here; the old collapse to `artist`
-          // broke authorSearch routing — see author_tag_routing_test.)
 
           int count = 0;
           if (spans.length > 1) {
@@ -3244,6 +3243,44 @@ class GenericScraperAdapter implements GenericAdapter {
       }
     }
     return null;
+  }
+
+  // Resolve an `extractTagObjects` item's app tag type from its field
+  // declaration — never from hardcoded site path segments. `segment` is the
+  // href's second-to-last path segment (lowercased, may be empty).
+  // Precedence: `tagType` > `tagTypeRegex` (first capture) >
+  // `tagTypeMap[segment]` > raw `segment` > `'tag'`. Legacy: bare `circle`
+  // → `publisher` unless a `tagTypeMap` says otherwise.
+  String _resolveTaxonomyType(Map<String, dynamic> defMap, String segment) {
+    final fixed = defMap['tagType']?.toString().trim().toLowerCase();
+    if (fixed != null && fixed.isNotEmpty) return fixed;
+
+    final typeRegex = defMap['tagTypeRegex']?.toString();
+    if (typeRegex != null && typeRegex.isNotEmpty && segment.isNotEmpty) {
+      try {
+        final match = RegExp(typeRegex).firstMatch(segment);
+        final captured = (match != null && match.groupCount >= 1)
+            ? (match.group(1) ?? '')
+            : '';
+        if (captured.trim().isNotEmpty) return captured.trim().toLowerCase();
+      } catch (_) {}
+    }
+
+    final rawMap = defMap['tagTypeMap'];
+    if (rawMap is Map && segment.isNotEmpty) {
+      for (final entry in rawMap.entries) {
+        if (entry.key.toString().toLowerCase() == segment) {
+          final mapped = entry.value.toString().trim().toLowerCase();
+          if (mapped.isNotEmpty) return mapped;
+        }
+      }
+    }
+
+    if (segment.isNotEmpty) {
+      if (segment == 'circle') return 'publisher';
+      return segment;
+    }
+    return 'tag';
   }
 
   // Normalise a field definition value to `Map<String, dynamic>`.
