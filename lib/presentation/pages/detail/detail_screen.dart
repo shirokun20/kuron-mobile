@@ -28,6 +28,7 @@ import 'package:nhasixapp/presentation/utils/chapter_language_presenter.dart';
 import 'package:kuron_core/kuron_core.dart';
 import '../../../core/utils/error_message_utils.dart';
 import '../../widgets/download_button_widget.dart';
+import '../../widgets/kuro_mascot.dart';
 import '../../widgets/permission_request_sheet.dart';
 import 'widgets/chapter_list_bottom_sheet.dart';
 import 'widgets/comments_section_widget.dart';
@@ -84,6 +85,7 @@ class DetailScreen extends StatefulWidget {
 
     return firstImage;
   }
+
   /// Names of creator tags (`artist`/`author`) for [type], matched
   /// case-insensitively. Source of truth is `content.tags`; `content.artists`
   /// supplements `artist` for old cached data whose tags lack the type.
@@ -107,6 +109,7 @@ class DetailScreen extends StatefulWidget {
     }
     return names;
   }
+
   /// Resolve the full [Tag] for a creator tap so `_searchByTag` receives the
   /// numeric id (preferred) instead of re-guessing from the display name.
   @visibleForTesting
@@ -125,6 +128,7 @@ class DetailScreen extends StatefulWidget {
     }
     return null;
   }
+
   /// Tags visible in the tag block: creator types (`artist`/`author`) live in
   /// the info section instead, so they are excluded here for every source.
   @visibleForTesting
@@ -139,6 +143,7 @@ class DetailScreen extends StatefulWidget {
       return true;
     }).toList();
   }
+
   /// Synopsis lines rendered above the tag block. Empty (the nhentai case —
   /// the v2 API carries no gallery-level synopsis) renders nothing at all.
   @visibleForTesting
@@ -251,7 +256,7 @@ class _DetailScreenState extends State<DetailScreen> {
             Container(
               color: Colors.black.withValues(alpha: 0.5),
               child: const Center(
-                child: CircularProgressIndicator(),
+                child: KuroLoading(size: 96),
               ),
             ),
         ],
@@ -1112,10 +1117,8 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-
   List<String> _creatorNames(Content content, String type) =>
       DetailScreen.creatorNamesForTesting(content, type);
-
 
   void _searchByCreator(Content content, String name, String type) {
     final tag = DetailScreen.resolveCreatorTagForTesting(content, name, type);
@@ -1129,7 +1132,6 @@ class _DetailScreenState extends State<DetailScreen> {
       sourceId: content.sourceId,
     );
   }
-
 
   List<Widget> _buildSynopsisSection(Content content) {
     final text = DetailScreen.synopsisForTesting(content);
@@ -1173,8 +1175,7 @@ class _DetailScreenState extends State<DetailScreen> {
       addTag(Tag(id: 0, name: g, type: 'group', count: 0));
     }
 
-    final visibleTags =
-        DetailScreen.visibleDetailTagsForTesting(allTags);
+    final visibleTags = DetailScreen.visibleDetailTagsForTesting(allTags);
     return DetailTagSection(
       title: AppLocalizations.of(context)!.tagsLabel,
       tags: visibleTags,

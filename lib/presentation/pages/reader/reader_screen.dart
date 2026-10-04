@@ -37,9 +37,9 @@ import '../../cubits/reader/reader_prefetch_cubit.dart';
 import '../../cubits/theme/theme_cubit.dart';
 import '../../utils/chapter_language_presenter.dart';
 // import '../../cubits/reader/reader_state.dart';
-import '../../widgets/progress_indicator_widget.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/extended_image_reader_widget.dart';
+import '../../widgets/kuro_mascot.dart';
 import 'chapter_open_overlay.dart';
 import 'end_of_chapter_overlay.dart';
 import 'reader_video_chapter.dart';
@@ -1344,7 +1344,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   Widget _buildBody(ReaderState state) {
     if (state.status == ReaderStatus.loading) {
       return Center(
-        child: AppProgressIndicator(
+        child: KuroLoading(
           message: AppLocalizations.of(context)?.loadingContent ??
               AppLocalizations.of(context)!.loadingContent,
         ),

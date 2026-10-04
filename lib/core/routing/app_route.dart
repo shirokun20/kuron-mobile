@@ -30,6 +30,8 @@ class AppRoute {
   static const String sourceLogin = '/source-login';
   static const String captchaSolver = '/captcha-solver';
   static const String dohTest = '/doh-test';
+  // PROTOTYPE debug-only — hapus bareng kuro_preview_screen.dart
+  static const String kuroPreview = '/kuro-preview';
 
   // Crotpedia Routes
   static const String crotpediaGenreList = '/crotpedia/genres';
@@ -65,6 +67,8 @@ class AppRoute {
   static const String captchaSolverName = 'captcha-solver';
   static const String mainName = 'main';
   static const String dohTestName = 'doh-test';
+  // PROTOTYPE debug-only
+  static const String kuroPreviewName = 'kuro-preview';
 
   static const String crotpediaGenreListName = 'crotpedia-genres';
   static const String crotpediaDoujinListName = 'crotpedia-doujins';

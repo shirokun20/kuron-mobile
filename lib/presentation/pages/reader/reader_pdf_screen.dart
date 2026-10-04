@@ -6,6 +6,7 @@ import 'package:nhasixapp/core/services/native_pdf_service.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 class ReaderPdfScreen extends StatefulWidget {
   final String filePath;
@@ -59,11 +60,11 @@ class _ReaderPdfScreenState extends State<ReaderPdfScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Show a black screen (or loading) while native activity launches
+    // Show Kuro waiting while native activity launches
     return const Scaffold(
       backgroundColor: Colors.black,
       body: Center(
-        child: CircularProgressIndicator(),
+        child: KuroLoading(size: 96),
       ),
     );
   }

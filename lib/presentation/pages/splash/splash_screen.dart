@@ -13,6 +13,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/routing/app_route.dart';
 import 'package:nhasixapp/presentation/blocs/splash/splash_bloc.dart';
+import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -232,6 +233,27 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
     super.dispose();
   }
 
+  /// Mascot mood synced to the splash process (same mapping as
+  /// `resolveKuroMood` in openspec kuro-streak-widget-card).
+  KuroMood _moodForState(SplashState state) {
+    if (state is SplashBypassInProgress) return KuroMood.reader;
+    if (state is SplashOfflineEmpty) return KuroMood.tsundere;
+    if (state is SplashError) return KuroMood.cry;
+    return KuroMood.happy;
+  }
+
+  /// Sync progress shown on the ring around the mascot.
+  double _progressForState(SplashState state) {
+    if (state is SplashInitializing) return 0.3;
+    if (state is SplashBypassInProgress) return 0.7;
+    if (state is SplashSuccess ||
+        state is SplashOfflineReady ||
+        state is SplashOfflineMode) {
+      return 1.0;
+    }
+    return 0.0;
+  }
+
   String _resolveSplashMessage(
     BuildContext context,
     String messageKeyOrText, {
@@ -296,42 +318,81 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // App Logo with enhanced styling
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainer
-                        .withValues(alpha: 0.3),
-                    border: Border.all(
-                      color: AppColors.brandCoral.withValues(alpha: 0.3),
-                      width: 2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.brandCoral.withValues(alpha: 0.2),
-                        blurRadius: 30,
-                        spreadRadius: 4,
-                      ),
-                    ],
-                  ),
-                  child: const Image(
-                    height: 200,
-                    width: 200,
-                    image: AssetImage('assets/icons/logo_app.webp'),
-                  ),
+                // Kuro mascot: mood follows bloc state, sync ring wraps it.
+                // Initializing -> happy, bypass -> reader, success -> happy,
+                // offline-empty -> tsundere, error -> cry.
+                TweenAnimationBuilder<double>(
+                  tween: Tween(begin: 0, end: _progressForState(state)),
+                  duration: const Duration(milliseconds: 500),
+                  builder: (context, ring, __) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Segmented sync ring (ikut Figma Group.png: 4 segmen
+                        // rounded, yang nyala = round(progress*4)).
+                        _SyncRing(progress: ring, size: 260),
+                        // inner thin ring (ikut referensi: ring tebal progres +
+                        // ring tipis dalam).
+                        Container(
+                          width: 216,
+                          height: 216,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  AppColors.brandCoral.withValues(alpha: 0.25),
+                              width: 1,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainer
+                                .withValues(alpha: 0.3),
+                            border: Border.all(
+                              color:
+                                  AppColors.brandCoral.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    AppColors.brandCoral.withValues(alpha: 0.2),
+                                blurRadius: 30,
+                                spreadRadius: 4,
+                              ),
+                            ],
+                          ),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            transitionBuilder: (child, anim) =>
+                                ScaleTransition(scale: anim, child: child),
+                            child: KuroMascot(
+                              key: ValueKey(_moodForState(state)),
+                              mood: _moodForState(state),
+                              size: 184,
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 40),
 
-                // App title
+                // App title (proporsi ikut Figma: judul 0.21 lebar layar)
                 Text(
                   AppLocalizations.of(context)!.appTitle,
                   style: TextStyleConst.headingLarge.copyWith(
                     color: Theme.of(context).colorScheme.onSurface,
                     letterSpacing: 1.2,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 SizedBox(height: DesignTokens.spaceSm),
@@ -341,6 +402,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                   style: TextStyleConst.bodyMedium.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontStyle: FontStyle.italic,
+                    fontSize: 15,
                   ),
                 ),
 
@@ -351,134 +413,35 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                     state is SplashBypassInProgress)
                   Column(
                     children: [
-                      // Enhanced loading indicator with progress
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          SizedBox(
-                            width: 80,
-                            height: 80,
-                            child: CircularProgressIndicator(
-                              value: state is SplashInitializing
-                                  ? 0.3
-                                  : 0.7, // Show progress
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).colorScheme.primary,
-                              ),
-                              strokeWidth: 4,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainer,
+                      // Single status pill (ikut Figma Group.png: 1 pill +
+                      // dots, simple. Gear + detail text + linear bar dibuang).
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 48),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 14,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainer
+                                .withValues(alpha: 0.5),
+                            borderRadius:
+                                BorderRadius.circular(DesignTokens.radius2xl),
+                          ),
+                          child: Text(
+                            state is SplashInitializing
+                                ? '${AppLocalizations.of(context)?.settingUpComponents ?? AppLocalizations.of(context)!.settingUpConnection} ${(_progressForState(state) * 100).toInt()}%'
+                                : '${AppLocalizations.of(context)?.bypassingProtection ?? AppLocalizations.of(context)!.bypassingProtection} ${(_progressForState(state) * 100).toInt()}%',
+                            style: TextStyleConst.bodyMedium.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 18,
                             ),
+                            textAlign: TextAlign.center,
                           ),
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .primary
-                                    .withValues(alpha: 0.3),
-                                width: 1,
-                              ),
-                            ),
-                            child: Icon(
-                              state is SplashInitializing
-                                  ? Icons.settings
-                                  : Icons.security,
-                              color: Theme.of(context).colorScheme.primary,
-                              size: 24,
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: DesignTokens.space2xl),
-
-                      // Loading status text with better styling
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainer
-                              .withValues(alpha: 0.5),
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radius2xl),
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.outline,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          state is SplashInitializing
-                              ? _resolveSplashMessage(context, state.message)
-                              : _resolveSplashMessage(
-                                  context,
-                                  (state as SplashBypassInProgress).message,
-                                ),
-                          style: TextStyleConst.headingSmall.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
                         ),
                       ),
-                      SizedBox(height: DesignTokens.spaceLg),
-
-                      // Detailed progress text
-                      Text(
-                        state is SplashInitializing
-                            ? AppLocalizations.of(context)
-                                    ?.settingUpComponents ??
-                                AppLocalizations.of(context)!
-                                    .settingUpConnection
-                            : AppLocalizations.of(context)
-                                    ?.bypassingProtection ??
-                                AppLocalizations.of(context)!
-                                    .bypassingProtection,
-                        style: TextStyleConst.bodyMedium.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-
-                      if (state is SplashInitializing) ...[
-                        SizedBox(height: DesignTokens.spaceXl),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 48),
-                          child: Column(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusSm),
-                                child: LinearProgressIndicator(
-                                  value: state.progress,
-                                  backgroundColor: Theme.of(context)
-                                      .colorScheme
-                                      .surfaceContainer,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  minHeight: 6,
-                                ),
-                              ),
-                              SizedBox(height: DesignTokens.spaceSm),
-                              Text(
-                                '${(state.progress * 100).toInt()}%',
-                                style: TextStyleConst.bodySmall.copyWith(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-
-                      // Enhanced progress dots animation
                       const SizedBox(height: 20),
                       _buildProgressDots(),
                     ],
@@ -745,37 +708,32 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
             scale: _successScaleAnimation.value,
             child: Column(
               children: [
-                // Success icon with animated background
+                // Success badge: coral penuh + centang gelap (ikut Figma).
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .tertiary
-                        .withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.tertiary,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .tertiary
-                          .withValues(alpha: 0.3),
+                      color: Theme.of(context).colorScheme.tertiaryContainer,
                       width: 2,
                     ),
                   ),
                   child: Icon(
-                    Icons.check_circle,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.tertiary,
+                    Icons.check,
+                    size: 56,
+                    color: AppColors.brandDark,
                   ),
                 ),
-                SizedBox(height: DesignTokens.spaceXl),
 
-                // Success title
+                // Success title (proporsi Figma: 0.33 lebar layar)
                 Text(
                   AppLocalizations.of(context)!.readyToGo,
                   style: TextStyleConst.headingMedium.copyWith(
                     color: Theme.of(context).colorScheme.tertiary,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -786,6 +744,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                   _resolveSplashMessage(context, state.message),
                   style: TextStyleConst.bodyMedium.copyWith(
                     color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 16,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -819,9 +778,9 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(3, (index) {
         return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: 6,
-          height: 6,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 8,
+          height: 8,
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.tertiary,
             shape: BoxShape.circle,
@@ -854,6 +813,73 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
       },
     );
   }
+}
+
+/// Segmented sync ring (ikut Figma Group.png): 4 busur rounded dengan gap,
+/// jumlah yang nyala = round(progress * 4), searah jarum jam dari atas.
+class _SyncRing extends StatelessWidget {
+  final double progress;
+  final double size;
+
+  const _SyncRing({required this.progress, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: CustomPaint(
+        painter: _SyncRingPainter(
+          progress: progress,
+          lit: AppColors.brandCoral.withValues(alpha: 0.9),
+          dim: AppColors.brandCoral.withValues(alpha: 0.18),
+        ),
+      ),
+    );
+  }
+}
+
+class _SyncRingPainter extends CustomPainter {
+  final double progress;
+  final Color lit;
+  final Color dim;
+
+  const _SyncRingPainter({
+    required this.progress,
+    required this.lit,
+    required this.dim,
+  });
+
+  static const _sweep = 70 * 3.141592653589793 / 180;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(5, 5, size.width - 10, size.height - 10);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round;
+    // Ready = lingkaran PENUH kontinyu (segmen selalu ninggalin gap,
+    // makanya kemarin ready pun keliatan putus).
+    if (progress >= 1.0) {
+      canvas.drawArc(rect, 0, 3.141592653589793 * 2, false, paint..color = lit);
+      return;
+    }
+    final litCount = (progress.clamp(0.0, 1.0) * 4).round();
+    // top, right, bottom, left (canvas rad: 0 = timur, searah jarum jam).
+    const starts = [-125.0, -35.0, 55.0, 145.0];
+    for (var i = 0; i < 4; i++) {
+      canvas.drawArc(
+        rect,
+        starts[i] * 3.141592653589793 / 180,
+        _sweep,
+        false,
+        paint..color = i < litCount ? lit : dim,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_SyncRingPainter old) => old.progress != progress;
 }
 
 final _splashLogger = Logger();

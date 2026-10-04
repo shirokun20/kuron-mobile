@@ -20,6 +20,7 @@ import '../../../domain/entities/reader_settings_entity.dart';
 import '../../../domain/repositories/reader_image_repository.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 class ExtendedImageReaderWidget extends StatefulWidget {
   const ExtendedImageReaderWidget({
@@ -243,7 +244,6 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     required String resolvedPath,
   }) =>
       convertedPath ?? resolvedPath;
-
 
   /// Whether the cached file for [url] must be inspected on disk before
   /// Flutter decodes it. Brand (avis vs avif/mif1) and height (> 4096) live in
@@ -624,8 +624,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   /// in webtoon mode and no notify fires.
   void _applyConvertedAvifResult({
     required String convertedPath,
-    required ({bool isAvif, bool isAvisBrand, int? width, int? height})
-        avifInfo,
+    required ({
+      bool isAvif,
+      bool isAvisBrand,
+      int? width,
+      int? height
+    }) avifInfo,
   }) {
     final markHeavy =
         ExtendedImageReaderWidget.shouldMarkConvertedAvifHeavyForTesting(
@@ -695,8 +699,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (!avifInfo.isAvif) {
       return false;
     }
-    return avifInfo.isAvisBrand ||
-        (avifInfo.height ?? 0) > maxNativeAvifHeight;
+    return avifInfo.isAvisBrand || (avifInfo.height ?? 0) > maxNativeAvifHeight;
   }
 
   // Pre-check for offline/local files so heavy animated pages can route
@@ -2515,17 +2518,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final bool hasRealByteCount = loadedBytes > 0;
     final int resolvedTotalBytes = totalBytes ?? 0;
     final bool isConvertingBadAvif = _awaitingNativeCheck;
-    final String headlineText = isConvertingBadAvif
-        ? l10n.processing
-        : hasKnownTotal
-            ? '$progressPercent%'
-            : hasRealByteCount
-                ? _formatByteSize(loadedBytes)
-                : l10n.loading;
-    final String detailText = isConvertingBadAvif
+    // Satu caption (headline % + detail byte digabung): 1 fokal teks.
+    final String captionText = isConvertingBadAvif
         ? l10n.processingBadAvifToWebp
         : hasKnownTotal
-            ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)}'
+            ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)} • $progressPercent%'
             : hasRealByteCount
                 ? l10n.downloaded(_formatByteSize(loadedBytes))
                 : l10n.downloadingImageData;
@@ -2533,50 +2530,40 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final bool showIndeterminateFromRealBytes =
         hasRealByteCount && !hasKnownTotal;
 
-    final double cardWidth = isContinuousScroll ? 280 : 240;
-
     return Container(
       color: Theme.of(context).colorScheme.surface,
       margin: isContinuousScroll
-          ? const EdgeInsets.symmetric(vertical: 20)
+          ? EdgeInsets.symmetric(vertical: DesignTokens.spaceLg)
           : EdgeInsets.zero,
       child: Center(
-        child: Card(
-          elevation: 6,
-          shadowColor:
-              Theme.of(context).colorScheme.shadow.withValues(alpha: 0.2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-          ),
+        // Flat + bordered (house rule): elevation 0 + outline 1px,
+        // maxWidth ganti fixed 240/280. Eye path: maskot → bar → caption.
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 280),
           child: Container(
-            width: cardWidth,
-            padding: const EdgeInsets.all(14),
+            margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLg),
+            padding: EdgeInsets.all(DesignTokens.spaceMd),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainer,
+              borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1,
+              ),
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    headlineText,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-                const SizedBox(height: 10),
+                // 1 ticker pair per kartu loading; cuma window visible±4
+                // yang hidup — masih di bawah budget thermal.
+                const KuroMascot(mood: KuroMood.waiting, size: 64),
+                SizedBox(height: DesignTokens.spaceSm),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                   child: LinearProgressIndicator(
                     value:
                         showIndeterminateFromRealBytes ? null : indicatorValue,
-                    minHeight: 7,
+                    minHeight: 6,
                     backgroundColor:
                         Theme.of(context).colorScheme.surfaceContainerHighest,
                     valueColor: AlwaysStoppedAnimation<Color>(
@@ -2584,9 +2571,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: DesignTokens.spaceSm),
                 Text(
-                  detailText,
+                  captionText,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),

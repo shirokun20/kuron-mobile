@@ -427,6 +427,16 @@ class _SettingsScreenState extends State<SettingsScreen>
                 onTap: () => AppRouter.goToDohTest(context),
               ),
               buildSettingsDivider(theme),
+              // PROTOTYPE entry — hapus bareng kuro_preview_screen.dart
+              ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                leading: const Icon(Icons.pets_outlined),
+                title: const Text('Kuro Preview (debug)'),
+                subtitle: const Text('Cek maskot A–F, hapus sebelum release'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => AppRouter.goToKuroPreview(context),
+              ),
             ],
             buildSettingsActionTile(
               title: l10n.testCacheClearing,

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -37,6 +38,8 @@ import 'package:nhasixapp/presentation/pages/crotpedia/request_list_screen.dart'
 import 'package:nhasixapp/presentation/pages/tag_detail/tag_detail_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nhasixapp/presentation/pages/settings/doh_test_page.dart';
+// PROTOTYPE import — hapus bareng route kuro-preview
+import 'package:nhasixapp/presentation/pages/kuro_preview/kuro_preview_screen.dart';
 
 class AppRouter {
   // Global navigator key untuk Cloudflare bypass dialog
@@ -444,6 +447,18 @@ class AppRouter {
           kind: RouteKind.forward,
         ),
       ),
+      // PROTOTYPE debug-only — mati total di release build
+      if (kDebugMode)
+        GoRoute(
+          path: AppRoute.kuroPreview,
+          name: AppRoute.kuroPreviewName,
+          pageBuilder: (context, state) => AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            const KuroPreviewScreen(),
+            kind: RouteKind.forward,
+          ),
+        ),
 
       // Legacy Main Screen route for backward compatibility
       GoRoute(
@@ -700,6 +715,11 @@ class AppRouter {
 
   static void goToDohTest(BuildContext context) {
     context.push(AppRoute.dohTest);
+  }
+
+  // PROTOTYPE debug-only — hapus bareng route kuro-preview
+  static void goToKuroPreview(BuildContext context) {
+    context.push(AppRoute.kuroPreview);
   }
 
   static void goToTags(BuildContext context) {
