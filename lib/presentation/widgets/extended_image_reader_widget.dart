@@ -279,6 +279,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   Future<Uint8List?>? _mangaFireResolvedImageFuture;
   Future<PageImageResult?>? _pageResolveFuture;
 
+  // Path already scheduled through _schedulePostProcessResolvedFile.
+  // Prevents queueing a post-frame callback on every rebuild for one file.
+  String? _postProcessScheduledPath;
+
   bool _isHeavyImage = false;
 
   // Whether this image was positively identified as animated WebP bytes.
@@ -916,6 +920,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (sourceChanged || imageChanged || contentChanged) {
       _ehentaiResolveRetries = 0;
       _pageResolveFuture = null;
+      _postProcessScheduledPath = null;
       if (_resolveCancelToken != null && !_resolveCancelToken!.isCancelled) {
         _resolveCancelToken!.cancel('Widget updated');
       }
@@ -1141,7 +1146,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   image.height.toDouble(),
                 );
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  widget.onImageLoaded?.call(widget.pageNumber, imageSize);
+                  if (mounted) {
+                    widget.onImageLoaded?.call(widget.pageNumber, imageSize);
+                  }
                 });
               }
 
@@ -1161,14 +1168,20 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       final nativeSize = (width != null && height != null)
                           ? Size(width.toDouble(), height.toDouble())
                           : null;
-                      setState(() {
-                        _isHeavyImage = true;
-                        _isConfirmedAnimatedWebP = true;
-                        _cachedFilePath = effectiveLocalPath;
-                        if (nativeSize != null) _nativeImageSize = nativeSize;
+                      // loadStateChanged runs inside the build phase: never
+                      // setState synchronously here (same rule as
+                      // _schedulePostProcessResolvedFile).
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted || _isHeavyImage) return;
+                        setState(() {
+                          _isHeavyImage = true;
+                          _isConfirmedAnimatedWebP = true;
+                          _cachedFilePath = effectiveLocalPath;
+                          if (nativeSize != null) _nativeImageSize = nativeSize;
+                        });
+                        updateKeepAlive();
+                        _maybeNotifyHeavyImageDetected();
                       });
-                      updateKeepAlive();
-                      _maybeNotifyHeavyImageDetected();
                       if (nativeSize != null) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
                           if (mounted) {
@@ -1344,8 +1357,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           // Only runs when _preCheckDiskCacheForHeavy did not already find
           // the file (i.e. _awaitingNativeCheck is false and file is not yet
           // marked as heavy). This prevents double conversion.
+          // Deferred post-frame: _postProcessResolvedFile calls setState
+          // before its first await, so calling it here would run setState
+          // synchronously inside the build phase.
           if (!_isHeavyImage && AnimatedWebPView.isAvailable) {
-            _postProcessResolvedFile(path);
+            _schedulePostProcessResolvedFile(path);
           }
           // Heavy/animated routing still runs from the local file (unchanged).
           if (_shouldUseNativeAnimatedView(path)) {
@@ -1402,7 +1418,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 case LoadState.failed:
                   return _buildErrorWidget(context, failedSource: path,
                       onRetry: () {
-                    setState(() => _pageResolveFuture = null);
+                    setState(() {
+                      _pageResolveFuture = null;
+                      _postProcessScheduledPath = null;
+                    });
                   });
                 case LoadState.loading:
                   return _buildLoadingIndicator(context, state: state);
@@ -1416,6 +1435,21 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
             headers: headers);
       },
     );
+  }
+
+  /// Schedules [_postProcessResolvedFile] post-frame, never synchronously.
+  /// The method calls setState before its first await, so invoking it
+  /// directly from the FutureBuilder builder would run setState inside the
+  /// build phase (`setState() called during build`). One schedule per path:
+  /// rebuilds while the frame is pending do not queue duplicates. Normal
+  /// files (JPG/PNG) never set flags, so they never hit the spinner.
+  void _schedulePostProcessResolvedFile(String path) {
+    if (_postProcessScheduledPath == path) return;
+    _postProcessScheduledPath = path;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _isHeavyImage) return;
+      _postProcessResolvedFile(path);
+    });
   }
 
   /// Post-process a resolved local file for animated AVIF→WebP conversion

@@ -768,6 +768,29 @@ class LocalImagePreloader {
     }
   }
 
+  // Evict every cached slot for a page proven corrupt (header bytes native
+  // decode rejects). Best-effort sweep across all base paths; never throws
+  // so decode-failure handlers can call it unconditionally.
+  static Future<void> evictCorruptPage(
+      String contentId, int pageNumber) async {
+    try {
+      final basePaths = await _getPossibleBasePaths();
+      final patterns = _pageFilePatterns(pageNumber);
+      for (final basePath in basePaths) {
+        for (final pattern in patterns) {
+          try {
+            final file =
+                File(path.join(basePath, contentId, 'images', pattern));
+            if (await file.exists()) {
+              await file.delete();
+              _logger.w('[ReaderImage] evicted corrupt page: ${file.path}');
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }
+
   // Clear image cache for specific content (useful for debugging)
   static Future<void> clearContentCache(String contentId) async {
     try {

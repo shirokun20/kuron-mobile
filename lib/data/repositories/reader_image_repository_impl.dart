@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:nhasixapp/core/utils/reader_image_repair_utils.dart';
 import 'package:nhasixapp/core/services/local_image_preloader.dart';
 import 'package:nhasixapp/core/services/request_deduplication_service.dart';
 import 'package:nhasixapp/domain/entities/page_image_result.dart';
@@ -22,6 +23,10 @@ typedef ReaderImageNetworkDownload = Future<String?> Function({
 
 /// Signature for a legacy-cache lookup that returns a file path or null.
 typedef ReaderImageLegacyLookup = Future<String?> Function(String url);
+
+/// Signature for a local preloader-cache lookup returning a file path or null.
+typedef ReaderImageLocalLookup = Future<String?> Function(
+    String contentId, int pageNumber);
 
 /// Default streaming download implementation — writes to the canonical cache
 /// slot (same location [LocalImagePreloader.getLocalImagePath] scans), so the
@@ -52,6 +57,11 @@ Future<String?> _defaultLegacyLookup(String url) async {
   return null;
 }
 
+/// Default local lookup — scans the downloaded/preloader cache slots.
+Future<String?> _defaultLocalLookup(String contentId, int pageNumber) {
+  return LocalImagePreloader.getLocalImagePath(contentId, pageNumber);
+}
+
 /// Download-first resolver for reader page images.
 ///
 /// Deterministic resolution order (mode-agnostic, no cross-session in-memory
@@ -66,15 +76,18 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
     RequestDeduplicationService? dedup,
     ReaderImageNetworkDownload? networkDownload,
     ReaderImageLegacyLookup? legacyLookup,
+    ReaderImageLocalLookup? localLookup,
   })  : _logger = logger,
         _dedup = dedup ?? RequestDeduplicationService(),
         _networkDownload = networkDownload ?? _defaultStreamingDownload,
-        _legacyLookup = legacyLookup ?? _defaultLegacyLookup;
+        _legacyLookup = legacyLookup ?? _defaultLegacyLookup,
+        _localLookup = localLookup ?? _defaultLocalLookup;
 
   final Logger _logger;
   final RequestDeduplicationService _dedup;
   final ReaderImageNetworkDownload _networkDownload;
   final ReaderImageLegacyLookup _legacyLookup;
+  final ReaderImageLocalLookup _localLookup;
 
   @override
   Future<PageImageResult> resolvePage({
@@ -100,14 +113,23 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
           reason: 'local file not found: $localPath', originalUrl: url);
     }
 
-    // 1) Offline download / preloader cache.
+    // 1) Offline download / preloader cache (header-sniffed: a corrupt slot
+    // never returns ReadyFromDisk; it is evicted and resolution falls through
+    // to legacy/network instead of looping on the same bytes).
     try {
-      final localPath =
-          await LocalImagePreloader.getLocalImagePath(contentId, pageNumber);
+      final localPath = await _localLookup(contentId, pageNumber);
       if (localPath != null && await _fileExists(File(localPath))) {
-        _logger.i(
-            '[ReaderImage] disk hit content=$contentId page=$pageNumber -> $localPath');
-        return ReadyFromDisk(path: localPath);
+        if (await _hasInvalidImagePayload(localPath)) {
+          _logger.w('[ReaderImage] corrupt disk hit, evicting $localPath');
+          try {
+            await File(localPath).delete();
+          } catch (_) {}
+          await LocalImagePreloader.evictCorruptPage(contentId, pageNumber);
+        } else {
+          _logger.i(
+              '[ReaderImage] disk hit content=$contentId page=$pageNumber -> $localPath');
+          return ReadyFromDisk(path: localPath);
+        }
       }
     } catch (e) {
       _logger.w('[ReaderImage] preloader lookup failed: $e');
@@ -154,6 +176,26 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
     } catch (e) {
       _logger.w('[ReaderImage] network fail $url: $e');
       return FailedPage(reason: e, originalUrl: url);
+    }
+  }
+
+  /// Same header sniff the reader widget uses: native decode rejects files
+  /// whose first bytes match no known image magic. Reads at most 64 bytes;
+  /// unreadable files count as valid so lookup errors stay non-fatal.
+  Future<bool> _hasInvalidImagePayload(String localPath) async {
+    try {
+      final file = File(localPath);
+      final length = await file.length();
+      if (length <= 0) return true;
+      final raf = await file.open(mode: FileMode.read);
+      try {
+        final sample = await raf.read(length < 64 ? length : 64);
+        return inferImageExtension(bytes: sample) == null;
+      } finally {
+        await raf.close();
+      }
+    } catch (_) {
+      return false;
     }
   }
 
