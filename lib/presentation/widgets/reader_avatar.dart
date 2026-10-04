@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:nhasixapp/domain/entities/reader_badge.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'package:nhasixapp/presentation/widgets/kuro_tier_avatar.dart';
 
-// Tier avatar from bundled CC0 assets (see assets/avatars/README.md).
-// API is tier-based so the render can change without touching callers.
+// Tier avatar rendered from the dedicated Kuro tier painter — zero bundled
+// PNGs (see assets/avatars/README.md). API is tier-based so the render
+// can change without touching callers.
 class ReaderAvatar extends StatelessWidget {
   const ReaderAvatar({
     super.key,
@@ -14,30 +16,26 @@ class ReaderAvatar extends StatelessWidget {
   final ReaderTier tier;
   final double radius;
 
-  static String assetFor(ReaderTier tier) {
-    return 'assets/avatars/tier-${tier.name}.png';
+  // Pastel disc behind the black cat — readable on light/dark/amoled.
+  static Color backgroundFor(ReaderTier tier) {
+    return switch (tier) {
+      ReaderTier.santai => const Color(0xFFFFDFBF),
+      ReaderTier.kutubuku => const Color(0xFFC0AEDE),
+      ReaderTier.otaku => const Color(0xFFB6E3F4),
+      ReaderTier.resi => const Color(0xFFFFD5DC),
+      ReaderTier.shaker => const Color(0xFFD1D4F9),
+    };
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final size = radius * 2;
     return ClipOval(
-      child: Image.asset(
-        assetFor(tier),
+      child: Container(
         width: size,
         height: size,
-        fit: BoxFit.cover,
-        errorBuilder: (context, _, __) => Container(
-          width: size,
-          height: size,
-          color: theme.colorScheme.surfaceContainerHighest,
-          child: Icon(
-            Icons.person_outlined,
-            size: radius,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        color: backgroundFor(tier),
+        child: KuroTierAvatar(tier: tier, size: size),
       ),
     );
   }

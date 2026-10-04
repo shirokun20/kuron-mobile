@@ -1,14 +1,19 @@
 # Reader tier avatars
 
-5 PNG 256px, gaya **Open Peeps** via DiceBear HTTP API — **CC0, gratis,
-tanpa atribusi**, boleh dipakai komersial.
+No bundled PNGs — tiers render from the dedicated **Kuro tier painter**
+(`lib/presentation/widgets/kuro_tier_avatar.dart`): same black-cat base,
+one accessory each. Deliberately separate from `KuroMascot` moods —
+avatars are 40-52px identity marks, drawn bold, static (no tickers).
 
-- Sumber gaya: Open Peeps oleh Pablo Stanley (https://www.openpeeps.com, CC0)
-- Lisensi tiap style DiceBear: https://www.dicebear.com/licenses
-  (`open-peeps` tercantum di kelompok CC0 1.0)
-- Resep unduh ulang (deterministik per seed — ganti seed untuk wajah lain):
-  `https://api.dicebear.com/9.x/open-peeps/png?seed=kuron-<tier>&size=512&backgroundColor=<hex>`
-- Mapping: `tier-santai` (ffdfbf), `tier-kutubuku` (c0aede),
-  `tier-otaku` (b6e3f4), `tier-resi` (ffd5dc), `tier-shaker` (d1d4f9)
-- PNG v9 tidak mendukung background transparan — tiap tier punya warna
-  circle pastel sendiri (aman di light/dark theme).
+- `santai` → plain, calm
+- `kutubuku` → round glasses
+- `otaku` → headphone band + pads
+- `resi` → dusty hood ring
+- `shaker` → sweat drop + worried mouth
+
+Pastel disc behind the cat (`ReaderAvatar.backgroundFor`):
+`santai` ffdfbf, `kutubuku` c0aede, `otaku` b6e3f4,
+`resi` ffd5dc, `shaker` d1d4f9.
+
+Old DiceBear Open Peeps PNGs (CC0) were deleted 2026-10-04 —
+git history has them if ever needed.

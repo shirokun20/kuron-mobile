@@ -3,37 +3,36 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/domain/entities/reader_badge.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'package:nhasixapp/presentation/widgets/kuro_tier_avatar.dart';
 import 'package:nhasixapp/presentation/widgets/reader_avatar.dart';
 
 void main() {
-  test('assetFor maps every tier to its bundled png', () {
-    expect(ReaderAvatar.assetFor(ReaderTier.santai),
-        'assets/avatars/tier-santai.png');
-    expect(ReaderAvatar.assetFor(ReaderTier.kutubuku),
-        'assets/avatars/tier-kutubuku.png');
-    expect(ReaderAvatar.assetFor(ReaderTier.otaku),
-        'assets/avatars/tier-otaku.png');
-    expect(ReaderAvatar.assetFor(ReaderTier.resi),
-        'assets/avatars/tier-resi.png');
-    expect(ReaderAvatar.assetFor(ReaderTier.shaker),
-        'assets/avatars/tier-shaker.png');
+  test('backgroundFor keeps one pastel disc per tier', () {
+    expect(
+        ReaderAvatar.backgroundFor(ReaderTier.santai), const Color(0xFFFFDFBF));
+    expect(ReaderAvatar.backgroundFor(ReaderTier.kutubuku),
+        const Color(0xFFC0AEDE));
+    expect(
+        ReaderAvatar.backgroundFor(ReaderTier.otaku), const Color(0xFFB6E3F4));
+    expect(
+        ReaderAvatar.backgroundFor(ReaderTier.resi), const Color(0xFFFFD5DC));
+    expect(
+        ReaderAvatar.backgroundFor(ReaderTier.shaker), const Color(0xFFD1D4F9));
   });
 
-  testWidgets('avatar renders the tier image at the right size',
+  testWidgets('every tier renders its dedicated avatar at the right size',
       (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: ReaderAvatar(tier: ReaderTier.shaker, radius: 20),
+    for (final tier in ReaderTier.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: ReaderAvatar(tier: tier, radius: 20)),
         ),
-      ),
-    );
+      );
 
-    final image = tester.widget<Image>(find.byType(Image));
-    expect((image.image as AssetImage).assetName,
-        'assets/avatars/tier-shaker.png');
-    expect(image.width, 40);
-    expect(image.height, 40);
+      final avatar = tester.widget<KuroTierAvatar>(find.byType(KuroTierAvatar));
+      expect(avatar.tier, tier);
+      expect(avatar.size, 40);
+    }
   });
 
   testWidgets('tier names localize per app locale', (tester) async {
