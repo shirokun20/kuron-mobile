@@ -44,7 +44,10 @@ Map<String, Object?> _config({bool withCookies = true}) => {
         },
         'selectors': {
           'reader': {
-            if (withCookies) 'cookies': {'{id}/read': '2'},
+            // `{slug}` = last path segment: live hentaikun cookie name is the
+            // bare slug (`<slug>/read=2`), while chapter ids carry the
+            // category prefix (`original-doujins-series/<slug>`).
+            if (withCookies) 'cookies': {'{slug}/read': '2'},
             'images': {
               'scriptJson': {'id': 'jsondata', 'items': ''},
               'selector': '.image-show img',
@@ -105,6 +108,25 @@ void main() {
 
       expect(chapter, isNotNull);
       expect(chapter!.images, hasLength(25));
+      expect(requestedCookies, ['$_slug/read=2']);
+    });
+
+    test('full-path chapter id sends bare-slug cookie (live hentaikun)', () async {
+      const fullId = 'original-doujins-series/$_slug';
+      dioAdapter.onGet(
+        '$_baseUrl/$fullId/read/',
+        (s) => s.replyCallback(200, (options) {
+          requestedCookies.add(cookieOf(options));
+          return _jsondataHtml(86);
+        }, headers: {
+          Headers.contentTypeHeader: ['text/html; charset=utf-8'],
+        }),
+      );
+
+      final chapter = await adapter.fetchChapterImages(fullId, _config());
+
+      expect(chapter, isNotNull);
+      expect(chapter!.images, hasLength(86));
       expect(requestedCookies, ['$_slug/read=2']);
     });
 

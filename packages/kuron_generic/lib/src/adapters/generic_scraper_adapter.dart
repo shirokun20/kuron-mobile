@@ -893,20 +893,24 @@ class GenericScraperAdapter implements GenericAdapter {
   }
 
   /// Build a `Cookie` header value from a `reader.cookies` declaration.
-  /// Both names and values support `{id}` / `{contentId}` substitution
-  /// with the normalized chapter id (hentaikun: slug, e.g.
-  /// `{"{id}/read": "2"}` → `my-slug-18117/read=2`). Returns null when
-  /// the declaration is absent or yields no pairs.
-  String? _readerCookiesHeader(dynamic cookiesDef, String idValue) {
+  /// Templates support `{id}` / `{contentId}` (normalized chapter id) and
+  /// `{slug}` (last path segment — hentaikun cookie name is the bare slug,
+  /// e.g. `{"{slug}/read": "2"}` → `my-slug-18117/read=2`, while the chapter
+  /// id carries the category prefix). Returns null when the declaration is
+  /// absent or yields no pairs.
+  String? _readerCookiesHeader(
+      dynamic cookiesDef, String idValue, String slugValue) {
     if (cookiesDef is! Map || cookiesDef.isEmpty) return null;
     final pairs = <String>[];
     for (final entry in cookiesDef.entries) {
       final name = entry.key
           .toString()
+          .replaceAll('{slug}', slugValue)
           .replaceAll('{id}', idValue)
           .replaceAll('{contentId}', idValue);
       final value = entry.value
           .toString()
+          .replaceAll('{slug}', slugValue)
           .replaceAll('{id}', idValue)
           .replaceAll('{contentId}', idValue);
       if (name.isEmpty) continue;
@@ -935,9 +939,11 @@ class GenericScraperAdapter implements GenericAdapter {
     // (hentaikun `{slug}/read=2` all-pages mode). Scoped to reader fetches
     // only; never clobbers an explicit config `Cookie`.
     if (cookieId != null) {
+      final slug = cookieId.split('/').where((s) => s.isNotEmpty).toList();
       final cookieValue = _readerCookiesHeader(
         readerConfig?['cookies'],
         cookieId,
+        slug.isEmpty ? cookieId : slug.last,
       );
       if (cookieValue != null && cookieValue.isNotEmpty) {
         final existing = headers['Cookie']?.toString();
