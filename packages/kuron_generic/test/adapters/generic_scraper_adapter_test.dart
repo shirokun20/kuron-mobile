@@ -860,6 +860,20 @@ const _chapterHtmlNoTsReader = '''
 </body></html>
 ''';
 
+// WordPress-Manga style nav: the href nests the chapter under /manga/<slug>/.
+const _chapterHtmlNestedMangaNav = '''
+<html><body>
+<div id="readerarea">
+  <img src="https://img.example.com/dom-1.jpg">
+  <img src="https://img.example.com/dom-2.jpg">
+</div>
+<div class="nextprev">
+  <a class="next" href="https://komiktap.info/manga/manga-slug-one/chapter-6-raw/">Next</a>
+  <a class="prev" href="https://komiktap.info/manga/manga-slug-one/chapter-4-raw/">Prev</a>
+</div>
+</body></html>
+''';
+
 const _chapterHtmlScriptArray = '''
 <html><body>
 <script>
@@ -2670,6 +2684,21 @@ void main() {
           await adapter.fetchChapterImages('manga-slug-one-chapter-5', _config);
       expect(result!.nextChapterId, 'manga-slug-one-chapter-6');
       expect(result.prevChapterId, 'manga-slug-one-chapter-4');
+    });
+
+    test('keeps the chapter segment for nested /manga/<slug>/<chapter> nav',
+        () async {
+      dioAdapter.onGet(
+        '$_baseUrl/manga-slug-one-chapter-5/',
+        (s) => s.reply(200, _chapterHtmlNestedMangaNav, headers: {
+          Headers.contentTypeHeader: ['text/html; charset=utf-8']
+        }),
+      );
+
+      final result =
+          await adapter.fetchChapterImages('manga-slug-one-chapter-5', _config);
+      expect(result!.nextChapterId, 'manga-slug-one/chapter-6-raw');
+      expect(result.prevChapterId, 'manga-slug-one/chapter-4-raw');
     });
 
     test('returns null when chapter URL pattern is not configured', () async {

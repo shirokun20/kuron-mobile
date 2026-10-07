@@ -115,6 +115,26 @@ void main() {
       expect(result.uploadDate.day, 15);
     });
 
+    test('maps uploadDate from day-first abbreviated month string', () {
+      final result = GenericContentMapper.toListItem(
+        {'id': 'x', 'uploadDate': '11 Sep 2026'},
+        sourceId: sourceId,
+      );
+      expect(result.uploadDate.year, 2026);
+      expect(result.uploadDate.month, 9);
+      expect(result.uploadDate.day, 11);
+    });
+
+    test('maps uploadDate from month-first full name string', () {
+      final result = GenericContentMapper.toListItem(
+        {'id': 'x', 'uploadDate': 'September 11, 2026'},
+        sourceId: sourceId,
+      );
+      expect(result.uploadDate.year, 2026);
+      expect(result.uploadDate.month, 9);
+      expect(result.uploadDate.day, 11);
+    });
+
     test('maps uploadDate from relative string', () {
       final before = DateTime.now();
       final result = GenericContentMapper.toListItem(

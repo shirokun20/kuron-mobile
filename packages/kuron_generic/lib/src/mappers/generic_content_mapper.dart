@@ -650,13 +650,71 @@ class GenericContentMapper {
 
   static DateTime? _parseNamedMonthDate(String raw) {
     if (raw.isEmpty) return null;
+    final text = raw.trim();
 
+    // Day-first with month abbreviation: "11 Sep 2026".
+    final dmy = RegExp(
+      r'^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{4})$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (dmy != null) {
+      const shortMonths = {
+        'jan': 1,
+        'feb': 2,
+        'mar': 3,
+        'apr': 4,
+        'may': 5,
+        'jun': 6,
+        'jul': 7,
+        'aug': 8,
+        'sep': 9,
+        'oct': 10,
+        'nov': 11,
+        'dec': 12,
+      };
+      final month = shortMonths[dmy.group(2)!.toLowerCase()];
+      final day = int.tryParse(dmy.group(1)!);
+      final year = int.tryParse(dmy.group(3)!);
+      if (month != null && day != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+
+
+    // Compact day-first with two-digit year: "06 Oct 26".
+    final compact = RegExp(
+      r'^(\d{1,2})\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{2})$',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (compact != null) {
+      const shortMonths = {
+        'jan': 1,
+        'feb': 2,
+        'mar': 3,
+        'apr': 4,
+        'may': 5,
+        'jun': 6,
+        'jul': 7,
+        'aug': 8,
+        'sep': 9,
+        'oct': 10,
+        'nov': 11,
+        'dec': 12,
+      };
+      final month = shortMonths[compact.group(2)!.toLowerCase()];
+      final day = int.tryParse(compact.group(1)!);
+      final year = int.tryParse(compact.group(3)!);
+      if (month != null && day != null && year != null) {
+        final fullYear = year >= 70 ? 1900 + year : 2000 + year;
+        return DateTime(fullYear, month, day);
+      }
+    }
+    // Month-first US style: "September 11, 2026".
     final match = RegExp(
       r'^(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),\s*(\d{4})$',
       caseSensitive: false,
-    ).firstMatch(raw.trim());
+    ).firstMatch(text);
     if (match == null) return null;
-
     const months = {
       'january': 1,
       'february': 2,

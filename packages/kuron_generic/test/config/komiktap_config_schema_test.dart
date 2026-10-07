@@ -61,42 +61,30 @@ void _asString(Map<String, dynamic> map, String key, String ctx) {
       reason: '$ctx: "$key" is present but empty');
 }
 
-// Validate a single field definition value: either a String shorthand or
-// a Map with at least a "selector" key.
-void _validateFieldDef(dynamic def, String ctx) {
-  if (def is String) {
-    expect(def.trim(), isNotEmpty, reason: '$ctx: field def String is empty');
-    return;
-  }
-  expect(def, isA<Map>(), reason: '$ctx: field def must be String or Map');
-  final m = (def as Map).cast<String, dynamic>();
-  _asString(m, 'selector', '$ctx fieldDef');
-}
-
-// Validate the `list` config block in a URL pattern.
-void _validateListBlock(Map<String, dynamic> listConfig, String ctx) {
-  _asString(listConfig, 'container', '$ctx.list');
-
-  final fields = _asMap(listConfig, 'fields', '$ctx.list');
-  expect(fields, isNotEmpty, reason: '$ctx.list.fields must not be empty');
-  for (final entry in fields.entries) {
-    _validateFieldDef(entry.value, '$ctx.list.fields.${entry.key}');
-  }
-
-  // pagination is optional, but if present must be a map
-  if (listConfig.containsKey('pagination')) {
-    expect(listConfig['pagination'], isA<Map>(),
-        reason: '$ctx.list.pagination must be a JSON object');
-    final pag = (listConfig['pagination'] as Map).cast<String, dynamic>();
-    final hasNext = pag.containsKey('next') || pag.containsKey('alt');
-    expect(hasNext, isTrue,
-        reason: '$ctx.list.pagination must have "next" or "alt" key');
-  }
+// [_asString] but returns the validated value.
+String _requireString(Map<String, dynamic> map, String key, String ctx) {
+  _asString(map, key, ctx);
+  return map[key] as String;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // komiktap-config.json
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Resolve an endpoint declared as either a plain string path or a
+// `{path, params}` object (params are appended as a query string).
+String _endpointPath(Map<String, dynamic> endpoints, String key) {
+  final value = endpoints[key];
+  if (value is String) return value;
+  if (value is Map) {
+    final path = (value['path'] as String?) ?? '';
+    final params = value['params'];
+    if (params is! Map || params.isEmpty) return path;
+    final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+    return '$path${path.contains('?') ? '&' : '?'}$query';
+  }
+  return '';
+}
 
 void main() {
   late Map<String, dynamic> komiktap;
@@ -138,8 +126,10 @@ void main() {
       expect(komiktap['enabled'], isA<bool>());
     });
 
-    test('has scraper block', () {
-      _asMap(komiktap, 'scraper', 'root');
+    test('has api block (REST driver) and no scraper block', () {
+      _asMap(komiktap, 'api', 'root');
+      expect(komiktap.containsKey('scraper'), isFalse,
+          reason: 'v2 config drives data via the api block');
     });
 
     test('has searchForm block', () {
@@ -148,200 +138,157 @@ void main() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // komiktap — scraper.urlPatterns
+  // komiktap — api.endpoints
   // ─────────────────────────────────────────────────────────────────────────
 
-  group('komiktap-config.json scraper.urlPatterns', () {
-    late Map<String, dynamic> urlPatterns;
+  group('komiktap-config.json api.endpoints', () {
+    late Map<String, dynamic> api;
+    late Map<String, dynamic> endpoints;
 
     setUp(() {
-      final scraper = (komiktap['scraper'] as Map).cast<String, dynamic>();
-      urlPatterns = _asMap(scraper, 'urlPatterns', 'scraper');
+      api = _asMap(komiktap, 'api', 'root');
+      endpoints = _asMap(api, 'endpoints', 'api');
     });
 
-    test(
-        'has required pattern keys: home, homePage, search, genreSearch, detail, chapter',
-        () {
+    test('api.url is an https URL (REST base)', () {
+      final url = _requireString(api, 'url', 'api');
+      expect(url.startsWith('https://'), isTrue);
+    });
+
+    test('has required endpoint keys', () {
       for (final key in [
-        'home',
-        'homePage',
+        'allGalleries',
         'search',
-        'genreSearch',
+        'tagSearch',
         'detail',
-        'chapter'
+        'images',
       ]) {
-        expect(urlPatterns.containsKey(key), isTrue,
-            reason: 'urlPatterns is missing "$key"');
+        expect(endpoints.containsKey(key), isTrue,
+            reason: 'api.endpoints is missing "$key"');
       }
     });
 
-    test('"detail" and "chapter" are plain String URL templates', () {
-      expect(urlPatterns['detail'], isA<String>());
-      expect(urlPatterns['chapter'], isA<String>());
-      expect((urlPatterns['detail'] as String), contains('{id}'));
-      expect((urlPatterns['chapter'] as String), contains('{id}'));
+    test('list endpoints carry {page} and search carries {query}', () {
+      final all = _endpointPath(endpoints, 'allGalleries');
+      final search = _endpointPath(endpoints, 'search');
+      expect(all, contains('{page}'));
+      expect(search, contains('{page}'));
+      expect(search, contains('{query}'));
     });
 
-    test('"home" pattern has valid list block', () {
-      final home = urlPatterns['home'] as Map;
-      final homeMap = home.cast<String, dynamic>();
-      _asString(homeMap, 'url', 'home');
-      final list = _asMap(homeMap, 'list', 'home');
-      _validateListBlock(list, 'home');
+    test('tagSearch path carries {tagId}', () {
+      expect(_endpointPath(endpoints, 'tagSearch'), contains('{tagId}'));
     });
 
-    test('"home" list has required content fields: id, title, coverUrl', () {
-      final homeMap = (urlPatterns['home'] as Map).cast<String, dynamic>();
-      final fields =
-          ((homeMap['list'] as Map)['fields'] as Map).cast<String, dynamic>();
-      for (final f in ['id', 'title', 'coverUrl']) {
-        expect(fields.containsKey(f), isTrue,
-            reason: 'home.list.fields is missing "$f" field');
-      }
-    });
-
-    test('"home" id field has transform:slug (for URL→slug extraction)', () {
-      final homeMap = (urlPatterns['home'] as Map).cast<String, dynamic>();
-      final fields =
-          ((homeMap['list'] as Map)['fields'] as Map).cast<String, dynamic>();
-      final idDef = fields['id'];
-      expect(idDef, isA<Map>(),
-          reason: 'home.list.fields.id must be a Map with transform');
-      expect((idDef as Map)['transform'], 'slug',
-          reason: 'home.list.fields.id must have "transform":"slug"');
-      expect(idDef['attribute'], 'href',
-          reason: 'home.list.fields.id must extract "href" attribute');
-    });
-
-    test('"homePage" inherits from "home" and has {page} in url', () {
-      final homePageVal = urlPatterns['homePage'];
-      expect(homePageVal, isA<Map>());
-      final homePageMap = (homePageVal as Map).cast<String, dynamic>();
-      _asString(homePageMap, 'url', 'homePage');
-      expect((homePageMap['url'] as String), contains('{page}'));
-      expect(homePageMap['inherits'], 'home',
-          reason: 'homePage should inherit from home');
-    });
-
-    test('"search" pattern has list block with {query} in url', () {
-      final searchMap = (urlPatterns['search'] as Map).cast<String, dynamic>();
-      _asString(searchMap, 'url', 'search');
-      expect((searchMap['url'] as String), contains('{query}'));
-      final list = _asMap(searchMap, 'list', 'search');
-      _validateListBlock(list, 'search');
-    });
-
-    test('"genreSearch" inherits from "search" and has {tag} in url', () {
-      final genreVal = urlPatterns['genreSearch'];
-      expect(genreVal, isA<Map>());
-      final genreMap = (genreVal as Map).cast<String, dynamic>();
-      expect((genreMap['url'] as String), contains('{tag}'));
-      expect(genreMap['inherits'], 'search');
-    });
-
-    test('"inherits" values reference existing pattern keys', () {
-      for (final entry in urlPatterns.entries) {
-        if (entry.value is! Map) continue;
-        final patMap = (entry.value as Map).cast<String, dynamic>();
-        final inherits = patMap['inherits'] as String?;
-        if (inherits != null) {
-          expect(urlPatterns.containsKey(inherits), isTrue,
-              reason:
-                  '"${entry.key}".inherits = "$inherits" but that key does not exist in urlPatterns');
-        }
-      }
+    test('detail and images paths carry {id}; images carries {chapter}', () {
+      expect(_endpointPath(endpoints, 'detail'), contains('{id}'));
+      final images = _endpointPath(endpoints, 'images');
+      expect(images, contains('{id}'));
+      expect(images, contains('{chapter}'));
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // komiktap — scraper.selectors.detail
+  // komiktap — api.list
   // ─────────────────────────────────────────────────────────────────────────
 
-  group('komiktap-config.json scraper.selectors.detail', () {
+  group('komiktap-config.json api.list', () {
+    late Map<String, dynamic> list;
+
+    setUp(() {
+      final api = _asMap(komiktap, 'api', 'root');
+      list = _asMap(api, 'list', 'api');
+    });
+
+    test('items is a JSONPath array selector', () {
+      final items = _requireString(list, 'items', 'list');
+      expect(items, startsWith(r'$.'));
+      expect(items, endsWith('[*]'));
+    });
+
+    test('pagination declares totalPages and currentPage paths', () {
+      final pagination = _asMap(list, 'pagination', 'list');
+      for (final key in ['totalPages', 'currentPage']) {
+        final entry = _asMap(pagination, key, 'list.pagination');
+        _asString(entry, 'path', 'list.pagination.$key');
+      }
+    });
+
+    test('fields include id, title, coverUrl; tags is multi', () {
+      final fields = _asMap(list, 'fields', 'list');
+      for (final f in ['id', 'title', 'coverUrl']) {
+        expect(fields.containsKey(f), isTrue,
+            reason: 'list.fields is missing "$f"');
+      }
+      final tagsDef = fields['tags'];
+      expect(tagsDef, isA<Map>());
+      expect((tagsDef as Map)['multi'], isTrue);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // komiktap — api.detail (inline chapters) + api.images
+  // ─────────────────────────────────────────────────────────────────────────
+
+  group('komiktap-config.json api.detail', () {
     late Map<String, dynamic> detail;
 
     setUp(() {
-      final scraper = (komiktap['scraper'] as Map).cast<String, dynamic>();
-      final selectors = _asMap(scraper, 'selectors', 'scraper');
-      detail = _asMap(selectors, 'detail', 'selectors');
+      final api = _asMap(komiktap, 'api', 'root');
+      detail = _asMap(api, 'detail', 'api');
     });
 
-    test('detail has fields block with at least title, coverUrl, tags', () {
+    test('fields include title, coverUrl, tags; tags is multi', () {
       final fields = _asMap(detail, 'fields', 'detail');
       for (final f in ['title', 'coverUrl', 'tags']) {
         expect(fields.containsKey(f), isTrue,
             reason: 'detail.fields is missing "$f"');
       }
-    });
-
-    test('tags field has multi:true', () {
-      final fields = (detail['fields'] as Map).cast<String, dynamic>();
       final tagsDef = fields['tags'];
-      expect(tagsDef, isA<Map>(), reason: 'tags field def must be a Map');
-      expect((tagsDef as Map)['multi'], isTrue,
-          reason:
-              'tags field must have "multi":true for correct multi-value extraction');
+      expect(tagsDef, isA<Map>());
+      expect((tagsDef as Map)['multi'], isTrue);
     });
 
-    test('detail has chapters block with container and fields', () {
-      _hasKey(detail, 'chapters', 'detail');
+    test('chapters parse inline (items JSONPath, no endpoint)', () {
       final chapters = _asMap(detail, 'chapters', 'detail');
-      _asString(chapters, 'container', 'chapters');
-      final chFields = _asMap(chapters, 'fields', 'chapters');
-      expect(chFields, isNotEmpty);
+      expect(chapters.containsKey('endpoint'), isFalse,
+          reason: 'chapters come from the detail response itself');
+      final items = _requireString(chapters, 'items', 'chapters');
+      expect(items, startsWith(r'$.'));
+      expect(chapters['composeIdWithContentId'], isTrue,
+          reason: 'reader endpoint needs {slug}/{number} composite ids');
     });
 
-    test('chapter fields include id, title, date', () {
+    test('chapter fields include id, title', () {
       final chapters = (detail['chapters'] as Map).cast<String, dynamic>();
-      final chFields = (chapters['fields'] as Map).cast<String, dynamic>();
-      for (final f in ['id', 'title', 'date']) {
+      final chFields = _asMap(chapters, 'fields', 'chapters');
+      for (final f in ['id', 'title']) {
         expect(chFields.containsKey(f), isTrue,
             reason: 'chapters.fields is missing "$f"');
       }
     });
 
-    test('chapter id field has transform:slug', () {
-      final chapters = (detail['chapters'] as Map).cast<String, dynamic>();
-      final chFields = (chapters['fields'] as Map).cast<String, dynamic>();
-      final idDef = chFields['id'];
-      expect(idDef, isA<Map>());
-      expect((idDef as Map)['transform'], 'slug',
-          reason:
-              'chapter id must have "transform":"slug" so chapter URLs become slugs');
+    test('api.images uses direct mode with a JSONPath items selector', () {
+      final api = _asMap(komiktap, 'api', 'root');
+      final images = _asMap(api, 'images', 'api');
+      expect(images['mode'], 'direct');
+      final items = _requireString(images, 'items', 'images');
+      expect(items, startsWith(r'$.'));
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // komiktap — scraper.selectors.reader
+  // komiktap — navigation (genre taps → raw tag param)
   // ─────────────────────────────────────────────────────────────────────────
 
-  group('komiktap-config.json scraper.selectors.reader', () {
-    late Map<String, dynamic> reader;
-
-    setUp(() {
-      final scraper = (komiktap['scraper'] as Map).cast<String, dynamic>();
-      final selectors = _asMap(scraper, 'selectors', 'scraper');
-      reader = _asMap(selectors, 'reader', 'selectors');
-    });
-
-    test('has tsReaderRegex (non-empty string)', () {
-      _asString(reader, 'tsReaderRegex', 'reader');
-    });
-
-    test('tsReaderRegex is a parseable RegExp', () {
-      final regexStr = reader['tsReaderRegex'] as String;
-      expect(() => RegExp(regexStr), returnsNormally,
-          reason: 'tsReaderRegex "$regexStr" is not a valid RegExp');
-    });
-
-    test('has nav block with next and prev CSS selectors', () {
-      final nav = _asMap(reader, 'nav', 'reader');
-      _asString(nav, 'next', 'reader.nav');
-      _asString(nav, 'prev', 'reader.nav');
-    });
-
-    test('has container selector', () {
-      _asString(reader, 'container', 'reader');
+  group('komiktap-config.json navigation', () {
+    test('tagQueryMapping default routes rawParam with a param name', () {
+      final navigation = _asMap(komiktap, 'navigation', 'root');
+      final mapping = _asMap(navigation, 'tagQueryMapping', 'navigation');
+      final fallback = _asMap(mapping, 'default', 'tagQueryMapping');
+      expect(fallback['mode'], 'rawParam');
+      _asString(fallback, 'param', 'tagQueryMapping.default');
+      expect(fallback['valueSource'], isNotNull);
     });
   });
 
@@ -360,14 +307,13 @@ void main() {
       _asString(searchForm, 'urlPattern', 'searchForm');
     });
 
-    test('urlPattern references an existing urlPatterns key', () {
-      final scraper = (komiktap['scraper'] as Map).cast<String, dynamic>();
-      final urlPatterns =
-          (scraper['urlPatterns'] as Map).cast<String, dynamic>();
+    test('urlPattern references the search endpoint', () {
       final ref = searchForm['urlPattern'] as String;
-      expect(urlPatterns.containsKey(ref), isTrue,
-          reason:
-              'searchForm.urlPattern "$ref" does not exist in scraper.urlPatterns');
+      expect(ref, 'search');
+      final api = _asMap(komiktap, 'api', 'root');
+      final endpoints = _asMap(api, 'endpoints', 'api');
+      expect(endpoints.containsKey(ref), isTrue,
+          reason: 'searchForm.urlPattern "$ref" is not an api endpoint');
     });
 
     test('has params block with at least query and page entries', () {

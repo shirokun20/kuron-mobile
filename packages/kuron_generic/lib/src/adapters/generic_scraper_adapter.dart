@@ -3378,6 +3378,10 @@ class GenericScraperAdapter implements GenericAdapter {
     if (url.isEmpty) return '';
 
     final patterns = <RegExp>[
+      // Two-segment `/manga/<slug>/<chapter>` chapter URLs must win over the
+      // single-segment pattern below, otherwise reader navigation resolves to
+      // the series slug instead of the chapter id.
+      RegExp(r'/manga/([^/?#]+/[^/?#]+)'),
       RegExp(r'/manga/([^/?#]+)'),
       RegExp(r'/manhwa/([^/?#]+(?:/[^/?#]+)?)'),
       RegExp(r'/([^/?#]+?-chapter-[\d.-]+)(?:/|[?#]|$)'),

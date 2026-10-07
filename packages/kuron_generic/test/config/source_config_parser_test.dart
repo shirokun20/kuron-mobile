@@ -17,8 +17,6 @@ import '../support/config_test_harness.dart';
 
 // ── Config resolver ──────────────────────────────────────────────────────────
 
-
-
 // Returns a [SourceConfigParser] with an empty registered-primitive set so
 // primitive-gap checking is skipped (tests focus on feature inference).
 SourceConfigParser _parser() => const SourceConfigParser();
@@ -104,7 +102,8 @@ void main() {
     late SourceConfigParseResult result;
 
     setUpAll(() async {
-      result = _parser().parse(await loadConfigRemote('hentainexus-config.json'));
+      result =
+          _parser().parse(await loadConfigRemote('hentainexus-config.json'));
     });
 
     test('sourceId is hentainexus', () {
@@ -221,7 +220,7 @@ void main() {
     });
   });
 
-  // ── KomikTap (scraper, tsReaderRegex, chapters, comments) ──────────────
+  // ── KomikTap (REST api driver, direct image mode, inline chapters) ─────
   group('komiktap-config.json', () {
     late SourceConfigParseResult result;
 
@@ -233,25 +232,26 @@ void main() {
       expect(result.declaration.sourceId, 'komiktap');
     });
 
-    test('reader requires scriptRegex primitive', () {
+    test('reader requires direct image mode primitive', () {
       final FeatureContract? readerContract =
           result.declaration.contractFor(FeatureKind.reader);
       expect(readerContract, isNotNull);
       expect(
         readerContract!.requiredPrimitives,
-        contains(EnginePrimitive.imageModeScriptRegex),
+        contains(EnginePrimitive.imageModeDirectUrl),
       );
     });
 
-    test('comments feature is present', () {
+    test('bypass is not required (API host has no WAF)', () {
+      expect(result.networkRules.requiresBypass, isFalse);
+    });
+
+    test('comments feature is not inferred (API has no comments)', () {
       final FeatureStatus? comments =
           result.report.featureStatuses[FeatureKind.comments];
       expect(
         comments ?? FeatureStatus.notDeclared,
-        anyOf(
-          FeatureStatus.compatible,
-          FeatureStatus.inferred,
-        ),
+        isNot(FeatureStatus.inferred),
       );
     });
 
@@ -293,7 +293,8 @@ void main() {
     late SourceConfigParseResult result;
 
     setUpAll(() async {
-      result = _parser().parse(await loadConfigRemote('doujindesuv2-config.json'));
+      result =
+          _parser().parse(await loadConfigRemote('doujindesuv2-config.json'));
     });
 
     test('sourceId is doujindesuv2', () {
