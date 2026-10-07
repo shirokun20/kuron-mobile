@@ -26,8 +26,8 @@ If you're on an older version, updating to the latest release is the fastest way
 
 ### Preferred: Private Security Advisory (fastest & fully private)
 
-1. Go to **Security → Advisories → New draft advisory** on GitHub:
-   👉 [Create a private advisory](https://github.com/shirokun20/nhasixapp/security/advisories/new)
+1. Go to **Security → Advisories** on GitHub:
+   👉 [Open the Advisories page](https://github.com/shirokun20/kuron-mobile/security/advisories)
 2. Click **"Report a vulnerability"** and fill in the details.
 3. Submit — only maintainers can see it. You can add comments and updates privately.
 

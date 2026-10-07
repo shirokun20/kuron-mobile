@@ -89,3 +89,4 @@ skills-lock.json
 
 # Kotlin compiler session artifacts (accidentally committed, then untracked)
 android/.kotlin/
+/prototype/*

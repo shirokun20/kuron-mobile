@@ -106,4 +106,4 @@ body:
       value: |
         ---
         🙏 **Tidak ada ide yang terlalu kecil.** Bahkan typo di UI atau wording yang membingungkan layak dilaporkan!
-        🔒 **Keamanan?** Jika ide terkait celah keamanan, gunakan [Private Security Advisory](https://github.com/shirokun20/nhasixapp/security/advisories/new) ya, bukan issue publik.
+        🔒 **Keamanan?** Jika ide terkait celah keamanan, gunakan [Private Security Report](https://github.com/shirokun20/kuron-mobile/security/advisories) ya, bukan issue publik.

@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/shirokun20/nhasixapp/discussions
     about: "Punya pertanyaan? Tanya di Discussions — respons lebih cepat & ramah"
   - name: "🔒 Report a Security Vulnerability / Lapor Celah Keamanan"
-    url: https://github.com/shirokun20/nhasixapp/security/advisories/new
+    url: https://github.com/shirokun20/kuron-mobile/security/advisories
     about: "Jangan lapor di issue publik — gunakan Private Security Advisory (hanya maintainer yang bisa lihat)"
   - name: "📖 Documentation / Panduan"
     url: https://github.com/shirokun20/nhasixapp#readme
