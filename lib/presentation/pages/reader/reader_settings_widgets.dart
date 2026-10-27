@@ -74,6 +74,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
                 _buildChapterSelectorTile(context),
               ],
               _buildKeepScreenOnTile(context),
+              const Divider(height: 1),
+              _buildKeyboardShortcutsTile(context),
               const SizedBox(height: 24),
               _buildClearCacheButton(context),
               const SizedBox(height: 8),
@@ -200,6 +202,31 @@ class _ReaderSettingsSheet extends StatelessWidget {
         onChanged: (_) => cubit.toggleKeepScreenOn(),
         activeThumbColor: Theme.of(context).colorScheme.primary,
       ),
+    );
+  }
+
+  /// Permanent home of the keyboard-shortcut list (the reader hint chip
+  /// only shows once). Tapping opens the same cheat-sheet dialog.
+  Widget _buildKeyboardShortcutsTile(BuildContext context) {
+    return ListTile(
+      leading: Icon(
+        Icons.keyboard_outlined,
+        color: Theme.of(context).colorScheme.primary,
+      ),
+      title: Text(
+        AppLocalizations.of(context)!.readerKeyboardShortcuts,
+        style: TextStyleConst.bodyMedium.copyWith(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+      subtitle: Text(
+        AppLocalizations.of(context)!.readerKeyboardShortcutsDesc,
+        style: TextStyleConst.bodySmall.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => showReaderShortcutHelp(context),
     );
   }
 

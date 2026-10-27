@@ -31,6 +31,7 @@ import 'widgets/comments_section_widget.dart';
 import 'widgets/detail_content_view.dart';
 import 'widgets/similar_content_section.dart';
 import 'widgets/detail_info_sections.dart';
+import 'widgets/detail_wide_view.dart';
 import 'widgets/detail_state_views.dart';
 import 'services/detail_tag_query_resolver.dart';
 import 'services/reader_launch_payload_builder.dart';
@@ -192,6 +193,7 @@ class _DetailScreenState extends State<DetailScreen> {
     }
     return _favoriteCubitCache = context.read<FavoriteCubit>();
   }
+
   late final DetailTagQueryResolver _tagQueryResolver;
   final ScrollController _scrollController = ScrollController();
   bool _isNavigating =
@@ -304,10 +306,15 @@ class _DetailScreenState extends State<DetailScreen> {
     return const SizedBox.shrink();
   }
 
-  // Loading-state body built on DetailContentView so the header + Hero tag
-  // exist from the first frame (cover/title from the tapped card via
+  // Loading-state body built on DetailContentView (with its permanent Hero tag
+  // existing from the first frame: cover/title from the tapped card via
   // preloadedContent), with shimmer placeholder sections below.
   Widget _buildPreloadedContent(DetailState state, bool isOfflineMode) {
+    // Wide screens (>900dp) get the two-pane loading shimmer so the Hero
+    // flight from a content card lands on the left-rail cover slot.
+    if (MediaQuery.sizeOf(context).width > DetailWideView.minWidth) {
+      return DetailWideLoadingView(onBack: context.pop);
+    }
     final preloaded = widget.preloadedContent;
     final preloadedCover = preloaded?.coverUrl ?? '';
     final appBarActions = preloaded != null
@@ -643,9 +650,11 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (chapterIndex == -1) return;
 
-    // Calculate scroll position (approximate)
-    // Chapter list starts after metadata sections
-    final approximateOffset = 600 + (chapterIndex * 100);
+    // Chapter list starts after metadata sections (narrow). On wide screens
+    // the chapter section sits at the top of the right pane instead.
+    final wide = MediaQuery.sizeOf(context).width > DetailWideView.minWidth;
+    final approximateOffset =
+        wide ? 160 + (chapterIndex * 64) : 600 + (chapterIndex * 100);
 
     _scrollController.animateTo(
       approximateOffset.toDouble(),
@@ -837,6 +846,77 @@ class _DetailScreenState extends State<DetailScreen> {
         content.imageUrls.isNotEmpty ? content.imageUrls.first : '';
     final headerUsesFirstPage =
         firstImage.isNotEmpty && headerImageUrl == firstImage;
+    final imageHeaders = _detailCubit.getImageDownloadHeaders(
+      content.sourceId,
+      imageUrl: headerImageUrl,
+    );
+    final blurOverlay = shouldBlurPrimaryCover
+        ? const DetailBlacklistedCoverOverlay(compact: false)
+        : null;
+    final appBarActions = _buildDetailAppBarActions(content, isOfflineMode);
+    // Wide screens (>900dp: tablet landscape, desktop/macOS) get the two-pane
+    // layout: info rail left, chapters/related/comments right. The action
+    // area holds the chapter section for chapter sources (right pane) or the
+    // read/download buttons for gallery sources (left rail, under the tags).
+    if (MediaQuery.sizeOf(context).width > DetailWideView.minWidth) {
+      final hasChaptersFeature =
+          _detailCubit.isFeatureEnabled(content.sourceId, (f) => f.chapters);
+      final actionArea = _buildActionButtons(state);
+      final relatedArea =
+          (state.relatedContent != null && state.relatedContent!.isNotEmpty)
+              ? <Widget>[
+                  _buildRelatedContentSection(state),
+                  const SizedBox(height: 20),
+                ]
+              : <Widget>[
+                  // Local engine fallback when the source has no related content.
+                  SimilarContentSection(
+                    contentId: state.content.id,
+                    sourceId: state.content.sourceId,
+                    onTap: _navigateToRelatedContent,
+                  ),
+                  const SizedBox(height: 20),
+                ];
+      return DetailWideView(
+        rightScrollController: _scrollController,
+        isOfflineMode: isOfflineMode,
+        headerImageUrl: headerImageUrl,
+        contentId: content.id,
+        pageNumber: headerUsesFirstPage ? 1 : null,
+        imageHeaders: imageHeaders,
+        blurOverlay: blurOverlay,
+        onBack: context.pop,
+        onGoOnline: () => _showGoOnlineDialog(context),
+        appBarActions: appBarActions,
+        infoWidgets: [
+          DetailTitleSection(content: content),
+          const SizedBox(height: DesignTokens.spaceMd),
+          _buildBlacklistMatchBanner(content),
+          const SizedBox(height: DesignTokens.spaceXl),
+          _buildMetadataSection(content),
+          const SizedBox(height: DesignTokens.spaceXl),
+          ..._buildSynopsisSection(content),
+          _buildTagsSection(content),
+          if (!hasChaptersFeature) ...[
+            const SizedBox(height: DesignTokens.spaceXl),
+            actionArea,
+          ],
+          const SizedBox(height: DesignTokens.space2xl),
+        ],
+        contentWidgets: [
+          if (state.content.sourceId == 'mangafire')
+            _buildMangaFireToggle(state.content),
+          if (hasChaptersFeature) actionArea,
+          const SizedBox(height: DesignTokens.spaceXl),
+          ...relatedArea,
+          _buildCommentsGate(
+            content,
+            preloadedComments: state.comments ?? const [],
+          ),
+          const SizedBox(height: DesignTokens.space2xl),
+        ],
+      );
+    }
     return DetailContentView(
       scrollController: _scrollController,
       isOfflineMode: isOfflineMode,
@@ -844,16 +924,11 @@ class _DetailScreenState extends State<DetailScreen> {
       contentId: content.id,
       sourceId: content.sourceId,
       pageNumber: headerUsesFirstPage ? 1 : null,
-      imageHeaders: _detailCubit.getImageDownloadHeaders(
-        content.sourceId,
-        imageUrl: headerImageUrl,
-      ),
-      blurOverlay: shouldBlurPrimaryCover
-          ? const DetailBlacklistedCoverOverlay(compact: false)
-          : null,
+      imageHeaders: imageHeaders,
+      blurOverlay: blurOverlay,
       onBack: context.pop,
       onGoOnline: () => _showGoOnlineDialog(context),
-      appBarActions: _buildDetailAppBarActions(content, isOfflineMode),
+      appBarActions: appBarActions,
       sections: [
         DetailTitleSection(content: content),
         const SizedBox(height: DesignTokens.spaceMd),
@@ -1909,8 +1984,7 @@ class _DetailScreenState extends State<DetailScreen> {
   // Start download for the content
   Future<void> _startDownload(Content content) async {
     // Check if download feature is enabled
-    if (!_detailCubit.isFeatureEnabled(
-        content.sourceId, (f) => f.download)) {
+    if (!_detailCubit.isFeatureEnabled(content.sourceId, (f) => f.download)) {
       _showFeatureDisabledDialog('download');
       return;
     }

@@ -141,11 +141,19 @@ class DetailContentView extends StatelessWidget {
                 ),
               ),
               SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: sections,
+                child: Center(
+                  // Tablet portrait (600-900dp): keep the single column but
+                  // cap line length. Phones (<600) are unaffected since the
+                  // viewport is already narrower than the cap.
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: sections,
+                      ),
+                    ),
                   ),
                 ),
               ),

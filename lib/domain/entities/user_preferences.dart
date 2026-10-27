@@ -68,6 +68,7 @@ class UserPreferences extends Equatable {
     this.readerAutoHideDelay = 3,
     this.readerHideOnTap = true,
     this.readerHideOnSwipe = true,
+
     // History cleanup settings
     this.autoCleanupHistory = false,
     this.historyCleanupIntervalHours = 24,
@@ -116,7 +117,6 @@ class UserPreferences extends Equatable {
   final int readerAutoHideDelay; // in seconds
   final bool readerHideOnTap;
   final bool readerHideOnSwipe;
-
   // History cleanup settings
   final bool autoCleanupHistory;
   final int historyCleanupIntervalHours; // 6, 12, 24, 48, 168 (week)
@@ -213,6 +213,7 @@ class UserPreferences extends Equatable {
     int? readerAutoHideDelay,
     bool? readerHideOnTap,
     bool? readerHideOnSwipe,
+
     // History cleanup parameters
     bool? autoCleanupHistory,
     int? historyCleanupIntervalHours,
@@ -264,6 +265,7 @@ class UserPreferences extends Equatable {
       readerAutoHideDelay: readerAutoHideDelay ?? this.readerAutoHideDelay,
       readerHideOnTap: readerHideOnTap ?? this.readerHideOnTap,
       readerHideOnSwipe: readerHideOnSwipe ?? this.readerHideOnSwipe,
+
       // History cleanup settings
       autoCleanupHistory: autoCleanupHistory ?? this.autoCleanupHistory,
       historyCleanupIntervalHours:
@@ -392,6 +394,7 @@ class UserPreferences extends Equatable {
       'readerAutoHideDelay': readerAutoHideDelay,
       'readerHideOnTap': readerHideOnTap,
       'readerHideOnSwipe': readerHideOnSwipe,
+
       // History cleanup settings
       'autoCleanupHistory': autoCleanupHistory,
       'historyCleanupIntervalHours': historyCleanupIntervalHours,
@@ -449,6 +452,7 @@ class UserPreferences extends Equatable {
       readerAutoHideDelay: _safeParseInt(json['readerAutoHideDelay'], 3),
       readerHideOnTap: _safeParseBool(json['readerHideOnTap'], true),
       readerHideOnSwipe: _safeParseBool(json['readerHideOnSwipe'], true),
+
       // History cleanup settings
       autoCleanupHistory: _safeParseBool(json['autoCleanupHistory'], false),
       historyCleanupIntervalHours:

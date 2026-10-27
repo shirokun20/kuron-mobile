@@ -257,18 +257,27 @@ class DetailMetadataRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The info rail is draggable (280-560dp). When the row gets too narrow
+    // for the label + value side-by-side, stack them: label row on top,
+    // value full-width below. LayoutBuilder keeps this automatic — the same
+    // widget also adapts on very narrow phones.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 240) {
+          return _compactCard(context);
+        }
+        return _wideCard(context);
+      },
+    );
+  }
+
+  Widget _wideCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.5),
-        ),
-      ),
+      decoration: _cardDecoration(colorScheme),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -290,23 +299,71 @@ class DetailMetadataRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(
-            child: (item.links != null && item.links!.isNotEmpty)
-                ? Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final link in item.links!) _CreatorChip(link: link),
-                    ],
-                  )
-                : Text(
-                    item.value,
-                    style: TextStyleConst.bodyLarge.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-          ),
+          Expanded(child: _valueWidget(colorScheme)),
         ],
+      ),
+    );
+  }
+
+  Widget _compactCard(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: _cardDecoration(colorScheme),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (item.icon != null) ...[
+                Icon(
+                  item.icon,
+                  color: colorScheme.onSurfaceVariant,
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyleConst.labelMedium.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _valueWidget(colorScheme),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _cardDecoration(ColorScheme colorScheme) => BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.5),
+        ),
+      );
+
+  Widget _valueWidget(ColorScheme colorScheme) {
+    if (item.links != null && item.links!.isNotEmpty) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final link in item.links!) _CreatorChip(link: link),
+        ],
+      );
+    }
+    return Text(
+      item.value,
+      style: TextStyleConst.bodyLarge.copyWith(
+        color: colorScheme.onSurface,
       ),
     );
   }

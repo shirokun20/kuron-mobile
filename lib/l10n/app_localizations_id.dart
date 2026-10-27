@@ -1389,6 +1389,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get readerSettings => 'Pengaturan Pembaca';
 
   @override
+  String get readerKeyboardShortcuts => 'Shortcut Keyboard';
+
+  @override
+  String get readerKeyboardShortcutsDesc =>
+      'Lihat daftar shortcut keyboard pembaca';
+
+  @override
   String get readingMode => 'Mode Baca';
 
   @override

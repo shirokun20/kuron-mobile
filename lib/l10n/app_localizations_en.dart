@@ -1386,6 +1386,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerSettings => 'Reader Settings';
 
   @override
+  String get readerKeyboardShortcuts => 'Keyboard Shortcuts';
+
+  @override
+  String get readerKeyboardShortcutsDesc => 'View reader keyboard shortcuts';
+
+  @override
   String get readingMode => 'Reading Mode';
 
   @override

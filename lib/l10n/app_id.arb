@@ -741,6 +741,8 @@
   },
   "jump": "Loncat",
   "readerSettings": "Pengaturan Pembaca",
+  "readerKeyboardShortcuts": "Shortcut Keyboard",
+  "readerKeyboardShortcutsDesc": "Lihat daftar shortcut keyboard pembaca",
   "readingMode": "Mode Baca",
   "horizontalPages": "Halaman Horizontal",
   "verticalPages": "Halaman Vertikal",

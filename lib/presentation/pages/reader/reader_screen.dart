@@ -35,6 +35,8 @@ import '../../../core/services/memory_budget_coordinator.dart';
 import '../../cubits/reader/reader_cubit.dart';
 import '../../cubits/reader/reader_prefetch_cubit.dart';
 import '../../cubits/theme/theme_cubit.dart';
+import '../../widgets/reader_shortcut_help.dart';
+
 import '../../utils/chapter_language_presenter.dart';
 // import '../../cubits/reader/reader_state.dart';
 import '../../widgets/error_widget.dart';
@@ -139,16 +141,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   late ReaderCubit _readerCubit;
   late ReaderPrefetchCubit _prefetchCubit;
 
-  /// Desktop keyboard support: hidden hint pill until the first
-  /// hardware keypress (or tap-to-dismiss). Phones are unaffected —
-  /// no keyboard, no focus tricks, no behavior change.
-  bool _kbHintDismissed = false;
-  bool get _isDesktop =>
-      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
-  /// Tablets (and wide foldables) often pair physical keyboards, so they
-  /// get the same hint chip as desktop. Phones never do.
-  bool _isWideScreen(BuildContext context) =>
-      MediaQuery.sizeOf(context).width > 900;
+  /// Hardware keyboard keys are handled everywhere (desktop, tablet, or
+  /// phone with a paired keyboard). The shortcut list lives in the reader
+  /// settings panel (keyboard tile).
   final CancelToken _scopeToken = CancelToken();
 
   // Debouncing for scroll updates
@@ -1341,8 +1336,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                 previous.isOfflineMode != current.isOfflineMode;
           },
           builder: (context, state) {
-            final showKbHint =
-                !_kbHintDismissed && (_isDesktop || _isWideScreen(context));
+            // No hint chip: the keyboard-shortcut info lives only in the
+            // reader settings panel (keyboard icon tile).
             return Scaffold(
               backgroundColor: Theme.of(context).colorScheme.surface,
               body: Focus(
@@ -1359,49 +1354,6 @@ class _ReaderScreenState extends State<ReaderScreen>
                         return _buildBody(state);
                       },
                     ),
-                    if (showKbHint)
-                      Positioned(
-                        child: Center(
-                          child: InkWell(
-                            onTap: _showShortcutHelp,
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                    color: Theme.of(context).dividerColor),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Text('\u2328 ',
-                                      style: TextStyle(fontSize: 13)),
-                                  Flexible(
-                                    child: Text(
-                                      'Keyboard aktif — ←/→ pindah halaman • ketuk untuk semua shortcut',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  InkWell(
-                                    onTap: () => setState(
-                                        () => _kbHintDismissed = true),
-                                    child: const Icon(Icons.close, size: 14),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
                   ],
                 ),
               ),
@@ -1448,31 +1400,28 @@ class _ReaderScreenState extends State<ReaderScreen>
     return KeyEventResult.ignored;
   }
 
-  void _dismissKbHint() {
-    if (_isDesktop && !_kbHintDismissed && mounted) {
-      setState(() => _kbHintDismissed = true);
-    }
-  }
-
   void _keyboardGo(int direction) {
-    _dismissKbHint();
     final mode = _readerCubit.state.readingMode ?? ReadingMode.singlePage;
     const duration = Duration(milliseconds: 200);
     if (mode == ReadingMode.singlePage) {
       if (!_pageController.hasClients) return;
       if (direction > 0) {
-        _pageController.nextPage(duration: duration, curve: Curves.easeOutCubic);
+        _pageController.nextPage(
+            duration: duration, curve: Curves.easeOutCubic);
       } else {
-        _pageController.previousPage(duration: duration, curve: Curves.easeOutCubic);
+        _pageController.previousPage(
+            duration: duration, curve: Curves.easeOutCubic);
       }
       return;
     }
     if (mode == ReadingMode.verticalPage) {
       if (!_verticalPageController.hasClients) return;
       if (direction > 0) {
-        _verticalPageController.nextPage(duration: duration, curve: Curves.easeOutCubic);
+        _verticalPageController.nextPage(
+            duration: duration, curve: Curves.easeOutCubic);
       } else {
-        _verticalPageController.previousPage(duration: duration, curve: Curves.easeOutCubic);
+        _verticalPageController.previousPage(
+            duration: duration, curve: Curves.easeOutCubic);
       }
       return;
     }
@@ -1481,11 +1430,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     final target = (pos.pixels + direction * pos.viewportDimension * 0.9)
         .clamp(0.0, pos.maxScrollExtent);
     _scrollController.animateTo(target,
-        duration: const Duration(milliseconds: 250), curve: Curves.easeOutCubic);
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic);
   }
 
   void _keyboardEdge({required bool first}) {
-    _dismissKbHint();
     final mode = _readerCubit.state.readingMode ?? ReadingMode.singlePage;
     final count = _readerCubit.state.content?.imageUrls.length ?? 1;
     if (mode == ReadingMode.singlePage) {
@@ -1506,50 +1455,6 @@ class _ReaderScreenState extends State<ReaderScreen>
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOutCubic);
     }
-  }
-
-  void _showShortcutHelp() {
-    final theme = Theme.of(context);
-    const rows = [
-      ('\u2190 / \u2192  atau  \u2191 / \u2193', 'Pindah halaman / scroll'),
-      ('Space / PgDn / PgUp', 'Scroll cepat (continuous) / pindah halaman'),
-      ('Home / End', 'Halaman pertama / terakhir'),
-      ('Esc', 'Kembali'),
-    ];
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Keyboard Shortcuts'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final r in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: RichText(
-                  text: TextSpan(
-                    style: theme.textTheme.bodyMedium,
-                    children: [
-                      TextSpan(
-                        text: '${r.$1}  ',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      TextSpan(text: r.$2),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildBody(ReaderState state) {

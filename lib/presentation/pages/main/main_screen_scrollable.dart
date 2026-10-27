@@ -7,6 +7,7 @@ import 'package:logger/logger.dart';
 import 'package:flutter/services.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/utils/native_theme_helper.dart';
+import 'package:nhasixapp/core/utils/responsive_grid_delegate.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'package:nhasixapp/core/constants/colors_const.dart' show AppColors;
@@ -918,8 +919,21 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     }
   }
 
+  // Single grid card shared by every column of a hybrid-grid row.
+  Widget _gridCard(
+    Content content,
+    bool blurThumbnails,
+    List<String> localBlacklistEntries,
+  ) {
+    return MainGridCard(
+      content: content,
+      onTap: () => _onContentTap(content),
+      blurThumbnails: blurThumbnails,
+      isBlacklisted: _shouldBlurContent(content, localBlacklistEntries),
+    );
+  }
+
   // Build hybrid masonry grid with full-width featured cards at dynamic intervals
-  // For 25 items per page: Featured at positions 0, 8, 17 (3 featured per page)
   Widget _buildHybridMasonryGrid(
     List<Content> contents,
     bool blurThumbnails,
@@ -929,20 +943,36 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
+    // Responsive columns: phone user setting, dense grid on wide screens.
+    final int columns = ResponsiveGridDelegate.getColumnCount(
+      context,
+      context.read<SettingsCubit>(),
+    );
+
     // Calculate featured positions dynamically to ensure even batches
-    // Pattern: Featured at 0, then every 7 items (1 featured + 6 grid = 7 per section)
-    // Also add last item as featured if remaining count would be odd
+    // Pattern: 1 featured + (columns x 3) grid rows per section
+    // (2 columns -> every 7 items, same as before)
+    final int sectionSize = columns * 3 + 1;
     final Set<int> featuredPositions = {};
-    for (int pos = 0; pos < contents.length; pos += 7) {
-      featuredPositions.add(pos);
-    }
-    // If last batch would have odd items, make the last item featured
-    final lastFeatured = featuredPositions.isEmpty
-        ? 0
-        : featuredPositions.reduce((a, b) => a > b ? a : b);
-    final remaining = contents.length - lastFeatured - 1;
-    if (remaining > 0 && remaining % 2 == 1) {
-      featuredPositions.add(contents.length - 1);
+    // Tablet/desktop (>=600dp): a single featured card up top is enough —
+    // full-width banners every section waste too much vertical space.
+    if (MediaQuery.sizeOf(context).width >= 600) {
+      if (contents.isNotEmpty) {
+        featuredPositions.add(0);
+      }
+    } else {
+      for (int pos = 0; pos < contents.length; pos += sectionSize) {
+        featuredPositions.add(pos);
+      }
+      // If the last batch would leave a partial grid row, make the last item
+      // featured instead so no row ends with gaps.
+      final lastFeatured = featuredPositions.isEmpty
+          ? 0
+          : featuredPositions.reduce((a, b) => a > b ? a : b);
+      final remaining = contents.length - lastFeatured - 1;
+      if (remaining > 0 && remaining % columns != 0) {
+        featuredPositions.add(contents.length - 1);
+      }
     }
 
     // Build flat list of widgets (mix of featured + grid pairs)
@@ -987,76 +1017,32 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       final batchContents = contents.sublist(currentIndex, batchEnd);
 
       if (batchContents.isNotEmpty) {
-        // Add pairs of 2 items as a row
-        for (int i = 0; i < batchContents.length; i += 2) {
-          final hasSecond = i + 1 < batchContents.length;
-
-          if (!hasSecond) {
-            // Last item alone - make it a smaller card (not full width, but centered)
-            final singleContent = batchContents[i]; // Capture before closure
-            children.add(
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
-                child: Row(
-                  children: [
+        // Add rows of [columns] cards; a short last row is padded with
+        // empty spacers so cards keep their size (2 columns on phones
+        // behaves exactly like the old pairs).
+        for (int i = 0; i < batchContents.length; i += columns) {
+          final rowEnd = (i + columns).clamp(0, batchContents.length);
+          final rowContents = batchContents.sublist(i, rowEnd);
+          children.add(
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (int k = 0; k < columns; k++) ...[
+                    if (k > 0) const SizedBox(width: 10),
                     Expanded(
-                      child: MainGridCard(
-                        content: singleContent,
-                        onTap: () => _onContentTap(singleContent),
-                        blurThumbnails: blurThumbnails,
-                        isBlacklisted: _shouldBlurContent(
-                          singleContent,
-                          localBlacklistEntries,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                        child: SizedBox.shrink()), // Empty space to match grid
-                  ],
-                ),
-              ),
-            );
-          } else {
-            // Normal pair of items
-            final leftContent = batchContents[i]; // Capture before closure
-            final rightContent = batchContents[i + 1];
-            children.add(
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: MainGridCard(
-                        content: leftContent,
-                        onTap: () => _onContentTap(leftContent),
-                        blurThumbnails: blurThumbnails,
-                        isBlacklisted: _shouldBlurContent(
-                          leftContent,
-                          localBlacklistEntries,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: MainGridCard(
-                        content: rightContent,
-                        onTap: () => _onContentTap(rightContent),
-                        blurThumbnails: blurThumbnails,
-                        isBlacklisted: _shouldBlurContent(
-                          rightContent,
-                          localBlacklistEntries,
-                        ),
-                      ),
+                      child: k < rowContents.length
+                          ? _gridCard(rowContents[k], blurThumbnails,
+                              localBlacklistEntries)
+                          : const SizedBox.shrink(),
                     ),
                   ],
-                ),
+                ],
               ),
-            );
-          }
+            ),
+          );
         }
         currentIndex = batchEnd;
       }

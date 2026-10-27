@@ -760,6 +760,8 @@
   },
   "jump": "跳转",
   "readerSettings": "阅读器设置",
+  "readerKeyboardShortcuts": "键盘快捷键",
+  "readerKeyboardShortcutsDesc": "查看阅读器键盘快捷键",
   "readingMode": "阅读模式",
   "horizontalPages": "水平翻页",
   "verticalPages": "垂直翻页",

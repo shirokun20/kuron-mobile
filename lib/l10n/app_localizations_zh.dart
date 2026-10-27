@@ -1332,6 +1332,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerSettings => '阅读器设置';
 
   @override
+  String get readerKeyboardShortcuts => '键盘快捷键';
+
+  @override
+  String get readerKeyboardShortcutsDesc => '查看阅读器键盘快捷键';
+
+  @override
   String get readingMode => '阅读模式';
 
   @override

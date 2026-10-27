@@ -665,6 +665,8 @@
   },
   "jump": "Jump",
   "readerSettings": "Reader Settings",
+  "readerKeyboardShortcuts": "Keyboard Shortcuts",
+  "readerKeyboardShortcutsDesc": "View reader keyboard shortcuts",
   "readingMode": "Reading Mode",
   "horizontalPages": "Horizontal Pages",
   "verticalPages": "Vertical Pages",

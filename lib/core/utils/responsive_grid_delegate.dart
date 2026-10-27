@@ -6,13 +6,22 @@ import '../../presentation/cubits/settings/settings_cubit.dart';
 // This class provides a centralized way to create grid delegates that respect
 // user preferences for column counts in different orientations.
 class ResponsiveGridDelegate {
-  // Creates a grid delegate with column count based on orientation and user settings
-  ///
-  // [context] - BuildContext for accessing MediaQuery
-  // [settingsCubit] - SettingsCubit for accessing user column preferences
-  // [childAspectRatio] - Optional override for child aspect ratio (defaults to 0.7)
-  // [crossAxisSpacing] - Optional override for cross axis spacing (defaults to 8)
-  // [mainAxisSpacing] - Optional override for main axis spacing (defaults to 8)
+  /// Breakpoint shared with the persistent sidebar and detail panes.
+  static const double wideBreakpoint = 900;
+
+  /// Column count for wide screens: a dense card grid sized by target card
+  /// width instead of the phone-oriented user setting (which would leave
+  /// 2-3 giant stretched columns on desktop).
+  static int _wideColumnCount(double effectiveWidth) {
+    const double targetCardWidth = 180.0;
+    final int raw = (effectiveWidth / targetCardWidth).floor();
+    if (raw < 4) return 4;
+    if (raw > 8) return 8;
+    return raw;
+  }
+
+  // Creates a grid delegate with column count based on orientation and user
+  // settings. On wide screens the user setting is bypassed (see below).
   static SliverGridDelegate createGridDelegate(
     BuildContext context,
     SettingsCubit settingsCubit, {
@@ -32,6 +41,16 @@ class ResponsiveGridDelegate {
     // Calculate max possible columns that fit with minItemWidth
     // Account for padding (approx 32dp total horizontal padding)
     final double effectiveWidth = screenWidth - 32.0;
+
+    // Wide screens: dense card grid instead of the phone-oriented setting.
+    if (screenWidth > wideBreakpoint) {
+      return SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _wideColumnCount(effectiveWidth),
+        childAspectRatio: childAspectRatio,
+        crossAxisSpacing: crossAxisSpacing,
+        mainAxisSpacing: mainAxisSpacing,
+      );
+    }
     final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
 
     // Clamp columns: must be at least 1, and no more than what fits physically
@@ -72,8 +91,18 @@ class ResponsiveGridDelegate {
     const double minItemWidth = 120.0;
     final double screenWidth = mediaQuery.size.width;
     final double effectiveWidth = screenWidth - 32.0;
-    final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
 
+    // Wide screens: dense card grid instead of the phone-oriented setting.
+    if (screenWidth > wideBreakpoint) {
+      return SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: _wideColumnCount(effectiveWidth),
+        childAspectRatio: childAspectRatio,
+        crossAxisSpacing: crossAxisSpacing,
+        mainAxisSpacing: mainAxisSpacing,
+      );
+    }
+
+    final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
     final int columns =
         maxColumnsByWidth > 0 ? userColumns.clamp(1, maxColumnsByWidth) : 1;
 
@@ -103,6 +132,12 @@ class ResponsiveGridDelegate {
     const double minItemWidth = 120.0;
     final double screenWidth = mediaQuery.size.width;
     final double effectiveWidth = screenWidth - 32.0;
+
+    // Wide screens: dense card grid instead of the phone-oriented setting.
+    if (screenWidth > wideBreakpoint) {
+      return _wideColumnCount(effectiveWidth);
+    }
+
     final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
 
     final int columns =

@@ -2620,6 +2620,18 @@ abstract class AppLocalizations {
   /// **'Reader Settings'**
   String get readerSettings;
 
+  /// No description provided for @readerKeyboardShortcuts.
+  ///
+  /// In en, this message translates to:
+  /// **'Keyboard Shortcuts'**
+  String get readerKeyboardShortcuts;
+
+  /// No description provided for @readerKeyboardShortcutsDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'View reader keyboard shortcuts'**
+  String get readerKeyboardShortcutsDesc;
+
   /// No description provided for @readingMode.
   ///
   /// In en, this message translates to:
