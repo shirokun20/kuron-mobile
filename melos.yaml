@@ -38,8 +38,12 @@ scripts:
         - build_runner
 
   clean:
-    run: melos exec -- fvm flutter clean
-    description: Run flutter clean in all packages
+    run: melos exec -- fvm flutter clean && cargo clean --manifest-path packages/kuron_native/rust/Cargo.toml
+    description: Run flutter clean in all packages + cargo clean (rust/target ~300MB)
+
+  clean:rust:
+    run: cargo clean --manifest-path packages/kuron_native/rust/Cargo.toml
+    description: Clean Rust build artifacts only (rust/target)
 
   outdated:
     run: melos exec -- fvm flutter pub outdated

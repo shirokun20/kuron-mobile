@@ -34,6 +34,10 @@ echo "🔧 Flutter command: $FLUTTER_CMD"
 
 echo "🧹 Cleaning project..."
 $FLUTTER_CMD clean > /dev/null 2>&1
+# flutter clean tidak menyentuh cargo target (~300MB) — bersihkan sekalian
+if command -v cargo >/dev/null 2>&1; then
+    cargo clean --manifest-path packages/kuron_native/rust/Cargo.toml
+fi
 
 echo "📊 OPTIMIZATION STRATEGIES:"
 echo "✅ Universal APK single file (all ABIs) — SPLIT_ABI=true for per-ABI"
