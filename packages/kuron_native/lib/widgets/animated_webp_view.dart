@@ -41,6 +41,8 @@ class AnimatedWebPView extends StatefulWidget {
     this.loadingBuilder,
     required this.fallback,
     this.grayscale = false,
+    this.pauseTooltip = 'Pause',
+    this.playTooltip = 'Resume',
   });
 
   final String url;
@@ -84,6 +86,14 @@ class AnimatedWebPView extends StatefulWidget {
   // Whether the image should be forced to grayscale at the native level.
   final bool grayscale;
 
+  // Accessibility tooltip for the pause badge (shown while playing).
+  // Callers pass localized strings; defaults are English fallbacks so the
+  // package stays consumable without the app's localizations.
+  final String pauseTooltip;
+
+  // Accessibility tooltip for the play badge (shown while user-paused).
+  final String playTooltip;
+
   // Whether [AnimatedWebPView] can render on the current platform.
   static bool get isAvailable => Platform.isAndroid;
 
@@ -102,6 +112,21 @@ class AnimatedWebPView extends StatefulWidget {
     }
     return autoPlay;
   }
+
+  // Whether the native animation view should be mounted. A user-paused
+  // page renders its static thumbnail even when it is the visible page.
+  @visibleForTesting
+  static bool shouldRenderPlayingForTesting({
+    required bool isPlaying,
+    required bool userPaused,
+  }) =>
+      isPlaying && !userPaused;
+
+  // Whether the play/pause badge is shown. Static-only renders (offline
+  // static images via native BitmapFactory) are not animations: no badge.
+  @visibleForTesting
+  static bool shouldShowPauseBadgeForTesting({required bool staticOnly}) =>
+      !staticOnly;
 
   @visibleForTesting
   static bool shouldSkipThumbnailForTesting({
@@ -136,6 +161,11 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
 
   // When true, the [AndroidView] is mounted and animation plays.
   bool _isPlaying = false;
+
+  // Set by the play/pause badge. While true the page renders its static
+  // thumbnail even when visible; cleared when the page scrolls off-screen
+  // or the image changes so no page gets stuck paused.
+  bool _userPaused = false;
 
   //  guards against _onVisiblePageChanged cascade (called from 2
   // sources: visiblePageNotifier, didUpdateWidget).
@@ -246,8 +276,13 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
     }
 
     if (_isPlaying && mounted) {
-      setState(() => _isPlaying = false);
+      setState(() {
+        _isPlaying = false;
+        _userPaused = false;
+      });
       if (_thumbnailPath == null) _loadThumbnail();
+    } else if (_userPaused && mounted) {
+      setState(() => _userPaused = false);
     }
   }
 
@@ -297,6 +332,7 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
         _thumbnailPath = null;
         _webpCachePath = null;
         _isPlaying = false;
+        _userPaused = false;
         _thumbnailDownloadedBytes = 0;
         _thumbnailTotalBytes = null;
         _isLoadingThumbnail = false;
@@ -419,6 +455,37 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
     }
   }
 
+  // Small play/pause badge overlay. Tapping while playing pauses (tears
+  // down the AndroidView so the drawable stops decoding); tapping while
+  // user-paused resumes. Tapping never changes layout or pager position.
+  Widget _buildPauseBadge(bool renderPlaying) {
+    return Positioned(
+      top: 4,
+      right: 4,
+      child: Tooltip(
+        message: renderPlaying ? widget.pauseTooltip : widget.playTooltip,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Colors.black54,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            iconSize: 16,
+            padding: EdgeInsets.zero,
+            constraints:
+                const BoxConstraints.tightFor(width: 28, height: 28),
+            color: Colors.white,
+            icon: Icon(renderPlaying ? Icons.pause : Icons.play_arrow),
+            onPressed: () {
+              if (!mounted) return;
+              setState(() => _userPaused = renderPlaying);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!Platform.isAndroid) return widget.fallback;
@@ -434,9 +501,25 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
             ) ??
             widget.fallback;
 
-    if (!_isPlaying) {
-      // Paused during scroll: just show thumbnail — no AndroidView overhead.
-      return SizedBox.expand(child: background);
+    final renderPlaying =
+        AnimatedWebPView.shouldRenderPlayingForTesting(
+      isPlaying: _isPlaying,
+      userPaused: _userPaused,
+    );
+    final showBadge = AnimatedWebPView.shouldShowPauseBadgeForTesting(
+      staticOnly: widget.staticOnly,
+    );
+
+    if (!renderPlaying) {
+      // Paused during scroll or by the user: just show thumbnail —
+      // no AndroidView overhead, no frame decode.
+      if (!showBadge) return SizedBox.expand(child: background);
+      return SizedBox.expand(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [background, _buildPauseBadge(false)],
+        ),
+      );
     }
 
     // Playing: Stack thumbnail + AndroidView. Thumbnail prevents blink
@@ -469,6 +552,7 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
                   OneSequenceGestureRecognizer>>{},
             ),
           ),
+          if (showBadge) _buildPauseBadge(true),
         ],
       ),
     );

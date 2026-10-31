@@ -526,7 +526,7 @@ void main() {
   });
 
   group('resolveNativeAnimatedDecodeWidth', () {
-    test('downsamples heavy animated WebP below full viewport width', () {
+    test('caps default animated decode at 720px below full viewport', () {
       expect(
         ExtendedImageReaderWidget.resolveNativeAnimatedDecodeWidthForTesting(
           logicalWidth: 360,
@@ -534,7 +534,7 @@ void main() {
           imageBytes:
               ExtendedImageReaderWidget.heavyImageThresholdBytesForTesting,
         ),
-        equals(842),
+        equals(720),
       );
     });
 
@@ -554,8 +554,20 @@ void main() {
             .ultraHeavyAnimatedImageThresholdBytesForTesting,
       );
 
-      expect(ultraHeavy, equals(626));
+      expect(ultraHeavy, equals(540));
       expect(ultraHeavy, lessThan(normal));
+    });
+
+    test('never exceeds the display viewport width', () {
+      expect(
+        ExtendedImageReaderWidget.resolveNativeAnimatedDecodeWidthForTesting(
+          logicalWidth: 100,
+          devicePixelRatio: 2,
+          imageBytes:
+              ExtendedImageReaderWidget.heavyImageThresholdBytesForTesting,
+        ),
+        equals(200),
+      );
     });
   });
 

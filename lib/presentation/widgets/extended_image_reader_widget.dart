@@ -184,7 +184,9 @@ class ExtendedImageReaderWidget extends StatefulWidget {
             _ExtendedImageReaderWidgetState
                 ._ultraHeavyAnimatedImageThresholdBytes;
     final factor = isUltraHeavy ? 0.58 : 0.78;
-    final capPx = isUltraHeavy ? 720.0 : 900.0;
+    // Throttle caps: default animated 720px, ultra-heavy (>=10MB) 540px.
+    // Never exceeds the display viewport (see maxPx below).
+    final capPx = isUltraHeavy ? 540.0 : 720.0;
     final minPx = viewportPx < 360.0 ? viewportPx : 360.0;
     final maxPx = viewportPx < capPx ? viewportPx : capPx;
     return (viewportPx * factor).clamp(minPx, maxPx).round();
@@ -1411,6 +1413,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final playInlineInContinuousScroll =
         widget.readingMode == ReadingMode.continuousScroll;
 
+    final l10n = AppLocalizations.of(context);
     Widget nativeView = RepaintBoundary(
       child: AnimatedWebPView(
         key: ValueKey('native_webp_${widget.contentId}_${widget.pageNumber}'),
@@ -1418,6 +1421,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         filePath: resolvedFilePath,
         headers: headers ?? const {},
         targetWidth: _nativeDecodeWidth(context),
+        pauseTooltip: l10n?.pause ?? 'Pause',
+        playTooltip: l10n?.resume ?? 'Resume',
         autoPlay: playInlineInContinuousScroll || _shouldAutoPlayAnimatedView,
         pageNumber: widget.pageNumber,
         visiblePageNotifier: widget.visiblePageNotifier,

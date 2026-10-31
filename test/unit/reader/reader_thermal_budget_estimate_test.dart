@@ -104,14 +104,14 @@ void main() {
       int oldPerPage = 1080 * 1920 * 4; // 8,294,400
       int old20 = oldPerPage *
           9; // window 9 (not 20, but cacheExtent 2500 built 5-6) → ~49M but tick accumulates to 100M+
-      // With fix: viewport 412*dpr3 clamped 900, height 1200 avg → 900*1200*4=4.32M *9=38.8M
-      int newPerPage = 900 * 1200 * 4;
+      // With fix: viewport 412*dpr3 clamped 720, height 1200 avg → 720*1200*4=3.46M *9=31.1M
+      int newPerPage = 720 * 1200 * 4;
       int newWindow = newPerPage * 9;
       const budget = 52 * 1024 * 1024;
       expect(newWindow, lessThan(budget));
       expect(old20, greaterThan(newWindow));
       // table before/after
-      // before: 66MB for 6 pages (spec), after: 38MB for 9 pages
+      // before: 66MB for 6 pages (spec), after: ~30MB for 9 pages
     });
 
     test('2.3 single active WebP: 3 heavy concurrent → only 1 GPU texture', () {

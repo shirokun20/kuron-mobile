@@ -47,6 +47,54 @@ void main() {
     });
   });
 
+  group('AnimatedWebPView.shouldRenderPlayingForTesting', () {
+    test('renders playing view when playing and not user-paused', () {
+      expect(
+        AnimatedWebPView.shouldRenderPlayingForTesting(
+          isPlaying: true,
+          userPaused: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('renders static thumbnail when user-paused even if playing', () {
+      expect(
+        AnimatedWebPView.shouldRenderPlayingForTesting(
+          isPlaying: true,
+          userPaused: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('renders static thumbnail when not playing', () {
+      expect(
+        AnimatedWebPView.shouldRenderPlayingForTesting(
+          isPlaying: false,
+          userPaused: false,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('AnimatedWebPView.shouldShowPauseBadgeForTesting', () {
+    test('shows badge for animated renders', () {
+      expect(
+        AnimatedWebPView.shouldShowPauseBadgeForTesting(staticOnly: false),
+        isTrue,
+      );
+    });
+
+    test('hides badge for static-only renders', () {
+      expect(
+        AnimatedWebPView.shouldShowPauseBadgeForTesting(staticOnly: true),
+        isFalse,
+      );
+    });
+  });
+
   group('AnimatedWebPView.shouldSkipThumbnailForTesting', () {
     test('returns false when autoplay is disabled', () {
       expect(
