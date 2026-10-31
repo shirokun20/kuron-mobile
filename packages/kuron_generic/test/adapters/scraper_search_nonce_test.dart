@@ -283,4 +283,110 @@ void main() {
           reason: 'no POST may be issued without a bootstrapped nonce');
     });
   });
+
+  group('search() — raw: form params routed to POST patterns', () {
+    late Dio dio;
+    late DioAdapter dioAdapter;
+    late GenericScraperAdapter adapter;
+
+    setUp(() {
+      dio = Dio(BaseOptions(baseUrl: _baseUrl));
+      dioAdapter = DioAdapter(
+          dio: dio, matcher: const UrlRequestMatcher(matchMethod: true));
+      adapter = _buildAdapter(dio);
+    });
+
+    // Mirrors the real Rawkuma searchForm: a text query field bound to the
+    // `search` urlPattern plus the page field every searchForm carries.
+    Map<String, dynamic> rawTextConfig() =>
+        Map<String, dynamic>.from(_nonceSearchConfig)
+          ..['searchForm'] = {
+            'urlPattern': 'search',
+            'params': {
+              'query': {'queryParam': 'query', 'type': 'text'},
+              'page': {'queryParam': 'page', 'type': 'page'},
+            },
+          };
+
+    // Same, plus a tag-typed field driving the genreSearch urlPattern.
+    Map<String, dynamic> rawGenreConfig() =>
+        Map<String, dynamic>.from(_nonceSearchConfig)
+          ..['searchForm'] = {
+            'urlPattern': 'search',
+            'params': {
+              'query': {'queryParam': 'query', 'type': 'text'},
+              'page': {'queryParam': 'page', 'type': 'page'},
+              'genre': {
+                'queryParam': 'genre',
+                'type': 'tag',
+                'urlPattern': 'genreSearch',
+              },
+            },
+          };
+
+    void mockNonceFlow(
+      List<RequestOptions> observed, {
+      required String hitSlug,
+    }) {
+      dioAdapter.onGet(
+        '$_baseUrl/wp-admin/admin-ajax.php?type=search_form&action=get_nonce',
+        (s) => s.reply(200, _nonceHtml, headers: _htmlHeaders),
+      );
+      dioAdapter.onPost(
+        '$_baseUrl/wp-admin/admin-ajax.php?action=advanced_search',
+        (s) => s.replyCallback(200, (options) {
+          observed.add(options);
+          return _ajaxHtml([hitSlug]);
+        }, headers: _htmlHeaders),
+      );
+    }
+
+    test('raw:query posts the text through the nonce flow', () async {
+      final observed = <RequestOptions>[];
+      mockNonceFlow(observed, hitSlug: 'raw-hit');
+
+      final result = await adapter.search(
+        const SearchFilter(query: 'raw:query=tensei', page: 1),
+        rawTextConfig(),
+      );
+
+      expect(observed, hasLength(1));
+      expect(observed.single.data['query'], 'tensei');
+      expect(observed.single.data['nonce'], 'live-nonce-1');
+      expect(observed.single.data['page'], '1');
+      expect(result.items.single.id, 'raw-hit');
+      expect(result.hasNextPage, isTrue);
+    });
+
+    test('raw:query carries the page into the form body on page 2', () async {
+      final observed = <RequestOptions>[];
+      mockNonceFlow(observed, hitSlug: 'raw-page-two');
+
+      final result = await adapter.search(
+        const SearchFilter(query: 'raw:query=tensei', page: 2),
+        rawTextConfig(),
+      );
+
+      expect(observed, hasLength(1));
+      expect(observed.single.data['query'], 'tensei');
+      expect(observed.single.data['page'], '2');
+      expect(result.items.single.id, 'raw-page-two');
+    });
+
+    test('raw:genre routes to genreSearch and fills the tag placeholder',
+        () async {
+      final observed = <RequestOptions>[];
+      mockNonceFlow(observed, hitSlug: 'genre-hit');
+
+      final result = await adapter.search(
+        const SearchFilter(query: 'raw:genre=comedy', page: 1),
+        rawGenreConfig(),
+      );
+
+      expect(observed, hasLength(1));
+      expect(observed.single.data['genre'], '["comedy"]');
+      expect(observed.single.data['nonce'], 'live-nonce-1');
+      expect(result.items.single.id, 'genre-hit');
+    });
+  });
 }

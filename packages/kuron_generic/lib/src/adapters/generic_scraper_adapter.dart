@@ -110,7 +110,8 @@ class GenericScraperAdapter implements GenericAdapter {
   /// In-memory cache of bootstrapped search nonces, keyed by bootstrap URL.
   /// Rawkuma-style `admin-ajax.php` search endpoints rotate the nonce roughly
   /// every 12h; entries older than [_searchNonceTtl] are re-fetched.
-  final Map<String, _SearchNonceEntry> _nonceCache = <String, _SearchNonceEntry>{};
+  final Map<String, _SearchNonceEntry> _nonceCache =
+      <String, _SearchNonceEntry>{};
 
   static const Duration _searchNonceTtl = Duration(hours: 1);
 
@@ -311,26 +312,89 @@ class GenericScraperAdapter implements GenericAdapter {
       return const AdapterSearchResult(items: [], hasNextPage: false);
     }
 
-    // POST-only search endpoints (FoOlSlide `/search/`, …): a GET renders an
-    // empty form, so the pattern has to be fetched as a form POST.
-    var postForm =
+    // POST-only search endpoints (FoOlSlide `/search/`, Rawkuma
+    // `?action=advanced_search`, …): a GET renders an empty form, so the
+    // pattern has to be fetched as a form POST.
+    final postForm =
         _resolvePatternPostForm(scraper, patternKey, filter: filter);
+    if (postForm != null) {
+      return _executePostFormSearch(
+        scraper: scraper,
+        patternKey: patternKey,
+        rawConfig: rawConfig,
+        url: url,
+        listConfig: listConfig,
+        page: filter.page,
+        paginationCacheKey: paginationCacheKey,
+        postForm: postForm,
+      );
+    }
 
+    // Nonce-bootstrapped POST search (Rawkuma `?action=advanced_search`):
+    var pagedUrl = _resolveListRequestUrlFromCursorCache(
+      page: filter.page,
+      cacheKey: paginationCacheKey,
+    );
+
+    pagedUrl = await _tryPrimeCursorPagination(
+          requestUrl: pagedUrl,
+          page: filter.page,
+          patternKey: patternKey,
+          listConfig: listConfig,
+          rawConfig: rawConfig,
+          paginationCacheKey: paginationCacheKey,
+          initialUrl: url,
+        ) ??
+        pagedUrl;
+
+    pagedUrl ??= _searchRouting.ensurePageQueryForStandardSearch(
+      resolvedUrl: url,
+      patternKey: patternKey,
+      filter: filter,
+      rawConfig: rawConfig,
+      urlPatternsCfg: urlPatternsCfg,
+    );
+
+    _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl');
+    return _fetchListPage(
+      pagedUrl,
+      rawConfig,
+      listConfig,
+      currentPage: filter.page,
+      paginationCacheKey: paginationCacheKey,
+      defaultLanguage: rawConfig['defaultLanguage'] as String?,
+    );
+  }
+
+  /// Shared POST search execution: nonce bootstrap + form POST + one rotation
+  /// retry. Used by [search] and [_searchRaw] so form-driven (`raw:`) queries
+  /// reach POST-only endpoints (Rawkuma `?action=advanced_search`, FoOlSlide
+  /// `/search/`, …) instead of falling back to a GET that renders an empty
+  /// form.
+  Future<AdapterSearchResult> _executePostFormSearch({
+    required Map<String, dynamic> scraper,
+    required String patternKey,
+    required Map<String, dynamic> rawConfig,
+    required String url,
+    required Map<String, dynamic> listConfig,
+    required int page,
+    required String paginationCacheKey,
+    required Map<String, String> postForm,
+  }) async {
     // Nonce-bootstrapped POST search (Rawkuma `?action=advanced_search`):
     // the form carries a `{nonce}` placeholder that is filled from a
     // config-declared bootstrap GET (`nonce.url` + `nonce.pattern`).
     // [nonceTemplate] keeps the unresolved form so the rotation retry below
-    // can substitute a refreshed value (postForm itself no longer contains
-    // the placeholder after the first substitution).
+    // can substitute a refreshed value (the substituted form no longer
+    // contains the placeholder after the first substitution).
     Map<String, String>? nonceTemplate;
     var usedCachedNonce = false;
-    if (postForm != null &&
-        postForm.values.any((v) => v.contains('{nonce}'))) {
+    if (postForm.values.any((v) => v.contains('{nonce}'))) {
       final nonce = await _fetchSearchNonce(scraper, patternKey, rawConfig);
       if (nonce == null) {
-        _logger.w(
-            '$_sourceId: search nonce bootstrap failed for "$patternKey"; '
-            'aborting POST search instead of sending a nonce-less form');
+        _logger
+            .w('$_sourceId: search nonce bootstrap failed for "$patternKey"; '
+                'aborting POST search instead of sending a nonce-less form');
         return const AdapterSearchResult(items: [], hasNextPage: false);
       }
       nonceTemplate = postForm;
@@ -344,43 +408,14 @@ class GenericScraperAdapter implements GenericAdapter {
 
     // Cursor priming + page-query injection are GET-only concerns; a POST
     // pattern pages through its form body instead.
-    var pagedUrl = postForm == null
-        ? _resolveListRequestUrlFromCursorCache(
-            page: filter.page,
-            cacheKey: paginationCacheKey,
-          )
-        : null;
+    final pagedUrl = url;
 
-    if (postForm == null) {
-      pagedUrl = await _tryPrimeCursorPagination(
-            requestUrl: pagedUrl,
-            page: filter.page,
-            patternKey: patternKey,
-            listConfig: listConfig,
-            rawConfig: rawConfig,
-            paginationCacheKey: paginationCacheKey,
-            initialUrl: url,
-          ) ??
-          pagedUrl;
-    }
-
-    pagedUrl ??= postForm != null
-        ? url
-        : _searchRouting.ensurePageQueryForStandardSearch(
-            resolvedUrl: url,
-            patternKey: patternKey,
-            filter: filter,
-            rawConfig: rawConfig,
-            urlPatternsCfg: urlPatternsCfg,
-          );
-
-    _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl'
-        '${postForm == null ? '' : ' [POST $postForm]'}');
+    _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl [POST $postForm]');
     var result = await _fetchListPage(
       pagedUrl,
       rawConfig,
       listConfig,
-      currentPage: filter.page,
+      currentPage: page,
       paginationCacheKey: paginationCacheKey,
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
       postForm: postForm,
@@ -390,10 +425,7 @@ class GenericScraperAdapter implements GenericAdapter {
     // coincided with rotation) yields an empty page. Refresh once and retry
     // before reporting zero results — but only when the first attempt ran on
     // a cached nonce, so a genuinely empty query still returns fast.
-    if (result.items.isEmpty &&
-        postForm != null &&
-        nonceTemplate != null &&
-        usedCachedNonce) {
+    if (result.items.isEmpty && nonceTemplate != null && usedCachedNonce) {
       final nonce = await _fetchSearchNonce(
         scraper,
         patternKey,
@@ -412,7 +444,7 @@ class GenericScraperAdapter implements GenericAdapter {
           pagedUrl,
           rawConfig,
           listConfig,
-          currentPage: filter.page,
+          currentPage: page,
           paginationCacheKey: paginationCacheKey,
           defaultLanguage: rawConfig['defaultLanguage'] as String?,
           postForm: retryForm,
@@ -447,8 +479,7 @@ class GenericScraperAdapter implements GenericAdapter {
         (scraper['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
     final patternValue = urlPatternsCfg[patternKey];
     if (patternValue is! Map<String, dynamic>) return null;
-    final nonceCfg =
-        (patternValue['nonce'] as Map?)?.cast<String, dynamic>();
+    final nonceCfg = (patternValue['nonce'] as Map?)?.cast<String, dynamic>();
     if (nonceCfg == null) return null;
     final template = (nonceCfg['url'] as String?)?.trim() ?? '';
     if (template.isEmpty) {
@@ -524,6 +555,84 @@ class GenericScraperAdapter implements GenericAdapter {
             .replaceAll('{tag}', tagValue)
             .replaceAll('{page}', filter.page.toString()),
     };
+  }
+
+  /// True when [patternValue] declares a POST form body (`"method": "post"`
+  /// plus a non-empty `form` map) instead of a GET URL template.
+  bool _isPostListPattern(dynamic patternValue) {
+    if (patternValue is! Map<String, dynamic>) return false;
+    if ((patternValue['method'] as String?)?.toLowerCase() != 'post') {
+      return false;
+    }
+    final form = patternValue['form'] as Map?;
+    return form != null && form.isNotEmpty;
+  }
+
+  /// `raw:` search against a POST-only urlPattern: builds a synthetic filter
+  /// from the raw form params (text value → `query`, tag-typed routing field
+  /// → `includeTags`) and delegates to [_executePostFormSearch], reusing the
+  /// same nonce bootstrap + rotation retry as [search].
+  Future<AdapterSearchResult> _searchRawPost({
+    required Map<String, List<String>> rawMap,
+    required int page,
+    required Map<String, dynamic> rawConfig,
+    required Map<String, dynamic> scraper,
+    required String patternKey,
+    required Map<String, dynamic> formParamsCfg,
+    required String queryParamName,
+    required String? rawQueryValue,
+    required String? rawTagValue,
+  }) async {
+    final routingBaseKey = _paginationScopeForPatternKey(patternKey);
+    final pathTagValue = _pathTagValueForPatternKey(
+          rawMap: rawMap,
+          formParamsCfg: formParamsCfg,
+          patternKey: routingBaseKey,
+        ) ??
+        rawTagValue;
+    final syntheticFilter = SearchFilter(
+      query: rawQueryValue ?? '',
+      page: page,
+      includeTags: pathTagValue == null
+          ? const []
+          : [
+              FilterItem(
+                id: 0,
+                name: pathTagValue,
+                type: 'tag',
+              ),
+            ],
+    );
+    final (postUrl, postListConfig) = _resolvePattern(
+      scraper,
+      patternKey,
+      filter: syntheticFilter,
+    );
+    if (postUrl.isEmpty || postListConfig == null) {
+      _logger.w('$_sourceId: raw search — no URL/list config in POST pattern '
+          '"$patternKey"');
+      return const AdapterSearchResult(items: [], hasNextPage: false);
+    }
+    final postForm =
+        _resolvePatternPostForm(scraper, patternKey, filter: syntheticFilter);
+    if (postForm == null) {
+      _logger.w('$_sourceId: raw search — no form body in POST pattern '
+          '"$patternKey"');
+      return const AdapterSearchResult(items: [], hasNextPage: false);
+    }
+    return _executePostFormSearch(
+      scraper: scraper,
+      patternKey: patternKey,
+      rawConfig: rawConfig,
+      url: postUrl,
+      listConfig: postListConfig,
+      page: page,
+      paginationCacheKey: _buildRawPaginationCacheKey(
+        scope: routingBaseKey,
+        rawMap: rawMap,
+      ),
+      postForm: postForm,
+    );
   }
 
   // Handle `raw:` query format produced by [DynamicFormSearchUI].
@@ -620,6 +729,23 @@ class GenericScraperAdapter implements GenericAdapter {
     if (!urlPatternsCfg.containsKey(patternKey)) {
       _logger.w('$_sourceId: raw search — URL pattern "$patternKey" not found');
       return const AdapterSearchResult(items: [], hasNextPage: false);
+    }
+
+    // POST-only patterns (Rawkuma `?action=advanced_search`, …): a GET
+    // renders an empty form, so route the raw params straight into the
+    // shared POST flow instead of building a GET URL below.
+    if (_isPostListPattern(urlPatternsCfg[patternKey])) {
+      return _searchRawPost(
+        rawMap: rawMap,
+        page: page,
+        rawConfig: rawConfig,
+        scraper: scraper,
+        patternKey: patternKey,
+        formParamsCfg: formParamsCfg,
+        queryParamName: queryParamName,
+        rawQueryValue: rawQueryValue,
+        rawTagValue: rawTagValue,
+      );
     }
 
     final pagedPatternKey = '${basePatternKey}Page';
@@ -2611,8 +2737,7 @@ class GenericScraperAdapter implements GenericAdapter {
         final declared = configured is Map
             ? (configured['referer'] as String?)?.trim()
             : null;
-        videoReferer =
-            (declared == null || declared.isEmpty) ? url : declared;
+        videoReferer = (declared == null || declared.isEmpty) ? url : declared;
       }
 
       return ChapterData(
