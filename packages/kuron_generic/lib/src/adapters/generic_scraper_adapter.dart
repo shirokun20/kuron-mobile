@@ -107,6 +107,19 @@ class GenericScraperAdapter implements GenericAdapter {
   final RateLimiter? _rateLimiter;
   final Map<String, String> _paginationCursorCache = <String, String>{};
 
+  /// In-memory cache of bootstrapped search nonces, keyed by bootstrap URL.
+  /// Rawkuma-style `admin-ajax.php` search endpoints rotate the nonce roughly
+  /// every 12h; entries older than [_searchNonceTtl] are re-fetched.
+  final Map<String, _SearchNonceEntry> _nonceCache = <String, _SearchNonceEntry>{};
+
+  static const Duration _searchNonceTtl = Duration(hours: 1);
+
+  /// Default extractor for WordPress `get_nonce` responses shaped like
+  /// `<input ... name='search_nonce' value='…'>`. A pattern may override it
+  /// with its own `nonce.pattern` (first capture group wins).
+  static const String _defaultSearchNoncePattern =
+      r'''search_nonce[^>]*?value=['"]([^'"]+)''';
+
   GenericScraperAdapter({
     required Dio dio,
     required GenericUrlBuilder urlBuilder,
@@ -300,8 +313,34 @@ class GenericScraperAdapter implements GenericAdapter {
 
     // POST-only search endpoints (FoOlSlide `/search/`, …): a GET renders an
     // empty form, so the pattern has to be fetched as a form POST.
-    final postForm =
+    var postForm =
         _resolvePatternPostForm(scraper, patternKey, filter: filter);
+
+    // Nonce-bootstrapped POST search (Rawkuma `?action=advanced_search`):
+    // the form carries a `{nonce}` placeholder that is filled from a
+    // config-declared bootstrap GET (`nonce.url` + `nonce.pattern`).
+    // [nonceTemplate] keeps the unresolved form so the rotation retry below
+    // can substitute a refreshed value (postForm itself no longer contains
+    // the placeholder after the first substitution).
+    Map<String, String>? nonceTemplate;
+    var usedCachedNonce = false;
+    if (postForm != null &&
+        postForm.values.any((v) => v.contains('{nonce}'))) {
+      final nonce = await _fetchSearchNonce(scraper, patternKey, rawConfig);
+      if (nonce == null) {
+        _logger.w(
+            '$_sourceId: search nonce bootstrap failed for "$patternKey"; '
+            'aborting POST search instead of sending a nonce-less form');
+        return const AdapterSearchResult(items: [], hasNextPage: false);
+      }
+      nonceTemplate = postForm;
+      usedCachedNonce = !nonce.fresh;
+      final nonceValue = nonce.value;
+      postForm = <String, String>{
+        for (final entry in postForm.entries)
+          entry.key: entry.value.replaceAll('{nonce}', nonceValue),
+      };
+    }
 
     // Cursor priming + page-query injection are GET-only concerns; a POST
     // pattern pages through its form body instead.
@@ -337,7 +376,7 @@ class GenericScraperAdapter implements GenericAdapter {
 
     _logger.d('$_sourceId scraper [$patternKey]: $pagedUrl'
         '${postForm == null ? '' : ' [POST $postForm]'}');
-    return _fetchListPage(
+    var result = await _fetchListPage(
       pagedUrl,
       rawConfig,
       listConfig,
@@ -346,12 +385,117 @@ class GenericScraperAdapter implements GenericAdapter {
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
       postForm: postForm,
     );
+
+    // A server-side nonce rotation after our cache TTL (or a cold cache that
+    // coincided with rotation) yields an empty page. Refresh once and retry
+    // before reporting zero results — but only when the first attempt ran on
+    // a cached nonce, so a genuinely empty query still returns fast.
+    if (result.items.isEmpty &&
+        postForm != null &&
+        nonceTemplate != null &&
+        usedCachedNonce) {
+      final nonce = await _fetchSearchNonce(
+        scraper,
+        patternKey,
+        rawConfig,
+        forceRefresh: true,
+      );
+      if (nonce != null) {
+        final nonceValue = nonce.value;
+        final retryForm = <String, String>{
+          for (final entry in nonceTemplate.entries)
+            entry.key: entry.value.replaceAll('{nonce}', nonceValue),
+        };
+        _logger.i('$_sourceId scraper [$patternKey]: retrying POST search '
+            'with a refreshed nonce');
+        result = await _fetchListPage(
+          pagedUrl,
+          rawConfig,
+          listConfig,
+          currentPage: filter.page,
+          paginationCacheKey: paginationCacheKey,
+          defaultLanguage: rawConfig['defaultLanguage'] as String?,
+          postForm: retryForm,
+        );
+      }
+    }
+    return result;
+  }
+
+  /// Bootstrap value for a `{nonce}` placeholder in a POST search form.
+  ///
+  /// A urlPattern may declare:
+  /// ```json
+  /// "nonce": {
+  ///   "url": "/wp-admin/admin-ajax.php?type=search_form&action=get_nonce",
+  ///   "pattern": "name='search_nonce' value='([^']+)'"
+  /// }
+  /// ```
+  /// The bootstrap URL is GET-fetched (relative URLs resolve against the
+  /// source base URL), the first regex group is the nonce, and the value is
+  /// cached in memory for [_searchNonceTtl]. Returns the value plus whether
+  /// it was freshly fetched (`false` = served from cache). Returns null when
+  /// the pattern declares no `nonce` block or the bootstrap fetch/extract
+  /// fails.
+  Future<({String value, bool fresh})?> _fetchSearchNonce(
+    Map<String, dynamic> scraper,
+    String patternKey,
+    Map<String, dynamic> rawConfig, {
+    bool forceRefresh = false,
+  }) async {
+    final urlPatternsCfg =
+        (scraper['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
+    final patternValue = urlPatternsCfg[patternKey];
+    if (patternValue is! Map<String, dynamic>) return null;
+    final nonceCfg =
+        (patternValue['nonce'] as Map?)?.cast<String, dynamic>();
+    if (nonceCfg == null) return null;
+    final template = (nonceCfg['url'] as String?)?.trim() ?? '';
+    if (template.isEmpty) {
+      _logger.w('$_sourceId: nonce block in "$patternKey" has no url');
+      return null;
+    }
+
+    final bootstrapUrl = _urlBuilder.resolve(template, const {});
+    if (!forceRefresh) {
+      final cached = _nonceCache[bootstrapUrl];
+      if (cached != null &&
+          DateTime.now().difference(cached.fetchedAt) < _searchNonceTtl) {
+        return (value: cached.value, fresh: false);
+      }
+    }
+
+    String? extracted;
+    try {
+      final response = await _getWithRedirectFallback(
+        bootstrapUrl,
+        rawConfig: rawConfig,
+      );
+      final body = response.data ?? '';
+      final patternSrc = (nonceCfg['pattern'] as String?)?.trim();
+      final regex = RegExp(patternSrc == null || patternSrc.isEmpty
+          ? _defaultSearchNoncePattern
+          : patternSrc);
+      extracted = regex.firstMatch(body)?.group(1)?.trim();
+    } catch (e) {
+      _logger.w('$_sourceId: search nonce bootstrap GET failed: $bootstrapUrl',
+          error: e);
+      return null;
+    }
+    if (extracted == null || extracted.isEmpty) {
+      _logger.w('$_sourceId: search nonce not found in $bootstrapUrl');
+      return null;
+    }
+    _nonceCache[bootstrapUrl] =
+        _SearchNonceEntry(value: extracted, fetchedAt: DateTime.now());
+    return (value: extracted, fresh: true);
   }
 
   /// Form body for a `"method": "post"` search/searchPage urlPattern, or null
   /// when the pattern uses the default GET. Placeholders `{query}`, `{tag}`
   /// and `{page}` are substituted the same way as in URL templates, but the
-  /// values stay unencoded — Dio encodes the form body.
+  /// values stay unencoded — Dio encodes the form body. A `{nonce}`
+  /// placeholder is left intact for [_fetchSearchNonce] to fill in.
   Map<String, String>? _resolvePatternPostForm(
     Map<String, dynamic> scraper,
     String patternKey, {
@@ -3789,4 +3933,13 @@ class GenericScraperAdapter implements GenericAdapter {
 
     return urls;
   }
+}
+
+/// Cached search-nonce value with its fetch time for TTL expiry.
+/// Plain internal holder — no serialization, so no Freezed/codegen.
+class _SearchNonceEntry {
+  final String value;
+  final DateTime fetchedAt;
+
+  const _SearchNonceEntry({required this.value, required this.fetchedAt});
 }
