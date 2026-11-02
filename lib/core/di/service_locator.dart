@@ -753,6 +753,28 @@ void _setupDataSources() {
   );
 
   getIt.registerLazySingleton<WebViewSessionAdapter>(
+    instanceName: 'cf_komiku',
+    () {
+      final rawConfig =
+          getIt<RemoteConfigService>().getRawConfig('komiku') ?? {};
+      final baseUrl =
+          rawConfig['baseUrl']?.toString() ?? 'https://komiku.org';
+      final cookieJar = secureCookieJar('cf_komiku');
+      return WebViewSessionAdapter(
+        dio: getIt<Dio>(),
+        cookieJar: cookieJar,
+        config: WebViewSessionConfig.fromJson(rawConfig),
+        baseUrl: baseUrl,
+        logger: getIt<Logger>(),
+        bypassOptionsBuilder: (url, config) => const WebViewBypassOptions(
+          autoCloseOnCookie: 'cf_clearance',
+          preferCapturedHtml: true,
+        ),
+      );
+    },
+  );
+
+  getIt.registerLazySingleton<WebViewSessionAdapter>(
     instanceName: 'cf_beauty3600000',
     () {
       final rawConfig =
@@ -904,6 +926,13 @@ void _setupDataSources() {
           dio: getIt<Dio>(),
           sessionAdapter:
               getIt<WebViewSessionAdapter>(instanceName: 'cf_mangaforfree'),
+          logger: getIt<Logger>(),
+        ),
+        GenericBypassSourceFactory(
+          sourceId: 'komiku',
+          dio: getIt<Dio>(),
+          sessionAdapter:
+              getIt<WebViewSessionAdapter>(instanceName: 'cf_komiku'),
           logger: getIt<Logger>(),
         ),
         GenericBypassSourceFactory(
