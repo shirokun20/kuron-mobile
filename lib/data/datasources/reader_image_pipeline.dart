@@ -17,6 +17,7 @@ import 'package:nhasixapp/core/utils/reader_image_repair_utils.dart';
 import 'package:nhasixapp/domain/entities/page_image_result.dart';
 import 'package:nhasixapp/domain/repositories/reader_image_repository.dart';
 import 'remote/ehentai_reader_datasource.dart';
+import 'package:nhasixapp/domain/entities/reader_settings_entity.dart';
 
 /// Cancellation handle for reader page resolution without exposing Dio types to widgets.
 class ReaderImageCancellation {
@@ -32,6 +33,165 @@ class ReaderImageCancellation {
     if (!_token.isCancelled) {
       _token.cancel(reason);
     }
+  }
+}
+
+/// Single, authoritative outcome of routing a reader page image.
+enum ImageRouteOutcome {
+  /// Render directly using Flutter (ExtendedImage.network / ExtendedImage.file / memory).
+  flutterDirect,
+
+  /// Convert tall static AVIF to WebP, then render directly using Flutter (not heavy).
+  convertAvifThenDirect,
+
+  /// Animated image (avis AVIF or confirmed animated WebP) rendered via native AnimatedWebPView.
+  nativeAnimated,
+
+  /// Empty or unknown/corrupted payload requiring repair/error UI without attempting decode.
+  bypassError,
+}
+
+/// Pure, side-effect-free routing decider for reader page images.
+/// Payload (header bytes) ALWAYS beats URL extension or hints.
+class ImageRouteDecider {
+  ImageRouteDecider._();
+
+  static ImageRouteOutcome decide({
+    Object? header,
+    List<int>? headerBytes,
+    int? fileSize,
+    int? width,
+    int? height,
+    String? avifBrand,
+    bool? isAvif,
+    bool? isAvisBrand,
+    bool? isConfirmedAnimatedWebP,
+    bool? isHeavy,
+    String? sourceId,
+    ReadingMode? readingMode,
+    String? url,
+    bool nativeViewAvailable = true,
+  }) {
+    // Unpack polymorphic header object if provided
+    if (header != null) {
+      if (header is List<int>) {
+        headerBytes ??= header;
+      } else if (header is ({String? format, int? width, int? height})) {
+        width ??= header.width;
+        height ??= header.height;
+        if (header.format == 'avif') isAvif ??= true;
+        if (header.format == 'webp') isConfirmedAnimatedWebP ??= true;
+      } else if (header is ({
+        bool isAvif,
+        bool isAvisBrand,
+        int? width,
+        int? height
+      })) {
+        isAvif ??= header.isAvif;
+        isAvisBrand ??= header.isAvisBrand;
+        width ??= header.width;
+        height ??= header.height;
+      }
+    }
+
+    // 1. Zero-byte or empty file check
+    if (fileSize != null && fileSize <= 0) {
+      return ImageRouteOutcome.bypassError;
+    }
+    if (headerBytes != null &&
+        headerBytes.isEmpty &&
+        (fileSize == null || fileSize == 0)) {
+      return ImageRouteOutcome.bypassError;
+    }
+
+    // 2. Payload bytes inspection (payload ALWAYS beats URL)
+    if (headerBytes != null && headerBytes.isNotEmpty) {
+      final ext = inferImageExtension(bytes: headerBytes);
+      if (ext == null) {
+        // Unknown format or non-image payload (e.g. HTML error, corrupt bytes)
+        return ImageRouteOutcome.bypassError;
+      }
+
+      if (ext == 'jpg' || ext == 'png' || ext == 'gif' || ext == 'bmp') {
+        // Standard formats decode directly in Flutter regardless of URL extension.
+        return ImageRouteOutcome.flutterDirect;
+      }
+
+      if (ext == 'webp') {
+        final uint8 = headerBytes is Uint8List
+            ? headerBytes
+            : Uint8List.fromList(headerBytes);
+        final isAnimated = (isConfirmedAnimatedWebP == true) ||
+            looksLikeAnimatedWebPHeader(uint8);
+        if (isAnimated) {
+          return nativeViewAvailable
+              ? ImageRouteOutcome.nativeAnimated
+              : ImageRouteOutcome.flutterDirect;
+        }
+        return ImageRouteOutcome.flutterDirect;
+      }
+
+      if (ext == 'avif') {
+        final uint8 = headerBytes is Uint8List
+            ? headerBytes
+            : Uint8List.fromList(headerBytes);
+        final avifInfo = inspectAvifBytesForRouting(uint8);
+        final effectiveIsAvis = avifInfo.isAvisBrand ||
+            isAvisBrand == true ||
+            avifBrand?.toLowerCase() == 'avis';
+        final effectiveHeight = height ?? avifInfo.height;
+
+        if (effectiveIsAvis) {
+          return nativeViewAvailable
+              ? ImageRouteOutcome.nativeAnimated
+              : ImageRouteOutcome.flutterDirect;
+        }
+
+        if ((effectiveHeight ?? 0) > maxNativeAvifHeight) {
+          return ImageRouteOutcome.convertAvifThenDirect;
+        }
+
+        return ImageRouteOutcome.flutterDirect;
+      }
+    }
+
+    // 3. Fallback to structured metadata if headerBytes was not supplied
+    if (isAvif == true || avifBrand != null) {
+      final effectiveIsAvis =
+          isAvisBrand == true || avifBrand?.toLowerCase() == 'avis';
+      if (effectiveIsAvis) {
+        return nativeViewAvailable
+            ? ImageRouteOutcome.nativeAnimated
+            : ImageRouteOutcome.flutterDirect;
+      }
+      if ((height ?? 0) > maxNativeAvifHeight) {
+        return ImageRouteOutcome.convertAvifThenDirect;
+      }
+      return ImageRouteOutcome.flutterDirect;
+    }
+
+    if (isConfirmedAnimatedWebP == true) {
+      return nativeViewAvailable
+          ? ImageRouteOutcome.nativeAnimated
+          : ImageRouteOutcome.flutterDirect;
+    }
+
+    // 4. Fallback to URL hints (e.g. before bytes are available)
+    if (url != null) {
+      final normalized = url.toLowerCase().split('?').first;
+      if (normalized.endsWith('.avif')) {
+        // AVIF routing is deferred to post-download brand check
+        return ImageRouteOutcome.flutterDirect;
+      }
+      if (isHeavy == true &&
+          (normalized.endsWith('.webp') || normalized.contains('-wbp'))) {
+        return nativeViewAvailable
+            ? ImageRouteOutcome.nativeAnimated
+            : ImageRouteOutcome.flutterDirect;
+      }
+    }
+
+    return ImageRouteOutcome.flutterDirect;
   }
 }
 
@@ -71,10 +231,12 @@ class ReaderImagePipeline {
         _ehentaiDataSource = ehentaiDataSource ?? EhentaiReaderDataSource(),
         _headerInspector = headerInspector,
         _offlineContentManager = offlineContentManager,
-        _logger = logger ?? (getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger());
+        _logger = logger ??
+            (getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger());
 
   static ReaderImagePipeline? _instance;
-  static ReaderImagePipeline get instance => _instance ??= ReaderImagePipeline();
+  static ReaderImagePipeline get instance =>
+      _instance ??= ReaderImagePipeline();
   @visibleForTesting
   static set instance(ReaderImagePipeline? val) => _instance = val;
 
@@ -183,13 +345,53 @@ class ReaderImagePipeline {
   // AVIF & Animated WebP Inspection & Conversion
   // ─────────────────────────────────────────────────────────────────────────
 
+  static ImageRouteOutcome decide({
+    Object? header,
+    List<int>? headerBytes,
+    int? fileSize,
+    int? width,
+    int? height,
+    String? avifBrand,
+    bool? isAvif,
+    bool? isAvisBrand,
+    bool? isConfirmedAnimatedWebP,
+    bool? isHeavy,
+    String? sourceId,
+    ReadingMode? readingMode,
+    String? url,
+    bool nativeViewAvailable = true,
+  }) =>
+      ImageRouteDecider.decide(
+        header: header,
+        headerBytes: headerBytes,
+        fileSize: fileSize,
+        width: width,
+        height: height,
+        avifBrand: avifBrand,
+        isAvif: isAvif,
+        isAvisBrand: isAvisBrand,
+        isConfirmedAnimatedWebP: isConfirmedAnimatedWebP,
+        isHeavy: isHeavy,
+        sourceId: sourceId,
+        readingMode: readingMode,
+        url: url,
+        nativeViewAvailable: nativeViewAvailable,
+      );
+
   static bool shouldConvertAvifToWebP(
     ({bool isAvif, bool isAvisBrand, int? width, int? height}) avifInfo,
   ) {
     if (!avifInfo.isAvif) {
       return false;
     }
-    return avifInfo.isAvisBrand || (avifInfo.height ?? 0) > maxNativeAvifHeight;
+    final outcome = decide(
+      isAvif: avifInfo.isAvif,
+      isAvisBrand: avifInfo.isAvisBrand,
+      width: avifInfo.width,
+      height: avifInfo.height,
+    );
+    return outcome == ImageRouteOutcome.convertAvifThenDirect ||
+        outcome == ImageRouteOutcome.nativeAnimated;
   }
 
   static bool shouldConvertTallAvifFile(
@@ -218,7 +420,12 @@ class ReaderImagePipeline {
     if (!isAvif) {
       return false;
     }
-    return isAvisBrand;
+    return decide(
+          isAvif: isAvif,
+          isAvisBrand: isAvisBrand,
+          height: height,
+        ) ==
+        ImageRouteOutcome.nativeAnimated;
   }
 
   Future<bool> hasInvalidImagePayload(String localPath) async {
@@ -237,7 +444,8 @@ class ReaderImagePipeline {
       final bytes = await raf.read(sampleLength);
       return inferImageExtension(bytes: bytes) == null;
     } catch (e) {
-      _logger.w('[ReaderPipeline] Failed to validate local payload $localPath: $e');
+      _logger.w(
+          '[ReaderPipeline] Failed to validate local payload $localPath: $e');
       return true;
     } finally {
       try {
@@ -347,11 +555,37 @@ class ReaderImagePipeline {
         );
       }
 
+      // Read sample header bytes for single decider
+      RandomAccessFile? raf;
+      Uint8List? sampleBytes;
+      try {
+        final sampleLength = fileSize < 4096 ? fileSize : 4096;
+        raf = await file.open(mode: FileMode.read);
+        sampleBytes = await raf.read(sampleLength);
+      } finally {
+        try {
+          await raf?.close();
+        } catch (_) {}
+      }
+
+      final decision = decide(
+        headerBytes: sampleBytes,
+        fileSize: fileSize,
+      );
+
+      if (decision == ImageRouteOutcome.bypassError) {
+        return ProcessedImageResult(
+          renderPath: filePath,
+          shouldBypassLocalDecode: true,
+        );
+      }
+
       // Background / service header inspection
       inspectHeader(filePath);
-      final avifInfo = inspectAvifHeaderForRouting(file);
-      final shouldConvert = shouldConvertAvifToWebP(avifInfo);
-
+      final avifInfo = inspectAvifBytesForRouting(sampleBytes);
+      final shouldConvert =
+          decision == ImageRouteOutcome.convertAvifThenDirect ||
+              (decision == ImageRouteOutcome.nativeAnimated && avifInfo.isAvif);
       if (shouldConvert) {
         _logger.i(
           '[ReaderPipeline] Animated/tall AVIF detected. Converting to WebP '
@@ -368,7 +602,8 @@ class ReaderImagePipeline {
 
         if (convertedPath != null) {
           final convertedFile = File(convertedPath);
-          if (await convertedFile.exists() && await convertedFile.length() > 0) {
+          if (await convertedFile.exists() &&
+              await convertedFile.length() > 0) {
             await deleteLocalPageFormatConflicts(
               currentImagePath: filePath,
               convertedPath: convertedPath,
@@ -380,17 +615,16 @@ class ReaderImagePipeline {
               convertedLocalPath: convertedPath,
             );
 
-            final markHeavy = shouldMarkConvertedAvifHeavy(
-              isAvif: avifInfo.isAvif,
-              isAvisBrand: avifInfo.isAvisBrand,
-              height: avifInfo.height,
-            );
+            final markHeavy = decision == ImageRouteOutcome.nativeAnimated;
 
             final webpHeader = inspectFileHeader(convertedPath);
-            final nativeSize = (webpHeader.width != null && webpHeader.height != null)
-                ? Size(webpHeader.width!.toDouble(), webpHeader.height!.toDouble())
+            final nativeSize = (webpHeader.width != null &&
+                    webpHeader.height != null)
+                ? Size(
+                    webpHeader.width!.toDouble(), webpHeader.height!.toDouble())
                 : (avifInfo.width != null && avifInfo.height != null)
-                    ? Size(avifInfo.width!.toDouble(), avifInfo.height!.toDouble())
+                    ? Size(
+                        avifInfo.width!.toDouble(), avifInfo.height!.toDouble())
                     : null;
 
             final convertedLength = await convertedFile.length();
@@ -417,8 +651,8 @@ class ReaderImagePipeline {
       }
 
       // Check for animated WebP
-      final header = inspectFileHeader(filePath);
-      if (header.format != null) {
+      if (decision == ImageRouteOutcome.nativeAnimated) {
+        final header = inspectFileHeader(filePath);
         final nativeSize = (header.width != null && header.height != null)
             ? Size(header.width!.toDouble(), header.height!.toDouble())
             : null;
@@ -456,7 +690,8 @@ class ReaderImagePipeline {
         );
       }
 
-      final localPath = await LocalImagePreloader.getLocalImagePath(contentId, pageNumber);
+      final localPath =
+          await LocalImagePreloader.getLocalImagePath(contentId, pageNumber);
       if (localPath != null) {
         final f = File(localPath);
         if (await f.exists() && await f.length() > 0) {
