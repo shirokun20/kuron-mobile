@@ -14,6 +14,13 @@ import '../../../domain/entities/reader_settings_entity.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
+
+typedef PageImageTripleKey = (
+  String contentId,
+  int pageNumber,
+  String imageUrl
+);
+
 class ExtendedImageReaderWidget extends StatefulWidget {
   const ExtendedImageReaderWidget({
     super.key,
@@ -68,31 +75,44 @@ class ExtendedImageReaderWidget extends StatefulWidget {
   // Optional pipeline service. Falls back to ReaderImagePipeline.instance.
   final ReaderImagePipeline? pipeline;
 
-
   @override
   State<ExtendedImageReaderWidget> createState() =>
       _ExtendedImageReaderWidgetState();
 
   @visibleForTesting
-  static void addHeavyUrlForTesting(String url) =>
-      _ExtendedImageReaderWidgetState._boundedSetAdd(
-          _ExtendedImageReaderWidgetState._heavyImageUrls,
-          url,
+  static void addHeavyUrlForTesting(
+    String url, {
+    String contentId = 'test-content',
+    int pageNumber = 1,
+  }) =>
+      _ExtendedImageReaderWidgetState._boundedTripleSetAdd(
+          _ExtendedImageReaderWidgetState._heavyImageKeys,
+          (contentId, pageNumber, url),
           _ExtendedImageReaderWidgetState._maxHeavyImageUrls);
 
   @visibleForTesting
-  static bool isHeavyUrlForTesting(String url) =>
-      _ExtendedImageReaderWidgetState._heavyImageUrls.contains(url);
+  static bool isHeavyUrlForTesting(
+    String url, {
+    String? contentId,
+    int? pageNumber,
+  }) {
+    if (contentId != null && pageNumber != null) {
+      return _ExtendedImageReaderWidgetState._heavyImageKeys
+          .contains((contentId, pageNumber, url));
+    }
+    return _ExtendedImageReaderWidgetState._heavyImageKeys
+        .any((key) => key.$3 == url);
+  }
 
   @visibleForTesting
   static int get maxHeavyImageUrls =>
       _ExtendedImageReaderWidgetState._maxHeavyImageUrls;
 
   static Future<void> clearNativeAnimatedCache() async {
-    _ExtendedImageReaderWidgetState._heavyImageUrls.clear();
-    _ExtendedImageReaderWidgetState._confirmedAnimatedWebPUrls.clear();
-    _ExtendedImageReaderWidgetState._nonNativeAnimatedUrls.clear();
-    _ExtendedImageReaderWidgetState._cachedFilePathByUrl.clear();
+    _ExtendedImageReaderWidgetState._heavyImageKeys.clear();
+    _ExtendedImageReaderWidgetState._confirmedAnimatedWebPKeys.clear();
+    _ExtendedImageReaderWidgetState._nonNativeAnimatedKeys.clear();
+    _ExtendedImageReaderWidgetState._cachedFilePathByTripleKey.clear();
     _ExtendedImageReaderWidgetState._knownBrokenLocalAvifPaths.clear();
     await clearDiskCachedImages();
     try {
@@ -102,7 +122,7 @@ class ExtendedImageReaderWidget extends StatefulWidget {
 
   @visibleForTesting
   static void clearHeavyUrlsForTesting() =>
-      _ExtendedImageReaderWidgetState._heavyImageUrls.clear();
+      _ExtendedImageReaderWidgetState._heavyImageKeys.clear();
 
   @visibleForTesting
   static int get heavyImageThresholdBytesForTesting =>
@@ -117,8 +137,12 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     required String url,
     required bool isHeavy,
   }) {
-    if (!isHeavy) return false;
-    return _looksLikeNativeAnimatedCapableUrl(url);
+    return ReaderImagePipeline.decide(
+          url: url,
+          isHeavy: isHeavy,
+          nativeViewAvailable: true,
+        ) ==
+        ImageRouteOutcome.nativeAnimated;
   }
 
   @visibleForTesting
@@ -128,10 +152,17 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     required bool nativeViewAvailable,
     bool confirmedAnimatedWebP = false,
   }) {
-    if (!nativeViewAvailable || !isHeavy) return false;
-    return confirmedAnimatedWebP || _looksLikeNativeAnimatedCapableUrl(url);
+    return ReaderImagePipeline.decide(
+          url: url,
+          isHeavy: isHeavy,
+          isConfirmedAnimatedWebP: confirmedAnimatedWebP,
+          nativeViewAvailable: nativeViewAvailable,
+        ) ==
+        ImageRouteOutcome.nativeAnimated;
   }
 
+  @visibleForTesting
+  static bool? nativeViewAvailableOverrideForTesting;
   @visibleForTesting
   static bool shouldNotifyHeavyImageDetectedForTesting({
     required ReadingMode readingMode,
@@ -266,35 +297,50 @@ class ExtendedImageReaderWidget extends StatefulWidget {
 class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final Logger _logger = Logger(printer: PrettyPrinter(methodCount: 0));
-  ReaderImagePipeline get _pipeline => widget.pipeline ?? ReaderImagePipeline.instance;
+  ReaderImagePipeline get _pipeline =>
+      widget.pipeline ?? ReaderImagePipeline.instance;
   static final Set<String> _knownBrokenLocalAvifPaths = <String>{};
-  static final Set<String> _heavyImageUrls = <String>{};
+  static final Set<PageImageTripleKey> _heavyImageKeys = <PageImageTripleKey>{};
   static final Set<String> _notifiedHeavyContentIds = <String>{};
-  static final Map<String, String> _cachedFilePathByUrl = <String, String>{};
-  static final Set<String> _confirmedAnimatedWebPUrls = <String>{};
-  static final Set<String> _nonNativeAnimatedUrls = <String>{};
+  static final Map<PageImageTripleKey, String> _cachedFilePathByTripleKey =
+      <PageImageTripleKey, String>{};
+  static final Set<PageImageTripleKey> _confirmedAnimatedWebPKeys =
+      <PageImageTripleKey>{};
+  static final Set<PageImageTripleKey> _nonNativeAnimatedKeys =
+      <PageImageTripleKey>{};
   static const int _heavyImageThresholdBytes = 2 * 1024 * 1024; // 2 MB
+
+  bool get _isNativeViewAvailable =>
+      ExtendedImageReaderWidget.nativeViewAvailableOverrideForTesting ??
+      AnimatedWebPView.isAvailable;
 
   static const int _maxHeavyImageUrls = 500;
   static const int _maxCachedFilePathByUrl = 200;
   static const int _maxConfirmedAnimatedWebPUrls = 300;
   static const int _maxNotifiedHeavyContentIds = 100;
 
-  static void _boundedSetAdd(Set<String> set, String item, int maxSize) {
+  static void _boundedSetAdd<T>(Set<T> set, T item, int maxSize) {
     set.add(item);
     if (set.length > maxSize) {
       set.remove(set.first);
     }
   }
 
-  static void _boundedMapPut(
-      Map<String, String> map, String key, String value, int maxSize) {
+  static void _boundedTripleSetAdd(
+      Set<PageImageTripleKey> set, PageImageTripleKey item, int maxSize) {
+    set.add(item);
+    if (set.length > maxSize) {
+      set.remove(set.first);
+    }
+  }
+
+  static void _boundedTripleMapPut(Map<PageImageTripleKey, String> map,
+      PageImageTripleKey key, String value, int maxSize) {
     map[key] = value;
     if (map.length > maxSize) {
       map.remove(map.keys.first);
     }
   }
-
 
   // Files ≥ 10 MB get a more aggressive native target width because the
   // offline reader otherwise pays twice: thumbnail prep + animated playback.
@@ -313,15 +359,14 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   Future<Uint8List?>? _mangaFireResolvedImageFuture;
   Future<PageImageResult?>? _pageResolveFuture;
 
-  // Path already scheduled through _schedulePostProcessResolvedFile.
-  // Prevents queueing a post-frame callback on every rebuild for one file.
+  int _pageGen = 0;
+  int? _postProcessScheduledGen;
   String? _postProcessScheduledPath;
 
   bool _isHeavyImage = false;
 
   // Whether this image was positively identified as animated WebP bytes.
   bool _isConfirmedAnimatedWebP = false;
-
   String? _cachedFilePath;
   // Converted WebP for a tall *static* AVIF page. Such a page is not heavy
   // (Flutter decodes the WebP fine), but the original `.jpg`/`.avif` bytes are
@@ -344,7 +389,21 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
   // Prevents ExtendedImage from attempting to decode an avis sequence before
   // native view routing, avoiding "getPixels failed with error invalid input".
-  bool _awaitingNativeCheck = false;
+  int? _awaitingNativeCheckGen;
+  bool get _awaitingNativeCheck => _awaitingNativeCheckGen == _pageGen;
+  set _awaitingNativeCheck(bool value) {
+    _awaitingNativeCheckGen = value ? _pageGen : null;
+  }
+
+  PageImageTripleKey get _currentTripleKey =>
+      (widget.contentId, widget.pageNumber, widget.imageUrl);
+
+  void _seedFromAcceleratorMaps() {
+    final key = _currentTripleKey;
+    _isHeavyImage = _heavyImageKeys.contains(key);
+    _isConfirmedAnimatedWebP = _confirmedAnimatedWebPKeys.contains(key);
+    _cachedFilePath = _cachedFilePathByTripleKey[key];
+  }
 
   // Size? _loadedImageSize;
 
@@ -393,45 +452,38 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     );
     if (widget.onDoubleTapGesture != null && widget.enableZoom) {
       // Delay so the image has time to load first
+      final gen = _pageGen;
       Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) _pinchHintController.forward();
+        if (mounted && _pageGen == gen) _pinchHintController.forward();
       });
     }
 
-    _isHeavyImage = _heavyImageUrls.contains(widget.imageUrl);
-    _isConfirmedAnimatedWebP =
-        _confirmedAnimatedWebPUrls.contains(widget.imageUrl);
-    _cachedFilePath = _cachedFilePathByUrl[widget.imageUrl];
+    _seedFromAcceleratorMaps();
 
     if (_isLocalFilePath(widget.imageUrl)) {
       final localPath = _normalizeLocalPath(widget.imageUrl);
       _seedConvertedPathFromCache(localPath);
       _cachedFilePath = _staticConvertedFilePath ?? localPath;
-      _boundedMapPut(_cachedFilePathByUrl, widget.imageUrl, _cachedFilePath!,
-          _maxCachedFilePathByUrl);
+      _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
+          _cachedFilePath!, _maxCachedFilePathByUrl);
       final isKnownBrokenAvif = localPath.toLowerCase().endsWith('.avif') &&
           _knownBrokenLocalAvifPaths.contains(localPath);
       _shouldBypassLocalDecode = isKnownBrokenAvif;
       if (!_shouldBypassLocalDecode) {
-        _awaitingNativeCheck = _shouldConvertTallAvifLocalFile(localPath);
+        if (_shouldConvertTallAvifLocalFile(localPath)) {
+          _awaitingNativeCheck = true;
+        }
         _preCheckLocalFileForHeavy(localPath);
       }
-    }
-
-    // Pre-check: for .webp URLs not yet identified as heavy, query the disk
-    // cache BEFORE ExtendedImage decodes — skip Flutter's expensive
-    // raster-thread decode and go straight to native view.
-    if (!_isHeavyImage &&
-        AnimatedWebPView.isAvailable &&
-        !_isLocalFilePath(widget.imageUrl) &&
-        _shouldInspectCachedFileForAnimatedWebP(widget.imageUrl)) {
-      // For AVIF URLs: block ExtendedImage from rendering until we know
-      // whether the cached file is animated (→ native) or static (→ Flutter).
-      // This prevents Android's ImageDecoder from attempting avis sequences.
-      if (widget.imageUrl.toLowerCase().split('?').first.endsWith('.avif')) {
-        _awaitingNativeCheck = true;
+    } else {
+      if (!_isHeavyImage &&
+          _isNativeViewAvailable &&
+          _shouldInspectCachedFileForAnimatedWebP(widget.imageUrl)) {
+        if (widget.imageUrl.toLowerCase().split('?').first.endsWith('.avif')) {
+          _awaitingNativeCheck = true;
+        }
+        _preCheckDiskCacheForHeavy();
       }
-      _preCheckDiskCacheForHeavy();
     }
 
     _prepareEhentaiResolveFuture();
@@ -441,6 +493,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   // Async disk-cache check: if a cached .webp file ≥ threshold exists,
   // seed the static maps and rebuild to route straight to native.
   void _preCheckDiskCacheForHeavy() {
+    final gen = _pageGen;
     _pipeline
         .preCheckDiskCache(
       imageUrl: widget.imageUrl,
@@ -448,14 +501,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       pageNumber: widget.pageNumber,
     )
         .then((result) {
-      if (!mounted) return;
+      if (!mounted || _pageGen != gen) return;
       if (result != null) {
-        _applyProcessedResult(result);
+        _applyProcessedResult(result, gen: gen);
       }
     }).catchError((Object e) {
       _logger.w('[NativeWebP] Pre-check error: $e');
     }).whenComplete(() {
-      if (mounted && _awaitingNativeCheck) {
+      if (!mounted || _pageGen != gen) return;
+      if (_awaitingNativeCheck) {
         setState(() => _awaitingNativeCheck = false);
       }
     });
@@ -464,24 +518,26 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   bool _shouldConvertTallAvifLocalFile(String localPath) {
     return ExtendedImageReaderWidget.shouldConvertTallAvifFileForTesting(
       File(localPath),
-      nativeViewAvailable: AnimatedWebPView.isAvailable,
+      nativeViewAvailable: _isNativeViewAvailable,
     );
   }
 
   void _seedConvertedPathFromCache(String localPath) {
     if (_staticConvertedFilePath != null) return;
-    final cached = _cachedFilePathByUrl[widget.imageUrl];
+    final cached = _cachedFilePathByTripleKey[_currentTripleKey];
     if (cached != null && cached != localPath) {
       _staticConvertedFilePath = cached;
       _cachedFilePath = cached;
     }
   }
 
-  void _applyProcessedResult(ProcessedImageResult result) {
+  void _applyProcessedResult(ProcessedImageResult result, {required int gen}) {
+    if (!mounted || _pageGen != gen) return;
+
     if (result.wasConverted && result.convertedPath != null) {
       if (result.isHeavy) {
         _markHeavyNativeAnimatedImage(
-          cacheKey: widget.imageUrl,
+          key: _currentTripleKey,
           cachedFilePath: result.convertedPath!,
           confirmedAnimatedWebP: true,
         );
@@ -490,12 +546,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         _cachedFilePath = result.convertedPath;
       } else {
         _staticConvertedFilePath = result.convertedPath;
-        _boundedMapPut(_cachedFilePathByUrl, widget.imageUrl,
+        _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
             result.convertedPath!, _maxCachedFilePathByUrl);
       }
     } else if (result.isHeavy) {
       _markHeavyNativeAnimatedImage(
-        cacheKey: widget.imageUrl,
+        key: _currentTripleKey,
         cachedFilePath: result.renderPath,
         confirmedAnimatedWebP: true,
       );
@@ -514,26 +570,27 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     }
     _awaitingNativeCheck = false;
 
-    if (!mounted) return;
     setState(() {});
     if (result.isHeavy) {
       updateKeepAlive();
       _maybeNotifyHeavyImageDetected();
     }
     if (result.nativeImageSize != null) {
+      final capturedPageNumber = widget.pageNumber;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
+        if (mounted && _pageGen == gen) {
           widget.onImageLoaded
-              ?.call(widget.pageNumber, result.nativeImageSize!);
+              ?.call(capturedPageNumber, result.nativeImageSize!);
         }
       });
     }
   }
 
   Future<void> _preCheckLocalFileForHeavy(String localPath) async {
-    if (!AnimatedWebPView.isAvailable) {
+    if (!_isNativeViewAvailable) {
       return;
     }
+    final gen = _pageGen;
 
     try {
       final result = await _pipeline.processImageFile(
@@ -542,14 +599,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         pageNumber: widget.pageNumber,
         checkInvalidPayload: true,
       );
-      _applyProcessedResult(result);
+      if (!mounted || _pageGen != gen) return;
+      _applyProcessedResult(result, gen: gen);
     } catch (e) {
       _logger.w('[NativeWebP] Local pre-check error: $e');
     } finally {
-      if (mounted && _awaitingNativeCheck) {
+      if (mounted && _pageGen == gen && _awaitingNativeCheck) {
         setState(() => _awaitingNativeCheck = false);
-      } else if (_awaitingNativeCheck) {
-        _awaitingNativeCheck = false;
       }
     }
   }
@@ -575,7 +631,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   // Pre-seed the static set WITHOUT setState so an in-flight ExtendedImage
   // download is never interrupted mid-way.
   void _preSeedHeavyImageUrl() {
-    _boundedSetAdd(_heavyImageUrls, widget.imageUrl, _maxHeavyImageUrls);
+    _boundedTripleSetAdd(
+        _heavyImageKeys, _currentTripleKey, _maxHeavyImageUrls);
   }
 
   bool _isAvifSource(String source) {
@@ -605,14 +662,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (_isConfirmedAnimatedWebP) {
       return true;
     }
-    return ExtendedImageReaderWidget.isLikelyAnimatedWebPForTesting(
-      url: url,
-      isHeavy: _isHeavyImage,
-    );
+    return ReaderImagePipeline.decide(
+          url: url,
+          isHeavy: _isHeavyImage,
+          nativeViewAvailable: true,
+        ) ==
+        ImageRouteOutcome.nativeAnimated;
   }
 
   bool _tryNativeAnimatedFallback(String failedUrl) {
-    if (!AnimatedWebPView.isAvailable) {
+    if (!_isNativeViewAvailable) {
       return false;
     }
 
@@ -647,8 +706,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       clearMemoryImageCache(failedUrl);
     }
 
+    final gen = _pageGen;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
+      if (!mounted || _pageGen != gen) {
         return;
       }
 
@@ -656,7 +716,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         _preSeedHeavyImageUrl();
         _isHeavyImage = true;
         _cachedFilePath =
-            _cachedFilePathByUrl[widget.imageUrl] ?? _cachedFilePath;
+            _cachedFilePathByTripleKey[_currentTripleKey] ?? _cachedFilePath;
       });
       updateKeepAlive();
       _maybeNotifyHeavyImageDetected();
@@ -665,12 +725,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   bool _shouldUseNativeAnimatedView(String url) {
-    return ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
+    final outcome = ReaderImagePipeline.decide(
       url: url,
       isHeavy: _isHeavyImage,
-      nativeViewAvailable: AnimatedWebPView.isAvailable,
-      confirmedAnimatedWebP: _isConfirmedAnimatedWebP,
+      isConfirmedAnimatedWebP: _isConfirmedAnimatedWebP,
+      nativeViewAvailable: _isNativeViewAvailable,
     );
+    return outcome == ImageRouteOutcome.nativeAnimated;
   }
 
   bool get _shouldAutoPlayAnimatedView {
@@ -687,12 +748,24 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final sourceChanged = oldWidget.sourceId != widget.sourceId;
     final imageChanged = oldWidget.imageUrl != widget.imageUrl;
     final contentChanged = oldWidget.contentId != widget.contentId;
+    final pageNumberChanged = oldWidget.pageNumber != widget.pageNumber;
 
-    if (sourceChanged || imageChanged || contentChanged) {
+    if (sourceChanged || imageChanged || contentChanged || pageNumberChanged) {
+      _pageGen++;
       _ehentaiResolveRetries = 0;
       _pageResolveFuture = null;
       _postProcessScheduledPath = null;
+      _postProcessScheduledGen = null;
       _staticConvertedFilePath = null;
+      _isHeavyImage = false;
+      _isConfirmedAnimatedWebP = false;
+      _cachedFilePath = null;
+      _nativeImageSize = null;
+      _nativeImageByteSize = null;
+      _awaitingNativeCheckGen = null;
+      _shouldBypassLocalDecode = false;
+      _avifDecodeRetried = false;
+
       if (_resolveCancellation != null && !_resolveCancellation!.isCancelled) {
         _resolveCancellation!.cancel('Widget updated');
       }
@@ -700,22 +773,37 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       _prepareEhentaiResolveFuture();
       _prepareMangaFireImageFuture();
 
+      // Re-seed from accelerator maps for the NEW identity
+      _seedFromAcceleratorMaps();
+
       if (_isLocalFilePath(widget.imageUrl)) {
         final localPath = _normalizeLocalPath(widget.imageUrl);
         _seedConvertedPathFromCache(localPath);
         _cachedFilePath = _staticConvertedFilePath ?? localPath;
-        _boundedMapPut(_cachedFilePathByUrl, widget.imageUrl, _cachedFilePath!,
-            _maxCachedFilePathByUrl);
+        _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
+            _cachedFilePath!, _maxCachedFilePathByUrl);
         final isKnownBrokenAvif = localPath.toLowerCase().endsWith('.avif') &&
             _knownBrokenLocalAvifPaths.contains(localPath);
         _shouldBypassLocalDecode = isKnownBrokenAvif;
         if (!_shouldBypassLocalDecode) {
-          _awaitingNativeCheck = _shouldConvertTallAvifLocalFile(localPath);
+          if (_shouldConvertTallAvifLocalFile(localPath)) {
+            _awaitingNativeCheck = true;
+          }
           _preCheckLocalFileForHeavy(localPath);
         }
       } else {
-        _shouldBypassLocalDecode = false;
-        _awaitingNativeCheck = false;
+        if (!_isHeavyImage &&
+            _isNativeViewAvailable &&
+            _shouldInspectCachedFileForAnimatedWebP(widget.imageUrl)) {
+          if (widget.imageUrl
+              .toLowerCase()
+              .split('?')
+              .first
+              .endsWith('.avif')) {
+            _awaitingNativeCheck = true;
+          }
+          _preCheckDiskCacheForHeavy();
+        }
       }
     }
   }
@@ -724,9 +812,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (_shouldBypassLocalDecode) {
       return;
     }
+    final gen = _pageGen;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _shouldBypassLocalDecode) {
+      if (!mounted || _pageGen != gen || _shouldBypassLocalDecode) {
         return;
       }
 
@@ -737,20 +826,22 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   void _retryBrokenLocalImage() {
+    final gen = _pageGen;
     final localPath = _normalizeLocalPath(widget.imageUrl);
     if (localPath.toLowerCase().endsWith('.avif')) {
       _knownBrokenLocalAvifPaths.remove(localPath);
     }
     _pipeline.hasInvalidImagePayload(localPath).then((shouldBypass) {
-      if (!mounted) {
-        _shouldBypassLocalDecode = shouldBypass;
+      if (!mounted || _pageGen != gen) {
         return;
       }
       setState(() {
         _shouldBypassLocalDecode = shouldBypass;
       });
       if (!shouldBypass) {
-        _awaitingNativeCheck = _shouldConvertTallAvifLocalFile(localPath);
+        if (_shouldConvertTallAvifLocalFile(localPath)) {
+          _awaitingNativeCheck = true;
+        }
         _preCheckLocalFileForHeavy(localPath);
       }
     });
@@ -841,10 +932,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       // decode it. Convert in place — same path as initState's pre-check, which
       // also deletes format conflicts and syncs offline metadata.
       if (!_isHeavyImage &&
-          AnimatedWebPView.isAvailable &&
-          _postProcessScheduledPath != effectiveLocalPath &&
+          _isNativeViewAvailable &&
+          (_postProcessScheduledPath != effectiveLocalPath ||
+              _postProcessScheduledGen != _pageGen) &&
           _shouldConvertTallAvifLocalFile(effectiveLocalPath)) {
         _postProcessScheduledPath = effectiveLocalPath;
+        _postProcessScheduledGen = _pageGen;
         _awaitingNativeCheck = true;
         _preCheckLocalFileForHeavy(effectiveLocalPath);
         return _buildLoadingIndicator(context);
@@ -854,7 +947,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         return _buildNativeAnimatedWebP(
           effectiveLocalPath,
           const {},
-          filePathOverride: _cachedFilePath ?? effectiveLocalPath,
+          filePath: _staticConvertedFilePath ?? effectiveLocalPath,
         );
       }
 
@@ -939,7 +1032,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 });
               }
 
-              if (!_isHeavyImage && AnimatedWebPView.isAvailable) {
+              if (!_isHeavyImage && _isNativeViewAvailable) {
                 _schedulePostProcessResolvedFile(effectiveLocalPath);
               }
 
@@ -1072,6 +1165,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     _pageResolveFuture ??= _resolvePageToFile(url);
 
     return FutureBuilder<PageImageResult?>(
+      key: ValueKey(
+          'page_resolve_${widget.contentId}_${widget.pageNumber}_$_pageGen'),
       future: _pageResolveFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -1093,8 +1188,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           // Tall static AVIF served as `.jpg`/`.png` fails Flutter's decode
           // too. Flag it before the first decode attempt, then convert.
           if (!_isHeavyImage &&
-              AnimatedWebPView.isAvailable &&
-              _postProcessScheduledPath != path &&
+              _isNativeViewAvailable &&
+              (_postProcessScheduledPath != path ||
+                  _postProcessScheduledGen != _pageGen) &&
               _shouldConvertTallAvifLocalFile(path)) {
             _awaitingNativeCheck = true;
             _schedulePostProcessResolvedFile(path);
@@ -1107,12 +1203,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           // Deferred post-frame: _postProcessResolvedFile calls setState
           // before its first await, so calling it here would run setState
           // synchronously inside the build phase.
-          if (!_isHeavyImage && AnimatedWebPView.isAvailable) {
+          if (!_isHeavyImage && _isNativeViewAvailable) {
             _schedulePostProcessResolvedFile(path);
           }
           // Heavy/animated routing still runs from the local file (unchanged).
           if (_shouldUseNativeAnimatedView(path)) {
-            return _buildNativeAnimatedWebP(path, headers);
+            return _buildNativeAnimatedWebP(
+              path,
+              headers,
+              filePath: _staticConvertedFilePath ?? path,
+            );
           }
           // Tall static AVIF was converted in place: the resolved path is
           // gone, so render the WebP as a plain webtoon page.
@@ -1192,10 +1292,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   void _schedulePostProcessResolvedFile(String path) {
-    if (_postProcessScheduledPath == path) return;
+    if (_postProcessScheduledPath == path &&
+        _postProcessScheduledGen == _pageGen) {
+      return;
+    }
     _postProcessScheduledPath = path;
+    _postProcessScheduledGen = _pageGen;
+    final gen = _pageGen;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || _isHeavyImage) return;
+      if (!mounted || _pageGen != gen || _isHeavyImage) return;
       _pipeline
           .processImageFile(
         filePath: path,
@@ -1203,7 +1308,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         pageNumber: widget.pageNumber,
       )
           .then((result) {
-        _applyProcessedResult(result);
+        if (!mounted || _pageGen != gen) return;
+        _applyProcessedResult(result, gen: gen);
       });
     });
   }
@@ -1218,7 +1324,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     // Only route small/normal .webp through ExtendedImage.network.
     final isLikelyAnimatedUrl = _isLikelyAnimatedUrl(url);
     if (_shouldUseNativeAnimatedView(url)) {
-      return _buildNativeAnimatedWebP(url, headers);
+      return _buildNativeAnimatedWebP(
+        url,
+        headers,
+        filePath: _cachedFilePath,
+      );
     }
 
     // Block ExtendedImage from decoding while the async native-format check
@@ -1340,10 +1450,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
             // Many servers skip Content-Length; check actual file on disk at complete.
             if (!_isConfirmedAnimatedWebP &&
-                AnimatedWebPView.isAvailable &&
+                _isNativeViewAvailable &&
                 _shouldInspectCachedFileForAnimatedWebP(url)) {
+              final gen = _pageGen;
+              final capturedKey = _currentTripleKey;
+              final capturedPageNumber = widget.pageNumber;
               getCachedImageFile(url).then((cacheFile) {
-                if (cacheFile == null) return;
+                if (cacheFile == null || !mounted || _pageGen != gen) return;
                 _pipeline
                     .processImageFile(
                   filePath: cacheFile.path,
@@ -1351,15 +1464,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   pageNumber: widget.pageNumber,
                 )
                     .then((result) {
+                  if (!mounted || _pageGen != gen) return;
                   if (result.isHeavy || result.isConfirmedAnimatedWebP) {
                     _markHeavyNativeAnimatedImage(
-                      cacheKey: widget.imageUrl,
+                      key: capturedKey,
                       cachedFilePath: cacheFile.path,
                       confirmedAnimatedWebP: true,
                     );
                     clearMemoryImageCache(url);
                     _cancelToken?.cancel();
-                    if (!mounted) return;
                     _cancelToken = CancellationToken();
                     setState(() {
                       _isHeavyImage = true;
@@ -1376,15 +1489,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                     _maybeNotifyHeavyImageDetected();
                     if (result.nativeImageSize != null) {
                       WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          widget.onImageLoaded
-                              ?.call(widget.pageNumber, result.nativeImageSize!);
+                        if (mounted && _pageGen == gen) {
+                          widget.onImageLoaded?.call(
+                              capturedPageNumber, result.nativeImageSize!);
                         }
                       });
                     }
                   } else {
-                    _boundedSetAdd(
-                        _nonNativeAnimatedUrls, url, _maxHeavyImageUrls);
+                    _boundedTripleSetAdd(_nonNativeAnimatedKeys, capturedKey,
+                        _maxHeavyImageUrls);
                   }
                 });
               }).catchError((Object e) {
@@ -1407,9 +1520,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   Widget _buildNativeAnimatedWebP(
     String url,
     Map<String, String>? headers, {
-    String? filePathOverride,
+    required String? filePath,
   }) {
-    final resolvedFilePath = filePathOverride ?? _cachedFilePath;
     final playInlineInContinuousScroll =
         widget.readingMode == ReadingMode.continuousScroll;
 
@@ -1418,7 +1530,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       child: AnimatedWebPView(
         key: ValueKey('native_webp_${widget.contentId}_${widget.pageNumber}'),
         url: url,
-        filePath: resolvedFilePath,
+        filePath: filePath,
         headers: headers ?? const {},
         targetWidth: _nativeDecodeWidth(context),
         pauseTooltip: l10n?.pause ?? 'Pause',
@@ -1477,7 +1589,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   bool _shouldInspectCachedFileForAnimatedWebP(String url) {
-    if (_nonNativeAnimatedUrls.contains(url)) {
+    if (_nonNativeAnimatedKeys.contains(_currentTripleKey)) {
       return false;
     }
 
@@ -1492,19 +1604,18 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   void _markHeavyNativeAnimatedImage({
-    required String cacheKey,
+    required PageImageTripleKey key,
     required String cachedFilePath,
     required bool confirmedAnimatedWebP,
   }) {
-    _boundedSetAdd(_heavyImageUrls, cacheKey, _maxHeavyImageUrls);
-    _boundedMapPut(_cachedFilePathByUrl, cacheKey, cachedFilePath,
+    _boundedTripleSetAdd(_heavyImageKeys, key, _maxHeavyImageUrls);
+    _boundedTripleMapPut(_cachedFilePathByTripleKey, key, cachedFilePath,
         _maxCachedFilePathByUrl);
     if (confirmedAnimatedWebP) {
-      _boundedSetAdd(
-          _confirmedAnimatedWebPUrls, cacheKey, _maxConfirmedAnimatedWebPUrls);
+      _boundedTripleSetAdd(
+          _confirmedAnimatedWebPKeys, key, _maxConfirmedAnimatedWebPUrls);
     }
   }
-
 
   int? _targetDecodeWidth(
     BuildContext context, {
@@ -1596,8 +1707,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       'page=${widget.pageNumber}, failed=$failedUrl',
     );
 
+    final gen = _pageGen;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted || _pageGen != gen) return;
       setState(() {
         _ehentaiResolvedImageFuture = _resolveEhentaiImageUrl(readerPageUrl);
       });
