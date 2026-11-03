@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+
 import 'package:nhasixapp/core/di/service_locator.dart';
 
 import '../../domain/entities/download_task.dart';
@@ -57,16 +58,15 @@ class DownloadManager {
   }
 
   void _onReaderActiveChanged() {
+    // Reader-driven auto-pause is owned by DownloadBloc, which reads running
+    // downloads from its own DownloadLoaded state (native WorkManager work has
+    // no entry in _tasks). This listener only records the signal so both
+    // layers never double-pause.
     try {
       final active =
           getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value;
-      _logger.d('DownloadManager: readerActive=$active');
-      if (active) {
-        for (final contentId in _tasks.keys) {
-          if (!isPaused(contentId)) {
-            pauseDownload(contentId);
-          }
-        }
+      if (kDebugMode) {
+        _logger.d('DownloadManager: readerActive=$active (bloc-owned)');
       }
     } catch (e) {
       _logger.w('DownloadManager: onReaderActiveChanged error: $e');
@@ -77,6 +77,17 @@ class DownloadManager {
   final StreamController<DownloadProgressUpdate> _progressController =
       StreamController<DownloadProgressUpdate>.broadcast();
   final Map<String, DownloadTask> _tasks = {};
+
+  /// Per-contentId pause bookkeeping that survives without a registered task.
+  /// Native downloads run in WorkManager, so [_tasks] is empty for real runs;
+  /// this set keeps pause/resume consistent across that gap.
+  final Set<String> _pausedContents = {};
+
+  /// Contents currently recorded as paused (task or task-less).
+  Set<String> get pausedContents => Set.unmodifiable(_pausedContents);
+
+  bool isTrackedPaused(String contentId) =>
+      _pausedContents.contains(contentId) || isPaused(contentId);
 
   StreamSubscription? _nativeSubscription;
 
@@ -98,8 +109,10 @@ class DownloadManager {
           final int safeDownloaded =
               downloaded.clamp(0, safeTotal > 0 ? safeTotal : downloaded);
 
-          _logger.d(
-              'Native event: $contentId -> $status ($downloaded/$total) @ $speed B/s');
+          if (kDebugMode) {
+            _logger.d(
+                'Native event: $contentId -> $status ($downloaded/$total) @ $speed B/s');
+          }
 
           if (status == 'COMPLETED') {
             if (safeDownloaded <= 0) {
@@ -152,12 +165,16 @@ class DownloadManager {
 
   void registerTask(DownloadTask task) {
     _tasks[task.contentId] = task;
-    _logger.d('DownloadManager: Registered task: ${task.contentId}');
+    if (kDebugMode) {
+      _logger.d('DownloadManager: Registered task: ${task.contentId}');
+    }
   }
 
   void unregisterTask(String contentId) {
     _tasks.remove(contentId);
-    _logger.d('DownloadManager: Unregistered task: $contentId');
+    if (kDebugMode) {
+      _logger.d('DownloadManager: Unregistered task: $contentId');
+    }
   }
 
   DownloadTask? getTask(String contentId) {
@@ -175,10 +192,15 @@ class DownloadManager {
   }
 
   Future<void> pauseDownload(String contentId) async {
-    _logger.d('DownloadManager: Pausing $contentId');
+    if (kDebugMode) {
+      _logger.d('DownloadManager: Pausing $contentId');
+    }
     try {
       final task = _tasks[contentId];
       task?.pause();
+      // Recorded even when no task exists: native WorkManager work is
+      // cancelled below and resume re-queues with skip-existing-files.
+      _pausedContents.add(contentId);
       await NativeDownloadService().pauseDownload(contentId);
     } catch (e) {
       _logger.e('DownloadManager: Failed to pause $contentId', error: e);
@@ -189,10 +211,21 @@ class DownloadManager {
   void resumeTaskState(String contentId) {
     final task = _tasks[contentId];
     task?.resume();
+    _pausedContents.remove(contentId);
+  }
+
+  /// Clears per-contentId pause bookkeeping after a resume re-queue.
+  /// The native worker skips already-downloaded pages, so no duplicate
+  /// worker runs and no finished page is re-downloaded.
+  void resumeDownload(String contentId) {
+    _pausedContents.remove(contentId);
+    resumeTaskState(contentId);
   }
 
   Future<void> cancelDownload(String contentId) async {
-    _logger.d('DownloadManager: Cancelling $contentId');
+    if (kDebugMode) {
+      _logger.d('DownloadManager: Cancelling $contentId');
+    }
     try {
       final task = _tasks[contentId];
       task?.cancel();
@@ -206,7 +239,9 @@ class DownloadManager {
   void emitProgress(DownloadProgressUpdate update) {
     if (!_progressController.isClosed) {
       _progressController.add(update);
-      _logger.d('DownloadManager: Emitted progress update: $update');
+      if (kDebugMode) {
+        _logger.d('DownloadManager: Emitted progress update: $update');
+      }
     } else {
       _logger.w('DownloadManager: Cannot emit progress - controller is closed');
     }

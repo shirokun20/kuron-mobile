@@ -110,12 +110,18 @@ class DownloadStartEvent extends DownloadEvent {
 
 // Event to pause a download
 class DownloadPauseEvent extends DownloadEvent {
-  const DownloadPauseEvent(this.contentId);
+  const DownloadPauseEvent(this.contentId, {this.autoPaused = false});
 
   final String contentId;
 
+  /// Origin flag: true when issued by reader-entry auto-pause, false for
+  /// user-initiated pauses (default, backward compatible). The pause handler
+  /// drops a stale auto-pause whose content left the auto-paused set before
+  /// the event drained (entry followed by an immediate exit).
+  final bool autoPaused;
+
   @override
-  List<Object?> get props => [contentId];
+  List<Object?> get props => [contentId, autoPaused];
 }
 
 // Event to cancel a download

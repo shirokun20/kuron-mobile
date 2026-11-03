@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:logger/logger.dart';
 import '../di/service_locator.dart';
@@ -107,15 +108,21 @@ class HttpClientManager {
           handler.next(error);
         },
         onRequest: (options, handler) {
-          _logger?.d(
-            'HTTP Request: ${options.method} ${_redactedTarget(options.uri)}',
-          );
+          // Per-request log: debug-gated, stripped in release (hot path).
+          if (kDebugMode) {
+            _logger?.d(
+              'HTTP Request: ${options.method} ${_redactedTarget(options.uri)}',
+            );
+          }
           handler.next(options);
         },
         onResponse: (response, handler) {
-          _logger?.d(
-            'HTTP Response: ${response.statusCode} ${_redactedTarget(response.requestOptions.uri)}',
-          );
+          // Per-response log: debug-gated, stripped in release (hot path).
+          if (kDebugMode) {
+            _logger?.d(
+              'HTTP Response: ${response.statusCode} ${_redactedTarget(response.requestOptions.uri)}',
+            );
+          }
           handler.next(response);
         },
       ),

@@ -59,6 +59,19 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
 
   final Map<int, CancelToken> _cancelTokens = <int, CancelToken>{};
 
+  /// Per-page tokens for the repo (`resolvePage`) path, so window-cancel
+  /// reaches repo downloads — not just the legacy Dio path.
+  final Map<int, CancelToken> _repoTokens = <int, CancelToken>{};
+
+  /// Window generation id: starting a new window cancels the previous
+  /// window's out-of-window token(s). Only pages OUTSIDE the new window are
+  /// cancelled (their `.part` is deleted by the streaming writer's
+  /// cancel cleanup); overlapping pages keep running.
+  int _windowGeneration = 0;
+
+  /// Current window generation (for tests).
+  int get windowGeneration => _windowGeneration;
+
   /// Unified download-first resolver. When injected, prefetch delegates its
   /// network download here (streaming + dedup). When null (e.g. some tests), a
   /// legacy Dio path is kept as fallback.
@@ -88,6 +101,8 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
   }) async {
     if (imageUrls.isEmpty) return;
 
+    _startWindow(currentPage, imageUrls.length);
+
     if (_isHeavySource(sourceId)) {
       // Only back-prefetch (recent pages) for heavy sources — forward would
       // saturate GPU.
@@ -100,6 +115,40 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
         _prefetchForward(currentPage, imageUrls, imageMetadata, sourceId,
             contentId, headers, cancelToken),
       ]);
+    }
+  }
+
+  /// Pages covered by a window centred on [currentPage].
+  static Set<int> windowFor(int currentPage, int totalPages) {
+    final window = <int>{currentPage};
+    for (int i = 1; i <= _prefetchBackCount; i++) {
+      if (currentPage - i >= 1) window.add(currentPage - i);
+    }
+    for (int i = 1; i <= _prefetchCount; i++) {
+      if (currentPage + i <= totalPages) window.add(currentPage + i);
+    }
+    return window;
+  }
+
+  void _startWindow(int currentPage, int totalPages) {
+    _windowGeneration++;
+    final window = windowFor(currentPage, totalPages);
+    // Cancel previous window's tokens for pages outside the new window.
+    // In-flight entries are dropped from bookkeeping so they can be
+    // re-attempted; overlapping pages keep running untouched.
+    for (final entry in _cancelTokens.entries.toList()) {
+      if (!window.contains(entry.key)) {
+        if (!entry.value.isCancelled) entry.value.cancel('window moved');
+        _cancelTokens.remove(entry.key);
+        _setInflight(entry.key, false);
+      }
+    }
+    for (final entry in _repoTokens.entries.toList()) {
+      if (!window.contains(entry.key)) {
+        if (!entry.value.isCancelled) entry.value.cancel('window moved');
+        _repoTokens.remove(entry.key);
+        _setInflight(entry.key, false);
+      }
     }
   }
 
@@ -183,29 +232,40 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
     }
 
     // Download-first: delegate to the unified (streaming + deduplicating)
-    // resolver when present.
+    // resolver when present. Tracked under the same in-flight bookkeeping as
+    // the legacy path so window-cancel reaches repo downloads and
+    // `_isPrefetched` actually dedups concurrent repo requests.
     final repo = repository;
     if (repo != null) {
       if (cancelToken?.isCancelled == true) {
         _unmarkPrefetched(targetPage);
         return;
       }
-      final result = await repo.resolvePage(
-        url: imageUrl,
-        contentId: contentId,
-        pageNumber: targetPage,
-        sourceId: sourceId,
-        headers: headers,
-        cancelToken: cancelToken,
-      );
-      if (result is ReadyFromDisk || result is ReadyFresh) {
-        _markPrefetched(targetPage);
-      } else {
-        // FailedPage — allow retry later.
-        final reason =
-            result is FailedPage ? result.reason.toString() : 'unknown';
-        logDebug('prefetch fail page $targetPage: $reason');
-        _unmarkPrefetched(targetPage);
+      if (_isPrefetched(targetPage)) return;
+      final pageToken = CancelToken();
+      _repoTokens[targetPage] = pageToken;
+      _setInflight(targetPage, true);
+      try {
+        final result = await repo.resolvePage(
+          url: imageUrl,
+          contentId: contentId,
+          pageNumber: targetPage,
+          sourceId: sourceId,
+          headers: headers,
+          cancelToken: pageToken,
+        );
+        if (result is ReadyFromDisk || result is ReadyFresh) {
+          _markPrefetched(targetPage);
+        } else {
+          // FailedPage — allow retry later.
+          final reason =
+              result is FailedPage ? result.reason.toString() : 'unknown';
+          logDebug('prefetch fail page $targetPage: $reason');
+          _unmarkPrefetched(targetPage);
+        }
+      } finally {
+        _repoTokens.remove(targetPage);
+        _setInflight(targetPage, false);
       }
       return;
     }
@@ -238,6 +298,7 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
       state.inflightPages.contains(page);
 
   void _markPrefetched(int page) {
+    if (isClosed) return;
     emit(state._mutate(
       prefetchedPages: {...state.prefetchedPages, page},
       totalPrefetched: state.totalPrefetched + 1,
@@ -245,6 +306,7 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
   }
 
   void _unmarkPrefetched(int page) {
+    if (isClosed) return;
     emit(state._mutate(
       prefetchedPages: {...state.prefetchedPages}..remove(page),
       totalPrefetched:
@@ -253,6 +315,7 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
   }
 
   void _setInflight(int page, bool v) {
+    if (isClosed) return;
     final next = {...state.inflightPages};
     if (v) {
       next.add(page);
@@ -285,6 +348,10 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
       if (!token.isCancelled) token.cancel();
     }
     _cancelTokens.clear();
+    for (final token in _repoTokens.values) {
+      if (!token.isCancelled) token.cancel();
+    }
+    _repoTokens.clear();
     emit(state._mutate(inflightPages: const {}, prefetchedPages: const {}));
   }
 }

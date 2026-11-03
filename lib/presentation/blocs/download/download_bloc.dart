@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:equatable/equatable.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
@@ -35,7 +36,6 @@ import '../../widgets/content_list_widget.dart';
 
 import 'package:nhasixapp/core/services/workers/background_download_utils.dart';
 // import 'package:nhasixapp/core/services/workers/download_worker.dart'; // REMOVED
-import '../../../core/services/native_download_service.dart';
 
 part 'download_event.dart';
 part 'download_state.dart';
@@ -287,6 +287,51 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
   DownloadSettings _settings = DownloadSettings.defaultSettings();
   final Map<String, DownloadTask> _activeTasks = {};
+  // Reader-driven auto-pause (1.1/1.3): contents the bloc itself paused on
+  // reader entry. User-paused contents are never added here and never resumed.
+  final Set<String> _readerAutoPaused = {};
+
+  /// Contents auto-paused on the current/last reader session (for tests).
+  Set<String> get readerAutoPaused => Set.unmodifiable(_readerAutoPaused);
+
+  /// Called with the `globalReaderActive` value. On entry, every content with
+  /// downloading status in this bloc's own [DownloadLoaded] state is paused
+  /// via [DownloadManager.pauseDownload] (native cancel) and recorded. On
+  /// exit, exactly that recorded set is resumed; user-paused stays paused.
+  Future<void> handleReaderActiveChanged(bool active) async {
+    if (active) {
+      final currentState = state;
+      if (currentState is! DownloadLoaded) return;
+      for (final download in currentState.downloads) {
+        // Only running downloads are touched; user-paused stays paused and
+        // is never recorded. Pause goes through the normal event path so
+        // native cancel + DB + notification bookkeeping stay consistent
+        // (_onPause routes through DownloadManager.pauseDownload).
+        if (download.state == DownloadState.downloading &&
+            !_readerAutoPaused.contains(download.contentId)) {
+          _readerAutoPaused.add(download.contentId);
+          add(DownloadPauseEvent(download.contentId, autoPaused: true));
+        }
+      }
+    } else {
+      if (_readerAutoPaused.isEmpty) return;
+      final ids = List<String>.from(_readerAutoPaused);
+      _readerAutoPaused.clear();
+      final currentState = state;
+      if (currentState is! DownloadLoaded) return;
+      for (final contentId in ids) {
+        final download = currentState.downloads
+            .where((d) => d.contentId == contentId)
+            .firstOrNull;
+        // Only resume what is still paused — user may have cancelled/removed
+        // it while the reader was open.
+        if (download != null && download.state == DownloadState.paused) {
+          add(DownloadResumeEvent(contentId));
+        }
+      }
+    }
+  }
+
   StreamSubscription<DownloadProgressUpdate>? _progressSubscription;
   // Coalesce native per-page progress: animated galleries emit dozens/sec;
   // each emit rebuilds every DownloadBloc listener + respawns image work.
@@ -297,7 +342,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   void _initializeProgressStream() {
     _progressSubscription = _downloadManager.progressStream.listen(
       (update) {
-        _logger.d('DownloadBloc: Received progress update: $update');
+        if (kDebugMode) {
+          _logger.d('DownloadBloc: Received progress update: $update');
+        }
 
         if (update.downloadedPages == -1) {
           _lastProgressEmit.remove(update.contentId);
@@ -1364,6 +1411,17 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     final currentState = state;
     if (currentState is! DownloadLoaded) return;
 
+    // Stale auto-pause: entry queued this event, but the user exited before
+    // it drained and the exit path already cleared the auto-paused set.
+    // Executing it now would leave the download stuck paused with no resume
+    // coming. User-initiated pauses (autoPaused=false) are never dropped.
+    if (event.autoPaused &&
+        !_readerAutoPaused.contains(event.contentId)) {
+      _logger.i(
+          'DownloadBloc: Dropping stale auto-pause for ${event.contentId}');
+      return;
+    }
+
     try {
       _logger.i('DownloadBloc: Pausing download for ${event.contentId}');
 
@@ -1382,7 +1440,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         _logger.i('DownloadBloc: Paused task for ${event.contentId}');
       }
 
-      await NativeDownloadService().pauseDownload(event.contentId);
+      await _downloadManager.pauseDownload(event.contentId);
 
       final updatedDownload = download.copyWith(
         state: DownloadState.paused,
@@ -1444,7 +1502,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
       _cancelDownloadTask(event.contentId);
 
-      await NativeDownloadService().cancelDownload(event.contentId);
+      await _downloadManager.cancelDownload(event.contentId);
 
       final updatedDownload = download.copyWith(
         state: DownloadState.cancelled,
@@ -1570,6 +1628,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         task.resume();
         _logger.i('DownloadBloc: Resumed task for ${event.contentId}');
       }
+      // Clears per-contentId pause bookkeeping; the re-queued native worker
+      // skips already-downloaded pages (no duplicate worker, no re-download).
+      _downloadManager.resumeDownload(event.contentId);
 
       final updatedDownload = DownloadStatus(
         contentId: download.contentId,
