@@ -1,132 +1,217 @@
-![Kuron](https://socialify.git.ci/shirokun20/nhasixapp/image?description=1&font=Source+Code+Pro&forks=1&issues=1&logo=https://github.com/shirokun20/nhasixapp/blob/master/assets/icons/logo_app.png%3Fraw%3Dtrue&name=1&owner=1&pattern=Floating+Cogs&pulls=1&stargazers=1&theme=Auto)
-# 📱 Kuron - Klien tidak resmi NHentai
+<div align="center">
 
-[![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
-[![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev)
-[![Android](https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://www.android.com)
-[![18+](https://img.shields.io/badge/Batasan_Usia-18%2B-red?style=for-the-badge&logo=warning&logoColor=white)](#)
-[![RELEASE](https://img.shields.io/badge/Status-RELEASE_v0.9.28%2B38-green?style=for-the-badge&logo=android&logoColor=white)](#)
-[![Build](https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge)](#)
-[![Code Quality](https://img.shields.io/badge/code_quality-A+-blueviolet?style=for-the-badge)](#)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge)](#)
-[![Downloads](https://img.shields.io/github/downloads/shirokun20/nhasixapp/total?style=for-the-badge&logo=github&logoColor=white&color=007ec6)](https://github.com/shirokun20/nhasixapp/releases)
-[![Hits](https://komarev.com/ghpvc/?username=shirokun20&repo=nhasixapp&style=for-the-badge&color=007ec6)](https://github.com/shirokun20/nhasixapp)
-[![Stars](https://img.shields.io/github/stars/shirokun20/nhasixapp?style=for-the-badge&logo=github&logoColor=white&color=yellow)](https://github.com/shirokun20/nhasixapp/stargazers)
-<a href="https://trakteer.id/shirokun20" target="_blank"><img src="https://img.shields.io/badge/Support_Me-Trakteer-be1e2d?style=for-the-badge&logo=ko-fi&logoColor=white" height="30"/></a>
+<img src="https://socialify.git.ci/shirokun20/nhasixapp/image?description=1&font=Source+Code+Pro&forks=1&issues=1&logo=https://github.com/shirokun20/nhasixapp/blob/master/assets/icons/logo_app.png%3Fraw%3Dtrue&name=1&owner=1&pattern=Floating+Cogs&pulls=1&stargazers=1&theme=Auto" alt="Kuron" width="100%"/>
 
-> [!TIP]
-> **[🇺🇸 Read in English](README.md)**
+# 📱 Kuron
 
-> **Kuron** — pembaca komik mobile **70% lebih cepat** dari browser, **privasi utama**, **siap offline**.
->
-> 🚀 **70% lebih cepat** · 🔒 **App Disguise** + Recent Apps blur · 📦 **Offline-first** dengan DL background
-> 🧩 **Multi-provider**: nhentai, E-Hentai, Hitomi, + ekstensi config-driven · 🎨 **Material 3**
+### Klien Nhentai Tidak Resmi
+
+**Aplikasi pembaca mobile yang 70% lebih cepat dari browser, mengutamakan privasi, dan siap offline.**
+
+[🇬🇧 Read in English](README.md) · 🇮🇩 Bahasa Indonesia
+
+<!-- Baris 1: Tech stack & status rilis -->
+<a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter" height="28"/></a>
+<a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart" height="28"/></a>
+<a href="https://www.android.com"><img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" height="28"/></a>
+<a href="#-lisensi--legal"><img src="https://img.shields.io/badge/Age_Restriction-18%2B-red?style=for-the-badge&logo=warning&logoColor=white" alt="18+" height="28"/></a>
+<a href="https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.28%2B38"><img src="https://img.shields.io/badge/Status-RELEASE_v0.9.28%2B38-green?style=for-the-badge&logo=android&logoColor=white" alt="Rilis v0.9.28+38" height="28"/></a>
+<img src="https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge" alt="Build" height="28"/>
+<img src="https://img.shields.io/badge/code_quality-A+-blueviolet?style=for-the-badge" alt="Code Quality" height="28"/>
+
+<br/>
+
+<!-- Baris 2: Statistik, unduhan & dukungan -->
+<img src="https://img.shields.io/badge/PRs-welcome-ff69b4?style=for-the-badge" alt="PRs Welcome" height="28"/>
+<a href="https://github.com/shirokun20/nhasixapp/releases"><img src="https://img.shields.io/github/downloads/shirokun20/nhasixapp/total?style=for-the-badge&logo=github&logoColor=white&color=007ec6" alt="Unduhan" height="28"/></a>
+<a href="https://github.com/shirokun20/nhasixapp"><img src="https://komarev.com/ghpvc/?username=shirokun20&repo=nhasixapp&style=for-the-badge&color=007ec6" alt="Hits" height="28"/></a>
+<a href="https://github.com/shirokun20/nhasixapp/stargazers"><img src="https://img.shields.io/github/stars/shirokun20/nhasixapp?style=for-the-badge&logo=github&logoColor=white&color=yellow" alt="Stars" height="28"/></a>
+<a href="https://trakteer.id/shirokun20" target="_blank"><img src="https://img.shields.io/badge/Support_Me-Trakteer-be1e2d?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Dukung Saya di Trakteer" height="28"/></a>
+
+<br/><br/>
+
+🚀 **70% lebih cepat** · 🔒 **App Disguise** + blur Recent Apps · 📦 **Offline-first** dengan unduhan latar belakang<br/>
+🧩 **Multi-provider**: nhentai, E-Hentai, Hitomi, + ekstensi berbasis konfigurasi · 🎨 **Material 3**
+
+<br/>
+
+<a href="#-unduh-rilis-terbaru">Unduh</a> ·
+<a href="#-fitur-utama">Fitur</a> ·
+<a href="#-tangkapan-layar">Tangkapan Layar</a> ·
+<a href="#-tech-stack">Tech Stack</a> ·
+<a href="#-mulai-cepat">Mulai Cepat</a> ·
+<a href="#-menambahkan-sumber-kustom">Sumber Kustom</a> ·
+<a href="#-dukungan--faq">FAQ</a> ·
+<a href="#-dukung-developer">Donasi</a> ·
+<a href="#-lisensi--legal">Lisensi</a>
+
+</div>
 
 ---
 
-## 📥 **Download Rilis Terbaru**
+## 📥 Unduh Rilis Terbaru
 
-[📦 **Download v0.9.28+38**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.28%2B38)
+[📦 **Dapatkan v0.9.28+38**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.28%2B38)
 
 | Varian | Ukuran | Cocok Untuk | Status |
-|:-------|:----:|:---------|:------:|
-| **Universal** | 1 file | Semua HP (ARM64 / ARM32 / x86_64) — nggak perlu pilih-pilih | ✅ Tersedia |
+|:-------|:------:|:------------|:------:|
+| **Universal** | 1 file | Semua perangkat (ARM64 / ARM32 / x86_64) — tidak perlu memilih | ✅ Tersedia |
 
 ---
 
-## ✨ **Fitur Utama**
+## ✨ Fitur Utama
 
 <table>
   <tr>
-    <td width="50%">
-      <h4>🔐 Login nhentai & Sinkronisasi</h4>
-      Login akun nhentai — CAPTCHA solver, favorit online (Offline/Online/Keduanya), sinkron tag blacklist, komentar, galeri acak.
+    <td width="50%" valign="top">
+      <h4>🔐 Login & Sinkronisasi nhentai</h4>
+      <ul>
+        <li>Masuk dengan akun nhentai</li>
+        <li>CAPTCHA solver</li>
+        <li>Favorit online (Offline / Online / Keduanya)</li>
+        <li>Sinkronisasi blacklist tag</li>
+        <li>Komentar &amp; galeri acak</li>
+      </ul>
     </td>
-    <td width="50%">
+    <td width="50%" valign="top">
       <h4>🧩 Multi-Provider</h4>
-      nhentai (default) + E-Hentai, HentaiNexus, Hitomi — dukungan penuh. Ratusan lagi via <a href="#🔧-menambahkan-source-kustom">ekstensi config-driven</a>.<br/>
-      <small>⚠️ Source premium install via Pengaturan → Sources → Add via Link atau Import ZIP.</small>
+      <ul>
+        <li>nhentai (default) + E-Hentai, HentaiNexus, Hitomi — semuanya didukung penuh</li>
+        <li>Ratusan lainnya lewat <a href="#-menambahkan-sumber-kustom">ekstensi berbasis konfigurasi</a></li>
+        <li>⚠️ Sumber premium dipasang lewat <b>Settings → Sources → Add via Link</b> atau <b>Import ZIP</b></li>
+      </ul>
     </td>
   </tr>
   <tr>
-    <td>
+    <td valign="top">
       <h4>🤖 Terjemahan AI</h4>
-      Deteksi bubble ONNX on-device + provider BYOK (OpenAI-compatible, Gemini). 7 gaya terjemahan, edit per-bubble, draw mode manual, glossary, font gaya manga.
+      <ul>
+        <li>Deteksi balon teks ONNX langsung di perangkat</li>
+        <li>Provider BYOK (kompatibel OpenAI, Gemini)</li>
+        <li>7 gaya terjemahan</li>
+        <li>Edit per balon teks &amp; mode gambar manual</li>
+        <li>Glosarium &amp; font bergaya manga</li>
+      </ul>
     </td>
-    <td>
-      <h4>🔐 App Lock</h4>
-      Kunci aplikasi PIN + biometrik (sidik jari/wajah) dengan sesi 10 menit dan auto re-lock. Private DNS (DoH) native Android.
+    <td valign="top">
+      <h4>🔐 Kunci Aplikasi</h4>
+      <ul>
+        <li>Kunci aplikasi PIN + biometrik (sidik jari / wajah)</li>
+        <li>Sesi 10 menit dengan kunci ulang otomatis</li>
+        <li>Private DNS (DoH) native Android</li>
+      </ul>
     </td>
   </tr>
   <tr>
-    <td>
+    <td valign="top">
       <h4>📖 Pembaca Imersif</h4>
-      Layar penuh, 120fps mulus, dual-rate scroll, tap zones, toggle chrome drag, auto-bookmark, continuous scroll <i>dan</i> single-page.
+      <ul>
+        <li>Layar penuh, scroll mulus 120fps</li>
+        <li>Dual-rate scroll &amp; zona ketuk</li>
+        <li>Tombol chrome yang bisa digeser</li>
+        <li>Auto-bookmark</li>
+        <li>Mode scroll kontinu <i>dan</i> halaman tunggal</li>
+      </ul>
     </td>
-    <td>
+    <td valign="top">
       <h4>🔍 Pencarian Cerdas</h4>
-      Filter canggih: tag, popularitas, tanggal, bahasa — UI form dinamis, sort, chip multi-pilih. Bekerja di semua provider.
+      <ul>
+        <li>Filter lanjutan berdasarkan tag, popularitas, tanggal, bahasa</li>
+        <li>UI form dinamis, pengurutan, chip multi-pilih</li>
+        <li>Berfungsi di semua provider</li>
+      </ul>
     </td>
   </tr>
   <tr>
-    <td>
+    <td valign="top">
       <h4>🛡️ Privasi Utama</h4>
-      App Disguise (Kalkulator/Catatan/Cuaca), Recent Apps blur, download <code>.nomedia</code>, thumbnail blur default. Data tetap milikmu.
+      <ul>
+        <li>App Disguise (Kalkulator / Catatan / Cuaca)</li>
+        <li>Blur Recent Apps</li>
+        <li>Unduhan <code>.nomedia</code></li>
+        <li>Thumbnail di-blur secara default</li>
+        <li>Datamu tetap milikmu</li>
+      </ul>
     </td>
-    <td>
+    <td valign="top">
       <h4>📦 Offline-First</h4>
-      Download background, manajemen massal, import ZIP, <b>backup penuh</b> satu ketukan (favorit, koleksi, history, posisi baca, pengaturan) dengan restore aman, <b>import NClient V2/V3</b>, pembaca offline dengan sinkron progress. Koleksi lokal lengkap dengan sorting & filter.
+      <ul>
+        <li>Unduhan latar belakang, manajemen massal, impor ZIP</li>
+        <li><b>Backup penuh</b> satu ketukan dalam ZIP (favorit, koleksi, riwayat, posisi baca, pengaturan) dengan restore yang aman</li>
+        <li><b>Impor NClient V2/V3</b></li>
+        <li>Pembaca offline dengan sinkronisasi progres</li>
+        <li>Pustaka lokal lengkap dengan pengurutan &amp; filter</li>
+      </ul>
     </td>
   </tr>
   <tr>
-    <td>
-      <h4>🎨 Material 3</h4>
-      Tema Gelap/Terang/AMOLED adaptif, layout responsif, animasi Lottie, shimmer loading. Dibuat untuk Android modern.
+    <td valign="top">
+      <h4>🎨 Desain Material 3</h4>
+      <ul>
+        <li>Tema adaptif Dark / Light / AMOLED</li>
+        <li>Layout responsif</li>
+        <li>Animasi Lottie &amp; shimmer loading</li>
+        <li>Dibuat untuk Android modern</li>
+      </ul>
     </td>
-    <td>
+    <td valign="top">
       <h4>⚡ Performa</h4>
-      70% lebih cepat dari browser — preloading cerdas, cache gambar, GPU memory budget, hemat baterai dengan Wakelock.
+      <ul>
+        <li>70% lebih cepat dari browser</li>
+        <li>Preloading cerdas &amp; caching gambar</li>
+        <li>Anggaran memori GPU</li>
+        <li>Hemat baterai dengan kontrol Wakelock</li>
+      </ul>
     </td>
   </tr>
   <tr>
-    <td>
-      <h4>🔥 Streak Baca</h4>
-      Streak harian + maskot mood Kuro, kartu drawer + widget launcher (4×2 / 4×1 / 2×2). 100% lokal — tanpa judul, cover, tag, atau source keluar aplikasi.
+    <td valign="top">
+      <h4>🔥 Reading Streak</h4>
+      <ul>
+        <li>Streak harian + maskot Kuro dengan mood</li>
+        <li>Kartu di drawer + widget launcher (4×2 / 4×1 / 2×2)</li>
+        <li>100% lokal — tidak ada judul, sampul, tag, atau sumber yang keluar dari aplikasi</li>
+      </ul>
     </td>
-    <td>
-      <h4>👆 Kreator Bisa Diketuk</h4>
-      Baris artist/author di detail membuka pencarian by-tag internal — bukan teks mati, tanpa URL sampah.
+    <td valign="top">
+      <h4>👆 Kreator yang Bisa Diketuk</h4>
+      <ul>
+        <li>Baris artis/penulis di halaman detail membuka pencarian by-tag internal yang sama</li>
+        <li>Tidak ada lagi teks mati, tidak ada URL sampah</li>
+      </ul>
     </td>
   </tr>
 </table>
 
 ---
 
-## 📱 **Tangkapan Layar**
+## 📱 Tangkapan Layar
 
 <details>
-<summary>🖼️ Klik untuk melihat tangkapan layar (peringatan konten 18+)</summary>
+<summary><b>🖼️ Klik untuk melihat tangkapan layar (peringatan konten 18+)</b></summary>
+
+<br/>
 
 <table>
   <tr>
     <td align="center"><b>Beranda & Feed</b></td>
     <td align="center"><b>Detail & Konten</b></td>
-    <td align="center"><b>Mode Baca</b></td>
+    <td align="center"><b>Pembaca Imersif</b></td>
   </tr>
   <tr>
-    <td><img src="screenshots/flutter_02.png" width="250" alt="Layar Beranda" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
-    <td><img src="screenshots/flutter_13.png" width="250" alt="Layar Detail" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
-    <td><img src="screenshots/flutter_12.png" width="250" alt="Mode Baca" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
+    <td align="center"><img src="screenshots/flutter_02.png" width="250" alt="Layar Beranda"/></td>
+    <td align="center"><img src="screenshots/flutter_13.png" width="250" alt="Layar Detail"/></td>
+    <td align="center"><img src="screenshots/flutter_12.png" width="250" alt="Mode Pembaca"/></td>
   </tr>
   <tr>
     <td align="center"><b>Pencarian & Filter</b></td>
     <td align="center"><b>Pengaturan & Privasi</b></td>
-    <td align="center"><b>Download & Offline</b></td>
+    <td align="center"><b>Offline & Unduhan</b></td>
   </tr>
   <tr>
-    <td><img src="screenshots/flutter_04.png" width="250" alt="Pencarian" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
-    <td><img src="screenshots/flutter_06.png" width="250" alt="Pengaturan" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
-    <td><img src="screenshots/flutter_11.png" width="250" alt="Download" style="border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,0.15)"/></td>
+    <td align="center"><img src="screenshots/flutter_04.png" width="250" alt="Filter Pencarian"/></td>
+    <td align="center"><img src="screenshots/flutter_06.png" width="250" alt="Pengaturan"/></td>
+    <td align="center"><img src="screenshots/flutter_11.png" width="250" alt="Unduhan"/></td>
   </tr>
 </table>
 
@@ -134,26 +219,28 @@
 
 ---
 
-## 🛠️ **Teknologi**
+## 🛠️ Tech Stack
 
 | Layer | Stack |
 |:------|:------|
 | 🎯 **Bahasa** | Flutter 3.24+ · Dart 3.5+ |
-| 🏗️ **Arsitektur** | Clean Architecture · BLoC/Cubit · GetIt DI (manual registration) |
+| 🏗️ **Arsitektur** | Clean Architecture · BLoC/Cubit · GetIt DI (registrasi manual) |
 | 🗄️ **Data** | SQLite · SharedPreferences · Dio · GoRouter |
 | 🎨 **UI** | Material 3 · CachedNetworkImage · Lottie · PhotoView |
 | 🔧 **Sistem** | Wakelock+ · Local Notifications · Permission Handler |
 
 ---
 
-## 🚀 **Mulai Cepat**
+## 🚀 Mulai Cepat
 
-### **Instalasi**
-1. **Download APK** dari [Releases](https://github.com/shirokun20/nhasixapp/releases).
-2. **Aktifkan Sumber Tak Dikenal** di Pengaturan > Keamanan.
-3. **Install** dan nikmati!
+### Instalasi
 
-### **Build dari Source**
+1. **Unduh APK** dari [Releases](https://github.com/shirokun20/nhasixapp/releases).
+2. **Aktifkan Unknown Sources** di Settings > Security.
+3. **Instal** dan nikmati!
+
+### Build dari Source
+
 ```bash
 git clone https://github.com/shirokun20/nhasixapp.git
 cd nhasixapp
@@ -163,31 +250,32 @@ flutter run
 
 ---
 
-## 🔧 **Menambahkan Source Kustom**
+## 🔧 Menambahkan Sumber Kustom
 
 > [!TIP]
-> **Tidak ingin ribet membuat sendiri?**  
-> Install **ratusan ekstensi buatan komunitas** dari repositori resmi:
-> 
-> 🔗 **[github.com/shirokun20/kuron-extensions](https://github.com/shirokun20/kuron-extensions)**  
-> Copy link `manifest.json` → paste di **Pengaturan → Sources → Add via Link**.  
-> Jangan lupa star repo & dukung developernya! ❤️
+> **Tidak mau membuat dari nol?**
+> Pasang **ratusan ekstensi buatan komunitas** dari repo resmi:
+>
+> 🔗 **[github.com/shirokun20/kuron-extensions](https://github.com/shirokun20/kuron-extensions)**
+> Salin tautan `manifest.json` → tempel di **Settings → Sources → Add via Link**.
+> Beri bintang pada repo & dukung para developer! ❤️
 
-Sistem source Kuron sepenuhnya berbasis config — tidak perlu mengubah kode apapun. Setiap source cukup satu file JSON yang menjelaskan cara scraping atau pemanggilan API-nya.
+Sistem sumber Kuron sepenuhnya berbasis konfigurasi — tanpa perlu mengubah kode. Setiap sumber adalah satu file JSON yang memberi tahu aplikasi cara melakukan scraping atau memanggil API.
 
-### Referensi
+### Panduan
 
-| Panduan | Link |
-|:--------|:-----|
+| Panduan | Tautan |
+|:--------|:-------|
 | Panduan lengkap (EN) | [docs/en/CONFIG-GUIDE.md](docs/en/CONFIG-GUIDE.md) |
 | Panduan lengkap (ID) | [docs/id/CONFIG-GUIDE.md](docs/id/CONFIG-GUIDE.md) |
 | Panduan lengkap (ZH) | [docs/zh/CONFIG-GUIDE.md](docs/zh/CONFIG-GUIDE.md) |
 
-### Langkah cepat
+### Langkah singkat
 
-1. **Tulis config JSON** — buat file JSON yang mendeskripsikan cara scraping / API situs target. Lihat panduan di bawah untuk detail selector, reader, dan auth.
-2. **Isi selector / endpoint** — gunakan DevTools browser untuk inspeksi situs target.
-3. **Buat entri manifest** — agar source muncul di Source Manager, config harus didaftarkan lewat `manifest.json` yang di-host online. Format entri:
+1. **Tulis config JSON** — buat file JSON yang menjelaskan cara melakukan scraping atau memanggil API situs target. Lihat panduan lengkap di atas untuk detail selector, reader, dan autentikasi.
+2. **Isi selector / endpoint** — gunakan DevTools browser untuk menginspeksi situs target.
+3. **Buat entri manifest** — agar sumber muncul di Source Manager, daftarkan lewat `manifest.json` yang di-host secara online. Format entri:
+
    ```json
    {
      "id": "mysite",
@@ -195,74 +283,133 @@ Sistem source Kuron sepenuhnya berbasis config — tidak perlu mengubah kode apa
      "url": "https://yourhost.com/config/mysite-config.json",
      "meta": {
        "displayName": "My Site",
-       "description": "Deskripsi singkat",
+       "description": "Short description",
        "contentType": "manga",
-       "language": "id",
+       "language": "en",
        "requiresAuth": false
      }
    }
    ```
-4. **Install** — lewat **Pengaturan → Sources → Add via Link** (tempel URL manifest) atau **Import ZIP**.
-5. **Validasi** — jalankan `dart run kuron_generic:kuron_config_validate --help` untuk cek skema sebelum testing.
 
-> Lihat [docs/id/CONFIG-GUIDE.md](docs/id/CONFIG-GUIDE.md) untuk panduan lengkap mencakup reader nav, auth, dekripsi, dan pitfall umum.
+4. **Instal** — lewat **Settings → Sources → Add via Link** (tempel URL manifest) atau **Import ZIP**.
+5. **Validasi** — jalankan `dart run kuron_generic:kuron_config_validate --help` untuk menangkap kesalahan skema sebelum pengujian.
 
----
-
-## 🆘 **Bantuan**
-
-**FAQ**
-- **Gagal Install?** Aktifkan "Sumber Tak Dikenal". Satu APK universal muat di semua HP.
-- **Gambar Hilang?** Cek koneksi internet atau hapus cache aplikasi.
-- **Download Tidak Muncul?** Memang didesain privat agar tidak memenuhi galeri.
-- **Cara tambah source baru?** Buka Pengaturan → Sources → Add via Link (tempel URL manifest) atau Import ZIP.
-- **Search tidak muncul / error "colliding tags"?** NHentai API mewajibkan ada isian di kolom search kalau mau pake sorting atau filter tag. Ketik minimal 1 karakter di kolom pencarian sebelum milih sort/tag. Atau gunakan dropdown sort di tab Home untuk browsing Popular tanpa keyword. Lihat [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) untuk detail.
-- **Aplikasi lambat pertama buka?** Pertama kali download config source dan cache data. Berikutnya lebih cepat.
-- **Ganti HP / install ulang?** Pengaturan → **BACKUP & RESTORE** → *Cadangkan* menghasilkan `KuronBackup_*.zip` (share ke Files/Drive). Di HP baru pakai *Pulihkan* — ada pratinjau dulu dan data yang sudah ada tidak pernah ditimpa. Pindah dari NClient? Pakai *Import from NClient* di section yang sama.
+> [!NOTE]
+> Lihat [docs/id/CONFIG-GUIDE.md](docs/id/CONFIG-GUIDE.md) untuk panduan lengkap, termasuk navigasi reader, autentikasi, dekripsi, dan jebakan umum.
 
 ---
 
-## ☕ **Dukung Pengembang**
+## 🆘 Dukungan & FAQ
 
-Jika kamu menyukai **Kuron** dan ingin mendukung pengembangannya, kamu bisa menjadi sponsor di GitHub atau mentraktir saya kopi! ☕  
+<details>
+<summary><b>Tidak bisa instal?</b></summary>
 
-[![Sponsor shirokun20](https://img.shields.io/badge/Sponsor-shirokun20-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/shirokun20)
+<br/>
 
-Kamu juga bisa scan QRIS di bawah ini untuk berdonasi:
+Aktifkan "Unknown Sources". Satu APK universal cocok untuk semua perangkat.
+
+</details>
+
+<details>
+<summary><b>Gambar tidak muncul?</b></summary>
+
+<br/>
+
+Periksa koneksi internetmu atau bersihkan cache.
+
+</details>
+
+<details>
+<summary><b>Unduhan tidak terlihat?</b></summary>
+
+<br/>
+
+Memang sengaja dibuat privat. Lihat unduhan di dalam aplikasi.
+
+</details>
+
+<details>
+<summary><b>Bagaimana cara menambah sumber baru?</b></summary>
+
+<br/>
+
+Buka **Settings → Sources → Add via Link** (tempel URL manifest) atau **Import ZIP**.
+
+</details>
+
+<details>
+<summary><b>Pencarian kosong / error "colliding tags"?</b></summary>
+
+<br/>
+
+API nhentai mewajibkan kata kunci pencarian saat memakai sort atau filter tag. Cukup ketik minimal 1 karakter di kolom pencarian sebelum memilih sort/tag. Atau gunakan dropdown sort di tab Beranda untuk menjelajah Popular tanpa kata kunci. Lihat [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) untuk detailnya.
+
+</details>
+
+<details>
+<summary><b>Aplikasi lambat saat pertama dibuka?</b></summary>
+
+<br/>
+
+Pemuatan pertama mengunduh konfigurasi sumber dan menyimpan cache data. Peluncuran berikutnya akan lebih cepat.
+
+</details>
+
+<details>
+<summary><b>Ganti HP / instal ulang?</b></summary>
+
+<br/>
+
+Buka **Settings → BACKUP & RESTORE** → *Backup now* untuk menghasilkan `KuronBackup_*.zip` (bagikan ke Files/Drive). Di perangkat baru, gunakan *Restore* — akan menampilkan pratinjau terlebih dahulu dan tidak pernah menimpa data yang sudah ada. Pindahan dari NClient? Gunakan *Import from NClient* di bagian yang sama.
+
+</details>
+
+---
+
+## ☕ Dukung Developer
+
+Jika kamu menyukai **Kuron** dan ingin mendukung pengembangannya, kamu bisa sponsor saya di GitHub atau traktir kopi! ☕
+
+<a href="https://github.com/sponsors/shirokun20"><img src="https://img.shields.io/badge/Sponsor-shirokun20-ea4aaa?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Sponsor shirokun20" height="28"/></a>
+
+Kamu juga bisa memindai QRIS di bawah ini untuk berdonasi:
 
 <p align="center">
-  <img src="assets/images/donation_qris.jpeg" width="300" alt="Donasi QRIS" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
+  <img src="assets/images/donation_qris.jpeg" width="300" alt="Donasi QRIS"/>
 </p>
 
-> **Catatan:** Dukunganmu membantu menjaga server tetap berjalan dan update terus mengalir! 🚀
+> [!NOTE]
+> Dukunganmu membantu menjaga server tetap berjalan dan pembaruan terus hadir! 🚀
 
 ---
 
 ## 🤖 Dibangun dengan Bantuan AI
 
-Aplikasi ini sangat terbantu oleh agen coding AI di samping rekayasa manusia:
+Proyek ini banyak dibantu oleh agen coding AI bersama rekayasa manusia:
 
 | Tool | Peran |
 |:-----|:------|
-| [![Claude](https://img.shields.io/badge/Claude-205060?style=for-the-badge&logo=anthropic&logoColor=white)](https://claude.ai/code) | Arsitektur, implementasi fitur, pembuatan & review kode |
-| [![OpenAI Codex](https://img.shields.io/badge/Codex-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/codex) | Pembuatan kode, refactoring & debugging |
-| [![OpenCode](https://img.shields.io/badge/OpenCode-FF6B6B?style=for-the-badge&logo=openai&logoColor=white)](https://opencode.ai) | Sesi coding agentik, riset AI translation & kredensial |
+| <a href="https://claude.ai/code"><img src="https://img.shields.io/badge/Claude-205060?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude" height="28"/></a> | Arsitektur, implementasi fitur, code generation & review |
+| <a href="https://openai.com/codex"><img src="https://img.shields.io/badge/Codex-412991?style=for-the-badge&logo=openai&logoColor=white" alt="OpenAI Codex" height="28"/></a> | Code generation, refactoring & debugging |
+| <a href="https://opencode.ai"><img src="https://img.shields.io/badge/OpenCode-FF6B6B?style=for-the-badge&logo=openai&logoColor=white" alt="OpenCode" height="28"/></a> | Sesi coding agentik, riset terjemahan AI & kredensial |
 
-> 💡 Supervisi manusia, keputusan arsitektur, dan QA akhir tetap menjadi inti Kuron — agen AI mempercepat alur kerja, bukan menggantikan penilaian engineer.
-
----
-
-## 👥 Contributors
-
-Terimakasih kepada kontributor yang membuat aplikasi kuron ini lebih baik!
-
-[![Contributors](https://contrib.rocks/image?repo=shirokun20/nhasixapp&max=150&columns=15&anon=1&v=20260309)](https://github.com/shirokun20/nhasixapp/graphs/contributors)
+> 💡 Pengawasan manusia, keputusan arsitektur, dan QA akhir tetap menjadi inti Kuron — agen AI mempercepat alur kerja, bukan menggantikan penilaian rekayasa.
 
 ---
 
-## 📜 **Lisensi & Legal**
+## 👥 Kontributor
 
-**⚠️ Peringatan Konten 18+** • **Hanya Untuk Edukasi** • **Lisensi MIT**
+Terima kasih kepada semua kontributor yang telah membantu membuat Kuron lebih baik!
 
-Dilisensikan di bawah MIT License. Lihat [LICENSE](LICENSE) untuk detail.
-Kami sangat mendukung kreator konten; mohon dukung rilis resmi jika memungkinkan.
+<a href="https://github.com/shirokun20/nhasixapp/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=shirokun20/nhasixapp&max=150&columns=15&anon=1&v=20260309" alt="Kontributor"/>
+</a>
+
+---
+
+## 📜 Lisensi & Legal
+
+**⚠️ Peringatan Konten 18+** • **Hanya untuk Tujuan Edukasi** • **Lisensi MIT**
+
+Dilisensikan di bawah Lisensi MIT. Lihat [LICENSE](LICENSE) untuk detailnya.
+Kami sangat mendukung para kreator konten; mohon dukung rilis resmi bila memungkinkan.
