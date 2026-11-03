@@ -98,6 +98,18 @@ class DownloadWorker(
     // Track total bytes for speed calculation (AtomicLong for parallel safety)
     private val totalBytesDownloaded = AtomicLong(0L)
 
+    // 2.1: throttle setProgress at the source — at most one emission per
+    // second per run. Terminal Result.success/failure always passes through.
+    private var lastProgressEmitMs = 0L
+
+    private suspend fun emitProgressThrottled(data: androidx.work.Data) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastProgressEmitMs >= 1_000L) {
+            lastProgressEmitMs = now
+            setProgress(data)
+        }
+    }
+
     override suspend fun doWork(): ListenableWorker.Result = withContext(Dispatchers.IO) {
         val contentId = inputData.getString(KEY_CONTENT_ID) ?: return@withContext Result.failure()
         val sourceId = inputData.getString(KEY_SOURCE_ID) ?: "unknown"
@@ -248,7 +260,7 @@ class DownloadWorker(
         })
 
         if (completedCount.get() > 0) {
-            setProgress(workDataOf(
+            emitProgressThrottled(workDataOf(
                 KEY_PROGRESS to calculateProgressPercent(completedCount.get(), imageUrls.size),
                 "downloadedCount" to completedCount.get(),
                 "totalCount" to imageUrls.size,
@@ -349,7 +361,7 @@ class DownloadWorker(
                             val newCount = completedCount.incrementAndGet()
                             totalBytesDownloaded.addAndGet(normalizedFile.length())
 
-                            setProgress(workDataOf(
+                            emitProgressThrottled(workDataOf(
                                 KEY_PROGRESS to calculateProgressPercent(newCount, imageUrls.size),
                                 "downloadedCount" to newCount,
                                 "totalCount" to imageUrls.size,

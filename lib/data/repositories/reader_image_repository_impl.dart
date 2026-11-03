@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path/path.dart' as p;
@@ -126,8 +127,11 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
           } catch (_) {}
           await LocalImagePreloader.evictCorruptPage(contentId, pageNumber);
         } else {
-          _logger.i(
-              '[ReaderImage] disk hit content=$contentId page=$pageNumber -> $localPath');
+          // Per-file-hit log: debug-gated, stripped in release (hot path).
+          if (kDebugMode) {
+            _logger.d(
+                '[ReaderImage] disk hit content=$contentId page=$pageNumber -> $localPath');
+          }
           return ReadyFromDisk(path: localPath);
         }
       }
@@ -168,7 +172,9 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
     try {
       final path = await deduped.timeout(const Duration(seconds: 45));
       if (path != null && await _fileExists(File(path))) {
-        _logger.i('[ReaderImage] network OK -> $path');
+        if (kDebugMode) {
+          _logger.d('[ReaderImage] network OK -> $path');
+        }
         return ReadyFresh(path: path);
       }
       return FailedPage(

@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -26,6 +28,44 @@ class LocalImagePreloader {
   static final Logger _logger = getIt<Logger>();
   static bool _didLogDownloadDirectorySelection = false;
 
+  /// IO-light lookup cache: `(contentId, page) -> path`, 2–5s TTL.
+  /// A hit is verified with a single `exists()`; no directory listing.
+  static const Duration lookupCacheTtl = Duration(seconds: 4);
+  static final Map<String, _LookupCacheEntry> _lookupCache = {};
+  static String _lookupCacheKey(String contentId, int pageNumber) =>
+      '$contentId:$pageNumber';
+
+  /// Periodic expired-cache sweep. Moved OUT of the lookup path: lookups only
+  /// schedule it (fire-and-forget) at most once per [_cleanupInterval], so N
+  /// rapid lookups trigger at most one sweep.
+  static const Duration _cleanupInterval = Duration(minutes: 5);
+  static DateTime? _lastCleanupAt;
+  static bool _cleanupRunning = false;
+
+  @visibleForTesting
+  static int cleanupRunCount = 0;
+
+  @visibleForTesting
+  static void resetLookupCacheForTest() {
+    _lookupCache.clear();
+    _lastCleanupAt = null;
+    cleanupRunCount = 0;
+  }
+
+  static void _maybeScheduleCleanup() {
+    final now = DateTime.now();
+    if (_cleanupRunning) return;
+    if (_lastCleanupAt != null &&
+        now.difference(_lastCleanupAt!) < _cleanupInterval) {
+      return;
+    }
+    _lastCleanupAt = now;
+    _cleanupRunning = true;
+    unawaited(_cleanupExpiredCache().whenComplete(() {
+      _cleanupRunning = false;
+    }));
+  }
+
   // Get all possible base paths where images might be stored
   // Priority: External Download -> Internal Cache (with expiry) -> Internal App Documents
   static Future<List<String>> _getPossibleBasePaths() async {
@@ -38,7 +78,7 @@ class LocalImagePreloader {
         final downloadDir = Directory(path.join(downloadPath, _baseLocalPath));
         if (await downloadDir.exists()) {
           basePaths.add(path.join(downloadPath, _baseLocalPath));
-          _logger.d(
+          _d(
               '🐛 Found external storage: ${path.join(downloadPath, _baseLocalPath)}');
         }
       }
@@ -47,17 +87,18 @@ class LocalImagePreloader {
       final cacheDir = await _getInternalCacheDirectory();
       if (cacheDir != null) {
         basePaths.add(cacheDir);
-        _logger.d('🐛 Added internal cache: $cacheDir');
-
-        // Trigger cache cleanup in background
-        await _cleanupExpiredCache();
+        if (kDebugMode) {
+          _d('🐛 Added internal cache: $cacheDir');
+        }
+        // NOTE: expired-cache cleanup no longer runs here — it is a periodic
+        // task scheduled from getLocalImagePath (see _maybeScheduleCleanup).
       }
 
       // Priority 3: Internal app documents directory (fallback storage)
       final appDir = await getApplicationDocumentsDirectory();
       final internalPath = path.join(appDir.path, _baseLocalPath);
       basePaths.add(internalPath);
-      _logger.d('🐛 Added internal storage: $internalPath');
+      _d('🐛 Added internal storage: $internalPath');
     } catch (e) {
       _logger.e('Error getting possible base paths: $e');
       // Fallback to internal storage only
@@ -82,7 +123,7 @@ class LocalImagePreloader {
         if (await rootDir.exists()) {
           downloadPaths.add(customRoot);
           if (shouldLog) {
-            _logger.d('🐛 Using custom storage root for images: $customRoot');
+            _d('🐛 Using custom storage root for images: $customRoot');
           }
         } else {
           _logger.w(
@@ -101,7 +142,7 @@ class LocalImagePreloader {
         if (!downloadPaths.contains(appExternalDownloads)) {
           downloadPaths.add(appExternalDownloads);
           if (shouldLog) {
-            _logger.d(
+            _d(
                 '🐛 Using app-specific external storage: $appExternalDownloads');
           }
         }
@@ -117,7 +158,7 @@ class LocalImagePreloader {
       if (!downloadPaths.contains(internalDownloads)) {
         downloadPaths.add(internalDownloads);
         if (shouldLog) {
-          _logger.d('🐛 Using app documents storage: $internalDownloads');
+          _d('🐛 Using app documents storage: $internalDownloads');
         }
       }
       _didLogDownloadDirectorySelection = true;
@@ -138,7 +179,7 @@ class LocalImagePreloader {
 
       if (!await cacheDir.exists()) {
         await cacheDir.create(recursive: true);
-        _logger.d('🐛 Created internal cache directory: ${cacheDir.path}');
+        _d('🐛 Created internal cache directory: ${cacheDir.path}');
       }
 
       return cacheDir.path;
@@ -150,6 +191,7 @@ class LocalImagePreloader {
 
   // Clean up expired cache files in background
   static Future<void> _cleanupExpiredCache() async {
+    cleanupRunCount++;
     try {
       final cacheDir = await _getInternalCacheDirectory();
       if (cacheDir == null) return;
@@ -181,7 +223,7 @@ class LocalImagePreloader {
 
               if (now.difference(cacheTime) > _cacheExpiryDuration) {
                 shouldDelete = true;
-                _logger.d(
+                _d(
                     '🐛 Cache expired for $contentId: ${now.difference(cacheTime)} > $_cacheExpiryDuration');
               }
             } catch (e) {
@@ -197,7 +239,7 @@ class LocalImagePreloader {
               final stat = await imagesDir.stat();
               if (now.difference(stat.modified) > _cacheExpiryDuration) {
                 shouldDelete = true;
-                _logger.d(
+                _d(
                     '🐛 Cache expired by file time for $contentId: ${now.difference(stat.modified)} > $_cacheExpiryDuration');
               }
             }
@@ -207,7 +249,7 @@ class LocalImagePreloader {
             try {
               await entity.delete(recursive: true);
               cleanedDirs++;
-              _logger.d('🐛 Cleaned expired cache directory: ${entity.path}');
+              _d('🐛 Cleaned expired cache directory: ${entity.path}');
             } catch (e) {
               _logger.w(
                   '🐛 Failed to delete expired cache directory ${entity.path}: $e');
@@ -220,7 +262,7 @@ class LocalImagePreloader {
             try {
               await entity.delete();
               cleanedFiles++;
-              _logger.d('🐛 Cleaned expired cache file: ${entity.path}');
+              _d('🐛 Cleaned expired cache file: ${entity.path}');
             } catch (e) {
               _logger.w(
                   '🐛 Failed to delete expired cache file ${entity.path}: $e');
@@ -267,7 +309,7 @@ class LocalImagePreloader {
       };
       await metadataFile.writeAsString(jsonEncode(metadata));
 
-      _logger.d('🐛 Saved image to cache: $filePath');
+      _d('🐛 Saved image to cache: $filePath');
       return filePath;
     } catch (e) {
       _logger.e('Error saving image to cache: $e');
@@ -286,7 +328,7 @@ class LocalImagePreloader {
         final downloadDir = Directory(path.join(downloadPath, _baseLocalPath));
         if (await downloadDir.exists()) {
           externalPaths.add(path.join(downloadPath, _baseLocalPath));
-          // _logger.d(
+          // _d(
           //     '🐛 External download path: ${path.join(downloadPath, _baseLocalPath)}');
         }
       }
@@ -308,7 +350,7 @@ class LocalImagePreloader {
         final metadataFile = File(metadataPath);
 
         if (await metadataFile.exists()) {
-          _logger.d('Found metadata at: $metadataPath');
+          _d('Found metadata at: $metadataPath');
           return true;
         }
 
@@ -320,7 +362,7 @@ class LocalImagePreloader {
               .where((file) => file is File && _isImageFile(file.path))
               .toList();
           if (imageFiles.isNotEmpty) {
-            _logger.d(
+            _d(
                 'Found images directory at: ${imagesDir.path} with ${imageFiles.length} images');
             return true;
           }
@@ -335,19 +377,60 @@ class LocalImagePreloader {
   }
 
   // Get local image path with priority: downloaded > internal cache > network cache > null
+  //
+  // IO-light: a TTL cache hit is verified with one `exists()` (no listing);
+  // the exact-pattern fast path (`page_NNN.*`, both padded and unpadded)
+  // returns before any `list()`; the full directory scan is a last resort.
   static Future<String?> getLocalImagePath(
       String contentId, int pageNumber) async {
     try {
+      _maybeScheduleCleanup();
+
+      // Fast path 0: TTL cache hit — single exists() verification, no listing.
+      final cacheKey = _lookupCacheKey(contentId, pageNumber);
+      final cached = _lookupCache[cacheKey];
+      if (cached != null) {
+        if (DateTime.now().difference(cached.cachedAt) <= lookupCacheTtl &&
+            await File(cached.path).exists()) {
+          return cached.path;
+        }
+        _lookupCache.remove(cacheKey);
+      }
+
       final basePaths = await _getPossibleBasePaths();
-      final primaryPatterns = _pageFilePatterns(pageNumber);
+      final exactPatterns = _exactPageFilePatterns(pageNumber);
+
+      // Fast path 1: exact patterns only — no directory listing.
+      for (final basePath in basePaths) {
+        for (final pattern in exactPatterns) {
+          final exactPath = path.join(basePath, contentId, 'images', pattern);
+          if (await File(exactPath).exists()) {
+            if (kDebugMode) {
+              _d('🐛 Found downloaded image (exact): $exactPath');
+            }
+            _lookupCache[cacheKey] =
+                _LookupCacheEntry(path: exactPath, cachedAt: DateTime.now());
+            return exactPath;
+          }
+        }
+      }
+
+      final fallbackPatterns = _pageFilePatterns(pageNumber)
+          .where((p) => !exactPatterns.contains(p))
+          .toList();
 
       // Check all possible base paths for downloaded content
       for (final basePath in basePaths) {
-        for (final pattern in primaryPatterns) {
+        for (final pattern in fallbackPatterns) {
           final altPath = path.join(basePath, contentId, 'images', pattern);
           final altFile = File(altPath);
           if (await altFile.exists()) {
-            _logger.d('🐛 Found downloaded image with alt pattern: $altPath');
+            if (kDebugMode) {
+              _d(
+                  '🐛 Found downloaded image with alt pattern: $altPath');
+            }
+            _lookupCache[cacheKey] =
+                _LookupCacheEntry(path: altPath, cachedAt: DateTime.now());
             return altPath;
           }
         }
@@ -368,7 +451,12 @@ class LocalImagePreloader {
           // Return the image for the requested page number (1-indexed)
           if (pageNumber > 0 && pageNumber <= imageFiles.length) {
             final targetFile = imageFiles[pageNumber - 1];
-            _logger.d('🐛 Found image by directory scan: ${targetFile.path}');
+            if (kDebugMode) {
+              _logger
+                  .d('🐛 Found image by directory scan: ${targetFile.path}');
+            }
+            _lookupCache[cacheKey] = _LookupCacheEntry(
+                path: targetFile.path, cachedAt: DateTime.now());
             return targetFile.path;
           }
         }
@@ -377,7 +465,9 @@ class LocalImagePreloader {
       // Priority 3: Check CachedNetworkImage cache (legacy cache system)
       final cachePath = await _getCachedImagePath(contentId, pageNumber);
       if (cachePath != null && await File(cachePath).exists()) {
-        _logger.d('🐛 Found legacy cached image: $cachePath');
+        if (kDebugMode) {
+          _d('🐛 Found legacy cached image: $cachePath');
+        }
         return cachePath;
       }
 
@@ -387,6 +477,26 @@ class LocalImagePreloader {
           'Error getting local image path for $contentId page $pageNumber: $e');
       return null;
     }
+  }
+
+  /// Canonical exact patterns tried before any directory listing:
+  /// `page_NNN.*` (native worker + streaming writer) in padded and unpadded
+  /// form, across supported extensions.
+  @visibleForTesting
+  static List<String> exactPageFilePatterns(int pageNumber) =>
+      _exactPageFilePatterns(pageNumber);
+
+  static List<String> _exactPageFilePatterns(int pageNumber) {
+    final padded = pageNumber.toString().padLeft(3, '0');
+    const extensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'bmp'];
+    final patterns = <String>[];
+    for (final ext in extensions) {
+      patterns.add('page_$padded.$ext');
+      if (padded != pageNumber.toString()) {
+        patterns.add('page_$pageNumber.$ext');
+      }
+    }
+    return patterns;
   }
 
   // Get local thumbnail/cover path with priority: downloads > internal cache > legacy cache
@@ -432,7 +542,7 @@ class LocalImagePreloader {
         for (final pattern in downloadedCoverPatterns) {
           final coverPath = path.join(basePath, contentId, pattern);
           if (await File(coverPath).exists()) {
-            _logger.d('🐛 Found downloaded cover: $coverPath');
+            _d('🐛 Found downloaded cover: $coverPath');
             return coverPath;
           }
 
@@ -440,7 +550,7 @@ class LocalImagePreloader {
           final coverInImagesPath =
               path.join(basePath, contentId, 'images', pattern);
           if (await File(coverInImagesPath).exists()) {
-            _logger.d(
+            _d(
                 '🐛 Found downloaded cover in images folder: $coverInImagesPath');
             return coverInImagesPath;
           }
@@ -450,7 +560,7 @@ class LocalImagePreloader {
       // Check legacy cached thumbnail
       final cachedCover = await _getCachedThumbnailPath(contentId);
       if (cachedCover != null && await File(cachedCover).exists()) {
-        _logger.d('🐛 Found legacy cached thumbnail: $cachedCover');
+        _d('🐛 Found legacy cached thumbnail: $cachedCover');
         return cachedCover;
       }
 
@@ -476,13 +586,13 @@ class LocalImagePreloader {
           final metadata = jsonDecode(jsonString) is Map<String, dynamic>
               ? jsonDecode(jsonString) as Map<String, dynamic>
               : <String, dynamic>{};
-          _logger.d(
+          _d(
               'Successfully read metadata for $contentId from $metadataPath');
           return metadata;
         }
       }
 
-      _logger.d('Metadata file not found for $contentId in any base path');
+      _d('Metadata file not found for $contentId in any base path');
       return null;
     } catch (e) {
       _logger.e('Error reading metadata for $contentId: $e');
@@ -495,7 +605,7 @@ class LocalImagePreloader {
   static ImageProvider getProgressiveImageProvider(
       String networkUrl, String? localPath) {
     if (localPath != null && File(localPath).existsSync()) {
-      _logger.d('🐛 Using local image provider: $localPath');
+      _d('🐛 Using local image provider: $localPath');
       return FileImage(File(localPath));
     }
 
@@ -517,7 +627,7 @@ class LocalImagePreloader {
       // First check if already exists in cache to avoid duplicate downloads
       final existingPath = await getLocalImagePath(contentId, pageNumber);
       if (existingPath != null) {
-        _logger.d('🐛 Image already exists locally: $existingPath');
+        _d('🐛 Image already exists locally: $existingPath');
         return existingPath;
       }
 
@@ -527,7 +637,7 @@ class LocalImagePreloader {
         final path = networkUrl.replaceFirst('file://', '');
         final file = File(path);
         if (await file.exists()) {
-          _logger.d('🐛 Provided URL is actually a local file: $path');
+          _d('🐛 Provided URL is actually a local file: $path');
           return path;
         }
       }
@@ -580,7 +690,7 @@ class LocalImagePreloader {
     try {
       final existingPath = await getLocalImagePath(contentId, pageNumber);
       if (existingPath != null) {
-        _logger.d('🐛 [stream] Image already exists locally: $existingPath');
+        _d('🐛 [stream] Image already exists locally: $existingPath');
         return existingPath;
       }
 
@@ -588,7 +698,7 @@ class LocalImagePreloader {
           (networkUrl.startsWith('/') || networkUrl.startsWith('file://'))) {
         final p = networkUrl.replaceFirst('file://', '');
         if (await File(p).exists()) {
-          _logger.d('🐛 [stream] Provided URL is a local file: $p');
+          _d('🐛 [stream] Provided URL is a local file: $p');
           return p;
         }
       }
@@ -624,7 +734,7 @@ class LocalImagePreloader {
       }
       await File(tmpPath).rename(targetPath);
 
-      _logger.d('🐛 [stream] Cached image to canonical path: $targetPath');
+      _d('🐛 [stream] Cached image to canonical path: $targetPath');
       return targetPath;
     } catch (e) {
       // Best-effort cleanup of the partial file.
@@ -690,7 +800,7 @@ class LocalImagePreloader {
               .toList();
 
           if (imageFiles.isNotEmpty) {
-            _logger.d(
+            _d(
                 'Found ${imageFiles.length} images for $contentId in $basePath');
             return imageFiles.length;
           }
@@ -716,7 +826,7 @@ class LocalImagePreloader {
       final actualImageCount = await getDownloadedImageCount(contentId);
 
       final isValid = actualImageCount >= expectedPageCount;
-      _logger.d(
+      _d(
           'Content $contentId validation: $actualImageCount/$expectedPageCount images - ${isValid ? 'VALID' : 'INVALID'}');
 
       return isValid;
@@ -841,6 +951,7 @@ class LocalImagePreloader {
   }
 
   static List<String> _pageFilePatterns(int pageNumber) {
+
     final padded = pageNumber.toString().padLeft(3, '0');
     final extensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'gif', 'bmp'];
     final patterns = <String>[];
@@ -880,4 +991,20 @@ class LocalImagePreloader {
     final appDir = await getApplicationDocumentsDirectory();
     return path.join(appDir.path, _baseLocalPath, contentId, 'images');
   }
+
+  /// Debug-only log: per-lookup/per-file-hit messages are stripped in release
+  /// builds (hot path while downloads write files). Errors/terminals use
+  /// `_logger` directly and always stay.
+  static void _d(String message) {
+    if (kDebugMode) {
+      _logger.d(message);
+    }
+  }
+}
+
+/// TTL entry for [LocalImagePreloader]'s IO-light lookup cache.
+class _LookupCacheEntry {
+  const _LookupCacheEntry({required this.path, required this.cachedAt});
+  final String path;
+  final DateTime cachedAt;
 }

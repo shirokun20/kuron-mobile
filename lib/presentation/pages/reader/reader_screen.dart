@@ -34,6 +34,7 @@ import '../../../core/services/local_image_preloader.dart';
 import '../../../core/services/memory_budget_coordinator.dart';
 import '../../cubits/reader/reader_cubit.dart';
 import '../../cubits/reader/reader_prefetch_cubit.dart';
+import 'decode_queue.dart';
 import '../../cubits/theme/theme_cubit.dart';
 import '../../widgets/reader_shortcut_help.dart';
 
@@ -176,7 +177,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   // 🚀 OPTIMIZATION: Frame-aligned decode throttle
   // Queues prefetch decode requests and processes max 2 per frame tick (1 for heavy sources).
   // Visible page decodes bypass the queue (priority path).
-  final List<void Function()> _decodeQueue = [];
+  final ReaderDecodeQueue _decodeQueue = ReaderDecodeQueue();
   static const int _maxDecodePerFrame = 2;
   static const int _maxDecodePerFrameHeavy = 1;
   int _currentMaxDecodePerFrame = _maxDecodePerFrame;
@@ -229,6 +230,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value = true;
+    _notifyDownloadBlocReaderActive(true);
     MemoryBudgetCoordinator().onReaderActiveChanged(true);
     _lastReportedPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage - 1);
@@ -854,6 +856,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
     getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value =
         false;
+    _notifyDownloadBlocReaderActive(false);
     MemoryBudgetCoordinator().onReaderActiveChanged(false);
     super.dispose();
   }
@@ -874,6 +877,18 @@ class _ReaderScreenState extends State<ReaderScreen>
       _readerCubit.updateCurrentPageSilent(validPage);
     } else {
       _readerCubit.updateCurrentPageFromSwipe(validPage);
+    }
+  }
+
+  /// Forwards reader entry/exit to [DownloadBloc] so active downloads pause
+  /// while the reader renders and resume on exit. Never throws: when the
+  /// bloc is unavailable the reader must keep working and downloads simply
+  /// keep running.
+  void _notifyDownloadBlocReaderActive(bool active) {
+    try {
+      context.read<DownloadBloc>().handleReaderActiveChanged(active);
+    } catch (_) {
+      // DownloadBloc unavailable — reader stays functional.
     }
   }
 
@@ -899,8 +914,12 @@ class _ReaderScreenState extends State<ReaderScreen>
           i < _currentMaxDecodePerFrame && _decodeQueue.isNotEmpty;
           i++) {
         if (_scopeToken.isCancelled || !mounted) break;
-        final task = _decodeQueue.removeAt(0);
-        task();
+        final task = _decodeQueue.pop();
+        if (task == null) break;
+        // Dropped by a later clear (large jump / chapter change / dispose):
+        // skip instead of decoding a page the user has left behind.
+        if (_decodeQueue.isStale(task)) continue;
+        task.run();
       }
       if (_decodeQueue.isNotEmpty && !_scopeToken.isCancelled && mounted) {
         _scheduleFrameDecode();
@@ -914,9 +933,14 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (imageUrls.isEmpty) return;
 
     // detect fast scroll by page jump, not timer. If user moved
-    // >3 pages since last tick, they're flying through — skip prefetch.
-    final pageJump = (currentPage - _lastReportedPage).abs();
-    if (pageJump > 3) return;
+    // >3 pages since last tick, they're flying through — skip prefetch and
+    // drop the stale decode queue (same as dispose) so no precache is issued
+    // for skipped pages.
+    if (ReaderDecodeQueue.isLargeJump(_lastReportedPage, currentPage)) {
+      _decodeQueue.clear();
+      _isDecodeTickScheduled = false;
+      return;
+    }
 
     final prefetchHeaders = sourceId == null
         ? null
@@ -961,13 +985,18 @@ class _ReaderScreenState extends State<ReaderScreen>
         final url = rawUrl.split('|').first;
         if (!url.startsWith('http')) continue;
         final effectiveContentIdForDecode = contentId ?? widget.contentId;
-        _decodeQueue.add(() {
-          if (!mounted || _scopeToken.isCancelled) return;
+        final decodeGen = _decodeQueue.generation;
+        bool decodeStale() =>
+            decodeGen != _decodeQueue.generation ||
+            !mounted ||
+            _scopeToken.isCancelled;
+        _decodeQueue.enqueue(() {
+          if (decodeStale()) return;
           LocalImagePreloader.getLocalImagePath(
             effectiveContentIdForDecode,
             targetPage,
           ).then((localPath) {
-            if (!mounted || _scopeToken.isCancelled) return;
+            if (decodeStale()) return;
             final ImageProvider provider;
             if (localPath != null && File(localPath).existsSync()) {
               provider = ExtendedFileImageProvider(File(localPath));
@@ -975,6 +1004,9 @@ class _ReaderScreenState extends State<ReaderScreen>
               provider =
                   ExtendedNetworkImageProvider(url, headers: prefetchHeaders);
             }
+            // Direct mounted guard for the lint: decodeStale() above already
+            // checks mounted, but the analyzer cannot see through the helper.
+            if (!mounted) return;
             precacheImage(
               ExtendedResizeImage.resizeIfNeeded(
                 cacheWidth: decodeWidth,
