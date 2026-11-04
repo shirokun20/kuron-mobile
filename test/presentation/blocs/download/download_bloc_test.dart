@@ -191,6 +191,14 @@ void main() {
 
       when(() => mockNotificationService.cancelDownloadNotification(any()))
           .thenAnswer((_) async => {});
+      when(() => mockNotificationService.cancelDownloadGroup())
+          .thenAnswer((_) async => {});
+      when(() => mockNotificationService.updateDownloadProgress(
+            contentId: any(named: 'contentId'),
+            progress: any(named: 'progress'),
+            title: any(named: 'title'),
+            isPaused: any(named: 'isPaused'),
+          )).thenAnswer((_) async => {});
 
       when(() => mockNotificationService.showPdfConversionError(
             contentId: any(named: 'contentId'),
@@ -314,6 +322,12 @@ void main() {
                 .reconcileChapterMetadataForCompletedDownload(
               contentId: testContentId,
               contentPath: any(named: 'contentPath'),
+            )).called(1);
+
+        verify(() => mockNotificationService.showDownloadCompleted(
+              contentId: testContentId,
+              title: any(named: 'title'),
+              downloadPath: any(named: 'downloadPath'),
             )).called(1);
       },
       expect: () => [

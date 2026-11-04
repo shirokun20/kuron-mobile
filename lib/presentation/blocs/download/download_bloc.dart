@@ -57,6 +57,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     required RemoteConfigService remoteConfigService,
     AppLocalizations? appLocalizations,
     DownloadManager? downloadManager, // NEW: Optional for testing
+    ValueNotifier<bool>? readerActiveNotifier,
   })  : _downloadContentUseCase = downloadContentUseCase,
         _getContentDetailUseCase = getContentDetailUseCase,
         _getChapterImagesUseCase = getChapterImagesUseCase,
@@ -101,6 +102,8 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     _setupNotificationCallbacks();
 
     _initializeProgressStream();
+
+    _initReaderActiveListener(readerActiveNotifier);
   }
 
   final DownloadContentUseCase _downloadContentUseCase;
@@ -293,6 +296,31 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
   /// Contents auto-paused on the current/last reader session (for tests).
   Set<String> get readerAutoPaused => Set.unmodifiable(_readerAutoPaused);
+  ValueNotifier<bool>? _readerActiveNotifier;
+  VoidCallback? _readerActiveListener;
+
+  void _initReaderActiveListener(ValueNotifier<bool>? notifier) {
+    ValueNotifier<bool>? resolved = notifier;
+    if (resolved == null) {
+      try {
+        resolved =
+            getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
+      } catch (_) {
+        // Not registered in getIt (e.g. isolated unit tests)
+      }
+    }
+    if (resolved != null) {
+      _readerActiveNotifier = resolved;
+      _readerActiveListener = () {
+        final active = _readerActiveNotifier?.value ?? false;
+        handleReaderActiveChanged(active);
+      };
+      _readerActiveNotifier!.addListener(_readerActiveListener!);
+      if (_readerActiveNotifier!.value) {
+        handleReaderActiveChanged(true);
+      }
+    }
+  }
 
   /// Called with the `globalReaderActive` value. On entry, every content with
   /// downloading status in this bloc's own [DownloadLoaded] state is paused
@@ -576,6 +604,12 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   Future<void> _processQueue() async {
     if (state is! DownloadLoaded) return;
     final currentState = state as DownloadLoaded;
+
+    // Do not start new queued downloads while reader is active!
+    if (_readerActiveNotifier?.value == true) {
+      _logger.d('DownloadBloc: Reader is active, deferring queue processing');
+      return;
+    }
 
     try {
       final queuedDownloads = currentState.downloads
@@ -1462,6 +1496,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
           _logger.w('DownloadBloc: Failed to update pause notification: $e');
         });
       }
+      _updateDownloadGroupNotification();
 
       add(const DownloadRefreshEvent());
 
@@ -1510,6 +1545,13 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       );
 
       await _userDataRepository.saveDownloadStatus(updatedDownload);
+
+      await _notificationService
+          .cancelDownloadNotification(event.contentId)
+          .catchError((e) {
+        _logger.w('DownloadBloc: Failed to cancel download notification: $e');
+      });
+      _updateDownloadGroupNotification();
 
       add(const DownloadRefreshEvent());
 
@@ -1666,6 +1708,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
           _logger.w('DownloadBloc: Failed to update resume notification: $e');
         });
       }
+      _updateDownloadGroupNotification();
 
       add(const DownloadRefreshEvent());
       await _processQueue();
@@ -1721,6 +1764,13 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       ));
 
       await _userDataRepository.deleteDownloadStatus(event.contentId);
+
+      await _notificationService
+          .cancelDownloadNotification(event.contentId)
+          .catchError((e) {
+        _logger.w('DownloadBloc: Failed to cancel download notification: $e');
+      });
+      _updateDownloadGroupNotification();
 
       String? pathToDelete = download.downloadPath;
       if (pathToDelete == null || pathToDelete.isEmpty) {
@@ -1904,10 +1954,37 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   void _updateDownloadGroupNotification() {
     final cs = state;
     if (cs is! DownloadLoaded) return;
+    if (!cs.settings.enableNotifications) {
+      _notificationService.cancelDownloadGroup();
+      return;
+    }
     final active = cs.downloads
         .where((d) => d.state == DownloadState.downloading)
         .toList();
-    if (active.isEmpty) return;
+    if (active.isEmpty) {
+      _notificationService.cancelDownloadGroup();
+      return;
+    }
+    if (active.length == 1) {
+      // Single active download: cancel the redundant group notification (777778)
+      // and update the rich per-content notification with title & action buttons.
+      _notificationService.cancelDownloadGroup();
+      final dl = active.first;
+      final progress = dl.progressPercentage.round();
+      _notificationService.updateDownloadProgress(
+        contentId: dl.contentId,
+        progress: progress,
+        title: dl.title ?? dl.contentId,
+        isPaused: false,
+      );
+      return;
+    }
+
+    // Multiple active downloads (>1): cancel per-content notifications to avoid
+    // tray spam and show one aggregated group notification.
+    for (final dl in active) {
+      _notificationService.cancelDownloadNotification(dl.contentId);
+    }
     final total = active.fold<int>(0, (s, d) => s + d.totalPages);
     final done = active.fold<int>(0, (s, d) => s + d.downloadedPages);
     final pct = total > 0 ? (done / total * 100).round() : 0;
@@ -2122,6 +2199,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
       _activeTasks.remove(event.contentId);
       _downloadManager.unregisterTask(event.contentId);
+      _readerAutoPaused.remove(event.contentId);
       _logger.d('Removed ${event.contentId} from active tasks');
 
       if (currentState is DownloadLoaded) {
@@ -2134,6 +2212,26 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
           lastUpdated: DateTime.now(),
         ));
         _logger.d('Updated state with completed download');
+      }
+
+      if (currentState is DownloadLoaded &&
+          currentState.settings.enableNotifications) {
+        _logger.d('Showing completion notification for ${event.contentId}');
+        await _notificationService
+            .showDownloadCompleted(
+          contentId: event.contentId,
+          title: completedDownload.title ?? event.contentId,
+          downloadPath: downloadPath ?? '',
+        )
+            .catchError((e) {
+          _logger.w('DownloadBloc: Failed to show completion notification: $e');
+        });
+      } else {
+        await _notificationService
+            .cancelDownloadNotification(event.contentId)
+            .catchError((e) {
+          _logger.w('DownloadBloc: Failed to cancel download notification: $e');
+        });
       }
 
       _sessionCompletedCount++;
@@ -2910,6 +3008,11 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   Future<void> close() {
     _progressSubscription?.cancel();
     _logger.i('DownloadBloc: Progress stream subscription cancelled');
+
+    if (_readerActiveNotifier != null && _readerActiveListener != null) {
+      _readerActiveNotifier!.removeListener(_readerActiveListener!);
+      _readerActiveListener = null;
+    }
 
     _dbFlushTimer?.cancel();
     //  fire-and-forget — may not complete if event loop shutting down

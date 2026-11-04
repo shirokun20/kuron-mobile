@@ -8,8 +8,11 @@ import '../../domain/entities/download_status.dart';
 import '../blocs/download/download_bloc.dart';
 
 class GlobalDownloadProgressWidget extends StatefulWidget {
-  const GlobalDownloadProgressWidget({super.key});
+  const GlobalDownloadProgressWidget({super.key, this.topInset = 0.0});
 
+  /// Additional top inset padding (e.g. status bar + app bar height)
+  /// when used in screens with extendBodyBehindAppBar enabled.
+  final double topInset;
   @override
   State<GlobalDownloadProgressWidget> createState() =>
       _GlobalDownloadProgressWidgetState();
@@ -86,9 +89,16 @@ class _GlobalDownloadProgressWidgetState
             ? _buildMultipleDownloadsView(context, state)
             : _buildSingleDownloadView(context, active.first);
 
+        final paddedChild = widget.topInset > 0
+            ? Padding(
+                padding: EdgeInsets.only(top: widget.topInset),
+                child: child,
+              )
+            : child;
+
         return SlideTransition(
           position: _slideAnimation,
-          child: child,
+          child: paddedChild,
         );
       },
     );

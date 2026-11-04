@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
@@ -180,6 +181,7 @@ void main() {
     late _MockDownloadManager mockManager;
     late StreamController<DownloadProgressUpdate> progressController;
     late Map<String, DownloadStatus> db;
+    late ValueNotifier<bool> readerNotifier;
 
     DownloadStatus status(String id, DownloadState state) => DownloadStatus(
           contentId: id,
@@ -240,10 +242,31 @@ void main() {
             onOpenDownload: any(named: 'onOpenDownload'),
             onNavigateToDownloads: any(named: 'onNavigateToDownloads'),
           )).thenReturn(null);
+      when(() => mockNotifications.showDownloadCompleted(
+            contentId: any(named: 'contentId'),
+            title: any(named: 'title'),
+            downloadPath: any(named: 'downloadPath'),
+          )).thenAnswer((_) async => {});
+      when(() => mockNotifications.cancelDownloadNotification(any()))
+          .thenAnswer((_) async => {});
+      when(() => mockNotifications.cancelDownloadGroup())
+          .thenAnswer((_) async => {});
+      when(() => mockNotifications.updateDownloadGroupProgress(
+            activeCount: any(named: 'activeCount'),
+            totalProgress: any(named: 'totalProgress'),
+            speedText: any(named: 'speedText'),
+          )).thenAnswer((_) async => {});
+      when(() => mockNotifications.updateDownloadProgress(
+            contentId: any(named: 'contentId'),
+            progress: any(named: 'progress'),
+            title: any(named: 'title'),
+            isPaused: any(named: 'isPaused'),
+          )).thenAnswer((_) async => {});
       // wifiOnly gate defers any re-queue so no download starts in-test.
       when(() => mockConnectivity.checkConnectivity())
           .thenAnswer((_) async => [ConnectivityResult.mobile]);
 
+      readerNotifier = ValueNotifier<bool>(false);
       bloc = DownloadBloc(
         downloadContentUseCase: mockContent,
         getContentDetailUseCase: mockDetail,
@@ -257,6 +280,7 @@ void main() {
         pdfConversionQueueManager: mockPdfQueue,
         remoteConfigService: mockRemote,
         downloadManager: mockManager,
+        readerActiveNotifier: readerNotifier,
       );
       addTearDown(() async {
         await bloc.close();
@@ -329,6 +353,29 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 20));
       }
       await bloc.handleReaderActiveChanged(false);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(bloc.readerAutoPaused, isEmpty);
+      verify(() => mockManager.resumeDownload('auto-a')).called(1);
+      verify(() => mockManager.resumeDownload('auto-b')).called(1);
+      verify(() => mockManager.resumeDownload('auto-c')).called(1);
+      verifyNever(() => mockManager.resumeDownload('user-p'));
+    });
+
+    test(
+        'readerActiveNotifier value flips trigger pause and resume automatically without context',
+        () async {
+      // Flip notifier to true (reader entered)
+      readerNotifier.value = true;
+      for (var i = 0;
+          i < 200 &&
+              db.values.where((d) => d.state == DownloadState.paused).length < 4;
+          i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(bloc.readerAutoPaused, {'auto-a', 'auto-b', 'auto-c'});
+
+      // Flip notifier to false (reader exited)
+      readerNotifier.value = false;
       await Future<void>.delayed(const Duration(milliseconds: 300));
       expect(bloc.readerAutoPaused, isEmpty);
       verify(() => mockManager.resumeDownload('auto-a')).called(1);

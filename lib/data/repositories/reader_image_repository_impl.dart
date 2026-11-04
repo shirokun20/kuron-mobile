@@ -52,8 +52,8 @@ Future<String?> _defaultStreamingDownload({
 /// lazy migration so users do not lose their existing cache after an update).
 Future<String?> _defaultLegacyLookup(String url) async {
   try {
-    final file = await DefaultCacheManager().getSingleFile(url);
-    if (file.existsSync()) return file.path;
+    final file = await DefaultCacheManager().getFileFromCache(url);
+    if (file != null && await file.file.exists()) return file.file.path;
   } catch (_) {}
   return null;
 }

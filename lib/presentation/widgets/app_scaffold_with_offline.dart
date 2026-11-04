@@ -96,6 +96,17 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
                 // Use persistent sidebar if width > 900dp
                 final isLargeScreen = constraints.maxWidth > 900;
 
+                final topHeaderInset = widget.extendBodyBehindAppBar
+                    ? (MediaQuery.paddingOf(context).top +
+                        (widget.appBar != null
+                            ? (widget.appBar is PreferredSizeWidget
+                                ? (widget.appBar as PreferredSizeWidget)
+                                    .preferredSize
+                                    .height
+                                : kToolbarHeight)
+                            : 0.0))
+                    : 0.0;
+
                 final scaffold = Scaffold(
                   key: _scaffoldKey,
                   appBar: widget.appBar ??
@@ -119,7 +130,9 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
                   body: Column(
                     children: [
                       // GLOBAL DOWNLOAD HEADER
-                      const GlobalDownloadProgressWidget(),
+                      GlobalDownloadProgressWidget(
+                        topInset: topHeaderInset,
+                      ),
 
                       // Show offline banner when in offline mode
                       if (isOfflineMode) _buildOfflineBanner(context),

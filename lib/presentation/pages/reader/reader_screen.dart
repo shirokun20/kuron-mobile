@@ -230,7 +230,6 @@ class _ReaderScreenState extends State<ReaderScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value = true;
-    _notifyDownloadBlocReaderActive(true);
     MemoryBudgetCoordinator().onReaderActiveChanged(true);
     _lastReportedPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage - 1);
@@ -856,7 +855,6 @@ class _ReaderScreenState extends State<ReaderScreen>
 
     getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value =
         false;
-    _notifyDownloadBlocReaderActive(false);
     MemoryBudgetCoordinator().onReaderActiveChanged(false);
     super.dispose();
   }
@@ -880,17 +878,6 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
-  /// Forwards reader entry/exit to [DownloadBloc] so active downloads pause
-  /// while the reader renders and resume on exit. Never throws: when the
-  /// bloc is unavailable the reader must keep working and downloads simply
-  /// keep running.
-  void _notifyDownloadBlocReaderActive(bool active) {
-    try {
-      context.read<DownloadBloc>().handleReaderActiveChanged(active);
-    } catch (_) {
-      // DownloadBloc unavailable — reader stays functional.
-    }
-  }
 
   void _toggleImmersiveMode(bool immersive) {
     if (immersive) {
