@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'permission_helper.dart';
+import '../services/local_image_preloader.dart';
 
 class StorageSettings {
   static const String _prefKey = 'custom_storage_root';
@@ -11,6 +12,7 @@ class StorageSettings {
   // Memory cache to prevent repeated SharedPreferences reads
   // and ensure persistence even if SharedPreferences has issues
   static String? _cachedCustomRoot;
+  static bool _isLoaded = false;
 
   // Pick a custom folder and save it.
   // Returns the path if successful, null otherwise.
@@ -106,50 +108,39 @@ class StorageSettings {
 
     // Cache in memory for faster subsequent access
     _cachedCustomRoot = resolvedPath;
-    Logger().d('📁 STORAGE_SETTINGS: Cached in memory: $_cachedCustomRoot');
+    _isLoaded = true;
+    LocalImagePreloader.invalidateDirectoryCache();
 
     return resolvedPath;
   }
 
   // Get the currently saved custom root path.
   static Future<String?> getCustomRootPath() async {
-    // Return cache if available
-    if (_cachedCustomRoot != null) {
-      Logger()
-          .d('📁 STORAGE_SETTINGS: returning cached path: $_cachedCustomRoot');
+    // Return cache if available (including null when no custom root is set)
+    if (_isLoaded) {
       return _cachedCustomRoot;
     }
 
     final prefs = await SharedPreferences.getInstance();
-    final path = prefs.getString(_prefKey);
-    Logger().d('📁 STORAGE_SETTINGS: getCustomRootPath called');
-    Logger().d('📁 STORAGE_SETTINGS: Retrieved path: $path');
-    Logger().d('📁 STORAGE_SETTINGS: All keys: ${prefs.getKeys()}');
+    _cachedCustomRoot = prefs.getString(_prefKey);
+    _isLoaded = true;
 
-    // Cache for subsequent calls
-    if (path != null) {
-      _cachedCustomRoot = path;
-      Logger()
-          .d('📁 STORAGE_SETTINGS: Cached path in memory: $_cachedCustomRoot');
-    }
-
-    return path;
+    return _cachedCustomRoot;
   }
 
   // Check if a custom root is set.
   static Future<bool> hasCustomRoot() async {
     final path = await getCustomRootPath();
-    final result = path != null && path.isNotEmpty;
-    Logger().d('📁 STORAGE_SETTINGS: hasCustomRoot = $result (path: $path)');
-    return result;
+    return path != null && path.isNotEmpty;
   }
 
   // Clear the custom root setting.
   static Future<void> clearCustomRoot() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefKey);
-    _cachedCustomRoot = null; // Clear cache
-    Logger().d('📁 STORAGE_SETTINGS: Cleared custom root and cache');
+    _cachedCustomRoot = null;
+    _isLoaded = true;
+    LocalImagePreloader.invalidateDirectoryCache();
   }
 
   /// Show in-app directory picker (when MANAGE_EXTERNAL_STORAGE is granted).

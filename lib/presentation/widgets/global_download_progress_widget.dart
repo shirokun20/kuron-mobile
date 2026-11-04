@@ -53,11 +53,16 @@ class _GlobalDownloadProgressWidgetState
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<DownloadBloc, DownloadBlocState>(
-      buildWhen: (previous, current) =>
-          previous.runtimeType != current.runtimeType ||
-          (previous is DownloadLoaded &&
-              current is DownloadLoaded &&
-              previous.downloads != current.downloads),
+      buildWhen: (previous, current) {
+        if (previous.runtimeType != current.runtimeType) return true;
+        if (previous is! DownloadLoaded || current is! DownloadLoaded) return true;
+        final prevActive =
+            previous.downloads.where((d) => d.state == DownloadState.downloading);
+        final currActive =
+            current.downloads.where((d) => d.state == DownloadState.downloading);
+        if (prevActive.isEmpty && currActive.isEmpty) return false;
+        return true;
+      },
       builder: (context, state) {
         if (state is! DownloadLoaded) {
           _slideController.reverse();

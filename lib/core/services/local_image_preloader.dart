@@ -50,6 +50,19 @@ class LocalImagePreloader {
     _lookupCache.clear();
     _lastCleanupAt = null;
     cleanupRunCount = 0;
+    invalidateDirectoryCache();
+  }
+
+  static List<String>? _cachedDownloadDirectories;
+  static List<String>? _cachedExternalDownloadPaths;
+  static List<String>? _cachedPossibleBasePaths;
+
+  /// Invalidates directory caches when custom storage root changes.
+  static void invalidateDirectoryCache() {
+    _cachedDownloadDirectories = null;
+    _cachedExternalDownloadPaths = null;
+    _cachedPossibleBasePaths = null;
+    _didLogDownloadDirectorySelection = false;
   }
 
   static void _maybeScheduleCleanup() {
@@ -69,6 +82,9 @@ class LocalImagePreloader {
   // Get all possible base paths where images might be stored
   // Priority: External Download -> Internal Cache (with expiry) -> Internal App Documents
   static Future<List<String>> _getPossibleBasePaths() async {
+    if (_cachedPossibleBasePaths != null) {
+      return _cachedPossibleBasePaths!;
+    }
     final List<String> basePaths = [];
 
     try {
@@ -106,12 +122,16 @@ class LocalImagePreloader {
       basePaths.add(path.join(appDir.path, _baseLocalPath));
     }
 
+    _cachedPossibleBasePaths = basePaths;
     return basePaths;
   }
 
   // Get Downloads directories using smart detection similar to download_service.dart
   // Reference implementation from download_service.dart _getDownloadsDirectory()
   static Future<List<String>> _getDownloadDirectories() async {
+    if (_cachedDownloadDirectories != null) {
+      return _cachedDownloadDirectories!;
+    }
     final List<String> downloadPaths = [];
     final bool shouldLog = !_didLogDownloadDirectorySelection;
 
@@ -166,6 +186,7 @@ class LocalImagePreloader {
       _logger.e('Error detecting Downloads directories: $e');
     }
 
+    _cachedDownloadDirectories = downloadPaths;
     return downloadPaths;
   }
 
@@ -319,10 +340,12 @@ class LocalImagePreloader {
 
   // Get only external download paths (excluding cache)
   static Future<List<String>> _getExternalDownloadPaths() async {
+    if (_cachedExternalDownloadPaths != null) {
+      return _cachedExternalDownloadPaths!;
+    }
     final List<String> externalPaths = [];
 
     try {
-      // Only external storage Download folder (permanently downloaded files)
       final downloadPaths = await _getDownloadDirectories();
       for (final downloadPath in downloadPaths) {
         final downloadDir = Directory(path.join(downloadPath, _baseLocalPath));
@@ -336,6 +359,7 @@ class LocalImagePreloader {
       _logger.e('Error getting external download paths: $e');
     }
 
+    _cachedExternalDownloadPaths = externalPaths;
     return externalPaths;
   }
 

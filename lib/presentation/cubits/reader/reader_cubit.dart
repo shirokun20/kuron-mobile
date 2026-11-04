@@ -162,39 +162,11 @@ class ReaderCubit extends Cubit<ReaderState> {
       _parentContent = parentContent;
       _allChapters = allChapters;
 
-      // Fast-path: preloaded already has imageUrls → defer heavy sync work.
-      // Spec reader-coldstart-fastpath: emit loaded without awaiting offline scan + bypass seeding.
       final fastPathEligible =
           preloadedContent != null && preloadedContent.imageUrls.isNotEmpty;
-      if (fastPathEligible) {
-        unawaited(_backgroundSeedBypassCaches());
-      } else {
-        // Cold-start bridge: seed static bypass header caches from persisted
-        // cookie jars so image requests carry a still-valid cf_clearance even
-        // when the reader is the first screen after an app restart.
-        // Only for non-fast-path (fast-path does it in background).
-        try {
-          final configService = getIt<RemoteConfigService>();
-          for (final cfg in configService.getAllSourceConfigs()) {
-            final sourceId = cfg.source;
-            final raw = configService.getRawConfig(sourceId);
-            if (raw == null) continue;
-            final network = raw['network'] as Map<String, dynamic>?;
-            if (network == null) continue;
-            final cf = network['cloudflare'] as Map<String, dynamic>?;
-            final requiresBypass = network['requiresBypass'] == true;
-            final cloudflareBypass = cf?['bypassEnabled'] == true;
-            if (!requiresBypass && !cloudflareBypass) continue;
-            if (getIt.isRegistered<WebViewSessionAdapter>(
-                instanceName: 'cf_$sourceId')) {
-              await getIt<WebViewSessionAdapter>(instanceName: 'cf_$sourceId')
-                  .seedBypassHeaderCacheFromJar();
-            }
-          }
-        } catch (_) {
-          // Best-effort — bypass flow repopulates caches on first challenge.
-        }
-      }
+
+      // Seed bypass header caches in background so route transition is never blocked.
+      unawaited(_backgroundSeedBypassCaches());
 
       // 🔍 DEBUG LOGGING
       _logger.i('📥 ReaderCubit.loadContent - Received:');

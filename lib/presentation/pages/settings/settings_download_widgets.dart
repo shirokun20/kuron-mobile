@@ -12,6 +12,13 @@ Widget buildDownloadSection(
   AppLocalizations l10n,
 ) {
   return BlocBuilder<DownloadBloc, DownloadBlocState>(
+    buildWhen: (previous, current) {
+      if (previous.runtimeType != current.runtimeType) return true;
+      if (previous is DownloadLoaded && current is DownloadLoaded) {
+        return previous.settings != current.settings;
+      }
+      return true;
+    },
     builder: (context, state) {
       if (state is DownloadError) {
         return buildSettingsCard([
