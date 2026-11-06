@@ -113,11 +113,13 @@ echo ""
 APK_SEARCH_PATH="build/app/outputs/apk/$FLAVOR/$BUILD_TYPE/kuron_*.apk"
 
 FOUND_COUNT=0
+COPIED_FILES=()
 for apk in $APK_SEARCH_PATH; do
     if [ -f "$apk" ]; then
         filename=$(basename "$apk")
         size=$(du -h "$apk" | cut -f1)
         cp "$apk" "$OUTPUT_DIR/"
+        COPIED_FILES+=("$OUTPUT_DIR/$filename")
         echo "  📱 $filename - $size"
         FOUND_COUNT=$((FOUND_COUNT + 1))
     fi
@@ -130,6 +132,7 @@ if [ $FOUND_COUNT -eq 0 ]; then
             filename=$(basename "$apk")
             size=$(du -h "$apk" | cut -f1)
             cp "$apk" "$OUTPUT_DIR/"
+            COPIED_FILES+=("$OUTPUT_DIR/$filename")
             echo "  📱 $filename - $size"
             FOUND_COUNT=$((FOUND_COUNT + 1))
         fi
@@ -142,6 +145,7 @@ if [ $FOUND_COUNT -eq 0 ]; then
             filename=$(basename "$apk")
             size=$(du -h "$apk" | cut -f1)
             cp "$apk" "$OUTPUT_DIR/"
+            COPIED_FILES+=("$OUTPUT_DIR/$filename")
             echo "  📱 $filename - $size"
             FOUND_COUNT=$((FOUND_COUNT + 1))
         fi
@@ -155,13 +159,23 @@ fi
 
 echo ""
 echo "📏 SIZE SUMMARY:"
-total_size=$(du -ch $OUTPUT_DIR/kuron_*.apk 2>/dev/null | grep total | cut -f1 || echo '0')
-count=$(ls -1 $OUTPUT_DIR/kuron_*.apk 2>/dev/null | wc -l | tr -d ' ')
-universal_apk_path="build/app/outputs/flutter-apk/app-${BUILD_TYPE}.apk"
-# flavor-aware universal is app-<abi>-<flavor>-<type>.apk; not generated with --split-per-abi anyway
-echo "📦 Total APKs: $count"
-echo "📊 Combined size: $total_size"
-if [ -f "$universal_apk_path" ]; then
+# Count ONLY files copied in this run — never stale APKs from previous builds
+# sitting in apk-output/ (that was the old 1-file-vs-2-APKs/740M mismatch).
+count=${#COPIED_FILES[@]}
+total_size=$(du -ch "${COPIED_FILES[@]}" 2>/dev/null | grep total | cut -f1 || echo '0')
+# Flavor builds land as app-<flavor>-<type>.apk (e.g. app-prod-release.apk);
+# plain app-<type>.apk only exists for non-flavor builds.
+universal_apk_path=""
+for candidate in "build/app/outputs/flutter-apk/app-${FLAVOR}-${BUILD_TYPE}.apk" \
+                 "build/app/outputs/flutter-apk/app-${BUILD_TYPE}.apk"; do
+    if [ -f "$candidate" ]; then
+        universal_apk_path="$candidate"
+        break
+    fi
+done
+echo "📦 Total APKs (this run): $count"
+echo "📊 Combined size (this run): $total_size"
+if [ -n "$universal_apk_path" ]; then
     universal_size=$(du -h "$universal_apk_path" | cut -f1)
     echo "💾 Universal APK reference: $universal_size ($(basename "$universal_apk_path"))"
 else

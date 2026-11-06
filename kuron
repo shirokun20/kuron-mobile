@@ -1,0 +1,10 @@
+#!/bin/bash
+# KURO — Kuro Utility Runner & Optimizer (launcher).
+# Auto-detects FVM vs system Dart (CI-friendly, zero assumptions).
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if command -v fvm >/dev/null 2>&1; then
+  exec fvm dart "$SCRIPT_DIR/scripts/kuron.dart" "$@"
+else
+  exec dart "$SCRIPT_DIR/scripts/kuron.dart" "$@"
+fi

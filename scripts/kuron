@@ -1,0 +1,9 @@
+#!/bin/bash
+# KURO launcher (scripts/ copy). See ./kuron at repo root.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if command -v fvm >/dev/null 2>&1; then
+  exec fvm dart "$SCRIPT_DIR/kuron.dart" "$@"
+else
+  exec dart "$SCRIPT_DIR/kuron.dart" "$@"
+fi
