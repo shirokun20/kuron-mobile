@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
 ## [Unreleased]
+
+## [0.9.29+39] - 2026-11-06
 ### Performance & Memory
 - **Memory & CPU Bottleneck Remediation (openspec: `memory-bottleneck-remediation`)**:
   - **Cold-start deferred init**: Moved 7 serial pre-`runApp` `await`s (`PerformanceMonitor`, `AnalyticsService`, `HistoryCleanupService`, `purgeExpired`, `AppUpdateService`, `LanguageService`, `initializeWorkManager`) to post-frame deferred init; reused `getIt` singletons instead of redundant platform channels.
@@ -22,6 +24,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Added
 
 - **bulk-source-configs ship wave 2026-10-13**: +14 sources (manifest 104→118): Batch 7 (pawmanga, rackus, ravenscans, s2manga, thunderscans, toonizy), Batch 8 (topmanhua, topmanhuanet, tritinia, violetmanga, yakshacomics, zazamanga, zinmanga), revisit octopusmanga (AES protector gone). Tiap source: config+icon(192px)+bulk LIVE test green + conformance bersih. 9 SKIP baru (petrotechsociety redirect-loop, rdscans/topmanhuafan/zinmanganet search-detail struktural, rokaricomics/mangadrama reader-JS, wearehunger/kunmangaonline chapters-JS, nexcomic custom-engine). Engine lesson (tanpa ubah `lib/`): clone `--template` butuh shim `informations/configs/` + perbaikan pola (post-title-only home-id, `/porn-comics/` plural leftover, chapters `mode:dom` bila ajax kosong, `#chapterlist li` + `a[href]`).
+
+- **Chapter continue button** (openspec: `chapter-continue-button`): draggable pill on the detail screen — resume / next-chapter / restart resolved from the chapter name (numeric, `Bab`/`Ch.`, CJK, bare numbers), `KuroMascot` mood per mode, clamped to screen insets, l10n en/id/zh.
+- **KURO unified dev CLI v1.1.0** (`scripts/kuron.dart` + `./kuron` launcher, zero dependencies): `build`, `pub-get`, `feature`, `status`, `assets`, `clear-cache`, `search`; interactive arrow-key wizard with numbered fallback; per-step build counters; gradient banner; result box; smear-free running-cat animation; `build_optimized.sh` summary now counts only this run's APKs with a flavor-aware universal reference.
+- **macOS desktop support**: dev/prod flavors and schemes, Swift `kuron_native` plugin (pickers, WebView login/captcha, proxy, downloads), Rust dylib bundling, download location picker, permission/entitlement fixes, desktop sidebar redesign.
+- **Offline source cards + download counts**: per-source cards with rank/count/bar, "view all" sheet with search, filter chips that no longer flash-reset on refresh.
+- **Source update handling**: pure-Dart semver tri-state compare, manifest picker with version diff plus update/downgrade warnings, installed update badges, update-first sorting.
+- **Animated FPS throttle** (openspec: `reader-animated-fps-throttle`): animated caps tightened 900/720→720/540 with tap-to-pause badge; scroll VRAM steady ~232MB.
+- **Recommendation fairness**: sourceless favorites skipped instead of guessed as nhentai, tagless candidates demoted, per-source seed/pool/result logging.
+- **Komiku Cloudflare bypass**: `cf_komiku` adapter (isolated cookie jar, auto-close `cf_clearance`) registered in `GenericBypassSourceFactory`.
+- **Rawkuma POST+nonce search/genre + mitaku pagination**: nonce-bootstrap POST search (1-hour cache, rotate-and-retry), WP-PageNavi `page.larger`/`page.last` selectors.
+
+### Fixed
+
+- **Reader image misrouting** (openspec: `reader-image-misrouting-native-decision`): static WebP ≥2MB no longer forced into the native animated player; page-generation guard stops late decodes landing on the wrong page; the `webp ⇒ animated` assumption removed; per-page triple-identity `ValueKey`.
+- **Reader jank during active downloads** (openspec: `reader-jank-during-active-downloads`): reader open refcount (no false unpause on `pushReplacement`); in-flight prefetch cancelled on >3-page jumps; local files matched by page number instead of array index; 2s negative lookup cache for online reading; no full SQLite reload on resume; sync `existsSync` off the UI thread.
+- **Concurrency & lifecycle** (openspec: `fix-kuron-packages-concurrency-and-state`): single-flight `ClearanceService.acquire()` plus hang-proof interceptors; split native executors (conversion vs network) with safe PDF streams; synchronous `RateLimiter` slot reservation; `ViHentai` Dio options clone; `ReaderCubit` migrated to `BaseCubit` with `isClosed` guards; dead Dart-side DNS stack removed (native Private DNS unchanged).
 
 
 ## [0.9.28+38] - 2026-10-12

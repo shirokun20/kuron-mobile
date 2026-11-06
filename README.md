@@ -15,7 +15,7 @@
 <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white" alt="Dart" height="28"/></a>
 <a href="https://www.android.com"><img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" height="28"/></a>
 <a href="#-license--legal"><img src="https://img.shields.io/badge/Age_Restriction-18%2B-red?style=for-the-badge&logo=warning&logoColor=white" alt="18+" height="28"/></a>
-<a href="https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.28%2B38"><img src="https://img.shields.io/badge/Status-RELEASE_v0.9.28%2B38-green?style=for-the-badge&logo=android&logoColor=white" alt="Release v0.9.28+38" height="28"/></a>
+<a href="https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.29%2B39"><img src="https://img.shields.io/badge/Status-RELEASE_v0.9.29%2B39-green?style=for-the-badge&logo=android&logoColor=white" alt="Release v0.9.29+39" height="28"/></a>
 <img src="https://img.shields.io/badge/build-passing-brightgreen?style=for-the-badge" alt="Build" height="28"/>
 <img src="https://img.shields.io/badge/code_quality-A+-blueviolet?style=for-the-badge" alt="Code Quality" height="28"/>
 
@@ -51,7 +51,7 @@
 
 ## 📥 Download Latest Release
 
-[📦 **Get v0.9.28+38**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.28%2B38)
+[📦 **Get v0.9.29+39**](https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.29%2B39)
 
 | Variant | Size | Best For | Status |
 |:--------|:----:|:---------|:------:|
