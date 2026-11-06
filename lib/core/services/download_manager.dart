@@ -44,33 +44,6 @@ class DownloadManager {
     _logger = getIt<Logger>();
     _logger.i('DownloadManager: Initialized');
     _initializeNativeListener();
-    _listenToReaderActive();
-  }
-
-  void _listenToReaderActive() {
-    try {
-      final notifier =
-          getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
-      notifier.addListener(_onReaderActiveChanged);
-    } catch (e) {
-      _logger.w('DownloadManager: failed to listen to readerActive: $e');
-    }
-  }
-
-  void _onReaderActiveChanged() {
-    // Reader-driven auto-pause is owned by DownloadBloc, which reads running
-    // downloads from its own DownloadLoaded state (native WorkManager work has
-    // no entry in _tasks). This listener only records the signal so both
-    // layers never double-pause.
-    try {
-      final active =
-          getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value;
-      if (kDebugMode) {
-        _logger.d('DownloadManager: readerActive=$active (bloc-owned)');
-      }
-    } catch (e) {
-      _logger.w('DownloadManager: onReaderActiveChanged error: $e');
-    }
   }
 
   late final Logger _logger;
@@ -276,10 +249,6 @@ class DownloadManager {
   bool get isActive => !_progressController.isClosed;
 
   void dispose() {
-    try {
-      getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive')
-          .removeListener(_onReaderActiveChanged);
-    } catch (_) {}
     _nativeSubscription?.cancel();
     if (!_progressController.isClosed) {
       _progressController.close();

@@ -27,6 +27,9 @@ class MethodChannelKuronNative extends KuronNativePlatform {
     methodChannel.setMethodCallHandler(_handleMethodCall);
   }
 
+  @visibleForTesting
+  Future<void> handleMethodCallForTest(MethodCall call) => _handleMethodCall(call);
+
   Future<void> _handleMethodCall(MethodCall call) async {
     if (call.method == 'onProgress') {
       if (_onPdfProgress != null) {

@@ -342,21 +342,23 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         }
       }
     } else {
-      if (_readerAutoPaused.isEmpty) return;
       final ids = List<String>.from(_readerAutoPaused);
       _readerAutoPaused.clear();
       final currentState = state;
-      if (currentState is! DownloadLoaded) return;
-      for (final contentId in ids) {
-        final download = currentState.downloads
-            .where((d) => d.contentId == contentId)
-            .firstOrNull;
-        // Only resume what is still paused — user may have cancelled/removed
-        // it while the reader was open.
-        if (download != null && download.state == DownloadState.paused) {
-          add(DownloadResumeEvent(contentId));
+      if (currentState is DownloadLoaded) {
+        for (final contentId in ids) {
+          final download = currentState.downloads
+              .where((d) => d.contentId == contentId)
+              .firstOrNull;
+          // Only resume what is still paused — user may have cancelled/removed
+          // it while the reader was open.
+          if (download != null && download.state == DownloadState.paused) {
+            add(DownloadResumeEvent(contentId));
+          }
         }
       }
+      // Ensure queued downloads start even if _readerAutoPaused was empty.
+      await _processQueue();
     }
   }
 
@@ -1710,7 +1712,15 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       }
       _updateDownloadGroupNotification();
 
-      add(const DownloadRefreshEvent());
+      final updatedDownloads = currentState.downloads.map((d) {
+        return d.contentId == event.contentId ? updatedDownload : d;
+      }).toList();
+
+      emit(currentState.copyWith(
+        downloads: updatedDownloads,
+        lastUpdated: DateTime.now(),
+      ));
+
       await _processQueue();
 
       _logger.i('DownloadBloc: Resumed download for ${event.contentId}');

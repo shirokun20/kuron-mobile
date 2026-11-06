@@ -40,7 +40,6 @@ import 'package:nhasixapp/core/utils/tag_data_manager.dart';
 import 'package:nhasixapp/core/utils/offline_content_manager.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/config/source_loader.dart';
-import 'package:nhasixapp/core/network/dns_settings_service.dart';
 import 'package:nhasixapp/core/network/source_health_monitor.dart';
 
 // Data Sources
@@ -217,13 +216,10 @@ void _setupCore() {
   getIt.registerSingleton<Logger>(logger);
 
   // HTTP Client (Dio) - Using singleton manager
-  // DNS-over-HTTPS is DISABLED because it's incompatible with HTTPS/SSL
-  // (SNI and certificate validation fail when using IP addresses)
   final packageInfo = getIt<PackageInfo>();
   final dio = HttpClientManager.initializeHttpClient(
     logger: logger,
     userAgent: KuronUserAgent.fromPackageInfo(packageInfo),
-    // dnsResolver: getIt<DnsResolver>(),  // DISABLED - incompatible with HTTPS
   );
   getIt.registerSingleton<Dio>(dio);
 
@@ -288,12 +284,6 @@ void _setupCore() {
   // Source Loader — applies manifest-driven enable/maintenance flags to registry
   getIt.registerLazySingleton<SourceLoader>(() => SourceLoader(
         configService: getIt<RemoteConfigService>(),
-        logger: getIt<Logger>(),
-      ));
-
-  // DNS Settings Service
-  getIt.registerLazySingleton<DnsSettingsService>(() => DnsSettingsService(
-        prefs: getIt<SharedPreferences>(),
         logger: getIt<Logger>(),
       ));
 

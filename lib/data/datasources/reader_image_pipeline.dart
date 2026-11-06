@@ -17,7 +17,6 @@ import 'package:nhasixapp/core/utils/reader_image_repair_utils.dart';
 import 'package:nhasixapp/domain/entities/page_image_result.dart';
 import 'package:nhasixapp/domain/repositories/reader_image_repository.dart';
 import 'remote/ehentai_reader_datasource.dart';
-import 'package:nhasixapp/domain/entities/reader_settings_entity.dart';
 
 /// Cancellation handle for reader page resolution without exposing Dio types to widgets.
 class ReaderImageCancellation {
@@ -57,43 +56,17 @@ class ImageRouteDecider {
   ImageRouteDecider._();
 
   static ImageRouteOutcome decide({
-    Object? header,
     List<int>? headerBytes,
     int? fileSize,
-    int? width,
     int? height,
     String? avifBrand,
     bool? isAvif,
     bool? isAvisBrand,
     bool? isConfirmedAnimatedWebP,
     bool? isHeavy,
-    String? sourceId,
-    ReadingMode? readingMode,
     String? url,
     bool nativeViewAvailable = true,
   }) {
-    // Unpack polymorphic header object if provided
-    if (header != null) {
-      if (header is List<int>) {
-        headerBytes ??= header;
-      } else if (header is ({String? format, int? width, int? height})) {
-        width ??= header.width;
-        height ??= header.height;
-        if (header.format == 'avif') isAvif ??= true;
-        if (header.format == 'webp') isConfirmedAnimatedWebP ??= true;
-      } else if (header is ({
-        bool isAvif,
-        bool isAvisBrand,
-        int? width,
-        int? height
-      })) {
-        isAvif ??= header.isAvif;
-        isAvisBrand ??= header.isAvisBrand;
-        width ??= header.width;
-        height ??= header.height;
-      }
-    }
-
     // 1. Zero-byte or empty file check
     if (fileSize != null && fileSize <= 0) {
       return ImageRouteOutcome.bypassError;
@@ -346,34 +319,26 @@ class ReaderImagePipeline {
   // ─────────────────────────────────────────────────────────────────────────
 
   static ImageRouteOutcome decide({
-    Object? header,
     List<int>? headerBytes,
     int? fileSize,
-    int? width,
     int? height,
     String? avifBrand,
     bool? isAvif,
     bool? isAvisBrand,
     bool? isConfirmedAnimatedWebP,
     bool? isHeavy,
-    String? sourceId,
-    ReadingMode? readingMode,
     String? url,
     bool nativeViewAvailable = true,
   }) =>
       ImageRouteDecider.decide(
-        header: header,
         headerBytes: headerBytes,
         fileSize: fileSize,
-        width: width,
         height: height,
         avifBrand: avifBrand,
         isAvif: isAvif,
         isAvisBrand: isAvisBrand,
         isConfirmedAnimatedWebP: isConfirmedAnimatedWebP,
         isHeavy: isHeavy,
-        sourceId: sourceId,
-        readingMode: readingMode,
         url: url,
         nativeViewAvailable: nativeViewAvailable,
       );
@@ -387,7 +352,6 @@ class ReaderImagePipeline {
     final outcome = decide(
       isAvif: avifInfo.isAvif,
       isAvisBrand: avifInfo.isAvisBrand,
-      width: avifInfo.width,
       height: avifInfo.height,
     );
     return outcome == ImageRouteOutcome.convertAvifThenDirect ||
@@ -580,8 +544,6 @@ class ReaderImagePipeline {
         );
       }
 
-      // Background / service header inspection
-      inspectHeader(filePath);
       final avifInfo = inspectAvifBytesForRouting(sampleBytes);
       final shouldConvert =
           decision == ImageRouteOutcome.convertAvifThenDirect ||

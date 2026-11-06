@@ -261,5 +261,21 @@ void main() {
       );
       expect(outcome, equals(ImageRouteOutcome.convertAvifThenDirect));
     });
+
+    test('static WebP with large fileSize (3MB) routes to flutterDirect', () {
+      final outcome = ImageRouteDecider.decide(
+        headerBytes: minimalStaticWebP,
+        fileSize: 3 * 1024 * 1024,
+      );
+      expect(outcome, equals(ImageRouteOutcome.flutterDirect));
+    });
+
+    test('plain webp url without confirmed animated flag routes to flutterDirect', () {
+      final outcome = ImageRouteDecider.decide(
+        url: 'https://example.com/chapter/page_1.webp',
+        isHeavy: false,
+      );
+      expect(outcome, equals(ImageRouteOutcome.flutterDirect));
+    });
   });
 }

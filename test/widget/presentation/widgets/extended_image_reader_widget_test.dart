@@ -729,4 +729,20 @@ void main() {
       expect(AnimatedWebPView.isAvailable, equals(Platform.isAndroid));
     });
   });
+
+  group('Audit Follow-up (Section 5)', () {
+    test('Content-Length >= 2MB hint does not mark heavyImageKeys', () {
+      ExtendedImageReaderWidget.clearHeavyUrlsForTesting();
+      const tripleKey = ('content_1', 1, 'https://example.com/p1.webp');
+
+      expect(
+        ExtendedImageReaderWidget.hasLargeContentLengthHintForTesting(tripleKey),
+        isFalse,
+      );
+      expect(
+        ExtendedImageReaderWidget.isHeavyUrlForTesting('https://example.com/p1.webp'),
+        isFalse,
+      );
+    });
+  });
 }

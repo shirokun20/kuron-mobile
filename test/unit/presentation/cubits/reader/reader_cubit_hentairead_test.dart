@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
+// ignore: depend_on_referenced_packages
+import 'package:wakelock_plus_platform_interface/wakelock_plus_platform_interface.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/utils/offline_content_manager.dart';
 import 'package:nhasixapp/domain/entities/reader_settings_entity.dart';
@@ -74,15 +76,26 @@ class _FakeAddToHistoryParams extends Fake implements AddToHistoryParams {}
 
 class _FakeReaderPosition extends Fake implements ReaderPosition {}
 
+class _FakeWakelockPlatform extends WakelockPlusPlatformInterface {
+  @override
+  Future<bool> get enabled async => true;
+
+  @override
+  Future<void> toggle({required bool enable}) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
+    WakelockPlusPlatformInterface.instance = _FakeWakelockPlatform();
     registerFallbackValue(_FakeGetContentDetailParams());
     registerFallbackValue(_FakeGetChapterImagesParams());
     registerFallbackValue(_FakeAddToHistoryParams());
     registerFallbackValue(_FakeReaderPosition());
   });
+
+  tearDownAll(() {});
 
   Content buildContent({
     required String id,
@@ -343,5 +356,64 @@ void main() {
     expect(() => cubit.previousPage(), returnsNormally);
     expect(() => cubit.nextPage(), returnsNormally);
     expect(() => cubit.jumpToPage(1), returnsNormally);
+  });
+
+  test('closing cubit while loadContent is running does not throw StateError', () async {
+    final getContentDetailUseCase = _MockGetContentDetailUseCase();
+    final getChapterImagesUseCase = _MockGetChapterImagesUseCase();
+    final addToHistoryUseCase = _MockAddToHistoryUseCase();
+    final getReaderSettingsUseCase = _MockGetReaderSettingsUseCase();
+    final saveReaderSettingsUseCase = _MockSaveReaderSettingsUseCase();
+    final saveReaderPositionUseCase = _MockSaveReaderPositionUseCase();
+    final clearAllReaderPositionsUseCase = _MockClearAllReaderPositionsUseCase();
+    final getReaderPositionUseCase = _MockGetReaderPositionUseCase();
+    final readerSettingsEntityRepository = _MockReaderSettingsEntityRepository();
+    final readerRepository = _MockReaderRepository();
+    final offlineContentManager = _MockOfflineContentManager();
+    final networkCubit = _MockNetworkCubit();
+    final imageMetadataService = _MockImageMetadataService();
+    final contentSourceRegistry = _MockContentSourceRegistry();
+    final ehentaiCookieJar = _MockPersistCookieJar();
+    final remoteConfigService = _MockRemoteConfigService();
+
+    when(() => networkCubit.isConnected).thenReturn(true);
+    when(() => offlineContentManager.isContentAvailableOffline(any()))
+        .thenAnswer((_) async => false);
+    when(() => readerSettingsEntityRepository.getReaderSettingsEntity())
+        .thenAnswer((_) async => const ReaderSettingsEntity());
+    when(() => getContentDetailUseCase(any())).thenAnswer((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      return buildContent(
+        id: 'c1',
+        sourceId: 'hentairead',
+        imageUrls: const ['/1.jpg'],
+      );
+    });
+
+    final cubit = ReaderCubit(
+      getContentDetailUseCase: getContentDetailUseCase,
+      getChapterImagesUseCase: getChapterImagesUseCase,
+      addToHistoryUseCase: addToHistoryUseCase,
+      getReaderSettingsUseCase: getReaderSettingsUseCase,
+      saveReaderSettingsUseCase: saveReaderSettingsUseCase,
+      saveReaderPositionUseCase: saveReaderPositionUseCase,
+      clearAllReaderPositionsUseCase: clearAllReaderPositionsUseCase,
+      getReaderPositionUseCase: getReaderPositionUseCase,
+      readerSettingsEntityRepository: readerSettingsEntityRepository,
+      readerRepository: readerRepository,
+      offlineContentManager: offlineContentManager,
+      networkCubit: networkCubit,
+      imageMetadataService: imageMetadataService,
+      httpClient: Dio(),
+      contentSourceRegistry: contentSourceRegistry,
+      ehentaiCookieJar: ehentaiCookieJar,
+      remoteConfigService: remoteConfigService,
+      logger: Logger(level: Level.off),
+    );
+
+    final loadFuture = cubit.loadContent('c1');
+    await cubit.close();
+
+    await expectLater(loadFuture, completes);
   });
 }

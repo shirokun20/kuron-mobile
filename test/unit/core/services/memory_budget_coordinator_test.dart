@@ -185,5 +185,32 @@ void main() {
       final c2 = MemoryBudgetCoordinator();
       expect(identical(c1, c2), true);
     });
+
+    test('reference counter keeps reader active during reader-to-reader transition', () {
+      final c = MemoryBudgetCoordinator();
+      c.resetReaderCountForTesting();
+      expect(c.isReaderActive, false);
+      expect(c.activeReaderCount, 0);
+
+      // Reader 1 enters
+      c.incrementReaderCount();
+      expect(c.isReaderActive, true);
+      expect(c.activeReaderCount, 1);
+
+      // Reader 2 enters before Reader 1 disposes (pushReplacement)
+      c.incrementReaderCount();
+      expect(c.isReaderActive, true);
+      expect(c.activeReaderCount, 2);
+
+      // Reader 1 disposes
+      c.decrementReaderCount();
+      expect(c.isReaderActive, true);
+      expect(c.activeReaderCount, 1);
+
+      // Reader 2 disposes (exiting reader)
+      c.decrementReaderCount();
+      expect(c.isReaderActive, false);
+      expect(c.activeReaderCount, 0);
+    });
   });
 }

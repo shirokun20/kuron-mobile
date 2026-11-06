@@ -174,6 +174,36 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 200));
       expect(LocalImagePreloader.cleanupRunCount, lessThanOrEqualTo(1));
     });
+
+    test('negative lookup cache: miss returns null and respects TTL', () async {
+      LocalImagePreloader.resetLookupCacheForTest();
+      final miss1 = await LocalImagePreloader.getLocalImagePath('online_content', 1);
+      expect(miss1, isNull);
+
+      final miss2 = await LocalImagePreloader.getLocalImagePath('online_content', 1);
+      expect(miss2, isNull);
+    });
+
+    test('partial/range download directory scan matches page number, not list index', () async {
+      LocalImagePreloader.resetLookupCacheForTest();
+      final imagesDir =
+          Directory(path.join(tempDir.path, 'nhasix', 'range_c1', 'images'));
+      await imagesDir.create(recursive: true);
+
+      // Suppose only page 5 and 10 were downloaded
+      final page5File = File(path.join(imagesDir.path, 'custom_page_005.jpg'));
+      await page5File.writeAsBytes([1, 2, 3]);
+      final page10File = File(path.join(imagesDir.path, 'custom_page_010.jpg'));
+      await page10File.writeAsBytes([4, 5, 6]);
+
+      // Requesting page 1 should NOT return page 5 just because index 0 exists!
+      final page1 = await LocalImagePreloader.getLocalImagePath('range_c1', 1);
+      expect(page1, isNull);
+
+      // Requesting page 5 should find page 5
+      final page5 = await LocalImagePreloader.getLocalImagePath('range_c1', 5);
+      expect(page5, page5File.path);
+    });
   });
 
   group('1.1/1.3 bloc-state-driven reader auto-pause/resume', () {

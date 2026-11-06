@@ -229,8 +229,7 @@ class _ReaderScreenState extends State<ReaderScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value = true;
-    MemoryBudgetCoordinator().onReaderActiveChanged(true);
+    MemoryBudgetCoordinator().incrementReaderCount();
     _lastReportedPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage - 1);
     _verticalPageController =
@@ -853,9 +852,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       overlays: SystemUiOverlay.values,
     );
 
-    getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive').value =
-        false;
-    MemoryBudgetCoordinator().onReaderActiveChanged(false);
+    MemoryBudgetCoordinator().decrementReaderCount();
     super.dispose();
   }
 
@@ -924,6 +921,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     // drop the stale decode queue (same as dispose) so no precache is issued
     // for skipped pages.
     if (ReaderDecodeQueue.isLargeJump(_lastReportedPage, currentPage)) {
+      _prefetchCubit.cancelAll();
       _decodeQueue.clear();
       _isDecodeTickScheduled = false;
       return;
@@ -985,7 +983,7 @@ class _ReaderScreenState extends State<ReaderScreen>
           ).then((localPath) {
             if (decodeStale()) return;
             final ImageProvider provider;
-            if (localPath != null && File(localPath).existsSync()) {
+            if (localPath != null) {
               provider = ExtendedFileImageProvider(File(localPath));
             } else {
               provider =

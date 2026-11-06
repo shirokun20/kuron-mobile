@@ -3,14 +3,12 @@ import 'dart:io';
 import 'package:flutter/painting.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kuron_generic/kuron_generic.dart'
     show PageResolutionPipeline, PageResolutionInput;
 import 'package:kuron_special/kuron_special.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:wakelock_plus/wakelock_plus.dart';
-import 'package:equatable/equatable.dart';
 import 'package:kuron_core/kuron_core.dart';
 import '../../../domain/entities/reader_position.dart';
 import '../../../domain/usecases/reader/get_reader_settings_usecase.dart';
@@ -36,6 +34,7 @@ import '../../../core/services/image_metadata_service.dart';
 import '../../../core/services/local_image_preloader.dart';
 import '../../widgets/content_list_widget.dart';
 import '../../utils/chapter_language_presenter.dart';
+import '../base/base_cubit.dart';
 import '../network/network_cubit.dart';
 import '../../../core/utils/webtoon_detector.dart';
 
@@ -53,7 +52,7 @@ typedef ReaderManualRepairContext = ({
   String? initialCookie,
 });
 
-class ReaderCubit extends Cubit<ReaderState> {
+class ReaderCubit extends BaseCubit<ReaderState> {
   static const String _ehentaiPartPrefix = '__ehpart__';
   static const String _ehentaiChunkPrefix = '__ehchunk__';
   static const int _maxEhentaiRepairChunks = 150;
@@ -76,10 +75,16 @@ class ReaderCubit extends Cubit<ReaderState> {
     required this.contentSourceRegistry,
     required this.ehentaiCookieJar,
     required this.remoteConfigService,
-    required Logger logger,
+    required super.logger,
     this.userDataRepository,
   })  : _logger = logger,
-        super(const ReaderState());
+        super(initialState: const ReaderState());
+
+  @override
+  void emit(ReaderState state) {
+    if (isClosed) return;
+    super.emit(state);
+  }
 
   final GetContentDetailUseCase getContentDetailUseCase;
   final GetChapterImagesUseCase getChapterImagesUseCase;
@@ -424,6 +429,8 @@ class ReaderCubit extends Cubit<ReaderState> {
           _logger.w('Fallback chapter image fetch failed for $contentId: $e');
         }
       }
+
+      if (isClosed) return;
 
       // Emit Loaded State
       emit(ReaderState(
@@ -1080,6 +1087,8 @@ class ReaderCubit extends Cubit<ReaderState> {
             chapterId,
             sourceId: _parentContent?.sourceId ?? state.content?.sourceId,
           ));
+
+          if (isClosed) return;
 
           if (chapterData.images.isEmpty && chapterData.videoUrls.isEmpty) {
             emit(_withStatus(ReaderStatus.error)

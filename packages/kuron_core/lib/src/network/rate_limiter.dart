@@ -4,7 +4,7 @@ import 'dart:async';
 ///
 // Used by [RateLimiter] to limit the number of concurrent requests.
 class Semaphore {
-  Semaphore(int maxCount) : _currentCount = maxCount;
+  Semaphore(int maxCount) : _currentCount = maxCount < 1 ? 1 : maxCount;
 
   int _currentCount;
   final _waitQueue = <Completer<void>>[];
@@ -86,13 +86,20 @@ class RateLimiter {
   }
 
   Future<void> _waitTurn() async {
+    final now = DateTime.now();
+    DateTime targetTime = now;
     if (_lastRequest != null) {
-      final elapsed = DateTime.now().difference(_lastRequest!);
-      if (elapsed < delay) {
-        await Future<void>.delayed(delay - elapsed);
+      final scheduledTime = _lastRequest!.add(delay);
+      if (scheduledTime.isAfter(now)) {
+        targetTime = scheduledTime;
       }
     }
-    _lastRequest = DateTime.now();
+    _lastRequest = targetTime;
+
+    final waitDuration = targetTime.difference(now);
+    if (waitDuration > Duration.zero) {
+      await Future<void>.delayed(waitDuration);
+    }
   }
 
   /// Build a limiter from a config `network` block, or null when the

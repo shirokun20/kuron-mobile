@@ -264,8 +264,10 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
           _unmarkPrefetched(targetPage);
         }
       } finally {
-        _repoTokens.remove(targetPage);
-        _setInflight(targetPage, false);
+        if (identical(_repoTokens[targetPage], pageToken)) {
+          _repoTokens.remove(targetPage);
+          _setInflight(targetPage, false);
+        }
       }
       return;
     }
@@ -288,8 +290,10 @@ class ReaderPrefetchCubit extends BaseCubit<ReaderPrefetchState> {
       logDebug('prefetch fail page $targetPage: $e');
       _unmarkPrefetched(targetPage);
     } finally {
-      _cancelTokens.remove(targetPage);
-      _setInflight(targetPage, false);
+      if (identical(_cancelTokens[targetPage], legacyToken)) {
+        _cancelTokens.remove(targetPage);
+        _setInflight(targetPage, false);
+      }
     }
   }
 

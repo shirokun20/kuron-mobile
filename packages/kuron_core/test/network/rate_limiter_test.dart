@@ -63,5 +63,43 @@ void main() {
       sw.stop();
       expect(sw.elapsedMilliseconds, lessThan(1000));
     });
+
+    test('3 parallel requests with maxConcurrent 3 and minDelay 100ms space sequentially without bursting', () async {
+      final limiter = RateLimiter(
+        delay: const Duration(milliseconds: 100),
+        maxConcurrent: 3,
+      );
+      final timestamps = <int>[];
+      final sw = Stopwatch()..start();
+
+      await Future.wait([
+        limiter.execute(() async {
+          timestamps.add(sw.elapsedMilliseconds);
+        }),
+        limiter.execute(() async {
+          timestamps.add(sw.elapsedMilliseconds);
+        }),
+        limiter.execute(() async {
+          timestamps.add(sw.elapsedMilliseconds);
+        }),
+      ]);
+
+      expect(timestamps.length, 3);
+      timestamps.sort();
+      // Difference between consecutive requests should be >= 90ms (tolerance for timers)
+      final diff1 = timestamps[1] - timestamps[0];
+      final diff2 = timestamps[2] - timestamps[1];
+      expect(diff1, greaterThanOrEqualTo(90), reason: 'First gap should be >= 90ms');
+      expect(diff2, greaterThanOrEqualTo(90), reason: 'Second gap should be >= 90ms');
+    });
+
+    test('Semaphore clamps maxCount >= 1', () async {
+      final sem = Semaphore(0);
+      bool acquired = false;
+      await sem.acquire();
+      acquired = true;
+      expect(acquired, isTrue);
+      sem.release();
+    });
   });
 }

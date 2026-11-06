@@ -4,7 +4,7 @@ part of 'reader_cubit.dart';
 enum ReaderStatus { initial, loading, loaded, error }
 
 // State for reader screen
-class ReaderState extends Equatable {
+class ReaderState extends BaseCubitState {
   const ReaderState({
     this.status = ReaderStatus.initial,
     this.content,

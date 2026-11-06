@@ -150,7 +150,8 @@ class KuronNativePlugin :
         val cancelledThumbnailRequests = mutableMapOf<String, Boolean>()
     }
 
-    private val executor = Executors.newSingleThreadExecutor() // Shared background work
+    private val conversionExecutor = Executors.newSingleThreadExecutor() // CPU / image & PDF conversion
+    private val networkExecutor = Executors.newFixedThreadPool(4) // Native HTTP & binary downloads
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "kuron_native")
@@ -427,7 +428,7 @@ class KuronNativePlugin :
             return
         }
 
-        executor.execute {
+        conversionExecutor.execute {
             try {
                 // Early exit if cancelled before download starts
                 if (requestId != null && cancelledThumbnailRequests[requestId] == true) {
@@ -659,7 +660,7 @@ class KuronNativePlugin :
         }
 
         // Run on background thread to avoid blocking UI
-        executor.execute {
+        conversionExecutor.execute {
             var totalPages = 0
             val document = PdfDocument()
             try {
@@ -715,9 +716,9 @@ class KuronNativePlugin :
                 }
 
                 // Write to file
-                val outputStream = FileOutputStream(file)
-                document.writeTo(outputStream)
-                outputStream.close()
+                FileOutputStream(file).use { outputStream ->
+                    document.writeTo(outputStream)
+                }
                 document.close()
                 
                 // Switch back to main thread for result
@@ -732,10 +733,16 @@ class KuronNativePlugin :
                     result.success(resultMap)
                 }
 
-            } catch (e: Exception) {
-                try { document.close() } catch (ignored: Exception) {}
+            } catch (t: Throwable) {
+                try { document.close() } catch (ignored: Throwable) {}
+                try {
+                    val file = File(outputPath)
+                    if (file.exists()) {
+                        file.delete()
+                    }
+                } catch (ignored: Throwable) {}
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                     result.error("PDF_CONVERSION_FAILED", e.message, null)
+                     result.error("PDF_CONVERSION_FAILED", t.message ?: "Unknown error", null)
                 }
             }
         }
@@ -998,7 +1005,7 @@ class KuronNativePlugin :
             ?.takeIf { it.isNotBlank() }
             ?: buildDefaultAvifWebPOutputPath(inputPath)
 
-        executor.execute {
+        conversionExecutor.execute {
             try {
                 val convertedPath = avifConverter.convert(
                     inputPath = inputPath,
@@ -1032,7 +1039,8 @@ class KuronNativePlugin :
         downloadHandler.dispose()
         dnsResolver.clearCache()
         cancelledThumbnailRequests.clear()
-        executor.shutdownNow()
+        conversionExecutor.shutdownNow()
+        networkExecutor.shutdownNow()
     }
 
     // ActivityAware Implementation
@@ -1651,7 +1659,7 @@ class KuronNativePlugin :
             return
         }
 
-        executor.execute {
+        conversionExecutor.execute {
             try {
                 if (bubbleDetector == null) {
                     bubbleDetector = BubbleDetector(context)
@@ -1677,7 +1685,7 @@ class KuronNativePlugin :
             return
         }
 
-        executor.execute {
+        networkExecutor.execute {
             try {
                 val client = dnsResolver.getHttpClient()
                 val requestBuilder = okhttp3.Request.Builder().url(url)
@@ -1735,7 +1743,7 @@ class KuronNativePlugin :
             return
         }
 
-        executor.execute {
+        networkExecutor.execute {
             try {
                 val uri = Uri.parse(url)
                 val fragment = uri.fragment

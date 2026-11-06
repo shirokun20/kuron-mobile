@@ -37,7 +37,7 @@ class ViHentaiSourceFactory implements SourceFactory {
     // Per-source Dio with CookieManager sharing cf_vihentai jar with
     // WebViewSessionAdapter. Both cookies (cf_clearance from bypass,
     // laravel_session from solve) go to the same jar.
-    final vihentaiDio = Dio(_dio.options);
+    final vihentaiDio = Dio(_dio.options.copyWith());
     try {
       vihentaiDio.httpClientAdapter = NativeAdapter(
         createCupertinoConfiguration: () =>

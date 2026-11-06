@@ -121,8 +121,14 @@ class ExtendedImageReaderWidget extends StatefulWidget {
   }
 
   @visibleForTesting
-  static void clearHeavyUrlsForTesting() =>
-      _ExtendedImageReaderWidgetState._heavyImageKeys.clear();
+  static void clearHeavyUrlsForTesting() {
+    _ExtendedImageReaderWidgetState._heavyImageKeys.clear();
+    _ExtendedImageReaderWidgetState._largeContentLengthKeys.clear();
+  }
+
+  @visibleForTesting
+  static bool hasLargeContentLengthHintForTesting(PageImageTripleKey key) =>
+      _ExtendedImageReaderWidgetState._largeContentLengthKeys.contains(key);
 
   @visibleForTesting
   static int get heavyImageThresholdBytesForTesting =>
@@ -301,6 +307,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       widget.pipeline ?? ReaderImagePipeline.instance;
   static final Set<String> _knownBrokenLocalAvifPaths = <String>{};
   static final Set<PageImageTripleKey> _heavyImageKeys = <PageImageTripleKey>{};
+  static final Set<PageImageTripleKey> _largeContentLengthKeys =
+      <PageImageTripleKey>{};
   static final Set<String> _notifiedHeavyContentIds = <String>{};
   static final Map<PageImageTripleKey, String> _cachedFilePathByTripleKey =
       <PageImageTripleKey, String>{};
@@ -628,11 +636,19 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     });
   }
 
-  // Pre-seed the static set WITHOUT setState so an in-flight ExtendedImage
-  // download is never interrupted mid-way.
+  // Pre-seed large Content-Length hint without setting _heavyImageKeys,
+  // so static WebP images >= 2MB are not misrouted to AnimatedWebPView.
   void _preSeedHeavyImageUrl() {
     _boundedTripleSetAdd(
-        _heavyImageKeys, _currentTripleKey, _maxHeavyImageUrls);
+        _largeContentLengthKeys, _currentTripleKey, _maxHeavyImageUrls);
+  }
+
+  void _notifyImageLoaded(int pageNumber, Size imageSize, int gen) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _pageGen == gen) {
+        widget.onImageLoaded?.call(pageNumber, imageSize);
+      }
+    });
   }
 
   bool _isAvifSource(String source) {
@@ -713,7 +729,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       }
 
       setState(() {
-        _preSeedHeavyImageUrl();
+        _boundedTripleSetAdd(
+            _heavyImageKeys, _currentTripleKey, _maxHeavyImageUrls);
         _isHeavyImage = true;
         _cachedFilePath =
             _cachedFilePathByTripleKey[_currentTripleKey] ?? _cachedFilePath;
@@ -765,6 +782,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       _awaitingNativeCheckGen = null;
       _shouldBypassLocalDecode = false;
       _avifDecodeRetried = false;
+
+      _cancelToken?.cancel();
+      _cancelToken = CancellationToken();
 
       if (_resolveCancellation != null && !_resolveCancellation!.isCancelled) {
         _resolveCancellation!.cancel('Widget updated');
@@ -1025,11 +1045,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   image.width.toDouble(),
                   image.height.toDouble(),
                 );
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    widget.onImageLoaded?.call(widget.pageNumber, imageSize);
-                  }
-                });
+                final capturedPageNumber = widget.pageNumber;
+                final gen = _pageGen;
+                _notifyImageLoaded(capturedPageNumber, imageSize, gen);
               }
 
               if (!_isHeavyImage && _isNativeViewAvailable) {
@@ -1259,15 +1277,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
             loadStateChanged: (state) {
               switch (state.extendedImageLoadState) {
                 case LoadState.completed:
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    final image = state.extendedImageInfo?.image;
-                    if (mounted && image != null) {
-                      widget.onImageLoaded?.call(
-                        widget.pageNumber,
-                        Size(image.width.toDouble(), image.height.toDouble()),
-                      );
-                    }
-                  });
+                  final capturedPageNumber = widget.pageNumber;
+                  final gen = _pageGen;
+                  final image = state.extendedImageInfo?.image;
+                  if (image != null) {
+                    _notifyImageLoaded(
+                      capturedPageNumber,
+                      Size(image.width.toDouble(), image.height.toDouble()),
+                      gen,
+                    );
+                  }
                   return _buildCompletedImage(context, state, imageUrl: path);
                 case LoadState.failed:
                   return _buildErrorWidget(context, failedSource: path,
@@ -1443,9 +1462,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 image.width.toDouble(),
                 image.height.toDouble(),
               );
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                widget.onImageLoaded?.call(widget.pageNumber, imageSize);
-              });
+              final capturedPageNumber = widget.pageNumber;
+              final gen = _pageGen;
+              _notifyImageLoaded(capturedPageNumber, imageSize, gen);
             }
 
             // Many servers skip Content-Length; check actual file on disk at complete.

@@ -88,10 +88,28 @@ class ClearanceService {
   bool _needsAcquire(String method, String url) =>
       _isEndpoint(method, url) || _sharedCdnHosts.any(url.contains);
 
+  Future<String?>? _acquiringFuture;
+
   Future<String?> acquire() async {
     await init();
     if (_cachedToken != null) return _cachedToken;
 
+    if (_acquiringFuture != null) {
+      return _acquiringFuture!;
+    }
+
+    final future = _doAcquire();
+    _acquiringFuture = future;
+    try {
+      return await future;
+    } finally {
+      if (identical(_acquiringFuture, future)) {
+        _acquiringFuture = null;
+      }
+    }
+  }
+
+  Future<String?> _doAcquire() async {
     _logger.i('$_logTag: acquiring clearance via driver');
     final result = await _driver.solve(_domainUrl);
 
@@ -99,6 +117,13 @@ class ClearanceService {
       _logger.i('$_logTag: acquired clearance token');
       _logger.i(
           '$_logTag: cookies extracted (${result.cookies?.length ?? 0} chars)');
+
+      // If clearToken() was called while driver was solving, do not resurrect
+      // the discarded credentials into cache or persistent storage.
+      if (_acquiringFuture == null) {
+        _logger.w('$_logTag: solve completed after clearToken(); discarding');
+        return null;
+      }
 
       _cachedToken = result.token;
       if (result.userAgent != null && result.userAgent!.isNotEmpty) {
@@ -130,6 +155,7 @@ class ClearanceService {
 
   Future<void> clearToken() async {
     await init();
+    _acquiringFuture = null;
     _cachedToken = null;
     _cachedUserAgent = null;
     _cachedCookies = null;
@@ -149,50 +175,68 @@ class _ClearanceInterceptor extends Interceptor {
   @override
   void onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
-    final url = options.uri.toString();
-    final isEndpoint = _service._isEndpoint(options.method, url);
+    try {
+      final url = options.uri.toString();
+      final isEndpoint = _service._isEndpoint(options.method, url);
 
-    if (!isEndpoint &&
-        !url.contains(_service._domainHost) &&
-        !_service._sharedCdnHosts.any(url.contains)) {
-      return handler.next(options);
-    }
-    var crt = _service._cachedToken;
-    if (crt == null) {
-      await _service.init();
-      crt = _service._cachedToken;
-    }
-    if (crt == null && _service._needsAcquire(options.method, url)) {
-      crt = await _service.acquire();
-    }
+      if (!isEndpoint &&
+          !url.contains(_service._domainHost) &&
+          !_service._sharedCdnHosts.any(url.contains)) {
+        return handler.next(options);
+      }
+      var crt = _service._cachedToken;
+      if (crt == null) {
+        await _service.init();
+        crt = _service._cachedToken;
+      }
+      if (crt == null && _service._needsAcquire(options.method, url)) {
+        crt = await _service.acquire();
+      }
 
-    if (isEndpoint && crt != null) {
-      options.queryParameters[_service._tokenQueryParam] = crt;
-      options.headers['Authorization'] = 'Bearer $crt';
-    }
+      if (isEndpoint && crt != null) {
+        options.queryParameters[_service._tokenQueryParam] = crt;
+        options.headers['Authorization'] = 'Bearer $crt';
+      }
 
-    if (_service._cachedUserAgent != null) {
-      options.headers['User-Agent'] = _service._cachedUserAgent!;
-    }
-    if (_service._cachedCookies != null) {
-      options.headers['Cookie'] = _service._cachedCookies!;
-    }
-    options.headers['Referer'] = _service._domainUrl;
+      if (_service._cachedUserAgent != null) {
+        options.headers['User-Agent'] = _service._cachedUserAgent!;
+      }
+      if (_service._cachedCookies != null) {
+        options.headers['Cookie'] = _service._cachedCookies!;
+      }
+      options.headers['Referer'] = _service._domainUrl;
 
-    handler.next(options);
+      handler.next(options);
+    } catch (e, stackTrace) {
+      _service._logger.e(
+        '${_service._logTag}: error in clearance onRequest interceptor',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      handler.next(options);
+    }
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 403 &&
-        (_service._postOnlyPaths.any(
-                err.requestOptions.uri.toString().contains) ||
-            _service._anyMethodPaths.any(
-                err.requestOptions.uri.toString().contains))) {
-      _service._logger
-          .w('${_service._logTag}: clearance token expired, clearing cache');
-      await _service.clearToken();
+    try {
+      if (err.response?.statusCode == 403 &&
+          (_service._postOnlyPaths.any(
+                  err.requestOptions.uri.toString().contains) ||
+              _service._anyMethodPaths.any(
+                  err.requestOptions.uri.toString().contains))) {
+        _service._logger
+            .w('${_service._logTag}: clearance token expired, clearing cache');
+        await _service.clearToken();
+      }
+    } catch (e, stackTrace) {
+      _service._logger.e(
+        '${_service._logTag}: error in clearance onError interceptor',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    } finally {
+      handler.next(err);
     }
-    handler.next(err);
   }
 }

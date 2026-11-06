@@ -3,8 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:logger/logger.dart';
 import '../di/service_locator.dart';
-import 'dns_resolver.dart';
-import 'dns_interceptor.dart';
 
 // Singleton HTTP client manager to ensure proper lifecycle management
 // and prevent disposal issues across the application
@@ -22,11 +20,9 @@ class HttpClientManager {
   }
 
   // Initialize the HTTP client with proper configuration
-  // Optional dnsResolver enables DNS-over-HTTPS for all requests via interceptor
   // Optional timeout parameter (defaults to 30 seconds if not specified)
   static Dio initializeHttpClient({
     Logger? logger,
-    DnsResolver? dnsResolver,
     Duration? timeout,
     String? userAgent,
   }) {
@@ -70,17 +66,6 @@ class HttpClientManager {
     _httpClient!.options.followRedirects = true;
     _httpClient!.options.maxRedirects = 5;
     _httpClient!.options.responseType = ResponseType.plain;
-
-    // Add DNS-over-HTTPS interceptor if DnsResolver provided
-    if (dnsResolver != null) {
-      _logger?.i('Adding DNS-over-HTTPS interceptor');
-      _httpClient!.interceptors.add(
-        DnsInterceptor(
-          dnsResolver: dnsResolver,
-          logger: _logger!,
-        ),
-      );
-    }
 
     // Add error handling interceptor
     _httpClient!.interceptors.add(

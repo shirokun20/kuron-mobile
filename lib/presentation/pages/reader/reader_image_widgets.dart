@@ -142,6 +142,7 @@ class _ReaderImageViewer extends StatelessWidget {
         final isDistant = (pageNumber - currentPage).abs() > 4;
         return RepaintBoundary(
           child: ExtendedImageReaderWidget(
+            key: ValueKey('image_viewer_${contentId}_$pageNumber'),
             imageUrl: imageUrl,
             contentId: contentId,
             pageNumber: pageNumber,

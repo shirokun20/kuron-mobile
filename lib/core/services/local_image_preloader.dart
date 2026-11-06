@@ -31,6 +31,7 @@ class LocalImagePreloader {
   /// IO-light lookup cache: `(contentId, page) -> path`, 2–5s TTL.
   /// A hit is verified with a single `exists()`; no directory listing.
   static const Duration lookupCacheTtl = Duration(seconds: 4);
+  static const Duration negativeLookupCacheTtl = Duration(seconds: 2);
   static final Map<String, _LookupCacheEntry> _lookupCache = {};
   static String _lookupCacheKey(String contentId, int pageNumber) =>
       '$contentId:$pageNumber';
@@ -414,11 +415,19 @@ class LocalImagePreloader {
       final cacheKey = _lookupCacheKey(contentId, pageNumber);
       final cached = _lookupCache[cacheKey];
       if (cached != null) {
-        if (DateTime.now().difference(cached.cachedAt) <= lookupCacheTtl &&
-            await File(cached.path).exists()) {
-          return cached.path;
+        final age = DateTime.now().difference(cached.cachedAt);
+        if (cached.path == null) {
+          // Negative cache hit (miss TTL)
+          if (age <= negativeLookupCacheTtl) {
+            return null;
+          }
+          _lookupCache.remove(cacheKey);
+        } else {
+          if (age <= lookupCacheTtl && await File(cached.path!).exists()) {
+            return cached.path;
+          }
+          _lookupCache.remove(cacheKey);
         }
-        _lookupCache.remove(cacheKey);
       }
 
       final basePaths = await _getPossibleBasePaths();
@@ -468,20 +477,23 @@ class LocalImagePreloader {
               .cast<File>()
               .toList();
 
-          // Sort by filename to maintain page order
-          imageFiles.sort((a, b) =>
-              _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)));
+          // Match by pageNumber instead of index (safe against partial/range downloads)
+          File? matchedFile;
+          for (final file in imageFiles) {
+            if (_extractPageNumber(file.path) == pageNumber) {
+              matchedFile = file;
+              break;
+            }
+          }
 
-          // Return the image for the requested page number (1-indexed)
-          if (pageNumber > 0 && pageNumber <= imageFiles.length) {
-            final targetFile = imageFiles[pageNumber - 1];
+          if (matchedFile != null) {
             if (kDebugMode) {
               _logger
-                  .d('🐛 Found image by directory scan: ${targetFile.path}');
+                  .d('🐛 Found image by directory scan: ${matchedFile.path}');
             }
             _lookupCache[cacheKey] = _LookupCacheEntry(
-                path: targetFile.path, cachedAt: DateTime.now());
-            return targetFile.path;
+                path: matchedFile.path, cachedAt: DateTime.now());
+            return matchedFile.path;
           }
         }
       }
@@ -492,9 +504,14 @@ class LocalImagePreloader {
         if (kDebugMode) {
           _d('🐛 Found legacy cached image: $cachePath');
         }
+        _lookupCache[cacheKey] =
+            _LookupCacheEntry(path: cachePath, cachedAt: DateTime.now());
         return cachePath;
       }
 
+      // Negative cache entry for online reading (miss TTL)
+      _lookupCache[cacheKey] =
+          _LookupCacheEntry(path: null, cachedAt: DateTime.now());
       return null; // Fallback to network
     } catch (e) {
       _logger.e(
@@ -992,10 +1009,12 @@ class LocalImagePreloader {
   }
 
   // Helper method to extract page number from filename
+  // Extracts the trailing number before the extension (e.g. '2024_003.jpg' -> 3, 'v2_page12.jpg' -> 12).
   static int _extractPageNumber(String filePath) {
     final filename = path.basenameWithoutExtension(filePath);
-    final match = RegExp(r'(\d+)').firstMatch(filename);
-    return match != null ? int.tryParse(match.group(1)!) ?? 0 : 0;
+    final matches = RegExp(r'(\d+)').allMatches(filename);
+    if (matches.isEmpty) return 0;
+    return int.tryParse(matches.last.group(1)!) ?? 0;
   }
 
   // Get base local path for content
@@ -1029,6 +1048,6 @@ class LocalImagePreloader {
 /// TTL entry for [LocalImagePreloader]'s IO-light lookup cache.
 class _LookupCacheEntry {
   const _LookupCacheEntry({required this.path, required this.cachedAt});
-  final String path;
+  final String? path;
   final DateTime cachedAt;
 }
