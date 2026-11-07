@@ -43,7 +43,7 @@ class SchaleSourceFactory implements SourceFactory {
     // construction instead of silently routing to schale.
     final clearance = ClearanceService(
       store: _secureStorage,
-      driver: const NativeClearanceDriver(),
+      driver: NativeClearanceDriver(logger: _logger),
       logger: _logger,
       sourceId: _sourceId,
       domainUrl: domainUrl,

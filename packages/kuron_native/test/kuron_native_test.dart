@@ -153,12 +153,17 @@ class MockKuronNativePlatform
   @override
   Future<Map<String, dynamic>?> getHeadlessClearance({
     required String url,
+    String? userAgent,
   }) {
     return Future.value({'token': 'mock', 'userAgent': 'mock'});
   }
 
   @override
-  Future<String?> headlessGetClearance({required String url, required String script, int timeoutMs = 10000}) async => null;
+  Future<String?> headlessGetClearance(
+          {required String url,
+          required String script,
+          int timeoutMs = 10000}) async =>
+      null;
   @override
   Future<Map<String, dynamic>?> showCaptchaWebView({
     required String provider,
@@ -247,7 +252,8 @@ class MockKuronNativePlatform
     required Uint8List imageBytes,
     required int imageWidth,
     required int imageHeight,
-  }) async => null;
+  }) async =>
+      null;
 }
 
 void main() {

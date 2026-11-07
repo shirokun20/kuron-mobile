@@ -290,11 +290,16 @@ abstract class KuronNativePlatform extends PlatformInterface {
   // Gets the clearance token headlessly
   Future<Map<String, dynamic>?> getHeadlessClearance({
     required String url,
+    String? userAgent,
   }) {
     throw UnimplementedError(
         'getHeadlessClearance() has not been implemented.');
   }
 
+  // Solves clearance with a real user browser (headed Chromium driven over
+  // CDP) and returns the minted token. macOS-only: other platforms have no
+  // native implementation and callers must treat any error as "unsupported".
+  //
   // Download binary data (images, files) using native OkHttp with DoH support.
   // Returns raw bytes.
   Future<Uint8List> downloadBinary({

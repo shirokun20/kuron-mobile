@@ -39,6 +39,9 @@ import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
 import 'package:nhasixapp/presentation/widgets/pagination_widget.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/main_grid_card.dart';
+import 'package:nhasixapp/presentation/pages/main/widgets/combined_home_list.dart';
+import 'package:nhasixapp/presentation/cubits/combined_home/combined_home_cubit.dart';
+import 'package:nhasixapp/presentation/cubits/combined_home/combined_home_state.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/recommended_section.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/main_featured_card.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_cubit.dart';
@@ -65,6 +68,7 @@ class MainScreenScrollable extends StatefulWidget {
 class _MainScreenScrollableState extends State<MainScreenScrollable>
     with OfflineManagementMixin<MainScreenScrollable> {
   late final HomeBloc _homeBloc;
+  late final CombinedHomeCubit _combinedHomeCubit;
   late final ContentBloc _contentBloc;
   late final SearchBloc _searchBloc;
   late final OfflineSearchCubit _offlineSearchCubit;
@@ -84,6 +88,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     super.initState();
     // Initialize HomeBloc for screen-level state management
     _homeBloc = getIt<HomeBloc>()..add(HomeStartedEvent());
+
+    // Initialize CombinedHomeCubit for the Home "Semua" combined list.
+    // Single-source mode never touches it (SourceCubit path is untouched).
+    _combinedHomeCubit = getIt<CombinedHomeCubit>();
 
     // Initialize ContentBloc for content data management
     _contentBloc = getIt<ContentBloc>();
@@ -313,6 +321,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     _tagBlacklistService.removeListener(_handleTagBlacklistChanged);
     _connectivitySubscription?.cancel();
     _homeBloc.close();
+    _combinedHomeCubit.close();
     // Don't close ContentBloc - it's a singleton managed by DI container
     // _contentBloc.close();
     _searchBloc.close();
@@ -409,6 +418,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       child: MultiBlocProvider(
         providers: [
           BlocProvider.value(value: _homeBloc),
+          BlocProvider.value(value: _combinedHomeCubit),
           BlocProvider.value(value: _contentBloc),
           BlocProvider.value(value: _searchBloc),
           BlocProvider.value(value: _offlineSearchCubit),
@@ -461,8 +471,23 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     );
   }
 
-  // Build the new scrollable body with all components integrated
+  // Build the new scrollable body with all components integrated.
+  // "Semua" mode renders the combined list from CombinedHomeCubit;
+  // single-source mode falls through to the untouched ContentBloc path.
   Widget _buildScrollableBody() {
+    return BlocBuilder<CombinedHomeCubit, CombinedHomeState>(
+      buildWhen: (previous, current) =>
+          previous.isCombinedSelected != current.isCombinedSelected,
+      builder: (context, combinedState) {
+        if (combinedState.isCombinedSelected) {
+          return CombinedHomeList(onContentTap: _onContentTap);
+        }
+        return _buildSingleSourceBody();
+      },
+    );
+  }
+
+  Widget _buildSingleSourceBody() {
     return BlocConsumer<ContentBloc, ContentState>(
       listenWhen: (previous, current) =>
           previous != current && current is ContentError,

@@ -30,6 +30,30 @@ class ClearanceService {
   String? _cachedUserAgent;
   String? _cachedCookies;
 
+  /// Best-effort persistent write. On platforms where the secure store is
+  /// unavailable (e.g. unsigned macOS dev builds throw -34018), the in-memory
+  /// cache above still serves the session — a storage failure must never void
+  /// a freshly minted token or crash the request flow.
+  Future<void> _persistWrite(String key, String value) async {
+    try {
+      await _store.write(key, value);
+    } catch (e) {
+      _logger.w('$_logTag: persistent store write failed, memory-only',
+          error: e);
+    }
+  }
+
+  /// Best-effort persistent delete. Memory is always cleared by the caller
+  /// first; a store failure only means a stale value may survive a restart.
+  Future<void> _persistDelete(String key) async {
+    try {
+      await _store.delete(key);
+    } catch (e) {
+      _logger.w('$_logTag: persistent store delete failed, memory-only',
+          error: e);
+    }
+  }
+
   ClearanceService({
     required SecureValueStore store,
     required ClearanceDriver driver,
@@ -133,12 +157,12 @@ class ClearanceService {
         _cachedCookies = result.cookies;
       }
 
-      await _store.write(_storageKey, result.token);
+      await _persistWrite(_storageKey, result.token);
       if (result.userAgent != null && result.userAgent!.isNotEmpty) {
-        await _store.write(_userAgentKey, result.userAgent!);
+        await _persistWrite(_userAgentKey, result.userAgent!);
       }
       if (result.cookies != null && result.cookies!.isNotEmpty) {
-        await _store.write(_cookiesKey, result.cookies!);
+        await _persistWrite(_cookiesKey, result.cookies!);
       }
 
       return result.token;
@@ -150,7 +174,7 @@ class ClearanceService {
 
   Future<void> setToken(String token) async {
     _cachedToken = token;
-    await _store.write(_storageKey, token);
+    await _persistWrite(_storageKey, token);
   }
 
   Future<void> clearToken() async {
@@ -159,9 +183,9 @@ class ClearanceService {
     _cachedToken = null;
     _cachedUserAgent = null;
     _cachedCookies = null;
-    await _store.delete(_storageKey);
-    await _store.delete(_userAgentKey);
-    await _store.delete(_cookiesKey);
+    await _persistDelete(_storageKey);
+    await _persistDelete(_userAgentKey);
+    await _persistDelete(_cookiesKey);
   }
 
   Interceptor createInterceptor() => _ClearanceInterceptor(service: this);

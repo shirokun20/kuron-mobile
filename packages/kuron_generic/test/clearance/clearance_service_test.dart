@@ -145,6 +145,35 @@ void main() {
       expect(captured.uri.toString(), 'https://niyaniya.moe/books/detail/123');
     });
 
+    test('acquire returns token and caches in memory when store writes fail',
+        () async {
+      final driver = _FakeDriver()
+        ..solution = const ClearanceSolution(token: 'fresh-crt');
+      final svc = _service(store: _ThrowingStore(), driver: driver);
+
+      // Must not throw (-34018 on unsigned macOS dev builds).
+      expect(await svc.acquire(), 'fresh-crt');
+      expect(svc.cached, 'fresh-crt');
+      // Second acquire serves from memory without re-solving.
+      expect(await svc.acquire(), 'fresh-crt');
+      expect(driver.calls, 1);
+    });
+
+    test('setToken caches in memory when store write fails', () async {
+      final svc = _service(store: _ThrowingStore());
+      await svc.setToken('memory-crt');
+      expect(svc.cached, 'memory-crt');
+      expect(await svc.acquire(), 'memory-crt');
+    });
+
+    test('clearToken clears memory cache even when store deletes fail',
+        () async {
+      final svc = _service(store: _ThrowingStore());
+      await svc.setToken('memory-crt');
+      await svc.clearToken();
+      expect(svc.cached, isNull);
+    });
+
     test('clearToken() while solve is in-flight does not resurrect token into cache', () async {
       final completer = Completer<ClearanceSolution?>();
       final slowDriver = _DelayedDriver(completer.future);
@@ -174,6 +203,22 @@ class _DelayedDriver implements ClearanceDriver {
 
   @override
   Future<ClearanceSolution?> solve(String domainUrl) => future;
+}
+
+/// Simulates unsigned macOS dev builds where every keychain access
+/// throws PlatformException(-34018).
+class _ThrowingStore implements SecureValueStore {
+  @override
+  Future<String?> read(String key) async =>
+      throw Exception('keychain unavailable (-34018)');
+
+  @override
+  Future<void> write(String key, String value) async =>
+      throw Exception('keychain unavailable (-34018)');
+
+  @override
+  Future<void> delete(String key) async =>
+      throw Exception('keychain unavailable (-34018)');
 }
 
 class _ThrowingDriver implements ClearanceDriver {

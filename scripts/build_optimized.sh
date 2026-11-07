@@ -89,7 +89,7 @@ if [ -n "${DOUJINDESU_APP_SECRET:-}" ]; then
 fi
 
 if [ "$BUILD_TYPE" = "release" ]; then
-    $FLUTTER_CMD build apk --release --flavor "$FLAVOR" $SPLIT_ABI_FLAG --split-debug-info=build/debug-info/ "${DART_DEFINES[@]}"
+    $FLUTTER_CMD build apk --release --flavor "$FLAVOR" $SPLIT_ABI_FLAG "${DART_DEFINES[@]}"
 else
     $FLUTTER_CMD build apk --debug --flavor "$FLAVOR" $SPLIT_ABI_FLAG "${DART_DEFINES[@]}"
 fi

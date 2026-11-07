@@ -82,6 +82,7 @@ import 'package:nhasixapp/domain/repositories/tag_repository.dart';
 import 'package:nhasixapp/data/repositories/content_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/user_data_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/recommendation_repository_impl.dart';
+import 'package:nhasixapp/data/repositories/combined_home_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/settings_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/reader_settings_repository_impl.dart';
 import 'package:nhasixapp/data/repositories/reader_repository_impl.dart';
@@ -109,6 +110,7 @@ import 'package:nhasixapp/domain/usecases/history/add_to_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/reader_identity/reader_identity_usecases.dart';
 import 'package:nhasixapp/presentation/cubits/streak/streak_cubit.dart';
 import 'package:nhasixapp/domain/usecases/recommendations/recommendations_usecases.dart';
+import 'package:nhasixapp/domain/usecases/combined_home/combined_home_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/get_all_chapter_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/history/get_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/history/clear_history_usecase.dart';
@@ -262,14 +264,12 @@ void _setupCore() {
             configService: getIt<RemoteConfigService>(),
             tagDataManager: getIt<TagDataManager>(),
           ));
-  getIt.registerFactory<DynamicFormSearchCubit>(
-      () => DynamicFormSearchCubit(
-            remoteOptionDataSource:
-                getIt<DynamicFormRemoteOptionDataSource>(),
-            userDataRepository: getIt<UserDataRepository>(),
-            remoteConfigService: getIt<RemoteConfigService>(),
-            logger: getIt<Logger>(),
-          ));
+  getIt.registerFactory<DynamicFormSearchCubit>(() => DynamicFormSearchCubit(
+        remoteOptionDataSource: getIt<DynamicFormRemoteOptionDataSource>(),
+        userDataRepository: getIt<UserDataRepository>(),
+        remoteConfigService: getIt<RemoteConfigService>(),
+        logger: getIt<Logger>(),
+      ));
 
   // Language Service — loads language metadata from assets/configs/languages.json
   getIt.registerLazySingleton<LanguageService>(
@@ -341,7 +341,6 @@ void _setupServices() {
       logger: getIt<Logger>(),
     ),
   );
-
 
   // Download Service - Core download logic with MediaStore support
   getIt.registerLazySingleton<DownloadService>(() => DownloadService(
@@ -747,8 +746,7 @@ void _setupDataSources() {
     () {
       final rawConfig =
           getIt<RemoteConfigService>().getRawConfig('komiku') ?? {};
-      final baseUrl =
-          rawConfig['baseUrl']?.toString() ?? 'https://komiku.org';
+      final baseUrl = rawConfig['baseUrl']?.toString() ?? 'https://komiku.org';
       final cookieJar = secureCookieJar('cf_komiku');
       return WebViewSessionAdapter(
         dio: getIt<Dio>(),
@@ -942,13 +940,27 @@ void _setupDataSources() {
         SchaleSourceFactory(
           dio: getIt<Dio>(),
           logger: getIt<Logger>(),
-          secureStorage: const FlutterSecureValueStore(),
+          // macOS dev builds are unsigned → keychain throws -34018.
+          // Fallback keeps clearance tokens in prefs so the reader works
+          // and tokens survive restarts; on signed builds/Android the
+          // secure primary never throws so the fallback stays untouched.
+          secureStorage: FallbackSecureValueStore(
+            primary: const FlutterSecureValueStore(),
+            fallback: PreferencesValueStore(
+              prefs: getIt<SharedPreferences>(),
+            ),
+          ),
         ),
         SchaleSourceFactory(
           sourceId: 'hdoujin',
           dio: getIt<Dio>(),
           logger: getIt<Logger>(),
-          secureStorage: const FlutterSecureValueStore(),
+          secureStorage: FallbackSecureValueStore(
+            primary: const FlutterSecureValueStore(),
+            fallback: PreferencesValueStore(
+              prefs: getIt<SharedPreferences>(),
+            ),
+          ),
         ),
         DoujinDesuXxxSourceFactory(
           dio: getIt<Dio>(),
@@ -1060,6 +1072,14 @@ void _setupRepositories() {
             logger: getIt<Logger>(),
           ));
 
+  // Combined Home Repository (Home "Semua" ranked feed)
+  getIt.registerLazySingleton<CombinedHomeRepository>(
+      () => CombinedHomeRepositoryImpl(
+            userDataRepository: getIt<UserDataRepository>(),
+            contentSourceRegistry: getIt<ContentSourceRegistry>(),
+            logger: getIt<Logger>(),
+          ));
+
   // Reader Settings Repository
   getIt.registerLazySingleton<ReaderSettingsEntityRepository>(
       () => ReaderSettingsEntityRepositoryImpl(
@@ -1084,14 +1104,13 @@ void _setupRepositories() {
             dio: getIt<Dio>(),
             logger: getIt<Logger>(),
           ));
-  getIt.registerLazySingleton<ReaderImagePipeline>(
-      () => ReaderImagePipeline(
-            repository: getIt<ReaderImageRepository>(),
-            ehentaiDataSource: getIt<EhentaiReaderDataSource>(),
-            headerInspector: getIt<HeaderInspectorService>(),
-            offlineContentManager: getIt<OfflineContentManager>(),
-            logger: getIt<Logger>(),
-          ));
+  getIt.registerLazySingleton<ReaderImagePipeline>(() => ReaderImagePipeline(
+        repository: getIt<ReaderImageRepository>(),
+        ehentaiDataSource: getIt<EhentaiReaderDataSource>(),
+        headerInspector: getIt<HeaderInspectorService>(),
+        offlineContentManager: getIt<OfflineContentManager>(),
+        logger: getIt<Logger>(),
+      ));
 
   // Settings Repository
   // Settings Repository
@@ -1327,6 +1346,10 @@ void _setupUseCases() {
   getIt.registerLazySingleton<RecordRecommendationEventUseCase>(
       () => RecordRecommendationEventUseCase(getIt()));
 
+  // Combined Home Use Case (Home "Semua" feed)
+  getIt.registerLazySingleton<GetCombinedHomeUseCase>(
+      () => GetCombinedHomeUseCase(getIt<CombinedHomeRepository>()));
+
   // Reader Identity Use Case
   getIt
       .registerLazySingleton<GetReaderBadgeUseCase>(() => GetReaderBadgeUseCase(
@@ -1536,6 +1559,12 @@ void _setupCubits() {
         getRecommendationsUseCase: getIt<GetRecommendationsUseCase>(),
         getSimilarContentUseCase: getIt<GetSimilarContentUseCase>(),
         recordEventUseCase: getIt<RecordRecommendationEventUseCase>(),
+        logger: getIt<Logger>(),
+      ));
+
+  // CombinedHomeCubit - Home "Semua" combined feed (one per Home screen)
+  getIt.registerFactory<CombinedHomeCubit>(() => CombinedHomeCubit(
+        getCombinedHomeUseCase: getIt<GetCombinedHomeUseCase>(),
         logger: getIt<Logger>(),
       ));
 

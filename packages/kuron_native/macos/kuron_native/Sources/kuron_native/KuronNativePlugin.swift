@@ -164,7 +164,7 @@ public class KuronNativePlugin: NSObject, FlutterPlugin {
       guard let url = s("url") else {
         result(FlutterError(code: "INVALID_ARGS", message: "url is required", details: nil)); return
       }
-      KuronWebViewFlows.headlessClearance(url: url, completion: result)
+      KuronWebViewFlows.headlessClearance(url: url, userAgent: s("userAgent"), completion: result)
 
     case "headlessGetClearance":
       guard let url = s("url"), let script = s("script") else {

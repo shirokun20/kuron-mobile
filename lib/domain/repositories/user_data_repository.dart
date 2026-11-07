@@ -155,6 +155,11 @@ abstract class UserDataRepository {
   /// Completed-history count for the reader badge tier.
   Future<int> getCompletedHistoryCount();
 
+  /// Distinct read counts per source id (only rows with reading progress
+  /// > 0; null/empty source ids excluded), keyed by source id.
+  /// Used by the Home "Semua" combined-feed source ranking.
+  Future<Map<String, int>> getReadCountsBySource();
+
   /// Top completed-download source `(sourceId, distinctCount)` for the
   /// reader badge fans label. Null when nothing completed.
   Future<({String sourceId, int count})?> getTopDownloadSource();

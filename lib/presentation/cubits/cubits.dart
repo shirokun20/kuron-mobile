@@ -8,6 +8,8 @@ export 'history/history_cubit.dart';
 export 'history/history_cubit_factory.dart';
 export 'source/source_cubit.dart';
 export 'source/source_state.dart';
+export 'combined_home/combined_home_cubit.dart';
+export 'combined_home/combined_home_state.dart';
 
 // Note: ReaderCubit and FavoriteCubit will be added in future tasks
 // as they are screen-specific and provided locally rather than app-wide

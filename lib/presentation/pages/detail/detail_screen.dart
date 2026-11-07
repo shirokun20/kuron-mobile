@@ -400,7 +400,11 @@ class _DetailScreenState extends State<DetailScreen> {
     String tagName,
     List<String> candidateTypes,
   ) {
-    final detailState = context.read<DetailCubit>().state;
+    // NOTE: must use the screen-owned [_detailCubit] field, NOT
+    // context.read<DetailCubit>() — this screen can be pushed with a
+    // directly-passed cubit (no provider above it), and the lookup then
+    // throws ProviderNotFoundError (seen live on schale-network taps).
+    final detailState = _detailCubit.state;
     if (detailState is! DetailLoaded) return null;
 
     final normalizedCandidates = candidateTypes
@@ -722,13 +726,20 @@ class _DetailScreenState extends State<DetailScreen> {
     try {
       _isNavigating = true;
 
+      final detailState = _detailCubit.state;
       final actualSourceId = sourceId ??
-          ((context.read<DetailCubit>().state is DetailLoaded)
-              ? (context.read<DetailCubit>().state as DetailLoaded)
-                  .content
-                  .sourceId
+          ((detailState is DetailLoaded)
+              ? detailState.content.sourceId
               : 'nhentai');
       final rawConfig = _detailCubit.getRawConfig(actualSourceId);
+      final navMap =
+          (rawConfig?['navigation'] as Map?)?.cast<String, dynamic>()[
+              'tagQueryMapping'];
+      Logger().d(
+        'TAGTAP in: source=$actualSourceId type=$tagType name=$tagName '
+        'tagId=$tagId hasRawConfig=${rawConfig != null} '
+        'hasMapping=${navMap is Map && navMap.isNotEmpty}',
+      );
       final resolvedQuery = _tagQueryResolver.resolve(
         sourceId: actualSourceId,
         tagName: tagName,
@@ -736,6 +747,10 @@ class _DetailScreenState extends State<DetailScreen> {
         tagType: tagType,
         rawConfig: rawConfig,
         resolveTagIdFromLoadedContent: _resolveTagIdFromLoadedContent,
+      );
+      Logger().d(
+        'TAGTAP out: failed=${resolvedQuery.explicitMappingFailed} '
+        'query=${resolvedQuery.query}',
       );
 
       if (resolvedQuery.explicitMappingFailed) {

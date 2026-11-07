@@ -1,7 +1,9 @@
 export 'src/webview_session/webview_session_adapter.dart';
 export 'src/crotpedia/crotpedia_source_factory.dart';
 export 'src/storage/flutter_secure_value_store.dart';
+export 'src/storage/preferences_value_store.dart';
 export 'src/clearance/native_clearance_driver.dart';
+export 'src/clearance/turnstile_clearance.dart';
 export 'src/ehentai/ehentai_session_adapter.dart';
 export 'src/ehentai/ehentai_scraper_adapter.dart';
 export 'src/ehentai/ehentai_source_factory.dart';

@@ -1224,6 +1224,35 @@ class LocalDataSource {
     }
   }
 
+  // Distinct read counts per source id, ordered by count desc.
+  // Counts distinct content ids with real reading progress
+  // (last_page/total_pages > 0, i.e. both known and last_page > 0).
+  // Rows with null/empty source_id are excluded (pre-migration data).
+  // Used by the Home "Semua" combined-feed source ranking.
+  Future<Map<String, int>> getReadCountsBySource() async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return const {};
+
+      final result = await db.rawQuery(
+        'SELECT source_id, COUNT(DISTINCT id) as count FROM history '
+        'WHERE COALESCE(last_page, 0) > 0 AND COALESCE(total_pages, 0) > 0 '
+        "AND source_id IS NOT NULL AND TRIM(source_id) != '' "
+        'GROUP BY source_id ORDER BY count DESC',
+      );
+      final counts = <String, int>{};
+      for (final row in result) {
+        final id = (row['source_id'] as String?)?.trim();
+        if (id == null || id.isEmpty) continue;
+        counts[id] = (row['count'] as int?) ?? 0;
+      }
+      return counts;
+    } catch (e) {
+      _logger.e('Error getting read counts by source: $e');
+      return const {};
+    }
+  }
+
   // Top completed-download source by distinct content count, for the reader
   // badge fans label. Returns null when nothing completed.
   Future<({String sourceId, int count})?> getTopDownloadSource() async {

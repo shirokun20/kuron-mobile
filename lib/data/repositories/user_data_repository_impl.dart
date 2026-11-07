@@ -582,6 +582,17 @@ class UserDataRepositoryImpl implements UserDataRepository {
   }
 
   @override
+  Future<Map<String, int>> getReadCountsBySource() async {
+    try {
+      return await localDataSource.getReadCountsBySource();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get read counts by source',
+          error: e, stackTrace: stackTrace);
+      return const {};
+    }
+  }
+
+  @override
   Future<({String sourceId, int count})?> getTopDownloadSource() async {
     try {
       return await localDataSource.getTopDownloadSource();

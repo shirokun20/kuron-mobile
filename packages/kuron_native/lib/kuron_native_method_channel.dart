@@ -28,7 +28,8 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @visibleForTesting
-  Future<void> handleMethodCallForTest(MethodCall call) => _handleMethodCall(call);
+  Future<void> handleMethodCallForTest(MethodCall call) =>
+      _handleMethodCall(call);
 
   Future<void> _handleMethodCall(MethodCall call) async {
     if (call.method == 'onProgress') {
@@ -367,10 +368,12 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   @override
   Future<Map<String, dynamic>?> getHeadlessClearance({
     required String url,
+    String? userAgent,
   }) async {
     final result = await methodChannel
         .invokeMapMethod<String, dynamic>('getHeadlessClearance', {
       'url': url,
+      'userAgent': userAgent,
     });
     return result;
   }

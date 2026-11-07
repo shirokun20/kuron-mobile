@@ -11,6 +11,7 @@ import 'package:nhasixapp/core/utils/source_config_display_utils.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_state.dart';
+import 'package:nhasixapp/presentation/cubits/combined_home/combined_home_cubit.dart';
 
 // A SourceSelector widget styled to match the AppDrawerContent nav items.
 // Displays the current source and allows switching between available sources.
@@ -30,9 +31,23 @@ class SourceSelector extends StatelessWidget {
     return BlocBuilder<SourceCubit, SourceState>(
       builder: (context, state) {
         final sourceLoader = getIt<SourceLoader>();
+        // "Semua" combined mode lives in CombinedHomeCubit (presentation
+        // state, never the source registry). Only MainScreenScrollable
+        // provides it — the shared drawer is also hosted by other screens
+        // (settings, downloads, ...), where the lookup below is null and
+        // the selector degrades to plain single-source switching.
+        CombinedHomeCubit? combinedCubit;
+        try {
+          combinedCubit = context.watch<CombinedHomeCubit>();
+        } on ProviderNotFoundException {
+          combinedCubit = null;
+        }
+        final isCombinedSelected =
+            combinedCubit?.state.isCombinedSelected ?? false;
         final activeId = state.activeSource?.id;
-        final isActiveUnderMaintenance =
-            activeId != null && sourceLoader.isUnderMaintenance(activeId);
+        final isActiveUnderMaintenance = !isCombinedSelected &&
+            activeId != null &&
+            sourceLoader.isUnderMaintenance(activeId);
 
         // Hide if only one source available (uncomment for production)
         // if (state.availableSources.length <= 1) {
@@ -46,7 +61,12 @@ class SourceSelector extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
-              onTap: () => _showSourceMenu(context, state, colorScheme),
+              onTap: () => _showSourceMenu(
+                context,
+                state,
+                colorScheme,
+                combinedCubit: combinedCubit,
+              ),
               child: AnimatedContainer(
                 duration: DesignTokens.durationPageTurn,
                 padding:
@@ -65,10 +85,16 @@ class SourceSelector extends StatelessWidget {
                         color: colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: _buildSourceIconWidget(
-                        iconPath: state.activeSource?.iconPath,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      child: isCombinedSelected
+                          ? Icon(
+                              Icons.hub_outlined,
+                              size: 20,
+                              color: colorScheme.primary,
+                            )
+                          : _buildSourceIconWidget(
+                              iconPath: state.activeSource?.iconPath,
+                              color: colorScheme.onSurfaceVariant,
+                            ),
                     ),
                     const SizedBox(width: 14),
                     // Text - matches nav item
@@ -77,9 +103,11 @@ class SourceSelector extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            state.activeSource?.displayName ??
-                                AppLocalizations.of(context)!
-                                    .sourceSelectorSelectSource,
+                            isCombinedSelected
+                                ? 'Semua'
+                                : (state.activeSource?.displayName ??
+                                    AppLocalizations.of(context)!
+                                        .sourceSelectorSelectSource),
                             style: TextStyleConst.bodyMedium.copyWith(
                               fontWeight: FontWeight.w500,
                               color:
@@ -131,8 +159,11 @@ class SourceSelector extends StatelessWidget {
   void _showSourceMenu(
     BuildContext context,
     SourceState state,
-    ColorScheme colorScheme,
-  ) {
+    ColorScheme colorScheme, {
+    required CombinedHomeCubit? combinedCubit,
+  }) {
+    final isCombinedSelected =
+        combinedCubit?.state.isCombinedSelected ?? false;
     final l10n = AppLocalizations.of(context)!;
     final sourceLoader = getIt<SourceLoader>();
     final remoteConfig = getIt<RemoteConfigService>();
@@ -265,8 +296,10 @@ class SourceSelector extends StatelessWidget {
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          activeSource?.displayName ??
-                                              l10n.sourceSelectorNoSourceSelected,
+                                          isCombinedSelected
+                                              ? 'Semua'
+                                              : (activeSource?.displayName ??
+                                                  l10n.sourceSelectorNoSourceSelected),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyleConst.bodyMedium
@@ -277,9 +310,12 @@ class SourceSelector extends StatelessWidget {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          activeSourceInfo == null
-                                              ? l10n.sourceSelectorActiveSource
-                                              : '${activeSourceInfo.idWithVersion} • ${l10n.sourceSelectorActiveSource}',
+                                          isCombinedSelected
+                                              ? 'List kombinasi semua source'
+                                              : (activeSourceInfo == null
+                                                  ? l10n
+                                                      .sourceSelectorActiveSource
+                                                  : '${activeSourceInfo.idWithVersion} • ${l10n.sourceSelectorActiveSource}'),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style:
@@ -330,6 +366,17 @@ class SourceSelector extends StatelessWidget {
                         ),
                       ),
                       const Divider(height: 1),
+                      if (combinedCubit != null && normalizedQuery.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+                          child: _buildSemuaItem(
+                            context: sheetContext,
+                            colorScheme: colorScheme,
+                            isActive: isCombinedSelected,
+                            onTap: () => Navigator.of(sheetContext)
+                                .pop(CombinedHomeCubit.combinedId),
+                          ),
+                        ),
                       Flexible(
                         child: filteredSources.isEmpty
                             ? Center(
@@ -394,12 +441,114 @@ class SourceSelector extends StatelessWidget {
       },
     ).then((selectedId) {
       if (selectedId != null && context.mounted) {
-        final sourceCubit = context.read<SourceCubit>();
-        if (selectedId != sourceCubit.state.activeSource?.id) {
-          sourceCubit.switchSource(selectedId);
+        if (selectedId == CombinedHomeCubit.combinedId) {
+          // Only reachable when the "Semua" row was shown, i.e. the
+          // cubit was present at menu open time.
+          combinedCubit?.enterCombined();
+        } else {
+          // Single-source mode: untouched legacy path, just leave "Semua".
+          combinedCubit?.exitCombined();
+          final sourceCubit = context.read<SourceCubit>();
+          if (selectedId != sourceCubit.state.activeSource?.id) {
+            sourceCubit.switchSource(selectedId);
+          }
         }
       }
     });
+  }
+
+  // "Semua" row: enters the Home combined list (UI-only option, never a
+  // virtual source in the registry).
+  Widget _buildSemuaItem({
+    required BuildContext context,
+    required ColorScheme colorScheme,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? colorScheme.primary.withValues(alpha: 0.1)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isActive
+                    ? colorScheme.primary.withValues(alpha: 0.45)
+                    : colorScheme.outline.withValues(alpha: 0.14),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.hub_outlined,
+                    size: 20,
+                    color: isActive
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Semua',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleConst.bodyMedium.copyWith(
+                          fontWeight:
+                              isActive ? FontWeight.w700 : FontWeight.w600,
+                          color: isActive
+                              ? colorScheme.primary
+                              : colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'List kombinasi semua source',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyleConst.bodySmall.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isActive)
+                  Icon(
+                    Icons.check_circle_rounded,
+                    size: 22,
+                    color: colorScheme.primary,
+                  )
+                else
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 22,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSourceSheetItem({

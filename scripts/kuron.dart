@@ -416,7 +416,6 @@ Future<int> cmdBuild(List<String> raw) async {
     type == 'release' ? '--release' : '--debug',
     '--flavor', flavor,
     if (splitAbi) '--split-per-abi',
-    if (type == 'release') '--split-debug-info=build/debug-info/',
     '--dart-define=cronetHttpNoPlay=true',
     if (secret.isNotEmpty) '--dart-define=DOUJINDESU_APP_SECRET=$secret',
   ];

@@ -307,34 +307,68 @@ enum KuronWebViewFlows {
 
   // MARK: - Headless flows
 
-  /// Passive clearance check: load the URL, harvest cookies after settle.
-  static func headlessClearance(url: String, completion: @escaping FlutterResult) {
+  /// Passive clearance check: load the URL, poll
+  /// `window.localStorage.getItem('clearance')` like Android (500ms x30
+  /// after a 1s settle delay), harvest cookies, and return the minted
+  /// token when present. Without the token poll the driver can never
+  /// succeed headlessly and always falls through to the visible popup.
+  static func headlessClearance(url: String, userAgent: String? = nil, completion: @escaping FlutterResult) {
     DispatchQueue.main.async {
-      let view = makeWebView(userAgent: nil)
+      let view = makeWebView(userAgent: userAgent)
       var done = false
+      var timer: Timer?
+      var delegate: HeadlessDelegate?
       func settle(_ map: [String: Any]) {
         guard !done else { return }
         done = true
+        if let t = timer { t.invalidate(); Keeper.drop(t) }
+        if let d = delegate { Keeper.drop(d) }
         release(view)
         completion(map)
+      }
+      func harvestAndSettle(token: String?) {
+        harvestCookies(view.configuration.websiteDataStore.httpCookieStore) { cookies in
+          var map: [String: Any] = [
+            "success": true,
+            "cookies": cookies,
+            "userAgent": view.customUserAgent ?? defaultUA,
+            "currentUrl": view.url?.absoluteString ?? url,
+          ]
+          if let token = token { map["token"] = token }
+          settle(map)
+        }
       }
       guard let target = URL(string: url) else {
         settle(["success": false, "cookies": [], "userAgent": defaultUA, "currentUrl": url]); return
       }
-      let delegate = HeadlessDelegate(onFinish: {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-          harvestCookies(view.configuration.websiteDataStore.httpCookieStore) { cookies in
-            settle(["success": true, "cookies": cookies,
-                    "userAgent": view.customUserAgent ?? defaultUA,
-                    "currentUrl": view.url?.absoluteString ?? url])
+      delegate = HeadlessDelegate(onFinish: {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+          guard !done else { return }
+          var attempts = 0
+          timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            guard !done else { timer?.invalidate(); return }
+            evaluate(view, "window.localStorage.getItem('clearance')") { raw in
+              guard !done else { return }
+              let token = (raw ?? "").replacingOccurrences(of: "\"", with: "")
+              if !token.isEmpty, token != "null" {
+                timer?.invalidate()
+                harvestAndSettle(token: token)
+                return
+              }
+              attempts += 1
+              if attempts >= 30 {
+                timer?.invalidate()
+                harvestAndSettle(token: nil)
+              }
+            }
           }
+          if let t = timer { Keeper.hold(t) }
         }
       })
-      Keeper.hold(delegate)
+      if let d = delegate { Keeper.hold(d) }
       view.navigationDelegate = delegate
       _ = view.load(URLRequest(url: target))
       DispatchQueue.main.asyncAfter(deadline: .now() + 30) {
-        Keeper.drop(delegate)
         settle(["success": false, "cookies": [],
                 "userAgent": view.customUserAgent ?? defaultUA,
                 "currentUrl": view.url?.absoluteString ?? url])

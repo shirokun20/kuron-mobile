@@ -222,8 +222,10 @@ class KuronNative {
   // Gets the clearance token headlessly
   Future<Map<String, dynamic>?> getHeadlessClearance({
     required String url,
+    String? userAgent,
   }) {
-    return KuronNativePlatform.instance.getHeadlessClearance(url: url);
+    return KuronNativePlatform.instance
+        .getHeadlessClearance(url: url, userAgent: userAgent);
   }
 
   Future<Map<String, dynamic>?> showCaptchaWebView({
