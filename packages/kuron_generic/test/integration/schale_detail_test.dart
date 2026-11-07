@@ -18,11 +18,12 @@ void main() {
         GenericHttpSource(rawConfig: config, dio: dio, logger: Logger());
 
     final detail = await source.getDetail('27814/56b6d7042682');
-    print('Title: ${detail.title}');
-    print('Artists: ${detail.artists}');
-    print('Language: ${detail.language}');
+    Logger().i('Title: ${detail.title}');
+    Logger().i('Artists: ${detail.artists}');
+    Logger().i('Language: ${detail.language}');
     for (final tag in detail.tags) {
-      print('TAG: name="${tag.name}", type="${tag.type}", id=${tag.id}, slug=${tag.slug}');
+      Logger().i(
+          'TAG: name="${tag.name}", type="${tag.type}", id=${tag.id}, slug=${tag.slug}');
     }
   });
 }
