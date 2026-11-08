@@ -18,6 +18,7 @@ import 'package:nhasixapp/presentation/cubits/combined_home/combined_home_state.
 import 'package:nhasixapp/presentation/cubits/source/source_cubit.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/combined_home_list.dart';
 import 'package:nhasixapp/presentation/widgets/common/source_selector.dart';
+import 'package:nhasixapp/presentation/widgets/progressive_image_widget.dart';
 
 class _MockGetCombinedHomeUseCase extends Mock
     implements GetCombinedHomeUseCase {}
@@ -33,25 +34,25 @@ class _MockSourceLoader extends Mock implements SourceLoader {}
 class _MockRemoteConfigService extends Mock implements RemoteConfigService {}
 
 Content _content(String sourceId, String id) => Content(
-      id: id,
-      sourceId: sourceId,
-      title: 'title-$id',
-      coverUrl: 'https://cdn.example.com/$id.jpg',
-      tags: const [],
-      artists: const [],
-      characters: const [],
-      parodies: const [],
-      groups: const [],
-      language: 'en',
-      pageCount: 10,
-      imageUrls: const [],
-      uploadDate: DateTime(2026, 1, 1),
-    );
+  id: id,
+  sourceId: sourceId,
+  title: 'title-$id',
+  coverUrl: 'https://cdn.example.com/$id.jpg',
+  tags: const [],
+  artists: const [],
+  characters: const [],
+  parodies: const [],
+  groups: const [],
+  language: 'en',
+  pageCount: 10,
+  imageUrls: const [],
+  uploadDate: DateTime(2026, 1, 1),
+);
 
 CombinedHomeFeed _feed() => CombinedHomeFeed(
-      contents: [_content('a', 'a1'), _content('b', 'b1')],
-      sourceIds: const ['a', 'b'],
-    );
+  contents: [_content('a', 'a1'), _content('b', 'b1')],
+  sourceIds: const ['a', 'b'],
+);
 
 _MockSource _fakeSource(String id, String name) {
   final source = _MockSource();
@@ -125,9 +126,8 @@ void main() {
     currentId = 'a';
     registry = _MockRegistry();
     when(() => registry.allSources).thenReturn([srcA, srcB]);
-    when(() => registry.currentSource).thenAnswer(
-      (_) => currentId == 'a' ? srcA : srcB,
-    );
+    when(() => registry.currentSource)
+        .thenAnswer((_) => currentId == 'a' ? srcA : srcB);
     when(() => registry.hasSource(any())).thenReturn(true);
     when(() => registry.switchSource(any())).thenAnswer((invocation) {
       currentId = invocation.positionalArguments.first as String;
@@ -212,18 +212,27 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(combinedCubit.state.isCombinedSelected, isTrue);
+      expect(find.byType(SliverGrid), findsOneWidget);
+      expect(find.byType(CombinedHomeGridCard), findsNWidgets(2));
       expect(find.text('title-a1'), findsOneWidget);
       expect(find.text('title-b1'), findsOneWidget);
+      expect(find.text('A'), findsOneWidget);
+      expect(find.text('B'), findsOneWidget);
+      expect(find.text('DOUJIN'), findsNWidgets(2));
+      expect(find.byType(ProgressiveImageWidget), findsNWidgets(2));
       expect(find.text('single:a'), findsNothing);
       // Picker header reflects the combined mode.
       expect(find.text('Semua'), findsWidgets);
     });
 
-    testWidgets('picking a source leaves Semua and restores single list',
-        (tester) async {
+    testWidgets('picking a source leaves Semua and restores single list', (
+      tester,
+    ) async {
       final tapped = <String>[];
-      final (sourceCubit, combinedCubit) =
-          await pumpHarness(tester, tapped: tapped);
+      final (sourceCubit, combinedCubit) = await pumpHarness(
+        tester,
+        tapped: tapped,
+      );
 
       await openSheet(tester);
       await tester.tap(find.text('List kombinasi semua source'));
@@ -252,8 +261,7 @@ void main() {
       expect(tapped, ['a1']);
     });
 
-    testWidgets(
-        'drawer on a screen without CombinedHomeCubit does not crash '
+    testWidgets('drawer on a screen without CombinedHomeCubit does not crash '
         'and switches source', (tester) async {
       // Regression: the shared drawer (settings, downloads, ...) hosts
       // SourceSelector without a CombinedHomeCubit above it. This used to

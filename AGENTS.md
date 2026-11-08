@@ -57,7 +57,7 @@ Located in `scripts/` folder. **ALWAYS run after project changes:**
 
 | Script | Command | When to Run |
 |---|---|---|
-| **KURO CLI** | `./kuron <cmd>` (was: `scripts/kuron.dart`) | Preferred entry: `build`, `pub-get`, `feature`, `status`, `assets`, `clear-cache`, `search` |
+| **KURON CLI** | `./kuron <cmd>` (was: `scripts/kuron.dart`) | Preferred entry: `build`, `pub-get`, `feature`, `status`, `assets`, `clear-cache`, `search` |
 | **Project Status** | `dart scripts/project_status.dart` | After creating issue, moving project phase, or updating progress |
 | **Create Feature** | `dart scripts/create_feature.dart [name]` | Scaffold new feature structure |
 | **Smart Search** | `./scripts/smart_search.sh <mode> <pattern>` | Code search, audit, violations |

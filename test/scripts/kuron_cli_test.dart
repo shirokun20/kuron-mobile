@@ -1,4 +1,4 @@
-// KURO CLI runner tests: direct mode never hangs, help/version exit 0,
+// KURON CLI runner tests: direct mode never hangs, help/version exit 0,
 // no-arg non-TTY exits 1 without prompting.
 import 'dart:io';
 
@@ -17,17 +17,17 @@ Future<ProcessResult> _run(List<String> args, {Map<String, String>? env}) {
 }
 
 void main() {
-  test('help exits 0 and shows KURO brand', () async {
+  test('help exits 0 and shows KURON brand', () async {
     final r = await _run(['help']);
     expect(r.exitCode, 0);
-    expect(r.stdout as String, contains('Kuro Utility Runner & Optimizer'));
+    expect(r.stdout as String, contains('Kuron Utility Runner & Optimizer'));
     expect(r.stdout as String, contains('build'));
   });
 
-  test('version exits 0 with KURO name', () async {
+  test('version exits 0 with KURON name', () async {
     final r = await _run(['version']);
     expect(r.exitCode, 0);
-    expect(r.stdout as String, contains('KURO v1.1.0'));
+    expect(r.stdout as String, contains('KURON v1.1.0'));
   });
 
   test('unknown command exits 1', () async {
