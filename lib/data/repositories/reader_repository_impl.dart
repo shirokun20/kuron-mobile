@@ -12,8 +12,8 @@ class ReaderRepositoryImpl implements ReaderRepository {
   final Logger _logger = getIt<Logger>();
 
   ReaderRepositoryImpl({
-    required LocalDataSource localDataSource,
-  }) : _localDataSource = localDataSource;
+    required this._localDataSource,
+  });
 
   @override
   Future<void> saveReaderPosition(ReaderPosition position) async {

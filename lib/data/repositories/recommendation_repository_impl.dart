@@ -17,10 +17,9 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
   RecommendationRepositoryImpl({
     required ContentRepository contentRepository,
     required UserDataRepository userDataRepository,
-    required Logger logger,
+    required this._logger,
   })  : _content = contentRepository,
-        _userData = userDataRepository,
-        _logger = logger;
+        _userData = userDataRepository;
 
   final ContentRepository _content;
   final UserDataRepository _userData;

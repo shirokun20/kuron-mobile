@@ -15,10 +15,9 @@ class HitomiSourceFactory implements SourceFactory {
   final Logger _logger;
 
   HitomiSourceFactory({
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   @override
   String get sourceId => 'hitomi';

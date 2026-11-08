@@ -36,23 +36,16 @@ typedef HeavyRunner = Future<T> Function<T>(FutureOr<T> Function() computation);
 /// Guard: disabled in `ReadingMode.continuousScroll`.
 class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   ReaderTranslationCubit({
-    required AiProviderRepository providerRepository,
-    required AiProviderFactory providerFactory,
-    required AiPreferencesRepository preferencesRepository,
-    required TranslationCacheRepository cacheRepository,
-    required MosaicBuilder mosaicBuilder,
-    required FallbackImageHandler fallbackHandler,
+    required this._providerRepository,
+    required this._providerFactory,
+    required this._preferencesRepository,
+    required this._cacheRepository,
+    required this._mosaicBuilder,
+    required this._fallbackHandler,
     HeavyRunner? heavyRunner,
-    GlossaryRepository? glossaryRepository,
+    this._glossaryRepository,
     required super.logger,
-  })  : _providerRepository = providerRepository,
-        _providerFactory = providerFactory,
-        _preferencesRepository = preferencesRepository,
-        _cacheRepository = cacheRepository,
-        _mosaicBuilder = mosaicBuilder,
-        _fallbackHandler = fallbackHandler,
-        _heavyRunner = heavyRunner ?? Isolate.run,
-        _glossaryRepository = glossaryRepository,
+  })  : _heavyRunner = heavyRunner ?? Isolate.run,
         super(initialState: const ReaderTranslationIdle());
 
   final AiProviderRepository _providerRepository;

@@ -645,8 +645,7 @@ class UserDataRepositoryImpl implements UserDataRepository {
     } catch (e, stackTrace) {
       _logger.e('Failed to get user preferences',
           error: e, stackTrace: stackTrace);
-      // ignore: prefer_const_constructors
-      return UserPreferences(); // Return default preferences
+      return const UserPreferences(); // Return default preferences
     }
   }
 

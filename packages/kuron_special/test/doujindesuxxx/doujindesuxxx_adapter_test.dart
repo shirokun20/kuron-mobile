@@ -28,8 +28,8 @@ Map<String, dynamic> _manga({
           'genres': {'id': 69, 'name': 'Paizuri', 'slug': 'paizuri'},
         }
       ],
-      if (terms != null) 'terms': terms,
-      if (termList != null) 'term_list': termList,
+      'terms': ?terms,
+      'term_list': ?termList,
     };
 
 void main() {

@@ -487,7 +487,7 @@ class DynamicSearchFormContract extends Equatable {
       path: 'scraper.urlPatterns.search',
       context: <String, Object?>{
         'queryParam': queryParam,
-        if (pageParam != null) 'pageParam': pageParam,
+        'pageParam': ?pageParam,
       },
     ));
 

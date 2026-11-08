@@ -13,12 +13,10 @@ import 'native_pdf_service.dart';
 // Handles background PDF conversion with splitting, progress tracking, and notifications
 class PdfConversionService {
   PdfConversionService({
-    required NotificationService notificationService,
-    required NativePdfService nativePdfService,
+    required this._notificationService,
+    required this._nativePdfService,
     Logger? logger,
-  })  : _notificationService = notificationService,
-        _nativePdfService = nativePdfService,
-        _logger = logger ?? Logger();
+  })  : _logger = logger ?? Logger();
 
   final NotificationService _notificationService;
   final NativePdfService _nativePdfService;

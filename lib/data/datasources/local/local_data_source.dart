@@ -296,7 +296,7 @@ class LocalDataSource {
       final collectionWhere =
           collectionId == null ? '' : 'WHERE fci.collection_id = ?';
       final args = <Object?>[
-        if (collectionId != null) collectionId,
+        ?collectionId,
         limit,
         offset,
       ];

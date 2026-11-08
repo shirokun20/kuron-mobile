@@ -21,14 +21,11 @@ class DynamicFormSearchCubit extends BaseCubit<DynamicFormSearchState> {
   final RemoteConfigService _remoteConfigService;
 
   DynamicFormSearchCubit({
-    required DynamicFormRemoteOptionDataSource remoteOptionDataSource,
-    required UserDataRepository userDataRepository,
-    required RemoteConfigService remoteConfigService,
+    required this._remoteOptionDataSource,
+    required this._userDataRepository,
+    required this._remoteConfigService,
     required super.logger,
-  })  : _remoteOptionDataSource = remoteOptionDataSource,
-        _userDataRepository = userDataRepository,
-        _remoteConfigService = remoteConfigService,
-        super(initialState: const DynamicFormSearchState());
+  })  : super(initialState: const DynamicFormSearchState());
 
   static DynamicFormSearchCubit createDefault() {
     final dio = getIt<Dio>();

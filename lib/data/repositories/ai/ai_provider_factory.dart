@@ -13,9 +13,7 @@ abstract interface class AiProviderFactory {
 }
 
 class AiProviderFactoryImpl implements AiProviderFactory {
-  AiProviderFactoryImpl({required Dio dio, required Logger logger})
-      : _dio = dio,
-        _logger = logger;
+  AiProviderFactoryImpl({required this._dio, required this._logger});
 
   final Dio _dio;
   final Logger _logger;

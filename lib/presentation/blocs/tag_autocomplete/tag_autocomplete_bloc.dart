@@ -20,12 +20,10 @@ class TagAutocompleteBloc
   static const Duration _debounceDuration = Duration(milliseconds: 300);
 
   TagAutocompleteBloc({
-    required GetTagAutocompleteUseCase getAutocompleteUseCase,
-    required Logger logger,
+    required this._getAutocompleteUseCase,
+    required this._logger,
     required this.sourceId,
-  })  : _getAutocompleteUseCase = getAutocompleteUseCase,
-        _logger = logger,
-        super(const TagAutocompleteInitial()) {
+  })  : super(const TagAutocompleteInitial()) {
     on<TagAutocompleteSearchEvent>(_onSearch);
     on<TagAutocompleteClearEvent>(_onClear);
   }

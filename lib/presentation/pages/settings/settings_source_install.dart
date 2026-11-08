@@ -838,7 +838,7 @@ Future<List<GlobalManifestEntry>> _selectGlobalManifestEntries({
                       )
                     : ListView.separated(
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (_, index) {
                           final entry = filtered[index];
                           final isSelected = selected.contains(entry);
@@ -1017,7 +1017,7 @@ Future<bool> _showBatchInstallPreviewDialog(
               child: ListView.separated(
                 shrinkWrap: true,
                 itemCount: candidates.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                separatorBuilder: (_, _) => const SizedBox(height: 4),
                 itemBuilder: (_, index) {
                   final candidate = candidates[index];
                   final installed =

@@ -6,10 +6,9 @@ import 'source_state.dart';
 class SourceCubit extends BaseCubit<SourceState> {
   SourceCubit({
     required ContentSourceRegistry registry,
-    required SharedPreferences prefs,
+    required this._prefs,
     required super.logger,
   })  : _registry = registry,
-        _prefs = prefs,
         super(
           initialState: SourceState(
             availableSources: registry.allSources,

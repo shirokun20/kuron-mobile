@@ -199,19 +199,15 @@ class WebViewSessionAdapter {
   String get _uaKey => '$_keyPrefix${_baseUrl.hashCode}_ua';
 
   WebViewSessionAdapter({
-    required Dio dio,
-    required PersistCookieJar cookieJar,
-    required WebViewSessionConfig config,
-    required String baseUrl,
+    required this._dio,
+    required this._cookieJar,
+    required this._config,
+    required this._baseUrl,
     FlutterSecureStorage? secureStorage,
     KuronNative? native,
     Logger? logger,
     WebViewBypassOptionsBuilder? bypassOptionsBuilder,
-  })  : _dio = dio,
-        _cookieJar = cookieJar,
-        _config = config,
-        _baseUrl = baseUrl,
-        _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
         _native = native ?? KuronNative.instance,
         _logger = logger ?? Logger(),
         _bypassOptionsBuilder =
@@ -583,7 +579,7 @@ class WebViewSessionAdapter {
               followRedirects: true,
               validateStatus: (status) => status != null && status < 500,
               headers: {
-                if (untrustedHeader != null) 'Cookie': untrustedHeader,
+                'Cookie': ?untrustedHeader,
               },
             ),
           );

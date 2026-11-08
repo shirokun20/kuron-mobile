@@ -11,10 +11,9 @@ import '../../domain/repositories/ai_translation_repositories.dart';
 /// existing app database (see DatabaseHelper migration v14).
 class TranslationCacheRepositoryImpl implements TranslationCacheRepository {
   TranslationCacheRepositoryImpl({
-    required Future<Database> Function() databaseProvider,
-    required Logger logger,
-  })  : _databaseProvider = databaseProvider,
-        _logger = logger;
+    required this._databaseProvider,
+    required this._logger,
+  });
 
   final Future<Database> Function() _databaseProvider;
   final Logger _logger;
@@ -88,8 +87,7 @@ class TranslationCacheRepositoryImpl implements TranslationCacheRepository {
 /// SharedPreferences-backed AI preferences (target language, style,
 /// privacy acknowledgement).
 class AiPreferencesRepositoryImpl implements AiPreferencesRepository {
-  AiPreferencesRepositoryImpl({required SharedPreferences prefs})
-      : _prefs = prefs;
+  AiPreferencesRepositoryImpl({required this._prefs});
 
   final SharedPreferences _prefs;
 

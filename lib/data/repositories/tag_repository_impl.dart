@@ -15,14 +15,11 @@ class TagRepositoryImpl implements TagRepository {
   final Logger _logger;
 
   TagRepositoryImpl({
-    required TagsRemoteDataSource remoteDataSource,
-    required TagDataManager tagDataManager,
-    required RemoteConfigService configService,
-    required Logger logger,
-  })  : _remoteDataSource = remoteDataSource,
-        _tagDataManager = tagDataManager,
-        _configService = configService,
-        _logger = logger;
+    required this._remoteDataSource,
+    required this._tagDataManager,
+    required this._configService,
+    required this._logger,
+  });
 
   @override
   Future<List<TagEntity>> getTagsByType({

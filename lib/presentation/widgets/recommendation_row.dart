@@ -85,7 +85,7 @@ class RecommendationRow extends StatelessWidget {
             padding:
                 EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
               final item = items[i];
               return RecommendationCard(
@@ -170,7 +170,7 @@ class RecommendationRow extends StatelessWidget {
             padding:
                 EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: 5,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, _) => KuronShimmer(
               baseColor: theme.colorScheme.surfaceContainerHighest
                   .withValues(alpha: 0.3),

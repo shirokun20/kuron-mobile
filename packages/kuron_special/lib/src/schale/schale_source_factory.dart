@@ -14,14 +14,11 @@ class SchaleSourceFactory implements SourceFactory {
   final String _sourceId;
 
   SchaleSourceFactory({
-    required Dio dio,
-    required Logger logger,
-    required SecureValueStore secureStorage,
-    String sourceId = 'schale-network',
-  })  : _dio = dio,
-        _logger = logger,
-        _secureStorage = secureStorage,
-        _sourceId = sourceId;
+    required this._dio,
+    required this._logger,
+    required this._secureStorage,
+    this._sourceId = 'schale-network',
+  });
 
   @override
   String get sourceId => _sourceId;

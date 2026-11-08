@@ -6,7 +6,7 @@ import '../../domain/entities/glossary.dart';
 
 /// Glossary entries stored as a JSON list in SharedPreferences.
 class GlossaryRepositoryImpl implements GlossaryRepository {
-  GlossaryRepositoryImpl({required SharedPreferences prefs}) : _prefs = prefs;
+  GlossaryRepositoryImpl({required this._prefs});
 
   final SharedPreferences _prefs;
 

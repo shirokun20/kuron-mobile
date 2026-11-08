@@ -6,8 +6,7 @@ Map<String, dynamic> _config({bool? heavyImageAutoSwitch}) => {
       'scraper': {
         'selectors': {
           'reader': {
-            if (heavyImageAutoSwitch != null)
-              'heavyImageAutoSwitch': heavyImageAutoSwitch,
+            'heavyImageAutoSwitch': ?heavyImageAutoSwitch,
             'images': {'selector': 'img', 'attribute': 'src'},
           },
         },

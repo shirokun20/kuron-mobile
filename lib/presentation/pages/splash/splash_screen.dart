@@ -324,7 +324,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: _progressForState(state)),
                   duration: const Duration(milliseconds: 500),
-                  builder: (context, ring, __) {
+                  builder: (context, ring, _) {
                     return Stack(
                       alignment: Alignment.center,
                       children: [

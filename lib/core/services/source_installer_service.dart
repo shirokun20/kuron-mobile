@@ -206,18 +206,13 @@ class SourceInstallerService {
   final Logger _logger;
 
   SourceInstallerService({
-    required Dio dio,
-    required RemoteConfigService remoteConfig,
-    required ContentSourceRegistry registry,
-    required SourceFactoryResolver resolver,
-    required GenericSourceFactory genericFactory,
-    required Logger logger,
-  })  : _dio = dio,
-        _remoteConfig = remoteConfig,
-        _registry = registry,
-        _resolver = resolver,
-        _genericFactory = genericFactory,
-        _logger = logger;
+    required this._dio,
+    required this._remoteConfig,
+    required this._registry,
+    required this._resolver,
+    required this._genericFactory,
+    required this._logger,
+  });
 
   // Session-only candidate versions from the last opened manifest (link/ZIP).
   // Powers the Update badge/sort in the installed list. In-memory only by design.

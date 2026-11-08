@@ -12,9 +12,8 @@ import 'ai_model_state.dart';
 /// No auto-download, no silent failures: every state comes from the native
 /// `OnnxModelManager` via a thin method channel, with the pin
 class AiModelCubit extends BaseCubit<AiModelState> {
-  AiModelCubit({required super.logger, AssetBundle? assetBundle})
-      : _assetBundle = assetBundle,
-        super(initialState: const AiModelState());
+  AiModelCubit({required super.logger, this._assetBundle})
+      : super(initialState: const AiModelState());
 
   /// Injected in tests (flutter_test does not bundle assets); production
   /// uses [rootBundle] which serves the app-bundled `assets/model.pin.json`.

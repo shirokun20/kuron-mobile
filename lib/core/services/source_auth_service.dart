@@ -31,12 +31,10 @@ class SourceAuthService {
   final Logger _logger;
 
   SourceAuthService({
-    required RemoteConfigService configService,
-    required Dio dio,
-    required Logger logger,
-  })  : _configService = configService,
-        _dio = dio,
-        _logger = logger;
+    required this._configService,
+    required this._dio,
+    required this._logger,
+  });
 
   bool supportsTokenApiAuth(String sourceId) {
     final raw = _configService.getRawConfig(sourceId);

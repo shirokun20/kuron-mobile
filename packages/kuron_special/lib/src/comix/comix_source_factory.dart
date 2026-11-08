@@ -41,12 +41,10 @@ Dio _buildComixDio({
 
 class ComixSourceFactory implements SourceFactory {
   ComixSourceFactory({
-    required Dio dio,
-    required WebViewProxyEngine engine,
-    required Logger logger,
-  })  : _dio = dio,
-        _engine = engine,
-        _logger = logger;
+    required this._dio,
+    required this._engine,
+    required this._logger,
+  });
 
   final Dio _dio;
   final WebViewProxyEngine _engine;
@@ -82,12 +80,10 @@ class ComixSourceFactory implements SourceFactory {
 /// WebView proxy + cipher + 3-tier pattern applies with an isolated engine.
 class MangafireSourceFactory implements SourceFactory {
   MangafireSourceFactory({
-    required Dio dio,
-    required WebViewProxyEngine engine,
-    required Logger logger,
-  })  : _dio = dio,
-        _engine = engine,
-        _logger = logger;
+    required this._dio,
+    required this._engine,
+    required this._logger,
+  });
 
   final Dio _dio;
   final WebViewProxyEngine _engine;

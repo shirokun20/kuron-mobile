@@ -6,7 +6,7 @@ import 'package:kuron_core/kuron_core.dart';
 
 // Local data source for tag data from assets/json/tags.json
 class TagDataSource {
-  TagDataSource({required Logger logger}) : _logger = logger;
+  TagDataSource({required this._logger});
 
   final Logger _logger;
   List<Tag>? _cachedTags;

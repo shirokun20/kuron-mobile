@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // and Android the secure primary never throws, so this store is never
 // touched — no production secret ever lands in plaintext prefs.
 class PreferencesValueStore implements SecureValueStore {
-  PreferencesValueStore({required SharedPreferences prefs}) : _prefs = prefs;
+  PreferencesValueStore({required this._prefs});
 
   final SharedPreferences _prefs;
 

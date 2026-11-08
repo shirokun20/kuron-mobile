@@ -338,7 +338,7 @@ void main() {
         final json = <String, Object?>{
           'sourceId': sourceId,
           'overallStatus': overallStatus,
-          if (featureStatuses != null) 'featureStatuses': featureStatuses,
+          'featureStatuses': ?featureStatuses,
           if (diagnostics.isNotEmpty) 'diagnostics': diagnostics,
         };
 

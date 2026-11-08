@@ -2,8 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nhasixapp/domain/repositories/app_lock_repository.dart';
 
 class AppLockRepositoryImpl implements AppLockRepository {
-  AppLockRepositoryImpl({required FlutterSecureStorage storage})
-      : _storage = storage;
+  AppLockRepositoryImpl({required this._storage});
 
   final FlutterSecureStorage _storage;
 

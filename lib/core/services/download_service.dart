@@ -20,14 +20,11 @@ import '../utils/directory_utils.dart';
 // Service untuk handle actual file download
 class DownloadService {
   DownloadService({
-    required Dio httpClient,
-    required NotificationService notificationService,
-    required ContentSourceRegistry sourceRegistry, // NEW
+    required this._httpClient,
+    required this._notificationService,
+    required this._sourceRegistry, // NEW
     Logger? logger,
-  })  : _httpClient = httpClient,
-        _notificationService = notificationService,
-        _sourceRegistry = sourceRegistry, // NEW
-        _logger = logger ?? Logger();
+  })  : _logger = logger ?? Logger();
 
   final Dio _httpClient;
   final NotificationService _notificationService;

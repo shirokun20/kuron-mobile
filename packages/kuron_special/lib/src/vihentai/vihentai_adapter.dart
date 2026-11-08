@@ -23,16 +23,12 @@ class ViHentaiAdapter implements GenericAdapter {
   bool _solved = false;
 
   ViHentaiAdapter({
-    required Dio dio,
-    required GenericScraperAdapter delegate,
-    required Logger logger,
-    required String sourceId,
-    required PersistCookieJar cookieJar,
-  })  : _dio = dio,
-        _delegate = delegate,
-        _logger = logger,
-        _sourceId = sourceId,
-        _cookieJar = cookieJar;
+    required this._dio,
+    required this._delegate,
+    required this._logger,
+    required this._sourceId,
+    required this._cookieJar,
+  });
 
   @override
   Future<AdapterSearchResult> search(

@@ -14,11 +14,9 @@ part 'theme_state.dart';
 // Listens to SettingsCubit and provides reactive ThemeData
 class ThemeCubit extends Cubit<ThemeState> {
   ThemeCubit({
-    required SettingsCubit settingsCubit,
-    required Logger logger,
-  })  : _settingsCubit = settingsCubit,
-        _logger = logger,
-        super(ThemeState.initial()) {
+    required this._settingsCubit,
+    required this._logger,
+  })  : super(ThemeState.initial()) {
     // Listen to settings changes
     _settingsSubscription = _settingsCubit.stream.listen(_onSettingsChanged);
 

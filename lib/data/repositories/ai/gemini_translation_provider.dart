@@ -14,10 +14,9 @@ import 'openai_compatible_provider.dart';
 class GeminiTranslationProvider implements AiTranslationProvider {
   GeminiTranslationProvider({
     required this.config,
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   @override
   final AiProviderConfig config;

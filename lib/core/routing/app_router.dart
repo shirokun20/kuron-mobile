@@ -769,7 +769,7 @@ class AppRouter {
     bool supportsExclude = true,
   }) async {
     try {
-      final result = await context.push<List<FilterItem>>(
+      final result = await context.push(
         '${AppRoute.filterData}?type=$filterType&source=$sourceId&hideOtherTabs=$hideOtherTabs&supportsExclude=$supportsExclude',
         extra: selectedFilters,
       );
@@ -777,12 +777,11 @@ class AppRouter {
       // Ensure result is properly typed
       if (result is List<FilterItem>) {
         return result;
-      } else if (result is List<dynamic>) {
-        // Convert List<dynamic> to List<FilterItem> if needed
-        return result ?? [];
+      } else if (result is List) {
+        return result.whereType<FilterItem>().toList();
       }
 
-      return result;
+      return null;
     } catch (e) {
       // Log error and return null
       Logger().e('AppRouter.goToFilterData error: $e');

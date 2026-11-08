@@ -6,10 +6,9 @@ class UpdateCubit extends BaseCubit<UpdateState> {
   final UpdateService _updateService;
 
   UpdateCubit({
-    required UpdateService updateService,
+    required this._updateService,
     required super.logger,
-  })  : _updateService = updateService,
-        super(initialState: UpdateInitial());
+  })  : super(initialState: UpdateInitial());
 
   Future<void> checkForUpdate({bool isManual = false}) async {
     if (state is UpdateChecking) return;

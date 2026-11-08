@@ -158,7 +158,7 @@ class StorageSettings {
       final candidates = [
         if (realHome != null) '$realHome/Downloads',
         if (home.isNotEmpty) '$home/Downloads',
-        if (realHome != null) realHome,
+        ?realHome,
         if (home.isNotEmpty) home,
         '/',
       ];

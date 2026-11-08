@@ -15,16 +15,12 @@ class OfflineSeriesDetailService {
   final Logger _logger;
 
   OfflineSeriesDetailService({
-    required OfflineContentManager offlineManager,
-    required GetReaderPositionUseCase getReaderPositionUseCase,
-    required PdfConversionQueueManager queueManager,
-    required RemoteConfigService remoteConfigService,
-    required Logger logger,
-  })  : _offlineManager = offlineManager,
-        _getReaderPositionUseCase = getReaderPositionUseCase,
-        _queueManager = queueManager,
-        _remoteConfigService = remoteConfigService,
-        _logger = logger;
+    required this._offlineManager,
+    required this._getReaderPositionUseCase,
+    required this._queueManager,
+    required this._remoteConfigService,
+    required this._logger,
+  });
 
   Future<int> calculateDirectorySize(String path) async {
     int size = 0;

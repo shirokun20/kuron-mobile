@@ -25,11 +25,7 @@ class SourceLoader {
   // Source IDs currently under maintenance (enabled but unavailable).
   final Set<String> _maintenanceSourceIds = {};
 
-  SourceLoader({
-    required RemoteConfigService configService,
-    required Logger logger,
-  })  : _configService = configService,
-        _logger = logger;
+  SourceLoader({required this._configService, required this._logger});
 
   // ── Public API ────────────────────────────────────────────────────────────
 
@@ -61,9 +57,7 @@ class SourceLoader {
 
       if (entry.maintenance?.active ?? false) {
         _maintenanceSourceIds.add(sourceId);
-        _logger.w(
-          'SourceLoader: source "$sourceId" is under maintenance',
-        );
+        _logger.w('SourceLoader: source "$sourceId" is under maintenance');
       }
     }
 

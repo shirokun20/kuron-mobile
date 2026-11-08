@@ -5,8 +5,7 @@ import '../base_usecase.dart';
 // Use case for fetching content by tag
 class GetContentByTagUseCase
     extends UseCase<ContentListResult, GetContentByTagParams> {
-  GetContentByTagUseCase({required ContentRepository contentRepository})
-      : _contentRepository = contentRepository;
+  GetContentByTagUseCase({required this._contentRepository});
 
   final ContentRepository _contentRepository;
 

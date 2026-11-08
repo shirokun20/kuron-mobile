@@ -29,7 +29,7 @@ import 'package:nhasixapp/core/services/workers/download_worker.dart';
 import 'package:nhasixapp/core/utils/notification_localizer.dart';
 import 'package:nhasixapp/core/utils/performance_monitor.dart';
 import 'package:logger/logger.dart';
-import 'package:window_manager/legacy.dart'; // 0.6: API 0.5.x pindah ke legacy (deprecated bridge); desktop-only, migrasi native = change terpisah bila perlu.
+import 'package:window_manager/window_manager.dart';
 
 // Stored cold-start notification payload, read from
 // NotificationAppLaunchDetails before runApp().
@@ -43,16 +43,14 @@ void main() async {
   if (!kIsWeb &&
       (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
     try {
-      await windowManager.ensureInitialized();
-      await windowManager.waitUntilReadyToShow(
-        const WindowOptions(
-          size: Size(1440, 900),
-          minimumSize: Size(1024, 640),
-          center: true,
-        ),
-      );
-      await windowManager.show();
-      await windowManager.focus();
+      final window = WindowManager.instance.getCurrent();
+      if (window != null) {
+        window.setSize(const Size(1440, 900).toNative(), false);
+        window.minimumSize = const Size(1024, 640).toNative();
+        window.center();
+        window.show();
+        window.focus();
+      }
     } catch (_) {}
   }
   await setupLocator();

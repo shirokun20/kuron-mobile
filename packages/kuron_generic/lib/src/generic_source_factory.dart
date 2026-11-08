@@ -32,9 +32,7 @@ class GenericSourceFactory implements SourceFactory {
   @override
   String get sourceId => '__generic__';
 
-  GenericSourceFactory({required Dio dio, required Logger logger})
-      : _dio = dio,
-        _logger = logger;
+  GenericSourceFactory({required this._dio, required this._logger});
 
   // Returns true for any source that does NOT require a custom Dart adapter
   // (i.e., any source whose config is a plain JSON map).

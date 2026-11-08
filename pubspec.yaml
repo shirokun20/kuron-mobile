@@ -62,7 +62,6 @@ dependencies:
   cached_network_image: ^4.0.4
   extended_image: ^10.1.0  # Enhanced image viewer with gesture control
   # extended_image_library: ^5.0.1  # Disk-cache utilities (getCachedImageFile)
-  http_client_helper: ^3.0.0  # CancellationToken for ExtendedImage cancellation
   image: ^4.5.4
   flutter_cache_manager: ^3.4.1
 
@@ -87,9 +86,6 @@ dependencies:
   # Desktop window (macOS/Windows/Linux only; guarded by Platform in main)
   window_manager: ^0.6.0
 
-  # WebView for Cloudflare bypass
-  webview_flutter: ^4.14.1
-
   # Utilities
   logger: ^2.6.2
   permission_handler: ^13.0.1
@@ -97,7 +93,6 @@ dependencies:
   device_info_plus: ^13.2.0
   collection: ^1.18.0
   crypto: ^3.0.3
-  pointycastle: ^4.0.0  # AES-CBC for Madara chapter-protector payload (issue #63)
 
   # PDF Generation
 
@@ -123,18 +118,19 @@ dev_dependencies:
   bloc_test: ^10.0.0
   test: ^1.31.0
 
+  wakelock_plus_platform_interface: any
 flutter:
   uses-material-design: true
   generate: true
 
   assets:
     - assets/
+    - assets/model.pin.json
     - assets/images/
     - assets/icons/
     - assets/legal/en/
     - assets/legal/id/
     - assets/configs/
-    - assets/widget/
     - assets/fonts/
     # Note: tags.json.gz (compressed) is 1.1MB vs tags.json (5MB)
 

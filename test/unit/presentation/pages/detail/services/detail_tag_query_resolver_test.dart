@@ -131,7 +131,7 @@ void main() {
             },
           },
         },
-        resolveTagIdFromLoadedContent: (_, __) => 'MiKA',
+        resolveTagIdFromLoadedContent: (_, _) => 'MiKA',
       );
 
       expect(result.explicitMappingFailed, isFalse);

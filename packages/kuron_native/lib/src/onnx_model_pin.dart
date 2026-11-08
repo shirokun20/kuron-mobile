@@ -16,7 +16,8 @@ class OnnxModelPin {
     required this.sha256,
   });
 
-  static const String assetKey = 'model.pin.json';
+  static const String assetKey = 'assets/model.pin.json';
+  static const String fallbackAssetKey = 'model.pin.json';
 
   final String file;
   final String version;
@@ -24,9 +25,14 @@ class OnnxModelPin {
   final String sha256;
 
   static Future<OnnxModelPin> load({AssetBundle? bundle}) async {
-    final raw =
-        await (bundle ?? rootBundle).loadString(assetKey, cache: false);
-    return parse(raw);
+    final b = bundle ?? rootBundle;
+    try {
+      final raw = await b.loadString(assetKey, cache: false);
+      return parse(raw);
+    } catch (_) {
+      final raw = await b.loadString(fallbackAssetKey, cache: false);
+      return parse(raw);
+    }
   }
 
   /// Throws [FormatException] when the pin is missing fields or malformed —

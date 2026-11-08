@@ -77,8 +77,7 @@ class PageResolutionResult {
 // their internal results through the same canonical representation used by
 // the reader and the native download worker.
 class PageResolutionPipeline {
-  const PageResolutionPipeline({NetworkRules? networkRules})
-      : _networkRules = networkRules;
+  const PageResolutionPipeline({this._networkRules});
 
   final NetworkRules? _networkRules;
 

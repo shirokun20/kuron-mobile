@@ -13,7 +13,7 @@ import '../models/source_config_runtime.dart';
 class GenericJsonParser {
   final Logger _logger;
 
-  GenericJsonParser({required Logger logger}) : _logger = logger;
+  GenericJsonParser({required this._logger});
 
   // Extract a single string value from [data] using [selector].
   String? extractString(dynamic data, FieldSelector selector) {

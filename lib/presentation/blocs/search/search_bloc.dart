@@ -17,15 +17,11 @@ part 'search_state.dart';
 // search history, debounced search, and tag suggestions
 class SearchBloc extends Bloc<SearchEvent, SearchState> {
   SearchBloc({
-    required SearchContentUseCase searchContentUseCase,
-    required UserDataRepository userDataRepository,
-    required TagRepository tagRepository,
-    required Logger logger,
-  })  : _searchContentUseCase = searchContentUseCase,
-        _userDataRepository = userDataRepository,
-        _tagRepository = tagRepository,
-        _logger = logger,
-        super(const SearchInitial()) {
+    required this._searchContentUseCase,
+    required this._userDataRepository,
+    required this._tagRepository,
+    required this._logger,
+  })  : super(const SearchInitial()) {
     // Register event handlers
     on<SearchInitializeEvent>(_onSearchInitialize);
     on<SearchQueryEvent>(_onSearchQuery, transformer: _debounceTransformer());

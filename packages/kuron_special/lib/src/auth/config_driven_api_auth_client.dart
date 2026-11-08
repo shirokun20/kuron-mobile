@@ -19,14 +19,11 @@ class ConfigDrivenApiAuthClient {
   final FlutterSecureStorage _secureStorage;
 
   ConfigDrivenApiAuthClient({
-    required Dio dio,
-    required ApiAuthConfig config,
-    required Logger logger,
+    required this._dio,
+    required this._config,
+    required this._logger,
     FlutterSecureStorage? secureStorage,
-  })  : _dio = dio,
-        _config = config,
-        _logger = logger,
-        _secureStorage = secureStorage ?? const FlutterSecureStorage();
+  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   String _resolveUrl(String endpoint) {
     return Uri.parse(_config.apiBase).resolve(endpoint).toString();

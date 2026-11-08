@@ -13,9 +13,8 @@ class AppLockCubit extends BaseCubit<AppLockState> {
   AppLockCubit({
     required AppLockRepository appLockRepository,
     required super.logger,
-    Future<bool> Function()? biometricAuth,
+    this._biometricAuth,
   })  : _repository = appLockRepository,
-        _biometricAuth = biometricAuth,
         super(initialState: const AppLockLoading());
 
   final AppLockRepository _repository;

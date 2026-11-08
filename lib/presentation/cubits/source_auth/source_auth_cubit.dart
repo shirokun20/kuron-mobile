@@ -14,10 +14,9 @@ class SourceAuthCubit extends BaseCubit<SourceAuthState> {
   }
 
   SourceAuthCubit({
-    required SourceAuthService sourceAuthService,
+    required this._sourceAuthService,
     required super.logger,
-  })  : _sourceAuthService = sourceAuthService,
-        super(initialState: const SourceAuthState.initial());
+  })  : super(initialState: const SourceAuthState.initial());
   ({String url, String? autoCloseCookie, List<String>? successFilters})?
       getLoginUrls(String sourceId) {
     return _sourceAuthService.getLoginUrls(sourceId);

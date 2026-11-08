@@ -40,22 +40,15 @@ class GenericRestAdapter implements GenericAdapter {
   final RateLimiter? _rateLimiter;
 
   GenericRestAdapter({
-    required Dio dio,
-    required GenericUrlBuilder urlBuilder,
-    required GenericJsonParser parser,
-    required Logger logger,
-    required String sourceId,
-    HeadersGenerator? headersGenerator,
-    DelayApplier? delayApplier,
-    RateLimiter? rateLimiter,
-  })  : _dio = dio,
-        _urlBuilder = urlBuilder,
-        _parser = parser,
-        _logger = logger,
-        _sourceId = sourceId,
-        _headersGenerator = headersGenerator,
-        _delayApplier = delayApplier,
-        _rateLimiter = rateLimiter;
+    required this._dio,
+    required this._urlBuilder,
+    required this._parser,
+    required this._logger,
+    required this._sourceId,
+    this._headersGenerator,
+    this._delayApplier,
+    this._rateLimiter,
+  });
 
   @override
   Future<List<Chapter>> fetchChapters(

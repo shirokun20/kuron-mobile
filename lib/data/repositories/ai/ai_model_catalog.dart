@@ -143,10 +143,9 @@ class GeminiCatalogParser {
 /// API keys never logged.
 class AiModelCatalogRepositoryImpl implements AiModelCatalogRepository {
   AiModelCatalogRepositoryImpl({
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   final Dio _dio;
   final Logger _logger;

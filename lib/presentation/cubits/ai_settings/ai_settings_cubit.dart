@@ -9,19 +9,14 @@ part 'ai_settings_state.dart';
 /// Manages AI translation providers, target language, and style.
 class AiSettingsCubit extends BaseCubit<AiSettingsState> {
   AiSettingsCubit({
-    required AiProviderRepository providerRepository,
-    required AiPreferencesRepository preferencesRepository,
-    required AiProviderFactory providerFactory,
-    required TranslationCacheRepository cacheRepository,
-    required AiModelCatalogRepository modelCatalog,
+    required this._providerRepository,
+    required this._preferencesRepository,
+    required this._providerFactory,
+    required this._cacheRepository,
+    required this._modelCatalog,
     required super.logger,
     this.localizations,
-  })  : _providerRepository = providerRepository,
-        _preferencesRepository = preferencesRepository,
-        _providerFactory = providerFactory,
-        _cacheRepository = cacheRepository,
-        _modelCatalog = modelCatalog,
-        super(initialState: const AiSettingsInitial()) {
+  })  : super(initialState: const AiSettingsInitial()) {
     loadProviders();
   }
 

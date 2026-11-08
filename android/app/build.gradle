@@ -24,9 +24,11 @@ android {
     // are limited via --target-platform (build_optimized.sh); AAR-bundled
     // .so (ffmpeg/onnxruntime/cronet) ignore that, so strip their x86_64
     // copies here at packaging time.
+    // Also exclude libcnativeapi.so (transitive from desktop-only window_manager).
     packaging {
         jniLibs {
             excludes += "lib/x86_64/**"
+            excludes += "lib/**/libcnativeapi.so"
         }
     }
 

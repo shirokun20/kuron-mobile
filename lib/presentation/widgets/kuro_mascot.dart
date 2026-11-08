@@ -76,7 +76,7 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([_idle, _cry]),
-      builder: (_, __) {
+      builder: (_, _) {
         final t = _idle.value;
         final c = _cry.value;
 

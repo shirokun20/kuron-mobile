@@ -289,7 +289,7 @@ class _CoverCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (blurOverlay != null) blurOverlay!,
+              ?blurOverlay,
             ],
           ),
         ),

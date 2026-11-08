@@ -33,8 +33,7 @@ class GenericHttpSource implements ContentSource {
   final DelayApplier? _delayApplier;
   final RateLimiter? _rateLimiter;
   final GenericAdapter _adapter;
-  // ignore: unused_field — will be used in Phase 2 when filter UI is wired up
-  final GenericFilterTransformer _filterTransformer;
+  final GenericFilterTransformer filterTransformer;
   final Logger _logger;
   final BypassCookieProvider? _bypassCookieProvider;
   final BypassUaProvider? _bypassUaProvider;
@@ -56,17 +55,15 @@ class GenericHttpSource implements ContentSource {
     DelayApplier? delayApplier,
     RateLimiter? rateLimiter,
     GenericAdapter? adapterOverride,
-    BypassCookieProvider? bypassCookieProvider,
-    BypassUaProvider? bypassUaProvider,
+    this._bypassCookieProvider,
+    this._bypassUaProvider,
   })  : _rawConfig = rawConfig,
         _dio = dio,
         _headersGenerator = headersGenerator,
         _delayApplier = delayApplier,
         _rateLimiter = rateLimiter,
         _logger = logger,
-        _bypassCookieProvider = bypassCookieProvider,
-        _bypassUaProvider = bypassUaProvider,
-        _filterTransformer = const GenericFilterTransformer(),
+        filterTransformer = const GenericFilterTransformer(),
         _id = rawConfig['source'] as String? ?? 'unknown',
         _displayName = _resolveDisplayName(rawConfig),
         _baseUrl = rawConfig['baseUrl'] as String? ?? '',
@@ -287,7 +284,7 @@ class GenericHttpSource implements ContentSource {
     Map<String, dynamic> extra,
   ) {
     final merged = <String, dynamic>{
-      if (base != null) ...base,
+      ...?base,
       ...extra,
     };
     return merged;

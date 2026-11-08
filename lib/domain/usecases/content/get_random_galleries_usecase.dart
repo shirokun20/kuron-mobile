@@ -5,8 +5,7 @@ import '../base_usecase.dart';
 // Use case for fetching random content galleries
 class GetRandomGalleriesUseCase
     extends UseCase<List<Content>, GetRandomGalleriesParams> {
-  GetRandomGalleriesUseCase({required ContentRepository contentRepository})
-      : _contentRepository = contentRepository;
+  GetRandomGalleriesUseCase({required this._contentRepository});
 
   final ContentRepository _contentRepository;
 

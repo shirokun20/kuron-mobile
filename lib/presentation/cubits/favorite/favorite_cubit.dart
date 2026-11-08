@@ -16,27 +16,18 @@ part 'favorite_state.dart';
 // Handles favorites list, categories, and batch operations
 class FavoriteCubit extends BaseCubit<FavoriteState> {
   FavoriteCubit({
-    required AddToFavoritesUseCase addToFavoritesUseCase,
-    required GetFavoritesUseCase getFavoritesUseCase,
-    required RemoveFromFavoritesUseCase removeFromFavoritesUseCase,
-    required GetFavoriteCollectionsUseCase getFavoriteCollectionsUseCase,
-    required CreateFavoriteCollectionUseCase createFavoriteCollectionUseCase,
-    required RenameFavoriteCollectionUseCase renameFavoriteCollectionUseCase,
-    required DeleteFavoriteCollectionUseCase deleteFavoriteCollectionUseCase,
-    required AddToFavoriteCollectionUseCase addToFavoriteCollectionUseCase,
-    required UserDataRepository userDataRepository,
+    required this._addToFavoritesUseCase,
+    required this._getFavoritesUseCase,
+    required this._removeFromFavoritesUseCase,
+    required this._getFavoriteCollectionsUseCase,
+    required this._createFavoriteCollectionUseCase,
+    required this._renameFavoriteCollectionUseCase,
+    required this._deleteFavoriteCollectionUseCase,
+    required this._addToFavoriteCollectionUseCase,
+    required this._userDataRepository,
     required super.logger,
     this.localizations,
-  })  : _addToFavoritesUseCase = addToFavoritesUseCase,
-        _getFavoritesUseCase = getFavoritesUseCase,
-        _removeFromFavoritesUseCase = removeFromFavoritesUseCase,
-        _getFavoriteCollectionsUseCase = getFavoriteCollectionsUseCase,
-        _createFavoriteCollectionUseCase = createFavoriteCollectionUseCase,
-        _renameFavoriteCollectionUseCase = renameFavoriteCollectionUseCase,
-        _deleteFavoriteCollectionUseCase = deleteFavoriteCollectionUseCase,
-        _addToFavoriteCollectionUseCase = addToFavoriteCollectionUseCase,
-        _userDataRepository = userDataRepository,
-        super(
+  })  : super(
           initialState: const FavoriteInitial(),
         );
 

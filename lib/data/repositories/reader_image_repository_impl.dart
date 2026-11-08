@@ -73,13 +73,12 @@ Future<String?> _defaultLocalLookup(String contentId, int pageNumber) {
 /// Plus a per-URL in-flight dedup gate shared across all subsystems.
 class ReaderImageRepositoryImpl implements ReaderImageRepository {
   ReaderImageRepositoryImpl({
-    required Logger logger,
+    required this._logger,
     RequestDeduplicationService? dedup,
     ReaderImageNetworkDownload? networkDownload,
     ReaderImageLegacyLookup? legacyLookup,
     ReaderImageLocalLookup? localLookup,
-  })  : _logger = logger,
-        _dedup = dedup ?? RequestDeduplicationService(),
+  })  : _dedup = dedup ?? RequestDeduplicationService(),
         _networkDownload = networkDownload ?? _defaultStreamingDownload,
         _legacyLookup = legacyLookup ?? _defaultLegacyLookup,
         _localLookup = localLookup ?? _defaultLocalLookup;

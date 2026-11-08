@@ -22,9 +22,7 @@ class DoujinDesuXxxSourceFactory implements SourceFactory {
   final Dio _dio;
   final Logger _logger;
 
-  DoujinDesuXxxSourceFactory({required Dio dio, required Logger logger})
-      : _dio = dio,
-        _logger = logger;
+  DoujinDesuXxxSourceFactory({required this._dio, required this._logger});
 
   @override
   String get sourceId => 'doujindesuxxx';
@@ -110,12 +108,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
   final Map<String, String> _headers;
 
   DoujinDesuXxxAdapter({
-    required Dio dio,
-    required String sourceId,
+    required this._dio,
+    required this._sourceId,
     String base = 'https://doujin.desu.xxx',
-  })  : _dio = dio,
-        _sourceId = sourceId,
-        _base = base,
+  })  : _base = base,
         _headers = {
           'x-app-secret': _appSecret,
           'Referer': '$base/',

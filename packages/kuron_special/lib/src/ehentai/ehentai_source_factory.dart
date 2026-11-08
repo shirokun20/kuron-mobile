@@ -15,12 +15,10 @@ class EHentaiSourceFactory implements SourceFactory {
   final Logger _logger;
 
   EHentaiSourceFactory({
-    required Dio dio,
-    required PersistCookieJar cookieJar,
-    required Logger logger,
-  })  : _dio = dio,
-        _cookieJar = cookieJar,
-        _logger = logger;
+    required this._dio,
+    required this._cookieJar,
+    required this._logger,
+  });
 
   @override
   String get sourceId => 'ehentai';
@@ -91,9 +89,8 @@ class _EHentaiDioInterceptor with DioMixin implements Dio {
 
   _EHentaiDioInterceptor({
     required Dio baseDio,
-    required EHentaiSessionAdapter sessionAdapter,
-  })  : _baseDio = baseDio,
-        _sessionAdapter = sessionAdapter {
+    required this._sessionAdapter,
+  })  : _baseDio = baseDio {
     options = baseDio.options;
     interceptors.addAll(baseDio.interceptors);
     httpClientAdapter = baseDio.httpClientAdapter;

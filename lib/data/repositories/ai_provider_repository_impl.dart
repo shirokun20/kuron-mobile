@@ -11,10 +11,9 @@ import '../../domain/repositories/ai_translation_repositories.dart';
 /// (or types one manually) — nothing is hardcoded here.
 class AiProviderRepositoryImpl implements AiProviderRepository {
   AiProviderRepositoryImpl({
-    required FlutterSecureStorage storage,
-    required Logger logger,
-  })  : _storage = storage,
-        _logger = logger;
+    required this._storage,
+    required this._logger,
+  });
 
   final FlutterSecureStorage _storage;
   final Logger _logger;

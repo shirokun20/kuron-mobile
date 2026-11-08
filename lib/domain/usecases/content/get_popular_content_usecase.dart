@@ -4,8 +4,7 @@ import '../base_usecase.dart';
 // Use case for fetching popular content
 class GetPopularContentUseCase
     extends UseCase<ContentListResult, GetPopularContentParams> {
-  GetPopularContentUseCase({required ContentRepository contentRepository})
-      : _contentRepository = contentRepository;
+  GetPopularContentUseCase({required this._contentRepository});
 
   final ContentRepository _contentRepository;
 

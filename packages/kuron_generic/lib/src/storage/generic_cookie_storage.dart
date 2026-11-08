@@ -12,8 +12,7 @@ class GenericCookieStorage implements Storage {
   final String sourceId;
   final SecureValueStore _secureStore;
 
-  GenericCookieStorage(this.sourceId, {required SecureValueStore secureStore})
-      : _secureStore = secureStore;
+  GenericCookieStorage(this.sourceId, {required this._secureStore});
 
   String _key(String key) => 'cookie_jar_${sourceId}_$key';
 

@@ -8,10 +8,9 @@ class CrotpediaAuthCubit extends BaseCubit<CrotpediaAuthState> {
   final WebViewSessionAdapter _adapter;
 
   CrotpediaAuthCubit({
-    required WebViewSessionAdapter adapter,
+    required this._adapter,
     required super.logger,
-  })  : _adapter = adapter,
-        super(initialState: CrotpediaAuthInitial());
+  })  : super(initialState: CrotpediaAuthInitial());
 
   Future<void> checkLoginStatus() async {
     if (isClosed) return;

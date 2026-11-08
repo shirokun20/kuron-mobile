@@ -20,14 +20,11 @@ class ViHentaiSourceFactory implements SourceFactory {
   final PersistCookieJar _cookieJar;
 
   ViHentaiSourceFactory({
-    required Dio dio,
-    required WebViewSessionAdapter sessionAdapter,
-    required Logger logger,
-    required PersistCookieJar cookieJar,
-  })  : _dio = dio,
-        _sessionAdapter = sessionAdapter,
-        _logger = logger,
-        _cookieJar = cookieJar;
+    required this._dio,
+    required this._sessionAdapter,
+    required this._logger,
+    required this._cookieJar,
+  });
 
   @override
   String get sourceId => 'vihentai';

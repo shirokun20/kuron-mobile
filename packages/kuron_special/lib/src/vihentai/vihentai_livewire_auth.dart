@@ -87,7 +87,7 @@ class ViHentaiLivewireAuth {
       'Content-Type': 'application/json',
       'X-CSRF-TOKEN': authData.csrfToken,
       'X-Livewire': 'true',
-      if (extraHeaders != null) ...extraHeaders,
+      ...?extraHeaders,
     };
 
     // Step 1: sync input

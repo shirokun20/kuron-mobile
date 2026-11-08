@@ -11,11 +11,10 @@ part 'settings_state.dart';
 // Simple state management for settings operations
 class SettingsCubit extends BaseCubit<SettingsState> {
   SettingsCubit({
-    required PreferencesService preferencesService,
+    required this._preferencesService,
     required super.logger,
     this.localizations,
-  })  : _preferencesService = preferencesService,
-        super(
+  })  : super(
           initialState: const SettingsInitial(),
         ) {
     _loadSettings();

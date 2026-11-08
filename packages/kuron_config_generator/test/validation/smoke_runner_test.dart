@@ -90,15 +90,6 @@ void main() {
 
   tearDownAll(() => server.close(force: true));
 
-  // ponytail: kept for Phase-2 negative-probe tests which will drive the
-  // full adapter happy path against this local server.
-  // ignore: unused_element
-  Map<String, dynamic> config(Map<String, dynamic> scraper) => {
-        'source': 'smoketest',
-        'baseUrl': baseUrl,
-        'scraper': scraper,
-      };
-
   /// End-to-end config driving all five screens against the local server:
   /// home → search → detail → chapters → reader, with a detail-field config
   /// whose selectors are injected per test.
@@ -141,7 +132,7 @@ void main() {
             },
             'detail': '/manga/{id}/',
             'chapter': '/chapter/{id}/',
-            if (extraPatterns != null) ...extraPatterns,
+            ...?extraPatterns,
           },
           'selectors': {
             'detail': {

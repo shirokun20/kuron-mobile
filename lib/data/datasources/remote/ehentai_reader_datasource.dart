@@ -11,7 +11,7 @@ class EhentaiReaderDataSource {
   EhentaiReaderDataSource({
     Dio? dio,
     Logger? logger,
-    Duration cacheTtl = const Duration(minutes: 2),
+    this._cacheTtl = const Duration(minutes: 2),
   })  : _dio = dio ??
             Dio(
               BaseOptions(
@@ -21,8 +21,7 @@ class EhentaiReaderDataSource {
                 sendTimeout: const Duration(seconds: 15),
               ),
             ),
-        _logger = logger ?? (getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger()),
-        _cacheTtl = cacheTtl;
+        _logger = logger ?? (getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger());
 
   final Dio _dio;
   final Logger _logger;

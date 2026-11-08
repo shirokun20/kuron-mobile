@@ -122,20 +122,17 @@ class GenericScraperAdapter implements GenericAdapter {
       r'''search_nonce[^>]*?value=['"]([^'"]+)''';
 
   GenericScraperAdapter({
-    required Dio dio,
+    required this._dio,
     required GenericUrlBuilder urlBuilder,
     required GenericHtmlParser parser,
     required Logger logger,
     required String sourceId,
-    Future<void> Function()? delayApplier,
-    RateLimiter? rateLimiter,
-  })  : _dio = dio,
-        _urlBuilder = urlBuilder,
+    this._delayApplier,
+    this._rateLimiter,
+  })  : _urlBuilder = urlBuilder,
         _parser = parser,
         _logger = logger,
-        _sourceId = sourceId,
-        _delayApplier = delayApplier,
-        _rateLimiter = rateLimiter {
+        _sourceId = sourceId {
     _readerImages = ReaderImageResolver(
       urlBuilder: urlBuilder,
       parser: parser,

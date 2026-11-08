@@ -14,17 +14,12 @@ part 'content_state.dart';
 // BLoC for managing content list with pagination, search, and infinite scrolling
 class ContentBloc extends Bloc<ContentEvent, ContentState> {
   ContentBloc({
-    required GetContentListUseCase getContentListUseCase,
-    required SearchContentUseCase searchContentUseCase,
-    required GetContentByTagUseCase getContentByTagUseCase,
-    required GetPopularContentUseCase getPopularContentUseCase,
-    required Logger logger,
-  })  : _getContentListUseCase = getContentListUseCase,
-        _searchContentUseCase = searchContentUseCase,
-        _getContentByTagUseCase = getContentByTagUseCase,
-        _getPopularContentUseCase = getPopularContentUseCase,
-        _logger = logger,
-        super(const ContentInitial()) {
+    required this._getContentListUseCase,
+    required this._searchContentUseCase,
+    required this._getContentByTagUseCase,
+    required this._getPopularContentUseCase,
+    required this._logger,
+  })  : super(const ContentInitial()) {
     // Register event handlers
     on<ContentLoadEvent>(_onContentLoad);
     on<ContentLoadMoreEvent>(_onContentLoadMore);

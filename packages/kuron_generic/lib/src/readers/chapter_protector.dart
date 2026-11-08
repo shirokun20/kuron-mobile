@@ -23,9 +23,7 @@ class ChapterProtectorDecoder {
   final Logger _logger;
   final String _sourceId;
 
-  ChapterProtectorDecoder({required Logger logger, required String sourceId})
-      : _logger = logger,
-        _sourceId = sourceId;
+  ChapterProtectorDecoder({required this._logger, required this._sourceId});
 
   /// Decrypts the protector payload in [htmlContent] and returns the image
   /// URLs, or an empty list when the page carries no (or an undecryptable)

@@ -121,7 +121,7 @@ class DetailContentView extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (blurOverlay != null) blurOverlay!,
+                      ?blurOverlay,
                       Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(

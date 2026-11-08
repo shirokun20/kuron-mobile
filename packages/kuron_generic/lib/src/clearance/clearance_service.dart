@@ -55,25 +55,17 @@ class ClearanceService {
   }
 
   ClearanceService({
-    required SecureValueStore store,
-    required ClearanceDriver driver,
-    required Logger logger,
-    required String sourceId,
+    required this._store,
+    required this._driver,
+    required this._logger,
+    required this._sourceId,
     required String domainUrl,
-    List<String> postOnlyPaths = const ['/books/detail/'],
-    List<String> anyMethodPaths = const ['/books/data/'],
-    List<String> sharedCdnHosts = const ['erocdn.net'],
-    String tokenQueryParam = 'crt',
-  })  : _store = store,
-        _driver = driver,
-        _logger = logger,
-        _sourceId = sourceId,
-        _domainUrl = domainUrl,
-        _domainHost = Uri.parse(domainUrl).host,
-        _postOnlyPaths = postOnlyPaths,
-        _anyMethodPaths = anyMethodPaths,
-        _sharedCdnHosts = sharedCdnHosts,
-        _tokenQueryParam = tokenQueryParam;
+    this._postOnlyPaths = const ['/books/detail/'],
+    this._anyMethodPaths = const ['/books/data/'],
+    this._sharedCdnHosts = const ['erocdn.net'],
+    this._tokenQueryParam = 'crt',
+  })  : _domainUrl = domainUrl,
+        _domainHost = Uri.parse(domainUrl).host;
 
   Future<void>? _initFuture;
 
@@ -193,8 +185,7 @@ class ClearanceService {
 
 class _ClearanceInterceptor extends Interceptor {
   final ClearanceService _service;
-  _ClearanceInterceptor({required ClearanceService service})
-      : _service = service;
+  _ClearanceInterceptor({required this._service});
 
   @override
   void onRequest(

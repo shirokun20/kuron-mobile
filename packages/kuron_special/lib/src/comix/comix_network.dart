@@ -32,8 +32,7 @@ class ComixImagePolicy {
 
 /// Strips `#scrambled` fragments and drops Origin for V3 cross-host images.
 class ComixImageHeaderInterceptor extends Interceptor {
-  ComixImageHeaderInterceptor({required String baseUrlHost})
-      : _baseUrlHost = baseUrlHost;
+  ComixImageHeaderInterceptor({required this._baseUrlHost});
 
   final String _baseUrlHost;
 

@@ -19,14 +19,11 @@ class GenericBypassSourceFactory implements SourceFactory {
   final Logger _logger;
 
   GenericBypassSourceFactory({
-    required String sourceId,
-    required Dio dio,
-    required WebViewSessionAdapter sessionAdapter,
-    required Logger logger,
-  })  : _sourceId = sourceId,
-        _dio = dio,
-        _sessionAdapter = sessionAdapter,
-        _logger = logger;
+    required this._sourceId,
+    required this._dio,
+    required this._sessionAdapter,
+    required this._logger,
+  });
 
   @override
   String get sourceId => _sourceId;
@@ -72,12 +69,10 @@ class BypassDioInterceptor with DioMixin implements Dio {
 
   BypassDioInterceptor({
     required Dio baseDio,
-    required WebViewSessionAdapter sessionAdapter,
-    required Logger logger,
+    required this._sessionAdapter,
+    required this._logger,
     this.forwardSessionCookie = false,
-  })  : _baseDio = baseDio,
-        _sessionAdapter = sessionAdapter,
-        _logger = logger {
+  })  : _baseDio = baseDio {
     options = baseDio.options;
     interceptors.addAll(baseDio.interceptors);
     httpClientAdapter = baseDio.httpClientAdapter;

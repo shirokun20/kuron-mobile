@@ -14,7 +14,6 @@ dependencies:
   plugin_platform_interface: ^2.0.2
   permission_handler: ^13.0.1
   path_provider: ^2.1.2
-  ffi: ^2.2.0
 
 dev_dependencies:
   flutter_test:
@@ -39,7 +38,6 @@ flutter:
   plugin:
     platforms:
       android:
-        ffiPlugin: true
         package: id.nhasix.kuron_native.kuron_native
         pluginClass: KuronNativePlugin
       macos:

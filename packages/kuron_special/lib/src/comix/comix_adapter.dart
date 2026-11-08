@@ -25,15 +25,13 @@ const int _officialGroupId = 10702;
 
 class ComixAdapter implements GenericAdapter {
   ComixAdapter({
-    required Dio dio,
-    required WebViewProxyEngine engine,
-    required Logger logger,
+    required this._dio,
+    required this._engine,
+    required this._logger,
     this.defaultBaseUrl = 'https://comix.to',
     this.defaultSourceId = 'comix',
     this.originKind = 'comix',
-  })  : _dio = dio,
-        _engine = engine,
-        _logger = logger;
+  });
 
   /// Mangafire boots a full SPA per detail fetch; comix usually answers
   /// from Tier-1/2 in seconds. Both stay under the 120s WebView deadline.

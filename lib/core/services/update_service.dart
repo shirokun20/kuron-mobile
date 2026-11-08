@@ -26,9 +26,8 @@ class UpdateService {
       'https://api.github.com/repos/$_owner/$_repo/releases/latest';
 
   UpdateService({
-    required Logger logger,
-  })  : _logger = logger,
-        _dio = Dio();
+    required this._logger,
+  })  : _dio = Dio();
 
   // Checks for update and returns [UpdateInfo] if a newer version is available.
   // Returns null if up to date or error.

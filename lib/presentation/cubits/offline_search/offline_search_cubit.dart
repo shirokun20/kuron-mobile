@@ -22,14 +22,11 @@ part 'offline_search_state.dart';
 
 class OfflineSearchCubit extends BaseCubit<OfflineSearchState> {
   OfflineSearchCubit({
-    required OfflineContentManager offlineContentManager,
-    required UserDataRepository userDataRepository,
-    required SharedPreferences prefs,
+    required this._offlineContentManager,
+    required this._userDataRepository,
+    required this._prefs,
     required super.logger,
-  })  : _offlineContentManager = offlineContentManager,
-        _userDataRepository = userDataRepository,
-        _prefs = prefs,
-        super(
+  })  : super(
           initialState: const OfflineSearchInitial(),
         );
 

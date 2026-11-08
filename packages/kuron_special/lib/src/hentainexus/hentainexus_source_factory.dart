@@ -10,10 +10,9 @@ class HentaiNexusSourceFactory implements SourceFactory {
   final Logger _logger;
 
   HentaiNexusSourceFactory({
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   @override
   String get sourceId => 'hentainexus';

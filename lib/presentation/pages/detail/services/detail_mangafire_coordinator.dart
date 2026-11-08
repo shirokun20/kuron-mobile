@@ -4,8 +4,7 @@ import 'package:nhasixapp/presentation/cubits/detail/detail_cubit.dart';
 import 'package:nhasixapp/presentation/utils/chapter_language_presenter.dart';
 
 class DetailMangaFireCoordinator extends ChangeNotifier {
-  DetailMangaFireCoordinator({required DetailCubit detailCubit})
-      : _detailCubit = detailCubit;
+  DetailMangaFireCoordinator({required this._detailCubit});
 
   final DetailCubit _detailCubit;
 

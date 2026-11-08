@@ -6,8 +6,7 @@ import '../base_usecase.dart';
 // Use case for fetching related content
 class GetRelatedContentUseCase
     extends UseCase<List<Content>, GetRelatedContentParams> {
-  GetRelatedContentUseCase({required ContentRepository contentRepository})
-      : _contentRepository = contentRepository;
+  GetRelatedContentUseCase({required this._contentRepository});
 
   final ContentRepository _contentRepository;
 

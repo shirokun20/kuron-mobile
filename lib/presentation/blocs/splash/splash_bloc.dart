@@ -36,21 +36,15 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
   static const Duration cfCacheTtl = Duration(minutes: 30);
 
   SplashBloc({
-    required RemoteConfigService remoteConfigService,
-    required AppInitializer remoteDataSource,
-    required UserDataRepository userDataRepository,
-    required Logger logger,
-    required Connectivity connectivity,
-    required TagDataManager tagDataManager,
+    required this._remoteConfigService,
+    required this._remoteDataSource,
+    required this._userDataRepository,
+    required this._logger,
+    required this._connectivity,
+    required this._tagDataManager,
     // REMOVED: ContentSourceRegistry injection to fix lazy loading order
     // Registry will be accessed via getIt after config is loaded
-  })  : _remoteConfigService = remoteConfigService,
-        _remoteDataSource = remoteDataSource,
-        _userDataRepository = userDataRepository,
-        _logger = logger,
-        _connectivity = connectivity,
-        _tagDataManager = tagDataManager,
-        super(SplashInitial()) {
+  })  : super(SplashInitial()) {
     on<SplashStartedEvent>(_onSplashStarted);
     on<SplashInitializeBypassEvent>(_onInitializeBypass);
     on<SplashCFBypassEvent>(_onByPassCloudflare);

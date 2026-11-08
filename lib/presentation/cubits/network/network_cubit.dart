@@ -9,10 +9,9 @@ part 'network_state.dart';
 // Simple state management for connection monitoring
 class NetworkCubit extends BaseCubit<NetworkState> {
   NetworkCubit({
-    required Connectivity connectivity,
+    required this._connectivity,
     required super.logger,
-  })  : _connectivity = connectivity,
-        super(
+  })  : super(
           initialState: const NetworkInitial(),
         ) {
     _initializeConnectivity();

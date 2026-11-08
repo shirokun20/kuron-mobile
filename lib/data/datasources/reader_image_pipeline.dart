@@ -195,15 +195,12 @@ class ProcessedImageResult {
 /// in-memory caching, AVIF→WebP conversion, format conflict deletion, and header inspection.
 class ReaderImagePipeline {
   ReaderImagePipeline({
-    ReaderImageRepository? repository,
+    this._repository,
     EhentaiReaderDataSource? ehentaiDataSource,
-    HeaderInspectorService? headerInspector,
-    OfflineContentManager? offlineContentManager,
+    this._headerInspector,
+    this._offlineContentManager,
     Logger? logger,
-  })  : _repository = repository,
-        _ehentaiDataSource = ehentaiDataSource ?? EhentaiReaderDataSource(),
-        _headerInspector = headerInspector,
-        _offlineContentManager = offlineContentManager,
+  })  : _ehentaiDataSource = ehentaiDataSource ?? EhentaiReaderDataSource(),
         _logger = logger ??
             (getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger());
 

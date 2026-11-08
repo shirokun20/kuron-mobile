@@ -18,11 +18,10 @@ class CombinedHomeRepositoryImpl implements CombinedHomeRepository {
   CombinedHomeRepositoryImpl({
     required UserDataRepository userDataRepository,
     required ContentSourceRegistry contentSourceRegistry,
-    required Logger logger,
+    required this._logger,
     DateTime Function()? clock,
   })  : _userData = userDataRepository,
         _registry = contentSourceRegistry,
-        _logger = logger,
         _clock = clock ?? DateTime.now;
 
   final UserDataRepository _userData;

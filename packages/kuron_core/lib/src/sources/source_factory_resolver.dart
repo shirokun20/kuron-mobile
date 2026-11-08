@@ -13,10 +13,9 @@ class SourceFactoryResolver {
   final SourceFactory _defaultFactory;
 
   SourceFactoryResolver({
-    required List<SourceFactory> factories,
-    required SourceFactory defaultFactory,
-  })  : _factories = factories,
-        _defaultFactory = defaultFactory;
+    required this._factories,
+    required this._defaultFactory,
+  });
 
   // Returns the appropriate [SourceFactory] for the given raw config.
   SourceFactory resolve(Map<String, dynamic> rawConfig) {

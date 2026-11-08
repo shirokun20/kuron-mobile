@@ -223,7 +223,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         PageRouteBuilder<void>(
           opaque: false,
           barrierDismissible: true,
-          pageBuilder: (_, __, ___) => ReaderAiTutorialOverlay(
+          pageBuilder: (_, _, _) => ReaderAiTutorialOverlay(
             onComplete: _dismissTutorial,
           ),
         ),

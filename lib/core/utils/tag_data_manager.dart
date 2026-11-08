@@ -14,9 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // Provides advanced tag management with caching, validation, and Matrix Filter Support
 // Comprehensive tag data manager for remote-first architecture
 class TagDataManager {
-  TagDataManager({required Dio dio, required Logger logger})
-      : _dio = dio,
-        _logger = logger;
+  TagDataManager({required this._dio, required this._logger});
 
   final Dio _dio;
   final Logger _logger;

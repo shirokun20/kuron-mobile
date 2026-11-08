@@ -18,10 +18,9 @@ import 'capped_map.dart';
 
 class OfflineContentManager {
   OfflineContentManager({
-    required UserDataRepository userDataRepository,
+    required this._userDataRepository,
     Logger? logger,
-  })  : _userDataRepository = userDataRepository,
-        _logger = logger ?? Logger();
+  })  : _logger = logger ?? Logger();
 
   final UserDataRepository _userDataRepository;
   final Logger _logger;

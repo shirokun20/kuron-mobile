@@ -14,10 +14,9 @@ class SearchQueryRouting {
   final String _sourceId;
 
   SearchQueryRouting({
-    required Logger logger,
-    required String sourceId,
-  })  : _logger = logger,
-        _sourceId = sourceId;
+    required this._logger,
+    required this._sourceId,
+  });
 
   String encodeRawQueryValue(String key, String value) {
     // HentaiNexus query grammar treats '+' as word separator in q values.

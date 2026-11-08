@@ -14,12 +14,10 @@ class TagsRemoteDataSource {
   final RemoteConfigService _configService;
 
   TagsRemoteDataSource({
-    required Dio dio,
-    required Logger logger,
-    required RemoteConfigService configService,
-  })  : _dio = dio,
-        _logger = logger,
-        _configService = configService;
+    required this._dio,
+    required this._logger,
+    required this._configService,
+  });
 
   Map<String, String>? _getNetworkHeaders(String sourceId) {
     final rawConfig = _configService.getRawConfig(sourceId);
@@ -153,7 +151,7 @@ class TagsRemoteDataSource {
 
       final requestData = {
         'query': query,
-        if (tagType != null) 'type': tagType,
+        'type': ?tagType,
         'limit': limit,
       };
 

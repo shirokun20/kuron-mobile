@@ -21,7 +21,7 @@ Map<String, dynamic> _v2({
     'media_id': '123',
     'title': title,
     'thumbnail': thumbnail,
-    if (cover != null) 'cover': cover,
+    'cover': ?cover,
     'pages': pages,
     'english_title': englishTitle,
   };

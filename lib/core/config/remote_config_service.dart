@@ -49,7 +49,7 @@ class RemoteConfigService {
   static const Map<String, String> _bundledAssetPaths = {
     'nhentai': '$_assetConfigBase/nhentai-config.json',
     'app': '$_assetConfigBase/app-config.json',
-    'tags': _tagsAssetPath
+    'tags': _tagsAssetPath,
   };
 
   // Source IDs that are bundled into the APK and always available.
@@ -80,9 +80,7 @@ class RemoteConfigService {
 
   // ── Constructor ──────────────────────────────────────────────────────────────
 
-  RemoteConfigService({required Dio dio, required Logger logger})
-      : _dio = dio,
-        _logger = logger;
+  RemoteConfigService({required this._dio, required this._logger});
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Public API
@@ -433,8 +431,8 @@ class RemoteConfigService {
     if (_bundledSourceIds.contains(sourceId)) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final ids =
-        (prefs.getStringList(_prefInstalledSourceIds) ?? <String>[]).toSet();
+    final ids = (prefs.getStringList(_prefInstalledSourceIds) ?? <String>[])
+        .toSet();
     ids.add(sourceId);
     await prefs.setStringList(_prefInstalledSourceIds, ids.toList());
   }
@@ -442,8 +440,8 @@ class RemoteConfigService {
   // Remove persisted install state for an installable source.
   Future<void> markSourceUninstalled(String sourceId) async {
     final prefs = await SharedPreferences.getInstance();
-    final ids =
-        (prefs.getStringList(_prefInstalledSourceIds) ?? <String>[]).toSet();
+    final ids = (prefs.getStringList(_prefInstalledSourceIds) ?? <String>[])
+        .toSet();
     if (ids.remove(sourceId)) {
       await prefs.setStringList(_prefInstalledSourceIds, ids.toList());
     }

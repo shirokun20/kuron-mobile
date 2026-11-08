@@ -39,7 +39,7 @@ final _kPlaceholderSrcPattern = RegExp(
 class GenericHtmlParser {
   final Logger _logger;
 
-  GenericHtmlParser({required Logger logger}) : _logger = logger;
+  GenericHtmlParser({required this._logger});
 
   dom.Document parse(String htmlString) => html_parser.parse(htmlString);
 

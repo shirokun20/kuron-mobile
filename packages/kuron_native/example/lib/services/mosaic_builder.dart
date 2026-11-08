@@ -11,7 +11,7 @@ class MosaicBuilder {
   // Max mosaic JPEG size
   static const int _maxSize = 2 * 1024 * 1024;
   // JPEG quality
-  static const int _jpegQuality = 85; // ignore: unused_field
+  static const int defaultJpegQuality = 85;
   // Gap between chips in mosaic
   static const int _chipGap = 10;
 

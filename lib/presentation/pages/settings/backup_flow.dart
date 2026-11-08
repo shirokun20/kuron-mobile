@@ -78,7 +78,7 @@ Future<T?> runBackupProgressFlow<T>({
       if (finished) closeProgressDialog();
       return ValueListenableBuilder<(String, int, int)>(
         valueListenable: progress,
-        builder: (_, p, __) => AlertDialog(
+        builder: (_, p, _) => AlertDialog(
           title: Text(title),
           content: Column(
             mainAxisSize: MainAxisSize.min,

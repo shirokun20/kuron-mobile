@@ -313,6 +313,7 @@ gh release view v0.9.24+34 --json assets -q '.assets[].name'
 
 | folder | notes |
 |--------|-------|
+| `2026-11-08-codebase-cleanup-and-resource-optimization` | Karpathy audit cleanup: hapus 13 file Dart mati (1.949 baris: featured_content_card, modern_pagination, search_query_builder, url_nhentai_util, pagination_model, crotpedia_login_page, theme_debug_utility, download_storage_error_widget, content_grid, crotpedia_login_prompt, remote_data_source_factory, chapter_cache, workers), strip dependensi zombie (webview_flutter, http_client_helper, root pointycastle, kuron_native FFI), hapus dead assets/widget (6 PNG) & backup config files, exclude desktop libcnativeapi.so dari APK packaging. |
 | `2026-11-08-onnx-runtime-download` | 10/10; Model ONNX (`bubble_detector.onnx`) tidak dibundel di APK, diunduh saat runtime via raw URL terpin + verifikasi SHA256; layar Settings Model AI (`AiModelScreen`); fallback jujur jika model belum diunduh. Specs `kuron-native-bubble-detection`, `onnx-model-download`, `reader-ai-model-settings` tersinkron. |
 | `2026-11-08-dependency-major-upgrades` | 5/5; Dart SDK floor dinaikkan ke ^3.13.x across packages, upgrade dependensi major, review breaking change API dan adaptasi minimal. Spec `dependency-maintenance` tersinkron. |
 | `2026-11-08-de-rust-dart-only` | 10/10; Jalur Rust FFI image ops dihapus total, beralih ke pure Dart `package:image` (chunking, mosaic builder, full-page compress). Spec `rust-image-pipeline` tersinkron. |

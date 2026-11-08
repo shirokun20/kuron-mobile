@@ -20,14 +20,11 @@ class ReaderImageResolver {
   final String _sourceId;
 
   ReaderImageResolver({
-    required GenericUrlBuilder urlBuilder,
-    required GenericHtmlParser parser,
-    required Logger logger,
-    required String sourceId,
-  })  : _urlBuilder = urlBuilder,
-        _parser = parser,
-        _logger = logger,
-        _sourceId = sourceId;
+    required this._urlBuilder,
+    required this._parser,
+    required this._logger,
+    required this._sourceId,
+  });
 
   // Returns the decoded JSON string, or null when not present / garbled.
 

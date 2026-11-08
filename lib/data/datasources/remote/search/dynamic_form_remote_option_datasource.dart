@@ -47,12 +47,10 @@ class DynamicFormRemoteOptionDataSource {
   final TagDataManager _tagDataManager;
 
   DynamicFormRemoteOptionDataSource({
-    required Dio dio,
-    required RemoteConfigService configService,
-    required TagDataManager tagDataManager,
-  })  : _dio = dio,
-        _configService = configService,
-        _tagDataManager = tagDataManager;
+    required this._dio,
+    required this._configService,
+    required this._tagDataManager,
+  });
 
   Future<List<DynamicOption>> fetchPickerOptions({
     required String sourceId,

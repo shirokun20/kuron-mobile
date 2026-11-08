@@ -14,10 +14,9 @@ enum LegalContentType {
 // Service to fetch legal content from GitHub with local fallback
 class LegalContentService {
   LegalContentService({
-    required Dio dio,
-    required SharedPreferences prefs,
-  })  : _dio = dio,
-        _prefs = prefs;
+    required this._dio,
+    required this._prefs,
+  });
 
   final Dio _dio;
   final SharedPreferences _prefs;

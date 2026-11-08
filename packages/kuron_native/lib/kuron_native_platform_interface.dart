@@ -1,4 +1,5 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+
 import 'dart:typed_data';
 
 import 'kuron_native_method_channel.dart';
@@ -76,7 +77,7 @@ abstract class KuronNativePlatform extends PlatformInterface {
     required String contentUri,
     required String destinationPath,
     Function(int processed, int total, int imageCount, String currentFile)?
-        onProgress,
+    onProgress,
   }) {
     throw UnimplementedError('extractZipFile() has not been implemented.');
   }
@@ -159,7 +160,8 @@ abstract class KuronNativePlatform extends PlatformInterface {
 
   Future<void> clearAnimatedWebPCache() {
     throw UnimplementedError(
-        'clearAnimatedWebPCache() has not been implemented.');
+      'clearAnimatedWebPCache() has not been implemented.',
+    );
   }
 
   // Prepare/generate a thumbnail for an animated WebP while optionally
@@ -203,17 +205,16 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('convertAvifToWebP() has not been implemented.');
   }
 
-  // Open a native WebView Activity for login/verification
+  /// Open a native WebView Activity for login/verification
   ///
-  // [url] The initial URL to load.
-  // [successUrlFilters] List of URL substrings that indicate success.
-  // [initialCookie] Optional initial cookie string to sync session.
-  // [userAgent] Optional user agent string.
+  /// [url] The initial URL to load.
+  /// [successUrlFilters] List of URL substrings that indicate success.
+  /// [initialCookie] Optional initial cookie string to sync session.
+  /// [userAgent] Optional user agent string.
   ///
-  // ignore: unintended_html_in_doc_comment
-  // Returns a Map with 'cookies' (List<String>), 'userAgent' (String),
-  // optional DOM-derived fields like `currentUrl` / `resolvedImageUrl`,
-  // and 'success' (bool).
+  /// Returns a Map with `cookies` (List< String >), `userAgent` (String),
+  /// optional DOM-derived fields like `currentUrl` / `resolvedImageUrl`,
+  /// and `success` (bool).
   Future<Map<String, dynamic>?> showLoginWebView({
     required String url,
     List<String>? successUrlFilters,
@@ -267,7 +268,8 @@ abstract class KuronNativePlatform extends PlatformInterface {
     int timeoutMs = 10000,
   }) {
     throw UnimplementedError(
-        'headlessGetClearance() has not been implemented.');
+      'headlessGetClearance() has not been implemented.',
+    );
   }
 
   // Get current DNS over HTTPS provider.
@@ -293,7 +295,8 @@ abstract class KuronNativePlatform extends PlatformInterface {
     String? userAgent,
   }) {
     throw UnimplementedError(
-        'getHeadlessClearance() has not been implemented.');
+      'getHeadlessClearance() has not been implemented.',
+    );
   }
 
   // Solves clearance with a real user browser (headed Chromium driven over
@@ -325,9 +328,7 @@ abstract class KuronNativePlatform extends PlatformInterface {
 
   // Cancel an in-flight [getThumbnailForWebP] request by [requestId].
   Future<void> cancelWebPThumbnail(String requestId) {
-    throw UnimplementedError(
-      'cancelWebPThumbnail() has not been implemented.',
-    );
+    throw UnimplementedError('cancelWebPThumbnail() has not been implemented.');
   }
 
   // Open Android DNS-related system settings with fallback.

@@ -32,10 +32,9 @@ class ImportZipUseCase {
   final Logger _logger = getIt<Logger>();
 
   ImportZipUseCase({
-    required KuronNative kuronNative,
-    required UserDataRepository userDataRepository,
-  })  : _kuronNative = kuronNative,
-        _userDataRepository = userDataRepository;
+    required this._kuronNative,
+    required this._userDataRepository,
+  });
 
   // Executes the ZIP import flow using native extraction with progress notifications
   ///

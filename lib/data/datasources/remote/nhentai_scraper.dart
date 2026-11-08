@@ -14,10 +14,9 @@ class NhentaiScraper {
   NhentaiScraper({
     Logger? logger,
     TagResolver? tagResolver,
-    required RemoteConfigService remoteConfigService,
+    required this._remoteConfigService,
   })  : _logger = logger ?? Logger(),
-        _tagResolver = tagResolver ?? TagResolver(logger: logger),
-        _remoteConfigService = remoteConfigService;
+        _tagResolver = tagResolver ?? TagResolver(logger: logger);
 
   final Logger _logger;
   final TagResolver _tagResolver;

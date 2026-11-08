@@ -6,8 +6,7 @@ import '../base_usecase.dart';
 // Use case for fetching content chapters
 class GetContentChaptersUseCase
     extends UseCase<List<Chapter>, GetContentChaptersParams> {
-  GetContentChaptersUseCase({required ContentRepository contentRepository})
-      : _contentRepository = contentRepository;
+  GetContentChaptersUseCase({required this._contentRepository});
 
   final ContentRepository _contentRepository;
 

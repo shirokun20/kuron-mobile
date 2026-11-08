@@ -28,13 +28,11 @@ class RemoteDataSource implements AppInitializer {
     required this.scraper,
     required this.cloudflareBypass,
     required this.antiDetection,
-    required RequestRateManager rateManager,
-    required RemoteConfigService remoteConfigService,
+    required this._rateManager,
+    required this._remoteConfigService,
     this.apiClient,
     Logger? logger,
-  })  : _logger = logger ?? Logger(),
-        _rateManager = rateManager,
-        _remoteConfigService = remoteConfigService;
+  })  : _logger = logger ?? Logger();
 
   final Dio httpClient;
   final NhentaiScraper scraper;

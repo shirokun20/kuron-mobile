@@ -25,10 +25,9 @@ class HitomiAdapter implements GenericAdapter {
   DateTime? _lastRequestAt;
 
   HitomiAdapter({
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   @override
   Future<List<Chapter>> fetchChapters(

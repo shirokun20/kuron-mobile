@@ -27,12 +27,10 @@ Map<String, dynamic> _withKomiktapBypassDefaults(Map<String, dynamic> config) {
 // [WebViewSessionAdapter] so WAF challenges can trigger native bypass flow.
 class KomiktapSourceFactory implements SourceFactory {
   KomiktapSourceFactory({
-    required Dio dio,
-    required WebViewSessionAdapter sessionAdapter,
-    required Logger logger,
-  })  : _dio = dio,
-        _sessionAdapter = sessionAdapter,
-        _logger = logger;
+    required this._dio,
+    required this._sessionAdapter,
+    required this._logger,
+  });
 
   final Dio _dio;
   final WebViewSessionAdapter _sessionAdapter;
@@ -68,9 +66,8 @@ class KomiktapSourceFactory implements SourceFactory {
 class _KomiktapDioInterceptor with DioMixin implements Dio {
   _KomiktapDioInterceptor({
     required Dio baseDio,
-    required WebViewSessionAdapter sessionAdapter,
-  })  : _baseDio = baseDio,
-        _sessionAdapter = sessionAdapter {
+    required this._sessionAdapter,
+  })  : _baseDio = baseDio {
     options = baseDio.options;
     interceptors.addAll(baseDio.interceptors);
     httpClientAdapter = baseDio.httpClientAdapter;

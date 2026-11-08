@@ -148,12 +148,10 @@ class OnlineBlacklistRule {
 
 class TagBlacklistService extends ChangeNotifier {
   TagBlacklistService({
-    required SourceAuthService sourceAuthService,
-    required Logger logger,
-    required SharedPreferences prefs,
-  })  : _sourceAuthService = sourceAuthService,
-        _logger = logger,
-        _prefs = prefs {
+    required this._sourceAuthService,
+    required this._logger,
+    required this._prefs,
+  }) {
     _loadCachedBlacklists();
   }
 

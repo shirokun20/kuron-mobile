@@ -490,7 +490,7 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             itemCount: visible.length + (hasMore ? 1 : 0),
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, index) {
               if (index >= visible.length) {
                 return _buildSeeAllCard(
@@ -1440,7 +1440,7 @@ Widget _sourceAvatarWidget({
           width: size,
           height: size,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => fallback(),
+          errorBuilder: (_, _, _) => fallback(),
         ),
       );
 

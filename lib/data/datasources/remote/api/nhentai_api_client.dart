@@ -44,13 +44,12 @@ class NhentaiApiClient {
 
   NhentaiApiClient({
     Dio? dio,
-    required RequestRateManager rateManager,
+    required this._rateManager,
     required RemoteConfigService remoteConfigService,
   })  : _dio = dio ??
             _createDefaultDio(
               timeout: remoteConfigService.getConfig('nhentai')?.api?.timeout,
             ),
-        _rateManager = rateManager,
         _remoteConfigService = remoteConfigService,
         _antiDetection = AntiDetection();
 

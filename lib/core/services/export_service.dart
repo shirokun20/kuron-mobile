@@ -16,11 +16,10 @@ class ExportService {
   final Logger _logger;
 
   ExportService({
-    required UserDataRepository userDataRepository,
+    required this._userDataRepository,
     required OfflineContentManager offlineContentManager,
-    required Logger logger,
-  })  : _userDataRepository = userDataRepository,
-        _logger = logger;
+    required this._logger,
+  });
 
   Future<String> exportLibrary({
     void Function(double progress, String message)? onProgress,

@@ -30,7 +30,7 @@ class LanguageService {
 
   final Map<String, LanguageInfo> _entries = {};
 
-  LanguageService({required Logger logger}) : _logger = logger;
+  LanguageService({required this._logger});
 
   bool get isLoaded => _entries.isNotEmpty;
 

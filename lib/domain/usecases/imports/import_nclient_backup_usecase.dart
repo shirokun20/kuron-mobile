@@ -27,12 +27,11 @@ typedef NclientImportSummary = Map<String, CategoryResult>;
 /// merge by exact name. Only statuses WITH members create collections.
 class ImportNclientBackupUseCase {
   ImportNclientBackupUseCase({
-    required KuronNative kuronNative,
+    required this._kuronNative,
     required UserDataRepository userDataRepository,
     required ReaderRepository readerRepository,
     NclientBackupParser? parser,
-  })  : _kuronNative = kuronNative,
-        _userData = userDataRepository,
+  })  : _userData = userDataRepository,
         _reader = readerRepository,
         _parser = parser ?? NclientBackupParser();
 

@@ -45,12 +45,10 @@ class SourceConfigParseResult {
 // validation report.
 class SourceConfigParser {
   const SourceConfigParser({
-    String engineVersion = '1.0.0',
-    Set<String> registeredPrimitives = const <String>{},
-    Set<String> registeredPlugins = const <String>{},
-  })  : _engineVersion = engineVersion,
-        _registeredPrimitives = registeredPrimitives,
-        _registeredPlugins = registeredPlugins;
+    this._engineVersion = '1.0.0',
+    this._registeredPrimitives = const <String>{},
+    this._registeredPlugins = const <String>{},
+  });
 
   final String _engineVersion;
 

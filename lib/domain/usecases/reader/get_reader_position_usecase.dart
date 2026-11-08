@@ -4,8 +4,7 @@ import '../base_usecase.dart';
 
 // Use case for fetching reader position
 class GetReaderPositionUseCase extends UseCase<ReaderPosition?, String> {
-  GetReaderPositionUseCase({required ReaderRepository readerRepository})
-      : _readerRepository = readerRepository;
+  GetReaderPositionUseCase({required this._readerRepository});
 
   final ReaderRepository _readerRepository;
 

@@ -7,12 +7,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 // returns null so the UI hides the row instead of showing a misleading zero.
 class GithubReleaseStatsService {
   GithubReleaseStatsService({
-    required SharedPreferences prefs,
-    required Logger logger,
+    required this._prefs,
+    required this._logger,
     Dio? dio,
-  })  : _prefs = prefs,
-        _logger = logger,
-        _dio = dio ?? Dio();
+  })  : _dio = dio ?? Dio();
 
   static const _releasesUrl =
       'https://api.github.com/repos/shirokun20/nhasixapp/releases?per_page=100';

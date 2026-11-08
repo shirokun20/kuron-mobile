@@ -10,14 +10,11 @@ part 'filter_data_state.dart';
 // Cubit for managing filter data screen state
 class FilterDataCubit extends BaseCubit<FilterDataState> {
   FilterDataCubit({
-    required TagDataManager tagDataManager,
-    required GetTagsByTypeUseCase getTagsByTypeUseCase,
-    required GetTagAutocompleteUseCase getTagAutocompleteUseCase,
+    required this._tagDataManager,
+    required this._getTagsByTypeUseCase,
+    required this._getTagAutocompleteUseCase,
     required super.logger,
-  })  : _tagDataManager = tagDataManager,
-        _getTagsByTypeUseCase = getTagsByTypeUseCase,
-        _getTagAutocompleteUseCase = getTagAutocompleteUseCase,
-        super(initialState: const FilterDataInitial());
+  })  : super(initialState: const FilterDataInitial());
 
   final TagDataManager _tagDataManager;
   final GetTagsByTypeUseCase _getTagsByTypeUseCase;

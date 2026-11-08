@@ -11,7 +11,7 @@ import 'notification_constants.dart';
 // and testability.
 class NotificationActionHandler {
   NotificationActionHandler({
-    required Logger logger,
+    required this._logger,
     this.onDownloadPause,
     this.onDownloadResume,
     this.onDownloadCancel,
@@ -19,7 +19,7 @@ class NotificationActionHandler {
     this.onPdfRetry,
     this.onOpenDownload,
     this.onNavigateToDownloads,
-  }) : _logger = logger;
+  });
 
   final Logger _logger;
 

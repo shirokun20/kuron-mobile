@@ -9,12 +9,10 @@ class CommentsCubit extends BaseCubit<CommentsState> {
   final SourceAuthService? _sourceAuthService;
 
   CommentsCubit({
-    required GetCommentsUseCase getCommentsUseCase,
-    SourceAuthService? sourceAuthService,
+    required this._getCommentsUseCase,
+    this._sourceAuthService,
     required super.logger,
-  })  : _getCommentsUseCase = getCommentsUseCase,
-        _sourceAuthService = sourceAuthService,
-        super(initialState: CommentsInitial());
+  })  : super(initialState: CommentsInitial());
 
   bool supportsCommentSubmission(String sourceId) {
     return _sourceAuthService?.supportsCommentSubmission(sourceId) ?? false;

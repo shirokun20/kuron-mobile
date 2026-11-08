@@ -43,35 +43,22 @@ part 'download_bloc_helpers.dart';
 
 class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   DownloadBloc({
-    required DownloadContentUseCase downloadContentUseCase,
-    required GetContentDetailUseCase getContentDetailUseCase,
-    required GetChapterImagesUseCase getChapterImagesUseCase,
-    required UserDataRepository userDataRepository,
-    required OfflineContentManager offlineContentManager,
-    required Logger logger,
-    required Connectivity connectivity,
-    NetworkCubit? networkCubit,
-    required NotificationService notificationService,
+    required this._downloadContentUseCase,
+    required this._getContentDetailUseCase,
+    required this._getChapterImagesUseCase,
+    required this._userDataRepository,
+    required this._offlineContentManager,
+    required this._logger,
+    required this._connectivity,
+    this._networkCubit,
+    required this._notificationService,
     required PdfConversionService pdfConversionService,
-    required PdfConversionQueueManager pdfConversionQueueManager,
-    required RemoteConfigService remoteConfigService,
-    AppLocalizations? appLocalizations,
+    required this._pdfConversionQueueManager,
+    required this._remoteConfigService,
+    this._appLocalizations,
     DownloadManager? downloadManager, // NEW: Optional for testing
     ValueNotifier<bool>? readerActiveNotifier,
-  })  : _downloadContentUseCase = downloadContentUseCase,
-        _getContentDetailUseCase = getContentDetailUseCase,
-        _getChapterImagesUseCase = getChapterImagesUseCase,
-        _userDataRepository = userDataRepository,
-        _offlineContentManager = offlineContentManager,
-        _logger = logger,
-        _connectivity = connectivity,
-        _networkCubit = networkCubit,
-        _notificationService = notificationService,
-        // _pdfConversionService = pdfConversionService,
-        _pdfConversionQueueManager = pdfConversionQueueManager,
-        _remoteConfigService = remoteConfigService,
-        _appLocalizations = appLocalizations,
-        _downloadManager = downloadManager ??
+  })  : _downloadManager = downloadManager ??
             DownloadManager(), // Use injected or default singleton
         super(const DownloadInitial()) {
     on<DownloadInitializeEvent>(_onInitialize);

@@ -477,9 +477,9 @@ class GenerateCommand extends Command<void> {
       'supportsChapters': 'y',
       'supportsComments': 'n',
       'needsHeaders': probe.isBlocked ? 'y' : 'n',
-      if (langFromHtml != null) 'defaultLanguage': langFromHtml,
-      if (faviconPath != null) 'faviconPath': faviconPath,
-      if (themeColor != null) 'themeColor': themeColor,
+      'defaultLanguage': ?langFromHtml,
+      'faviconPath': ?faviconPath,
+      'themeColor': ?themeColor,
       if (searchForm != null) 'searchEndpoint': searchForm['searchEndpoint'],
       if (searchForm != null) 'searchQueryParam': searchForm['queryParam'],
     };

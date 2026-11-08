@@ -17,12 +17,10 @@ class SourceHealthMonitor {
   final Logger _logger;
 
   SourceHealthMonitor({
-    required ContentSourceRegistry registry,
-    required Dio dio,
-    required Logger logger,
-  })  : _registry = registry,
-        _dio = dio,
-        _logger = logger;
+    required this._registry,
+    required this._dio,
+    required this._logger,
+  });
 
   final StreamController<Map<String, SourceHealthStatus>> _controller =
       StreamController<Map<String, SourceHealthStatus>>.broadcast();

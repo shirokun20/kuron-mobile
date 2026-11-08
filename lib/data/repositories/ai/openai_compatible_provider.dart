@@ -14,10 +14,9 @@ import 'model_json_parser.dart';
 class OpenAICompatibleProvider implements AiTranslationProvider {
   OpenAICompatibleProvider({
     required this.config,
-    required Dio dio,
-    required Logger logger,
-  })  : _dio = dio,
-        _logger = logger;
+    required this._dio,
+    required this._logger,
+  });
 
   @override
   final AiProviderConfig config;

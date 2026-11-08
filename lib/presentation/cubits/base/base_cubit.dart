@@ -11,9 +11,8 @@ abstract class BaseCubitState extends Equatable {
 abstract class BaseCubit<T extends BaseCubitState> extends Cubit<T> {
   BaseCubit({
     required T initialState,
-    required Logger logger,
-  })  : _logger = logger,
-        super(initialState);
+    required this._logger,
+  })  : super(initialState);
 
   final Logger _logger;
 
