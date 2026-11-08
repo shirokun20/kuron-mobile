@@ -6,7 +6,6 @@ import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
-import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 
 class HitomiAdapter implements GenericAdapter {
@@ -277,12 +276,7 @@ class HitomiAdapter implements GenericAdapter {
         range: const _ByteRange(0, _hitomiNodeSizeBytes - 1),
       );
 
-      // Rust search (skip Dart fallback when Rust available)
-      final rustResult = await _bSearchWithRust(
-          keyHash, rootNodeBytes, indexUrl, dataUrl, rawConfig);
-      if (rustResult != null) return rustResult;
-
-      // Dart fallback — only when Rust unavailable
+      // Pure Dart bsearch (sole implementation).
       final rootNode = _decodeNode(rootNodeBytes);
       final dataRef = await _bSearch(keyHash, rootNode, indexUrl, rawConfig);
       if (dataRef == null) return <int>{};
@@ -509,84 +503,9 @@ class HitomiAdapter implements GenericAdapter {
     return _bSearch(key, nextNode, indexUrl, rawConfig);
   }
 
-  Future<Set<int>?> _bSearchWithRust(
-    Uint8List key,
-    Uint8List rootNodeBytes,
-    String indexUrl,
-    String dataUrl,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    final bridge = RustBridge.instance;
-    if (bridge == null) return null;
-
-    var currentBytes = rootNodeBytes;
-    for (var iter = 0; iter < 20; iter++) {
-      final result = bridge.hitomiDecodeNode(currentBytes, key);
-      if (result == null || result.length < 21) break;
-
-      final tag = result[0];
-      if (tag == 1) {
-        // found: [tag:u8][offset:u64 LE][length:u32 LE]
-        final offset = _readLeUint64(result, 1);
-        final length = _readLeUint32(result, 9);
-        final dataBytes = await _getBytes(
-          dataUrl,
-          rawConfig: rawConfig,
-          range: _ByteRange(offset, offset + length - 1),
-        );
-        if (dataBytes.isEmpty) break;
-        return _decodeGalleryIdsFromData(dataBytes);
-      } else if (tag == 2) {
-        // recurse: [tag:u8][next_address:u64 LE]
-        final nextAddr = _readLeUint64(result, 1);
-        if (nextAddr <= 0) break;
-        currentBytes = await _getBytes(
-          indexUrl,
-          rawConfig: rawConfig,
-          range: _ByteRange(nextAddr, nextAddr + _hitomiNodeSizeBytes - 1),
-        );
-        if (currentBytes.isEmpty) break;
-      } else {
-        // tag == 0: not_found_leaf, or unknown
-        break;
-      }
-    }
-
-    _logger.i('Rust bsearch: term not found or failed');
-    return const {};
-  }
-
-  static int _readLeUint64(Uint8List bytes, int offset) {
-    return bytes[offset] |
-        (bytes[offset + 1] << 8) |
-        (bytes[offset + 2] << 16) |
-        (bytes[offset + 3] << 24) |
-        (bytes[offset + 4] << 32) |
-        (bytes[offset + 5] << 40) |
-        (bytes[offset + 6] << 48) |
-        (bytes[offset + 7] << 56);
-  }
-
-  static int _readLeUint32(Uint8List bytes, int offset) {
-    return bytes[offset] |
-        (bytes[offset + 1] << 8) |
-        (bytes[offset + 2] << 16) |
-        (bytes[offset + 3] << 24);
-  }
-
+  // (Rust `_bSearchWithRust` removed — Dart `_bSearch` above is the sole path.)
   Set<int> _decodeGalleryIdsFromData(Uint8List inbuf) {
-    final bridge = RustBridge.instance;
-    if (bridge != null) {
-      try {
-        final rustIds = bridge.hitomiDecodeGalleryIds(inbuf);
-        if (rustIds != null) return rustIds.toSet();
-      } catch (_) {
-        return const <int>{};
-      }
-      return const <int>{};
-    }
-
-    // Dart fallback — only when Rust unavailable
+    // Pure Dart (sole implementation).
 
     if (inbuf.length < 4) return const <int>{};
 
@@ -609,18 +528,7 @@ class HitomiAdapter implements GenericAdapter {
   }
 
   List<int> _decodeNozomiIds(Uint8List bytes) {
-    final bridge = RustBridge.instance;
-    if (bridge != null) {
-      try {
-        final rustIds = bridge.hitomiDecodeNozomiIds(bytes);
-        if (rustIds != null) return rustIds;
-      } catch (_) {
-        return const <int>[];
-      }
-      return const <int>[];
-    }
-
-    // Dart fallback — only when Rust unavailable
+    // Pure Dart (sole implementation).
 
     if (bytes.length < 4) return const <int>[];
 

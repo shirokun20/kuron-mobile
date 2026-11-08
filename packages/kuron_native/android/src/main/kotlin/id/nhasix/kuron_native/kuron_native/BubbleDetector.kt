@@ -29,6 +29,8 @@ import kotlin.math.min
  */
 class BubbleDetector(context: Context) : Closeable {
 
+    // Model lives as a runtime download, NOT an APK asset. Keep in sync
+    // with `model.pin.json` "file".
     private var session: ai.onnxruntime.OrtSession? = null
     // Pure-CPU backup session. NNAPI output can silently degrade to garbage on
     // some devices (all confidences below threshold → empty detections), so a
@@ -61,8 +63,14 @@ class BubbleDetector(context: Context) : Closeable {
 
     init {
         env = ai.onnxruntime.OrtEnvironment.getEnvironment()
-        val modelBytes = context.assets.open("bubble_detector.onnx").use { it.readBytes() }
-
+        val file = modelFile(context)
+        // Model is a runtime download, NOT an APK asset: absent/corrupt file
+        // means "not downloaded" — detection falls back to full-image, no crash.
+        val modelBytes = if (file.exists()) file.readBytes() else null
+        if (modelBytes == null) {
+            android.util.Log.w(TAG, "Model not downloaded (${file.absolutePath}) — detection unavailable")
+            inputName = ""
+        } else {
         // NNAPI session build can THROW even when addNnapi() succeeds — the
         // model contains ops NNAPI lacks a kernel for (e.g. Flatten on
         // MediaTek shims: "Failed to find kernel ... Kernel not found").
@@ -95,6 +103,7 @@ class BubbleDetector(context: Context) : Closeable {
         }
         val inputNames = session?.inputNames ?: throw RuntimeException("No input names")
         inputName = inputNames.iterator().next()
+        }
     }
 
     /**
@@ -499,5 +508,14 @@ class BubbleDetector(context: Context) : Closeable {
 
     companion object {
         const val TAG = "BubbleDetector"
+        const val MODEL_FILE_NAME = "bubble_detector.onnx"
+        private const val MODELS_SUBDIR = "models"
+
+        /** Final model path. */
+        fun modelFile(context: Context): java.io.File =
+            java.io.File(java.io.File(context.filesDir, MODELS_SUBDIR), MODEL_FILE_NAME)
+
+        fun partFile(context: Context): java.io.File =
+            java.io.File(java.io.File(context.filesDir, MODELS_SUBDIR), "$MODEL_FILE_NAME.part")
     }
 }

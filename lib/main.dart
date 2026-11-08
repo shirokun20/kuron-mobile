@@ -29,7 +29,7 @@ import 'package:nhasixapp/core/services/workers/download_worker.dart';
 import 'package:nhasixapp/core/utils/notification_localizer.dart';
 import 'package:nhasixapp/core/utils/performance_monitor.dart';
 import 'package:logger/logger.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:window_manager/legacy.dart'; // 0.6: API 0.5.x pindah ke legacy (deprecated bridge); desktop-only, migrasi native = change terpisah bila perlu.
 
 // Stored cold-start notification payload, read from
 // NotificationAppLaunchDetails before runApp().

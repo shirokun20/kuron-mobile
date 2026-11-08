@@ -2,37 +2,20 @@ plugins {
     id "com.android.library"
 }
 
-// ── Rust FFI: cargo-ndk build ──────────────────────────────
-def jniLibsDir = file("${projectDir}/src/main/jniLibs")
+// NOTE: `downloadBubbleModel` is intentionally NOT wired to preBuild — the
+// model is a runtime download (change `onnx-runtime-download`), never an asset.
 
-task buildRustLibs(type: Exec) {
-    description = "Build Rust native libraries for Android via cargo-ndk"
-    group = "rust"
-    workingDir file("${projectDir}/../rust")
-    commandLine 'cargo', 'ndk',
-        '-o', jniLibsDir,
-        '-t', 'arm64-v8a',
-        '-t', 'armeabi-v7a',
-        '-t', 'x86_64',
-        'build', '--release'
-    environment 'ANDROID_NDK_HOME',
-        System.getenv('ANDROID_NDK_HOME') ?: "${project.android.ndkDirectory}"
-}
-
-tasks.whenTaskAdded { task ->
-    if (task.name == 'preReleaseBuild' || task.name == 'preDebugBuild') {
-        task.dependsOn buildRustLibs
-        task.dependsOn downloadBubbleModel
-    }
-}
-
-// ── ML model asset: download-at-build ────────────────────────
-// Pinned by model.pin.json ({file, version, url, sha256}). First build
-// downloads + verifies; later builds reuse the cached file. Override the
+// ── ML model pin: runtime download, NOT an APK asset ──────────
+// The 42MB `bubble_detector.onnx` is NO LONGER bundled: `downloadBubbleModel`
+// stays only as a manual local task (`./gradlew :kuron_native:downloadBubbleModel`).
+// `model.pin.json` (~1KB) IS bundled as an asset text — the single source of
+// truth for {file, version, url, sha256}, read at runtime by Dart. Override the
 // URL for local verification: -PmodelUrl=file:///path/to/model.onnx
-// or env KURON_MODEL_URL. Offline with empty cache fails loudly.
+// or env KURON_MODEL_URL.
 def modelPin = new groovy.json.JsonSlurper()
-    .parseText(file("${projectDir}/model.pin.json").text)
+    .parseText(file("${projectDir}/../../../assets/model.pin.json").text)
+// Manual-task output only (NOT wired to any build): kept so
+// `./gradlew :kuron_native:downloadBubbleModel` still verifies a local file.
 def modelFile = file("${projectDir}/src/main/assets/${modelPin.file}")
 
 task downloadBubbleModel {

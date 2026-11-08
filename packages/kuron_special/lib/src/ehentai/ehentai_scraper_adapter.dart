@@ -4,7 +4,6 @@ import 'package:dio/dio.dart';
 import 'package:html/dom.dart' as dom;
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
-import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 
 // E-Hentai adapter that delegates generic scraping and adds per-page image
@@ -771,20 +770,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
   }
 
   List<String> _extractReaderLinks(String html) {
-    final bridge = RustBridge.instance;
-    if (bridge != null) {
-      try {
-        final rustUrls = bridge.ehentaiExtractUrls(html);
-        if (rustUrls != null) {
-          return rustUrls.map((u) => _normalizeReaderLink(u)).toList();
-        }
-      } catch (_) {
-        return const <String>[];
-      }
-      return const <String>[];
-    }
-
-    // Dart fallback — only when Rust unavailable
+    // Pure Dart (sole implementation).
     final normalizedHtml = html.replaceAll(r'\/', '/');
     final urlPattern = RegExp(
       r'((?:https?:)?//(?:e-hentai|exhentai)\.org)?/s/[A-Za-z0-9_-]+/[0-9]+-[0-9]+',
@@ -1092,29 +1078,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
   }
 
   List<Tag> _extractTags(String html) {
-    final bridge = RustBridge.instance;
-    if (bridge != null) {
-      try {
-        final rustTags = bridge.ehentaiExtractTags(html);
-        if (rustTags != null) {
-          return rustTags.map((t) {
-            return Tag(
-              id: 0,
-              name: t,
-              type: TagType.tag,
-              count: 0,
-              url: '',
-              slug: t,
-            );
-          }).toList();
-        }
-      } catch (_) {
-        return const <Tag>[];
-      }
-      return const <Tag>[];
-    }
-
-    // Dart fallback — only when Rust unavailable
+    // Pure Dart (sole implementation).
     // E-Hentai detail page tag structure:
     // <div id="td_language:korean" class="gt" ...>
     //   <a id="ta_language:korean" href="..." class="">korean</a>

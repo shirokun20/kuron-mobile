@@ -1,14 +1,12 @@
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
-import 'package:kuron_native/kuron_native.dart';
 
 import '../../../domain/entities/ai_translation.dart';
 
 /// Builds a vertical mosaic image of cropped speech bubbles with red numeric
-/// labels, for AI vision translation. Rust FFI (`image_ops_build_mosaic`)
-/// when available, else pure Dart. Output semantics identical; exact JPEG
-/// bytes may differ.
+/// labels, for AI vision translation. Pure Dart (`package:image`).
+/// Output semantics: mosaic cap 2MB (1MB low-tier), JPEG 85%/75%.
 class MosaicBuilder {
   MosaicBuilder();
 
@@ -17,8 +15,7 @@ class MosaicBuilder {
   /// chip. Returns JPEG bytes, downscaled to stay under the tier cap.
   ///
   /// [quality] selects JPEG quality + size cap: `high` (85%, 2 MB, legacy
-  /// behavior) or `low` (75%, 1 MB). The Rust fast path has fixed quality,
-  /// so `low` always uses the Dart encoder to guarantee the smaller payload.
+  /// behavior) or `low` (75%, 1 MB, smaller payload via the Dart encoder).
   Uint8List buildMosaic(
     Uint8List pageImage,
     List<BubbleBoxLike> bubbles, {
@@ -27,19 +24,7 @@ class MosaicBuilder {
     final jpegQuality = quality == MosaicQuality.low ? 75 : 85;
     final capBytes =
         quality == MosaicQuality.low ? 1 * 1024 * 1024 : 2 * 1024 * 1024;
-    if (quality == MosaicQuality.high) {
-      final bridge = RustBridge.instance;
-      if (bridge != null && bridge.imageOpsAvailable) {
-        try {
-          final native = bridge.imageOpsBuildMosaic(pageImage, [
-            for (final b in bubbles) (x: b.x, y: b.y, w: b.w, h: b.h),
-          ]);
-          if (native != null) return native;
-        } catch (_) {
-          // fall through to Dart
-        }
-      }
-    }
+    // Pure Dart path (sole implementation — no native fast path).
     final decoded = img.decodeImage(pageImage);
     if (decoded == null || bubbles.isEmpty) {
       throw ArgumentError('Unable to decode page image or empty bubbles');

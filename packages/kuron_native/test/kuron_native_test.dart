@@ -254,6 +254,23 @@ class MockKuronNativePlatform
     required int imageHeight,
   }) async =>
       null;
+
+  @override
+  Future<Map<String, dynamic>?> getModelStatus({String? version}) async =>
+      null;
+
+  @override
+  Future<bool> startModelDownload({
+    required String url,
+    required String sha256,
+  }) async =>
+      true;
+
+  @override
+  Future<bool> cancelModelDownload() async => true;
+
+  @override
+  Future<bool> deleteModel() async => true;
 }
 
 void main() {

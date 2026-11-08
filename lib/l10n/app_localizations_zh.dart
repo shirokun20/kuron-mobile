@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -1971,7 +1972,12 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String downloadPagesRangeFormat(
-      int downloaded, int total, int start, int end, int totalPages) {
+    int downloaded,
+    int total,
+    int start,
+    int end,
+    int totalPages,
+  ) {
     return '$downloaded/$total (第 $start-$end 页，共 $totalPages 页)';
   }
 
@@ -2453,8 +2459,12 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
-  String pdfStatistics(Object averageFilesPerContent, Object totalFiles,
-      Object totalSizeFormatted, Object uniqueContents) {
+  String pdfStatistics(
+    Object averageFilesPerContent,
+    Object totalFiles,
+    Object totalSizeFormatted,
+    Object uniqueContents,
+  ) {
     return 'PDF 统计 - $totalFiles 文件, 总大小 $totalSizeFormatted, $uniqueContents 个内容, 平均每个内容 $averageFilesPerContent 个文件';
   }
 
@@ -5634,6 +5644,43 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get aiProvidersSubtitle => '提供商、语言、风格、翻译缓存';
+
+  @override
+  String get aiModelTitle => 'AI Model';
+
+  @override
+  String get aiModelSubtitle => 'On-device bubble detection model';
+
+  @override
+  String get aiModelNotDownloaded => 'Not downloaded';
+
+  @override
+  String get aiModelReady => 'Ready';
+
+  @override
+  String get aiModelDeleteConfirm =>
+      'Delete the downloaded model? Bubble detection will fall back to full-image translate.';
+
+  @override
+  String get aiModelErrorOffline => 'No network connection. Retry when online.';
+
+  @override
+  String get aiModelErrorStorageFull =>
+      'Storage full. Free up space and retry.';
+
+  @override
+  String get aiModelErrorCorrupt =>
+      'Download corrupted (checksum mismatch). Tap Retry.';
+
+  @override
+  String aiModelErrorGeneric(String code) {
+    return 'Download failed ($code). Tap Retry.';
+  }
+
+  @override
+  String aiModelVersion(String version) {
+    return 'Version $version';
+  }
 
   @override
   String get aiManageProviders => 'AI 提供商';

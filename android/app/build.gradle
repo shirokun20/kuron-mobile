@@ -20,6 +20,16 @@ android {
         compose true
     }
 
+    // Universal-diet: single universal APK ships ARM only. Flutter-built libs
+    // are limited via --target-platform (build_optimized.sh); AAR-bundled
+    // .so (ffmpeg/onnxruntime/cronet) ignore that, so strip their x86_64
+    // copies here at packaging time.
+    packaging {
+        jniLibs {
+            excludes += "lib/x86_64/**"
+        }
+    }
+
     defaultConfig {
         applicationId = "id.nhasix.app"
         // You can update the following values to match your application needs.
@@ -28,8 +38,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // NOTE: ABI filtering is NOT done here — the Flutter Gradle plugin
+        // overrides ndk.abiFilters. See scripts/build_optimized.sh
+        // (--target-platform android-arm,android-arm64 for release).
     }
-
     signingConfigs {
         release {
             // Load key.properties file

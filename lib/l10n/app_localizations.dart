@@ -64,7 +64,7 @@ import 'app_localizations_zh.dart';
 /// property.
 abstract class AppLocalizations {
   AppLocalizations(String locale)
-      : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -87,17 +87,17 @@ abstract class AppLocalizations {
   /// of delegates is preferred or required.
   static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
       <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
     Locale('id'),
-    Locale('zh')
+    Locale('zh'),
   ];
 
   /// No description provided for @appTitle.
@@ -3807,7 +3807,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{downloaded}/{total} (Pages {start}-{end} of {totalPages})'**
   String downloadPagesRangeFormat(
-      int downloaded, int total, int start, int end, int totalPages);
+    int downloaded,
+    int total,
+    int start,
+    int end,
+    int totalPages,
+  );
 
   /// No description provided for @downloadPagesFormat.
   ///
@@ -4611,8 +4616,12 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'PDF statistics - {totalFiles} files, {totalSizeFormatted} total size, {uniqueContents} unique contents, {averageFilesPerContent} avg files per content'**
-  String pdfStatistics(Object averageFilesPerContent, Object totalFiles,
-      Object totalSizeFormatted, Object uniqueContents);
+  String pdfStatistics(
+    Object averageFilesPerContent,
+    Object totalFiles,
+    Object totalSizeFormatted,
+    Object uniqueContents,
+  );
 
   /// No description provided for @historyCleanupMessages.
   ///
@@ -9906,6 +9915,66 @@ abstract class AppLocalizations {
   /// **'Providers, language, style, translation cache'**
   String get aiProvidersSubtitle;
 
+  /// No description provided for @aiModelTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'AI Model'**
+  String get aiModelTitle;
+
+  /// No description provided for @aiModelSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'On-device bubble detection model'**
+  String get aiModelSubtitle;
+
+  /// No description provided for @aiModelNotDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Not downloaded'**
+  String get aiModelNotDownloaded;
+
+  /// No description provided for @aiModelReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready'**
+  String get aiModelReady;
+
+  /// No description provided for @aiModelDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete the downloaded model? Bubble detection will fall back to full-image translate.'**
+  String get aiModelDeleteConfirm;
+
+  /// No description provided for @aiModelErrorOffline.
+  ///
+  /// In en, this message translates to:
+  /// **'No network connection. Retry when online.'**
+  String get aiModelErrorOffline;
+
+  /// No description provided for @aiModelErrorStorageFull.
+  ///
+  /// In en, this message translates to:
+  /// **'Storage full. Free up space and retry.'**
+  String get aiModelErrorStorageFull;
+
+  /// No description provided for @aiModelErrorCorrupt.
+  ///
+  /// In en, this message translates to:
+  /// **'Download corrupted (checksum mismatch). Tap Retry.'**
+  String get aiModelErrorCorrupt;
+
+  /// No description provided for @aiModelErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed ({code}). Tap Retry.'**
+  String aiModelErrorGeneric(String code);
+
+  /// No description provided for @aiModelVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String aiModelVersion(String version);
+
   /// No description provided for @aiManageProviders.
   ///
   /// In en, this message translates to:
@@ -10596,8 +10665,9 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   }
 
   throw FlutterError(
-      'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
-      'an issue with the localizations generation tool. Please file an issue '
-      'on GitHub with a reproducible sample app and the gen-l10n configuration '
-      'that was used.');
+    'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
+    'an issue with the localizations generation tool. Please file an issue '
+    'on GitHub with a reproducible sample app and the gen-l10n configuration '
+    'that was used.',
+  );
 }

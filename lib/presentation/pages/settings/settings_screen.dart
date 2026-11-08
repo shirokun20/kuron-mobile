@@ -34,6 +34,7 @@ import 'settings_app_lock_widgets.dart';
 import 'settings_kuron_backup.dart';
 import 'settings_nclient_import.dart';
 import 'ai_settings_screen.dart';
+import 'ai_model_download_screen.dart';
 
 part 'settings_source_install.dart';
 part 'settings_source_manager.dart';
@@ -460,6 +461,19 @@ class _SettingsScreenState extends State<SettingsScreen>
               context,
               MaterialPageRoute<void>(
                 builder: (_) => const AiSettingsScreen(),
+              ),
+            ),
+            theme: theme,
+          ),
+          buildSettingsDivider(theme),
+          buildSettingsActionTile(
+            title: AppLocalizations.of(context)!.aiModelTitle,
+            subtitle: AppLocalizations.of(context)!.aiModelSubtitle,
+            actionLabel: AppLocalizations.of(context)!.aiOpen,
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute<void>(
+                builder: (_) => const AiModelDownloadScreen(),
               ),
             ),
             theme: theme,

@@ -7,9 +7,8 @@
 // Decoded output: KuroReader('#chapter-content', ["url1","url2",...], 0)
 library;
 
-import 'package:kuron_native/kuron_native.dart';
-
 // Thrown when packed JS parameters are inconsistent or extraction fails.
+
 class ViHentaiPackedJsException implements Exception {
   final String message;
   const ViHentaiPackedJsException(this.message);
@@ -23,6 +22,13 @@ class ViHentaiPackedJs {
   // Regex to extract image URLs from decoded KuroReader output.
   static final _imageUrlRegex = RegExp(
     r'"(https?://[^"]+\.\w{3,4})"',
+  );
+  static const _baseCharset =
+      '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/';
+
+  // Regex to extract eval params: `}("h",u,"n",t,e,r)`
+  static final _packedArgsRegex = RegExp(
+    r'\}\("(.+)",\s*(\d+),\s*"([^"]+)",\s*(\d+),\s*(\d+),\s*(\d+)\)',
   );
 
   // Main entry: extract image URLs from the packed JavaScript.
@@ -54,15 +60,67 @@ class ViHentaiPackedJs {
   }
 
   // Decode packed JS: extract params, un-obfuscate, return plain text.
+  // Pure Dart (sole implementation — restored verified fallback, ported
+  // from Tachiyomi's ViHentaiPacker.kt).
   static String _unpack(String script) {
-    // Rust native unpack — Dart fallback removed after verification.
-    // ponytail: add Dart fallback if Rust unavailable on some platforms.
-    final rust = RustBridge.instance;
-    if (rust != null) {
-      final result = rust.vihentaiUnpack(script);
-      if (result != null) return result;
+    final argsMatch = _packedArgsRegex.firstMatch(script);
+    if (argsMatch == null) {
+      throw ViHentaiPackedJsException(
+        'Could not parse packed script arguments',
+      );
     }
 
-    throw ViHentaiPackedJsException('Rust native library not loaded');
+    final h = argsMatch.group(1)!;
+    final n = argsMatch.group(3)!;
+    final t = int.parse(argsMatch.group(4)!);
+    final e = int.parse(argsMatch.group(5)!);
+
+    final delimiter = n[e];
+    final result = StringBuffer();
+    var i = 0;
+
+    while (i < h.length) {
+      final s = StringBuffer();
+      while (i < h.length && h[i] != delimiter) {
+        s.write(h[i]);
+        i++;
+      }
+      i++; // skip delimiter
+
+      var segment = s.toString();
+      // Replace each char with its index in charset
+      for (var j = 0; j < n.length; j++) {
+        segment = segment.replaceAll(n[j], j.toString());
+      }
+
+      final code = _baseConvert(segment, e) - t;
+      if (code >= 0 && code <= 0x10FFFF) {
+        result.writeCharCode(code);
+      }
+    }
+
+    return result.toString();
+  }
+
+  // Convert a custom-base number string to int.
+  static int _baseConvert(String d, int fromBase) {
+    final chars = _baseCharset.substring(0, fromBase);
+    var result = 0;
+    for (var i = 0; i < d.length; i++) {
+      final c = d[d.length - 1 - i];
+      final pos = chars.indexOf(c);
+      if (pos >= 0) {
+        result += pos * _pow(fromBase, i);
+      }
+    }
+    return result;
+  }
+
+  static int _pow(int base, int exp) {
+    var result = 1;
+    for (var i = 0; i < exp; i++) {
+      result *= base;
+    }
+    return result;
   }
 }

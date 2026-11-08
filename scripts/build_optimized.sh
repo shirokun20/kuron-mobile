@@ -89,7 +89,11 @@ if [ -n "${DOUJINDESU_APP_SECRET:-}" ]; then
 fi
 
 if [ "$BUILD_TYPE" = "release" ]; then
-    $FLUTTER_CMD build apk --release --flavor "$FLAVOR" $SPLIT_ABI_FLAG "${DART_DEFINES[@]}"
+    # Universal-diet: ARM only (all real phones). Drops x86_64 (~100MB of .so);
+    # use debug builds (unfiltered) or SPLIT_ABI for x86_64 emulators/Chromebooks.
+    # Strip Dart debug symbols out of libapp.so (~15-20MB).
+    # Keep build/app/outputs/symbols/<flavor>Release for crash symbolication.
+    $FLUTTER_CMD build apk --release --flavor "$FLAVOR" $SPLIT_ABI_FLAG --target-platform android-arm,android-arm64 --split-debug-info=build/symbols "${DART_DEFINES[@]}"
 else
     $FLUTTER_CMD build apk --debug --flavor "$FLAVOR" $SPLIT_ABI_FLAG "${DART_DEFINES[@]}"
 fi

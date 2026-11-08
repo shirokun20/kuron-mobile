@@ -4,7 +4,7 @@ publish_to: "none"
 version: 0.9.29+39
 
 environment:
-  sdk: ^3.5.4
+  sdk: ^3.13.0
   
 # Platform builds (Android + macOS desktop)
 platforms:
@@ -71,7 +71,7 @@ dependencies:
   google_fonts: ^9.0.0
 
   # Background Tasks & Notifications
-  flutter_local_notifications: ^22.0.1
+  flutter_local_notifications: ^23.0.0
   workmanager: ^0.10.7
   wakelock_plus: ^1.5.2
   home_widget: ^0.10.0
@@ -85,7 +85,7 @@ dependencies:
   local_auth: ^3.0.2
 
   # Desktop window (macOS/Windows/Linux only; guarded by Platform in main)
-  window_manager: ^0.5.2
+  window_manager: ^0.6.0
 
   # WebView for Cloudflare bypass
   webview_flutter: ^4.14.1

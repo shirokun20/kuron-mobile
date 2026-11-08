@@ -344,4 +344,27 @@ abstract class KuronNativePlatform extends PlatformInterface {
   }) {
     throw UnimplementedError('detectBubbles() has not been implemented.');
   }
+
+  /// Runtime ONNX model status: {state, bytesReceived, totalBytes, version,
+  /// sizeBytes, fileName, errorCode, errorMessage}. See [OnnxModelManager].
+  Future<Map<String, dynamic>?> getModelStatus({String? version}) {
+    throw UnimplementedError('getModelStatus() has not been implemented.');
+  }
+
+  /// Start (or resume) the model download. Ack-only; poll [getModelStatus].
+  Future<bool> startModelDownload({
+    required String url,
+    required String sha256,
+  }) {
+    throw UnimplementedError('startModelDownload() has not been implemented.');
+  }
+
+  Future<bool> cancelModelDownload() {
+    throw UnimplementedError('cancelModelDownload() has not been implemented.');
+  }
+
+  /// Delete the downloaded model file. Returns true when a file was removed.
+  Future<bool> deleteModel() {
+    throw UnimplementedError('deleteModel() has not been implemented.');
+  }
 }

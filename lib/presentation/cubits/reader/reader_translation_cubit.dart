@@ -7,7 +7,6 @@ import 'dart:ui';
 import 'package:crypto/crypto.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:image/image.dart' as img;
-import 'package:logger/logger.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/services/memory_budget_coordinator.dart';
@@ -719,8 +718,6 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       // otherwise the Detecting spinner cannot render until chunking finishes.
       if (WebtoonDetector.isWebtoon(
           Size(imageWidth.toDouble(), imageHeight.toDouble()))) {
-        final bridge = RustBridge.instance;
-        logDebug('rust imageOpsAvailable=${bridge?.imageOpsAvailable}');
         final chunks = await _heavyRunner(
           () => _splitWebtoonIsolate(imageBytes, imageWidth, imageHeight),
         );
@@ -1317,36 +1314,8 @@ class _ImageChunk {
 /// Webtoon: slice into ≤1280px chunks. Runs inside a background isolate from
 /// [ReaderTranslationCubit.translatePage] — decode + per-chunk crop/encode is
 /// CPU-bound and would otherwise jank the UI and delay the loading state.
-/// Native (Rust `image_ops_chunk_webtoon`) when available, else pure Dart.
+/// Pure Dart (`package:image`); undecodable input returns bytes unchanged.
 List<_ImageChunk> _splitWebtoonIsolate(Uint8List bytes, int width, int height) {
-  final bridge = RustBridge.instance;
-  if (bridge != null && bridge.imageOpsAvailable) {
-    try {
-      final native = bridge.imageOpsChunkWebtoon(bytes);
-      Logger().d('rust chunkWebtoon native: count=${native?.length}');
-      if (native != null && native.isNotEmpty) {
-        // Chunk heights are deterministic from the original height (≤1280px
-        // per chunk, last chunk = remainder) — same contract as the Dart
-        // loop below. Guard on count so a contract drift falls back.
-        const maxHeight = 1280;
-        final expected = (height + maxHeight - 1) ~/ maxHeight;
-        if (native.length == expected) {
-          return [
-            for (var i = 0; i < native.length; i++)
-              _ImageChunk(
-                native[i],
-                width,
-                i == native.length - 1 && height % maxHeight != 0
-                    ? height % maxHeight
-                    : maxHeight,
-              ),
-          ];
-        }
-      }
-    } catch (_) {
-      // fall through to Dart
-    }
-  }
   final decoded = img.decodeImage(bytes);
   if (decoded == null) {
     return [_ImageChunk(bytes, width, height)];

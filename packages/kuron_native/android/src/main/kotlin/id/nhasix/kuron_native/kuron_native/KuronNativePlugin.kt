@@ -64,6 +64,17 @@ class KuronNativePlugin :
     private lateinit var dnsResolver: id.nhasix.kuron_native.kuron_native.network.DnsResolver
     private val avifConverter = AvifConverter()
     private var bubbleDetector: BubbleDetector? = null
+    private var onnxModelManager: OnnxModelManager? = null
+
+    /** Models dir is derived from the detector path (single source). */
+    private fun modelManager(): OnnxModelManager {
+        if (onnxModelManager == null) {
+            val dir = BubbleDetector.modelFile(context).parentFile
+                ?: java.io.File(context.filesDir, "models")
+            onnxModelManager = OnnxModelManager(dir)
+        }
+        return onnxModelManager!!
+    }
 
     private val WEBVIEW_REQUEST_CODE = 1001
     private val PICK_DIRECTORY_REQUEST_CODE = 1002
@@ -366,6 +377,36 @@ class KuronNativePlugin :
             }
             "detectBubbles" -> {
                 handleDetectBubbles(call, result)
+            }
+            "getModelStatus" -> {
+                val version = call.argument<String>("version")
+                result.success(modelManager().status(version))
+            }
+            "startModelDownload" -> {
+                val url = call.argument<String>("url")
+                val sha256 = call.argument<String>("sha256")
+                if (url == null || sha256 == null) {
+                    result.error("INVALID_ARGS", "url and sha256 required", null)
+                } else {
+                    // Ack immediately; the transfer runs on networkExecutor and
+                    // Dart polls getModelStatus for progress.
+                    networkExecutor.execute { modelManager().startDownload(url, sha256) }
+                    result.success(true)
+                }
+            }
+            "cancelModelDownload" -> {
+                modelManager().cancel()
+                result.success(true)
+            }
+            "deleteModel" -> {
+                val removed = modelManager().delete()
+                if (removed) {
+                    // Drop the cached detector so the next detect re-checks
+                    // the file instead of using a stale session.
+                    bubbleDetector?.close()
+                    bubbleDetector = null
+                }
+                result.success(removed)
             }
             else -> {
                 result.notImplemented()
@@ -1659,6 +1700,13 @@ class KuronNativePlugin :
             return
         }
 
+        if (!BubbleDetector.modelFile(context).exists()) {
+            // Honest status: model is a runtime download, not an APK asset.
+            // Dart treats this as "not downloaded" → full-image fallback.
+            result.error("MODEL_NOT_DOWNLOADED", "bubble_detector.onnx not downloaded", null)
+            return
+        }
+
         conversionExecutor.execute {
             try {
                 if (bubbleDetector == null) {
@@ -1667,6 +1715,10 @@ class KuronNativePlugin :
                 val detections = bubbleDetector!!.detect(imageBytes, imageWidth, imageHeight)
                 mainThread { result.success(detections) }
             } catch (e: Exception) {
+                // Stale detector (model deleted after load): drop it so the
+                // next call re-checks the file above instead of crashing.
+                bubbleDetector?.close()
+                bubbleDetector = null
                 android.util.Log.e(TAG, "detectBubbles failed: ${e.message}")
                 mainThread { result.error("DETECTION_FAILED", e.message, null) }
             }

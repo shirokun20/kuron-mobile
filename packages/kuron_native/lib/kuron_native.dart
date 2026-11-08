@@ -8,8 +8,8 @@ export 'widgets/kuron_widgets.dart'; // Export Widgets
 export 'widgets/animated_webp_view.dart'; // Export native animated-WebP viewer
 export 'src/doh_provider.dart'; // Export DoH provider constants
 export 'src/native_download_payload.dart'; // v2 download payload model (§7)
-export 'src/rust_bridge.dart'; // Export Rust FFI bridge
 export 'src/bubble_box.dart'; // Export BubbleBox model
+export 'src/onnx_model_pin.dart'; // Export ONNX runtime-download pin loader
 
 class KuronNative {
   // Singleton instance
@@ -394,5 +394,31 @@ class KuronNative {
       imageHeight: imageHeight,
     );
     return raw?.map(BubbleBox.fromMap).toList();
+  }
+
+  /// Runtime ONNX model status ({state, bytesReceived, totalBytes, version,
+  /// sizeBytes, fileName, errorCode, errorMessage}).
+  Future<Map<String, dynamic>?> getModelStatus({String? version}) {
+    return KuronNativePlatform.instance.getModelStatus(version: version);
+  }
+
+  /// Start (or resume) the model download. Ack-only; poll [getModelStatus].
+  Future<bool> startModelDownload({
+    required String url,
+    required String sha256,
+  }) {
+    return KuronNativePlatform.instance.startModelDownload(
+      url: url,
+      sha256: sha256,
+    );
+  }
+
+  Future<bool> cancelModelDownload() {
+    return KuronNativePlatform.instance.cancelModelDownload();
+  }
+
+  /// Delete the downloaded model file. Returns true when removed.
+  Future<bool> deleteModel() {
+    return KuronNativePlatform.instance.deleteModel();
   }
 }

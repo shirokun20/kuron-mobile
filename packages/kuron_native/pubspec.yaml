@@ -4,7 +4,7 @@ version: 0.0.1
 homepage:
 
 environment:
-  sdk: ^3.5.4
+  sdk: ^3.13.0
   flutter: '>=3.3.0'
 resolution: workspace
 
@@ -45,8 +45,10 @@ flutter:
       macos:
         pluginClass: KuronNativePlugin
 
-  # To add assets to your plugin package, add an assets section, like this:
-  # assets:
+  # NOTE: the runtime model pin lives in the APP's `assets/model.pin.json`
+  # (single source; read by Gradle + Dart via rootBundle). Declaring it here
+  # would require a second copy — deliberately absent.
+   # To add assets to your plugin package, add an assets section, like this:
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
   #

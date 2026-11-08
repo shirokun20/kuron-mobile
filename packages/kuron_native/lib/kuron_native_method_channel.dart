@@ -532,4 +532,39 @@ class MethodChannelKuronNative extends KuronNativePlatform {
     final list = raw as List<dynamic>;
     return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
+
+  @override
+  Future<Map<String, dynamic>?> getModelStatus({String? version}) async {
+    final raw = await methodChannel.invokeMethod(
+      'getModelStatus',
+      {'version': version},
+    );
+    if (raw == null) return null;
+    return Map<String, dynamic>.from(raw as Map);
+  }
+
+  @override
+  Future<bool> startModelDownload({
+    required String url,
+    required String sha256,
+  }) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'startModelDownload',
+      {'url': url, 'sha256': sha256},
+    );
+    return result ?? false;
+  }
+
+  @override
+  Future<bool> cancelModelDownload() async {
+    final result =
+        await methodChannel.invokeMethod<bool>('cancelModelDownload');
+    return result ?? false;
+  }
+
+  @override
+  Future<bool> deleteModel() async {
+    final result = await methodChannel.invokeMethod<bool>('deleteModel');
+    return result ?? false;
+  }
 }

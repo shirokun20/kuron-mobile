@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2039,7 +2040,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String downloadPagesRangeFormat(
-      int downloaded, int total, int start, int end, int totalPages) {
+    int downloaded,
+    int total,
+    int start,
+    int end,
+    int totalPages,
+  ) {
     return '$downloaded/$total (Pages $start-$end of $totalPages)';
   }
 
@@ -2530,8 +2536,12 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String pdfStatistics(Object averageFilesPerContent, Object totalFiles,
-      Object totalSizeFormatted, Object uniqueContents) {
+  String pdfStatistics(
+    Object averageFilesPerContent,
+    Object totalFiles,
+    Object totalSizeFormatted,
+    Object uniqueContents,
+  ) {
     return 'PDF statistics - $totalFiles files, $totalSizeFormatted total size, $uniqueContents unique contents, $averageFilesPerContent avg files per content';
   }
 
@@ -5791,6 +5801,43 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get aiProvidersSubtitle =>
       'Providers, language, style, translation cache';
+
+  @override
+  String get aiModelTitle => 'AI Model';
+
+  @override
+  String get aiModelSubtitle => 'On-device bubble detection model';
+
+  @override
+  String get aiModelNotDownloaded => 'Not downloaded';
+
+  @override
+  String get aiModelReady => 'Ready';
+
+  @override
+  String get aiModelDeleteConfirm =>
+      'Delete the downloaded model? Bubble detection will fall back to full-image translate.';
+
+  @override
+  String get aiModelErrorOffline => 'No network connection. Retry when online.';
+
+  @override
+  String get aiModelErrorStorageFull =>
+      'Storage full. Free up space and retry.';
+
+  @override
+  String get aiModelErrorCorrupt =>
+      'Download corrupted (checksum mismatch). Tap Retry.';
+
+  @override
+  String aiModelErrorGeneric(String code) {
+    return 'Download failed ($code). Tap Retry.';
+  }
+
+  @override
+  String aiModelVersion(String version) {
+    return 'Version $version';
+  }
 
   @override
   String get aiManageProviders => 'AI Providers';

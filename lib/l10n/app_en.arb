@@ -4239,6 +4239,26 @@
   "aiCapturedViewport": "Screen captured.",
   "aiSettings": "AI Settings",
   "aiProvidersSubtitle": "Providers, language, style, translation cache",
+  "aiModelTitle": "AI Model",
+  "aiModelSubtitle": "On-device bubble detection model",
+  "aiModelNotDownloaded": "Not downloaded",
+  "aiModelReady": "Ready",
+  "aiModelDeleteConfirm": "Delete the downloaded model? Bubble detection will fall back to full-image translate.",
+  "aiModelErrorOffline": "No network connection. Retry when online.",
+  "aiModelErrorStorageFull": "Storage full. Free up space and retry.",
+  "aiModelErrorCorrupt": "Download corrupted (checksum mismatch). Tap Retry.",
+  "aiModelErrorGeneric": "Download failed ({code}). Tap Retry.",
+  "@aiModelErrorGeneric": {
+    "placeholders": {
+      "code": {"type": "String"}
+    }
+  },
+  "aiModelVersion": "Version {version}",
+  "@aiModelVersion": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
   "aiManageProviders": "AI Providers",
   "aiOpen": "Open",
   "aiTargetLanguage": "Target Language",

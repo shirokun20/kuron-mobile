@@ -20,7 +20,7 @@ internal class AnimatedWebPViewTest {
 
         AnimatedWebPView.httpClient = client
 
-        val retrieved = AnimatedWebPView.httpClient
+        val retrieved: OkHttpClient? = AnimatedWebPView.httpClient
         assertNotNull(retrieved)
     }
 
@@ -34,9 +34,9 @@ internal class AnimatedWebPViewTest {
 
         AnimatedWebPView.httpClient = client
 
-        val retrieved = AnimatedWebPView.httpClient
+        val retrieved: OkHttpClient = AnimatedWebPView.httpClient!!
         assertNotNull(retrieved)
-        assertEquals(30_000L, retrieved.connectTimeoutMillis)
+        assertEquals(30_000, retrieved.connectTimeoutMillis)
     }
 
     @Test
@@ -49,9 +49,9 @@ internal class AnimatedWebPViewTest {
 
         AnimatedWebPView.httpClient = client
 
-        val retrieved = AnimatedWebPView.httpClient
+        val retrieved: OkHttpClient = AnimatedWebPView.httpClient!!
         assertNotNull(retrieved)
-        assertEquals(90_000L, retrieved.readTimeoutMillis)
+        assertEquals(90_000, retrieved.readTimeoutMillis)
     }
 
     @Test
@@ -64,7 +64,7 @@ internal class AnimatedWebPViewTest {
 
         AnimatedWebPView.httpClient = client
 
-        val retrieved = AnimatedWebPView.httpClient
+        val retrieved: OkHttpClient = AnimatedWebPView.httpClient!!
         assertNotNull(retrieved)
         assertTrue(retrieved.connectionPool.connectionCount() >= 0)
     }

@@ -1,27 +1,17 @@
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
-import 'package:kuron_native/kuron_native.dart';
 
 /// Compresses a full page image to max 1280px longest side, JPEG 85%,
 /// for the no-bubble fallback path. Providers map percentage coordinates
 /// back to original pixel space using the ORIGINAL page dimensions.
-/// Rust FFI (`image_ops_compress_page`) when available, else pure Dart.
+/// Pure Dart (`package:image`); undecodable input returns bytes unchanged.
 class FallbackImageHandler {
   FallbackImageHandler();
 
   static const int maxDimension = 1280;
 
   Uint8List compressPage(Uint8List image) {
-    final bridge = RustBridge.instance;
-    if (bridge != null && bridge.imageOpsAvailable) {
-      try {
-        final native = bridge.imageOpsCompressPage(image);
-        if (native != null) return native;
-      } catch (_) {
-        // fall through to Dart
-      }
-    }
     final decoded = img.decodeImage(image);
     if (decoded == null) return image;
 

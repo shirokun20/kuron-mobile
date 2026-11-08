@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:kuron_native/kuron_native.dart';
 
 class HentaiNexusDecryptor {
+  static const List<int> _primeNumbers = <int>[2, 3, 5, 7, 11, 13, 17, 19];
   static final RegExp _imageUrlPattern = RegExp(
     r'https?://images\.hentainexus\.com/[^"\s<>()]+?\.(?:jpg|jpeg|png|webp|avif)(?:\.thumb\.jpg)?',
     caseSensitive: false,
@@ -38,17 +38,62 @@ class HentaiNexusDecryptor {
       throw const FormatException('HentaiNexus seed payload is too short');
     }
 
-    // Rust native decrypt — fallback to Dart removed after verification.
-    // ponytail: add Dart fallback back if Rust .so unavailable on some platforms.
-    final rust = RustBridge.instance;
-    if (rust != null) {
-      final result = rust.hentaiNexusDecrypt(data, hostname);
-      if (result != null) return result;
+    // Pure Dart (sole implementation — restored verified fallback, mirrors
+    // the site reader algorithm from `reader.min.js` initReader()).
+    final hostCodes = hostname.codeUnits;
+    final xorLen =
+        hostCodes.length < data.length ? hostCodes.length : data.length;
+    for (var i = 0; i < xorLen; i++) {
+      data[i] = data[i] ^ hostCodes[i];
     }
 
-    // Rust unavailable
-    throw const FormatException(
-        'HentaiNexus decrypt failed: native library not loaded');
+    final keyStream = data.sublist(0, 64);
+    final ciphertext = data.sublist(64);
+    final digest = List<int>.generate(256, (i) => i);
+
+    var primeIdx = 0;
+    for (var i = 0; i < 64; i++) {
+      primeIdx ^= keyStream[i];
+      for (var j = 0; j < 8; j++) {
+        if ((primeIdx & 1) != 0) {
+          primeIdx = (primeIdx >> 1) ^ 12;
+        } else {
+          primeIdx = primeIdx >> 1;
+        }
+      }
+    }
+    primeIdx &= 7;
+
+    var key = 0;
+    for (var i = 0; i < 256; i++) {
+      key = (key + digest[i] + keyStream[i % 64]) % 256;
+      final temp = digest[i];
+      digest[i] = digest[key];
+      digest[key] = temp;
+    }
+
+    final q = _primeNumbers[primeIdx];
+    var k = 0;
+    var n = 0;
+    var p = 0;
+    var xorKey = 0;
+
+    final outCodes = <int>[];
+    for (var i = 0; i < ciphertext.length; i++) {
+      k = (k + q) % 256;
+      n = (p + digest[(n + digest[k]) % 256]) % 256;
+      p = (p + k + digest[k]) % 256;
+
+      final temp = digest[k];
+      digest[k] = digest[n];
+      digest[n] = temp;
+
+      xorKey =
+          digest[(n + digest[(k + digest[(xorKey + p) % 256]) % 256]) % 256];
+      outCodes.add(ciphertext[i] ^ xorKey);
+    }
+
+    return String.fromCharCodes(outCodes);
   }
 
   // Kept for future experiments with alternative server variants.

@@ -1,5 +1,6 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
+
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2045,7 +2046,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String downloadPagesRangeFormat(
-      int downloaded, int total, int start, int end, int totalPages) {
+    int downloaded,
+    int total,
+    int start,
+    int end,
+    int totalPages,
+  ) {
     return '$downloaded/$total (Halaman $start-$end dari $totalPages)';
   }
 
@@ -2540,8 +2546,12 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
-  String pdfStatistics(Object averageFilesPerContent, Object totalFiles,
-      Object totalSizeFormatted, Object uniqueContents) {
+  String pdfStatistics(
+    Object averageFilesPerContent,
+    Object totalFiles,
+    Object totalSizeFormatted,
+    Object uniqueContents,
+  ) {
     return 'Statistik PDF - $totalFiles file, $totalSizeFormatted total ukuran, $uniqueContents konten unik, $averageFilesPerContent rata-rata file per konten';
   }
 
@@ -5817,6 +5827,43 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get aiProvidersSubtitle => 'Provider, bahasa, gaya, cache terjemahan';
+
+  @override
+  String get aiModelTitle => 'Model AI';
+
+  @override
+  String get aiModelSubtitle => 'Model deteksi bubble on-device';
+
+  @override
+  String get aiModelNotDownloaded => 'Belum diunduh';
+
+  @override
+  String get aiModelReady => 'Siap';
+
+  @override
+  String get aiModelDeleteConfirm =>
+      'Hapus model yang diunduh? Deteksi bubble kembali ke full-image translate.';
+
+  @override
+  String get aiModelErrorOffline => 'Tidak ada koneksi. Coba lagi saat online.';
+
+  @override
+  String get aiModelErrorStorageFull =>
+      'Penyimpanan penuh. Kosongkan ruang lalu coba lagi.';
+
+  @override
+  String get aiModelErrorCorrupt =>
+      'Unduhan korup (checksum tak cocok). Ketuk Coba Lagi.';
+
+  @override
+  String aiModelErrorGeneric(String code) {
+    return 'Unduhan gagal ($code). Ketuk Coba Lagi.';
+  }
+
+  @override
+  String aiModelVersion(String version) {
+    return 'Versi $version';
+  }
 
   @override
   String get aiManageProviders => 'Provider AI';

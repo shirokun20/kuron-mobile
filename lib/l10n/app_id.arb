@@ -3183,6 +3183,26 @@
   "aiCapturedViewport": "Gambar layar berhasil diambil.",
   "aiSettings": "AI Settings",
   "aiProvidersSubtitle": "Provider, bahasa, gaya, cache terjemahan",
+  "aiModelTitle": "Model AI",
+  "aiModelSubtitle": "Model deteksi bubble on-device",
+  "aiModelNotDownloaded": "Belum diunduh",
+  "aiModelReady": "Siap",
+  "aiModelDeleteConfirm": "Hapus model yang diunduh? Deteksi bubble kembali ke full-image translate.",
+  "aiModelErrorOffline": "Tidak ada koneksi. Coba lagi saat online.",
+  "aiModelErrorStorageFull": "Penyimpanan penuh. Kosongkan ruang lalu coba lagi.",
+  "aiModelErrorCorrupt": "Unduhan korup (checksum tak cocok). Ketuk Coba Lagi.",
+  "aiModelErrorGeneric": "Unduhan gagal ({code}). Ketuk Coba Lagi.",
+  "@aiModelErrorGeneric": {
+    "placeholders": {
+      "code": {"type": "String"}
+    }
+  },
+  "aiModelVersion": "Versi {version}",
+  "@aiModelVersion": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
   "aiManageProviders": "Provider AI",
   "aiOpen": "Buka",
   "aiTargetLanguage": "Bahasa Target",

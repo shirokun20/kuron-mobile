@@ -3,15 +3,13 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/data/repositories/ai/fallback_image_handler.dart';
 import 'package:nhasixapp/data/repositories/ai/mosaic_builder.dart';
 import 'package:nhasixapp/domain/entities/ai_translation.dart';
 
-/// On host (no libkuron_rust.so) the native path is skipped — these tests
-/// pin the FALLBACK semantics that keep the pipeline alive and equal to the
-/// Dart implementations. Native parity is covered by Rust `cargo test` and
-/// the device gate (tasks 1.3/5.2).
+/// Dart-only image pipeline (Rust removed): these tests pin the semantics
+/// that keep the pipeline alive (chunk ≤1280px, mosaic cap 2MB,
+/// compress 1280px, undecodable → bytes asli).
 void main() {
   Uint8List makePage(int w, int h) => Uint8List.fromList(
       img.encodeJpg(img.Image(width: w, height: h), quality: 90));
@@ -35,18 +33,14 @@ void main() {
     expect(decoded.width, 900 * 1280 ~/ 1800);
   });
 
-  test('bridge null-safe on host (fallback reachable)', () {
-    final bridge = RustBridge.instance;
-    // If a .so somehow loads on host, imageOpsAvailable is a bool and the
-    // wrappers must not throw on a tiny dummy call path.
-    if (bridge != null && bridge.imageOpsAvailable) {
-      expect(bridge.imageOpsCompressPage(makePage(10, 10)), isA<Uint8List>());
-    }
+  test('compressPage returns original bytes for undecodable input', () {
+    // Pathological input (not an image): no crash/OOM, bytes pass through.
+    final garbage = Uint8List.fromList(List.generate(4096, (i) => i % 251));
+    expect(FallbackImageHandler().compressPage(garbage), garbage);
   });
 
   group('real webtoon strip fixture (test/fixtures/image-webtoon.jpeg)', () {
-    // Runs the Dart fallback on host (no .so); native parity is pinned by
-    // the Rust `cargo test` fixture tests.
+    // Pure Dart path on host.
     Uint8List readFixture() {
       final file = File('test/fixtures/image-webtoon.jpeg');
       expect(file.existsSync(), isTrue, reason: 'fixture missing');

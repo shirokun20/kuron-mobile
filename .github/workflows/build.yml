@@ -74,8 +74,7 @@ jobs:
           ls -la "$ANDROID_HOME" || echo "Android SDK not found"
 
       # Android NDK detection — Gradle's android.ndkDirectory resolves whichever
-      # NDK version flutter.ndkVersion points to. cargo-ndk also uses
-      # ANDROID_NDK_HOME, which we read from Flutter's parent process sdk path.
+      # NDK version flutter.ndkVersion points to.
       - name: Detect NDK
         run: |
           NDK_DIR=$(ls -1d "$ANDROID_HOME/ndk"/*/ 2>/dev/null | sort -V | tail -1)
@@ -84,27 +83,9 @@ jobs:
             echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
             echo "Using NDK: $NDK_DIR"
           else
-            echo "WARNING: No NDK found! cargo-ndk will fail." >&2
+            echo "WARNING: No NDK found!" >&2
           fi
 
-      # Setup Rust toolchain for native .so builds
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-
-      # Cache cargo registry + bin to avoid recompiling cargo-ndk every build
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: cargo-${{ runner.os }}-${{ hashFiles('packages/kuron_native/rust/Cargo.lock') }}
-
-      - name: Install cargo-ndk
-        run: command -v cargo-ndk >/dev/null || cargo install cargo-ndk --locked
 
       # Install all project dependencies (including local packages)
       - name: Get Dependencies
