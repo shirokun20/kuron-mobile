@@ -4,7 +4,7 @@
 
 # 📱 Kuron
 
-### Unofficial Nhentai Client
+### Unofficial Nh*nt*i Client
 
 **Mobile reader that's 70% faster than browser, privacy-first, and offline-ready.**
 
@@ -31,7 +31,7 @@
 <br/><br/>
 
 🚀 **70% faster** · 🔒 **App Disguise** + Recent Apps blur · 📦 **Offline-first** with background DL<br/>
-🧩 **Multi-provider**: nhentai, E-Hentai, Hitomi, + config-driven extensions · 🎨 **Material 3**
+🧩 **Multi-provider**: nh*nt*i, E-H*nt*i, Hitomi, + config-driven extensions · 🎨 **Material 3**
 
 <br/>
 
@@ -64,9 +64,9 @@
 <table>
   <tr>
     <td width="50%" valign="top">
-      <h4>🔐 nhentai Login & Sync</h4>
+      <h4>🔐 nh*nt*i Login & Sync</h4>
       <ul>
-        <li>Sign in with your nhentai account</li>
+        <li>Sign in with your nh*nt*i account</li>
         <li>CAPTCHA solver</li>
         <li>Online favorites (Offline / Online / Both)</li>
         <li>Tag blacklist sync</li>
@@ -76,7 +76,7 @@
     <td width="50%" valign="top">
       <h4>🧩 Multi-Provider</h4>
       <ul>
-        <li>nhentai (default) + E-Hentai, HentaiNexus, Hitomi — all fully supported</li>
+        <li>nh*nt*i (default) + E-H*nt*i, HentaiNexus, Hitomi — all fully supported</li>
         <li>Hundreds more via <a href="#-adding-a-custom-source">config-driven extensions</a></li>
         <li>⚠️ Premium sources install via <b>Settings → Sources → Add via Link</b> or <b>Import ZIP</b></li>
       </ul>
@@ -342,7 +342,7 @@ Go to **Settings → Sources → Add via Link** (paste manifest URL) or **Import
 
 <br/>
 
-The nhentai API requires a search query when using sort or tag filters. Simply type at least 1 character in the search field before selecting sort/tags. Or use the Home tab sort dropdown for Popular browsing without a keyword. See [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) for details.
+The nh*nt*i API requires a search query when using sort or tag filters. Simply type at least 1 character in the search field before selecting sort/tags. Or use the Home tab sort dropdown for Popular browsing without a keyword. See [GitHub Issue #47](https://github.com/shirokun20/nhasixapp/issues/47) for details.
 
 </details>
 
