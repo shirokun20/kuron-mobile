@@ -106,6 +106,9 @@ class GenericScraperAdapter implements GenericAdapter {
   final Future<void> Function()? _delayApplier;
   final RateLimiter? _rateLimiter;
   final Map<String, String> _paginationCursorCache = <String, String>{};
+  /// Previous-page item IDs per pagination scope, used by the overlap guard
+  /// to stop fake pagination (server repeats page 1 with HTTP 200).
+  final Map<String, Set<String>> _prevPageIds = <String, Set<String>>{};
 
   /// In-memory cache of bootstrapped search nonces, keyed by bootstrap URL.
   /// Rawkuma-style `admin-ajax.php` search endpoints rotate the nonce roughly
@@ -2805,33 +2808,83 @@ class GenericScraperAdapter implements GenericAdapter {
       patternMap = patternValue;
       urlTemplate = patternValue['url'] as String? ?? '';
 
+      // Merge helper: shallow merge, then deep-merge `fields` + `pagination`
+      // sub-blocks key-by-key so sibling keys survive a partial override.
+      Map<String, dynamic>? mergeLists(
+        Map<String, dynamic>? parent,
+        Map<String, dynamic>? local,
+      ) {
+        if (parent != null && local != null) {
+          final merged = <String, dynamic>{...parent, ...local};
+          final parentFields = parent['fields'] as Map<String, dynamic>?;
+          final localFields = local['fields'] as Map<String, dynamic>?;
+          if (parentFields != null && localFields != null) {
+            merged['fields'] = <String, dynamic>{
+              ...parentFields,
+              ...localFields,
+            };
+          }
+          final parentPagination =
+              parent['pagination'] as Map<String, dynamic>?;
+          final localPagination = local['pagination'] as Map<String, dynamic>?;
+          if (parentPagination != null && localPagination != null) {
+            merged['pagination'] = <String, dynamic>{
+              ...parentPagination,
+              ...localPagination,
+            };
+          }
+          return merged;
+        }
+        return local ?? parent;
+      }
+
+      // Walk the `inherits` chain from the root ancestor down to [key]'s
+      // parent, folding each `list` block from root to leaf so the nearest
+      // override wins. Plain-String patterns carry URL only and are skipped.
+      // A repeated or missing link stops the walk with a warning, keeping
+      // the best-effort merge collected so far.
+      Map<String, dynamic>? resolveAncestorList(
+        String key,
+        Set<String> seen,
+      ) {
+        if (!seen.add(key)) {
+          _logger.w('$_sourceId: inherits cycle detected at "$key"; '
+              'using best-effort list config');
+          return null;
+        }
+        final ancestorValue = urlPatternsCfg[key];
+        if (ancestorValue == null) {
+          _logger.w('$_sourceId: inherits target "$key" not configured; '
+              'using best-effort list config');
+          return null;
+        }
+        if (ancestorValue is String) {
+          return null;
+        }
+        if (ancestorValue is! Map<String, dynamic>) {
+          return null;
+        }
+        final ancestorLocalList =
+            ancestorValue['list'] as Map<String, dynamic>?;
+        final nextKey = ancestorValue['inherits'] as String?;
+        if (nextKey == null) {
+          return ancestorLocalList;
+        }
+        return mergeLists(
+          resolveAncestorList(nextKey, seen),
+          ancestorLocalList,
+        );
+      }
+
       Map<String, dynamic>? parentList;
       final parentKey = patternValue['inherits'] as String?;
       if (parentKey != null) {
-        final parentVal = urlPatternsCfg[parentKey];
-        if (parentVal is Map<String, dynamic>) {
-          parentList = parentVal['list'] as Map<String, dynamic>?;
-        }
+        parentList = resolveAncestorList(parentKey, <String>{patternKey});
       }
 
       final localList = patternValue['list'] as Map<String, dynamic>?;
 
-      if (parentList != null && localList != null) {
-        // Shallow merge then deep-merge fields + pagination sub-blocks.
-        listConfig = <String, dynamic>{...parentList, ...localList};
-        final pf = parentList['fields'] as Map<String, dynamic>?;
-        final lf = localList['fields'] as Map<String, dynamic>?;
-        if (pf != null && lf != null) {
-          listConfig['fields'] = <String, dynamic>{...pf, ...lf};
-        }
-        final pp = parentList['pagination'] as Map<String, dynamic>?;
-        final lp = localList['pagination'] as Map<String, dynamic>?;
-        if (pp != null && lp != null) {
-          listConfig['pagination'] = <String, dynamic>{...pp, ...lp};
-        }
-      } else {
-        listConfig = localList ?? parentList;
-      }
+      listConfig = mergeLists(parentList, localList);
     } else {
       return ('', null);
     }
@@ -3005,10 +3058,40 @@ class GenericScraperAdapter implements GenericAdapter {
       // pattern while this page yielded items; stop at the first empty page.
       final forcedPaged =
           (paginationConfig['mode'] as String?) == 'paged' && items.isNotEmpty;
-      final hasNext = forcedPaged ||
+      var hasNext = forcedPaged ||
           nextPageUrl != null ||
           (nextSel != null && _hasEnabledLink(doc, nextSel)) ||
           (altSel != null && _hasEnabledLink(doc, altSel));
+
+      // Overlap guard: fake pagination (server repeats page N-1 with HTTP 200)
+      // stops here. Page-N item IDs are compared against page N-1; when they
+      // substantially repeat, hasNext is forced false while the (deduplicated)
+      // items of this page are still returned.
+      final overlapKey = paginationCacheKey ?? url;
+      final prevIds = _prevPageIds[overlapKey];
+      if (currentPage > 1 &&
+          items.length >= 5 &&
+          prevIds != null &&
+          prevIds.isNotEmpty) {
+        final currentIds = items.map((item) => item.id).toSet();
+        final overlapCount = currentIds.intersection(prevIds).length;
+        final overlapRatio = overlapCount / currentIds.length;
+        final overlapGuard =
+            (paginationConfig['overlapGuard'] as Map?)?.cast<String, dynamic>() ??
+                const <String, dynamic>{};
+        final guardEnabled = (overlapGuard['enabled'] as bool?) ?? true;
+        final guardThreshold =
+            ((overlapGuard['threshold'] as num?) ?? 0.8).toDouble();
+        if (guardEnabled && overlapRatio >= guardThreshold) {
+          _logger.w(
+            '$_sourceId overlap guard: page $currentPage repeats '
+            '$overlapCount/${currentIds.length} IDs '
+            '(ratio ${overlapRatio.toStringAsFixed(2)} >= $guardThreshold); '
+            'stopping pagination for $overlapKey',
+          );
+          hasNext = false;
+        }
+      }
 
       if (paginationCacheKey != null) {
         final nextPageCacheKey =
@@ -3056,6 +3139,7 @@ class GenericScraperAdapter implements GenericAdapter {
         }
       }
 
+      _prevPageIds[overlapKey] = items.map((item) => item.id).toSet();
       return AdapterSearchResult(
         items: items,
         hasNextPage: hasNext,

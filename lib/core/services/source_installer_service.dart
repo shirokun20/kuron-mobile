@@ -3,15 +3,18 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
+import 'package:kuron_special/kuron_special.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:nhasixapp/core/config/remote_config_service.dart';
+import 'package:nhasixapp/core/di/webview_session_registry.dart';
 import 'package:nhasixapp/core/utils/source_config_display_utils.dart';
 import 'package:nhasixapp/core/utils/source_version_utils.dart';
 
@@ -195,6 +198,21 @@ class SourceInstallSelectionPlan extends SourceInstallPlan {
   final List<int>? zipBytes;
 }
 
+/// Bypass predicate shared by the dynamic registration call-sites
+/// ([SourceInstallerService.registerSourceInRegistry] and the
+/// [ContentSourceRegistry] setup in `service_locator.dart`).
+///
+/// Mirrors `NetworkRules` / `WebViewSessionConfig`: true when either the
+/// canonical `network.requiresBypass` or the legacy
+/// `network.cloudflare.bypassEnabled` flag is set.
+bool sourceRequiresBypass(Map<String, dynamic> rawConfig) {
+  final network = rawConfig['network'];
+  if (network is! Map) return false;
+  if (network['requiresBypass'] == true) return true;
+  final cloudflare = network['cloudflare'];
+  return cloudflare is Map && cloudflare['bypassEnabled'] == true;
+}
+
 /// Service owning download, verification (sha256), icon file caching,
 /// configuration application, and dynamic ContentSource instantiation.
 class SourceInstallerService {
@@ -204,6 +222,8 @@ class SourceInstallerService {
   final SourceFactoryResolver _resolver;
   final GenericSourceFactory _genericFactory;
   final Logger _logger;
+  final WebViewSessionRegistry? _sessionRegistry;
+  final PersistCookieJar Function(String jarKey)? _cookieJarFactory;
 
   SourceInstallerService({
     required this._dio,
@@ -212,6 +232,8 @@ class SourceInstallerService {
     required this._resolver,
     required this._genericFactory,
     required this._logger,
+    this._sessionRegistry,
+    this._cookieJarFactory,
   });
 
   // Session-only candidate versions from the last opened manifest (link/ZIP).
@@ -748,7 +770,7 @@ class SourceInstallerService {
 
     ContentSource instance;
     try {
-      instance = _resolver.createSource(raw);
+      instance = _createRoutedSource(sourceId, raw);
     } catch (e, stackTrace) {
       _logger.w(
         'Specialized source factory failed for $sourceId, falling back to GenericSourceFactory',
@@ -762,6 +784,48 @@ class SourceInstallerService {
     if (wasActive) {
       _registry.switchSource(sourceId);
     }
+  }
+
+  /// Resolves [raw] via [_resolver], routing bypass-declaring sources that
+  /// have no explicit factory to a [GenericBypassSourceFactory] backed by
+  /// the isolated [WebViewSessionRegistry] session. Sources with an explicit
+  /// factory, non-bypass sources, or a missing session registry keep the
+  /// plain resolver path (unchanged behavior).
+  ContentSource _createRoutedSource(
+    String sourceId,
+    Map<String, dynamic> raw,
+  ) {
+    final factory = _resolver.resolve(raw);
+    if (factory is! GenericSourceFactory ||
+        !sourceRequiresBypass(raw) ||
+        _sessionRegistry == null) {
+      return _resolver.createSource(raw);
+    }
+    final adapter = _sessionRegistry.get(sourceId);
+    final sessionAdapter = adapter ?? _inlineBypassAdapter(sourceId, raw);
+    return GenericBypassSourceFactory(
+      sourceId: sourceId,
+      dio: _dio,
+      sessionAdapter: sessionAdapter,
+      logger: _logger,
+    ).create(raw);
+  }
+
+  /// Defensive inline session when the registry has no adapter for a
+  /// bypass-declaring source (e.g. raw config visible here but not yet in
+  /// the registry's config service). Never throws for setup paths.
+  WebViewSessionAdapter _inlineBypassAdapter(
+    String sourceId,
+    Map<String, dynamic> raw,
+  ) {
+    final copy = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
+    return WebViewSessionAdapter(
+      dio: _dio,
+      cookieJar: _cookieJarFactory?.call(sourceId) ?? PersistCookieJar(),
+      config: WebViewSessionConfig.fromJson(copy),
+      baseUrl: copy['baseUrl']?.toString() ?? 'https://$sourceId',
+      logger: _logger,
+    );
   }
 
   /// Uninstalls source configuration, removes from registry, and forgets candidate version.

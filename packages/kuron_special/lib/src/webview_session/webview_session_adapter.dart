@@ -157,17 +157,32 @@ class WebViewSessionAdapter {
       _CappedMap<String, String>(50);
   static final Map<String, String> _cachedUserAgents =
       _CappedMap<String, String>(50);
+  /// Matches [url] against a sync header cache keyed by base URL or host.
+  ///
+  /// Exact host wins; a subdomain request (e.g. `cdn5.ravenscans.org`)
+  /// inherits the entry seeded for its parent (`ravenscans.org`) since the
+  /// clearance cookie's domain covers subdomains. Suffix-anchored, so
+  /// lookalikes (`notravenscans.org`, `ravenscans.org.evil.com`) never match.
+  @visibleForTesting
+  static String? matchCachedHost(Map<String, String> cache, String url) {
+    final host = Uri.tryParse(url)?.host ?? '';
+    if (host.isEmpty) return null;
+    String? parentFallback;
+    for (final entry in cache.entries) {
+      final rawKey = entry.key;
+      if (rawKey.isEmpty) continue;
+      final keyHost = Uri.tryParse(rawKey)?.host ?? rawKey;
+      if (keyHost.isEmpty) continue;
+      if (keyHost == host) return entry.value;
+      if (host.endsWith('.$keyHost')) return entry.value;
+      parentFallback ??= keyHost.endsWith('.$host') ? entry.value : null;
+    }
+    return parentFallback;
+  }
+
   static String? getCachedCookieHeaderForUrl(String url) {
     try {
-      final uri = Uri.parse(url);
-      final host = uri.host;
-      if (host.isEmpty) return null;
-      for (final entry in _cachedCookieHeaders.entries) {
-        final baseUri = Uri.tryParse(entry.key);
-        if (baseUri != null && baseUri.host == host) return entry.value;
-        if (entry.key.contains(host)) return entry.value;
-      }
-      return _cachedCookieHeaders[host] ?? _cachedCookieHeaders[url];
+      return matchCachedHost(_cachedCookieHeaders, url);
     } catch (_) {
       return null;
     }
@@ -175,15 +190,7 @@ class WebViewSessionAdapter {
 
   static String? getCachedUserAgentForUrl(String url) {
     try {
-      final uri = Uri.parse(url);
-      final host = uri.host;
-      if (host.isEmpty) return null;
-      for (final entry in _cachedUserAgents.entries) {
-        final baseUri = Uri.tryParse(entry.key);
-        if (baseUri != null && baseUri.host == host) return entry.value;
-        if (entry.key.contains(host)) return entry.value;
-      }
-      return _cachedUserAgents[host] ?? _cachedUserAgents[url];
+      return matchCachedHost(_cachedUserAgents, url);
     } catch (_) {
       return null;
     }
@@ -346,8 +353,10 @@ class WebViewSessionAdapter {
         }
       }
 
-      // 1. First attempt
-      final response = await _dio.get<T>(url, options: options);
+      // 1. First attempt — through this adapter's own jar, so a previously
+      // minted clearance is attached (shared Dio would send another source's
+      // jar and re-trigger the challenge on every call).
+      final response = await _jarClient().get<T>(url, options: options);
       if (!shouldTriggerBypass(response) || !_config.bypassEnabled) {
         unawaited(_seedImageHeaderCache(url));
         return response;
@@ -382,12 +391,16 @@ class WebViewSessionAdapter {
       _logger.w(
         '🔒 Site protection challenge detected for: $url (${e.response?.statusCode})',
       );
-
-      // Prevent concurrent bypass loops for the same URL only
+      // An in-flight bypass for the same URL is already solving: wait for it
+      // (Turnstile takes ~10-20s; a fixed 5s retry would 403 and spam a new
+      // WebView per concurrent caller) then do a single jar-scoped attempt.
       if (_bypassingUrls.contains(url)) {
-        _logger.w('Already bypassing $url, waiting and retrying...');
-        await Future.delayed(const Duration(seconds: 5));
-        return await _dio.get<T>(url, options: options);
+        _logger.w(
+            'Already bypassing $url, waiting for the in-flight bypass...');
+        for (var i = 0; i < 15 && _bypassingUrls.contains(url); i++) {
+          await Future.delayed(const Duration(seconds: 2));
+        }
+        return await _jarClient().get<T>(url, options: options);
       }
 
       // 3. Launch UI Bypass and use verified response directly.
@@ -563,6 +576,28 @@ class WebViewSessionAdapter {
         requestOptions: RequestOptions(path: targetUrl),
       ) as Response<T>;
 
+  /// Scoped HTTP client bound to this adapter's own jar.
+  ///
+  /// The shared [_dio] carries exactly one [CookieManager] (first adapter
+  /// wins — see constructor), so requests that need this source's cookies
+  /// (probe, waiter retry, bypass verify) must not go through it: another
+  /// source's jar would be attached and a freshly-minted clearance would
+  /// never be sent (ravenscans: clearance minted + saved, verify still 403).
+  /// This client shares the transport stack and non-cookie interceptors,
+  /// but resolves cookies exclusively from [_cookieJar].
+  Dio _jarClient() {
+    final options = _dio.options.copyWith(
+      headers: Map<String, dynamic>.from(_dio.options.headers),
+      extra: Map<String, Object?>.from(_dio.options.extra),
+    );
+    final dio = Dio(options)..httpClientAdapter = _dio.httpClientAdapter;
+    for (final interceptor in _dio.interceptors) {
+      if (interceptor is! CookieManager) dio.interceptors.add(interceptor);
+    }
+    dio.interceptors.add(CookieManager(_cookieJar));
+    return dio;
+  }
+
   Future<Response<T>?> _verifyBypass<T>(
     String url, {
     Options? options,
@@ -570,10 +605,11 @@ class WebViewSessionAdapter {
   }) async {
     // Untrusted-session cookies ride only this verify chain, then drop.
     final untrustedHeader = untrustedCookieHeader;
+    final verifyDio = _jarClient();
     try {
       for (int i = 0; i < 3; i++) {
         try {
-          final response = await _dio.get<T>(
+          final response = await verifyDio.get<T>(
             url,
             options: Options(
               followRedirects: true,

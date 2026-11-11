@@ -25,16 +25,22 @@ const _kImageFallbackAttributes = [
 // WP-Manga "result" variant, etc.) serve in `src` in place of the real image.
 // When a value matches, we treat it as empty so the fallback chain runs and we
 // pick up the true image URL from `data-src`/`data-lazy-src`.
-//
-// Patterns:
-//   - `^/pagespeed_static/`  — mod_pagespeed placeholder bundle.
-//   - `…_result.<ext>`       — WP-Manga image-optimizer placeholder (e.g.
-//                               `Ideal-(1)_result.jpg` on mangaforfree). The
-//                               real chapter image lives in `data-src`.
+// Filename-anchored: bare names (`dflazy`, `blank`, …) and `…_result.<ext>`
+// may carry a trailing query string.
 final _kPlaceholderSrcPattern = RegExp(
-  r'^(/pagespeed_static/|.*[-_]result\.(?:jpe?g|png|webp|gif)$)',
+  r'(/pagespeed_static/|[-_]result\.(?:jpe?g|png|webp|gif|svg)(?:\?.*)?$|/(?:dflazy|blank|transparent|pixel|placeholder|loading|grey|gray|1x1)[-_]?\.(?:jpe?g|png|webp|gif|svg)(?:\?.*)?$)',
   caseSensitive: false,
 );
+
+/// True when [value] looks like a lazy-load placeholder `src` (bare filenames
+/// are re-tested with a synthetic leading slash).
+bool _isPlaceholderSrc(String value) {
+  if (_kPlaceholderSrcPattern.hasMatch(value)) return true;
+  if (!value.contains('/')) {
+    return _kPlaceholderSrcPattern.hasMatch('/$value');
+  }
+  return false;
+}
 
 class GenericHtmlParser {
   final Logger _logger;
@@ -288,8 +294,7 @@ class GenericHtmlParser {
       if (attribute == chain.first) firstValue = value;
       if (value.isEmpty) continue;
       if (element.localName == 'img' &&
-          (value.startsWith('data:') ||
-              _kPlaceholderSrcPattern.hasMatch(value))) {
+          (value.startsWith('data:') || _isPlaceholderSrc(value))) {
         continue;
       }
       resolved = true;
