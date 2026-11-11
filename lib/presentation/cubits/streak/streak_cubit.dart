@@ -87,6 +87,7 @@ class StreakCubit extends BaseCubit<StreakState> {
       final stats = await getReadingStreakUseCase.forDate(ref);
       final lastContentId =
           await getReadingStreakUseCase.getLastReadContentId();
+      if (isClosed) return;
       emit(StreakState(
         readingStreak: stats.readingStreak,
         lastReadDate: stats.lastReadDate,
@@ -100,7 +101,7 @@ class StreakCubit extends BaseCubit<StreakState> {
     } catch (error, stackTrace) {
       handleError(error, stackTrace, 'loadStreak');
       // First load failed: show the empty snapshot instead of waiting forever.
-      // A later failure keeps the last good streak on screen.
+      if (isClosed) return;
       if (state.isLoading) emit(StreakState(referenceDate: ref));
     }
   }
