@@ -41,6 +41,7 @@ import 'package:nhasixapp/core/utils/offline_content_manager.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/config/source_loader.dart';
 import 'package:nhasixapp/core/network/source_health_monitor.dart';
+import 'package:nhasixapp/core/di/webview_session_registry.dart';
 
 // Data Sources
 import 'package:nhasixapp/data/datasources/remote/remote_data_source.dart';
@@ -504,6 +505,19 @@ void _setupDataSources() {
     return PersistCookieJar(storage: storage);
   }
 
+  // Config-driven per-source bypass sessions (spec: source-bypass-session).
+  // New bypass sources only declare `network.requiresBypass` in JSON — no
+  // per-source registration needed. The 3 legacy instanceNames below
+  // delegate here, preserving their inline overrides.
+  getIt.registerLazySingleton<WebViewSessionRegistry>(
+    () => WebViewSessionRegistry(
+      configService: getIt<RemoteConfigService>(),
+      dio: getIt<Dio>(),
+      logger: getIt<Logger>(),
+      cookieJarFactory: secureCookieJar,
+    ),
+  );
+
   // Crotpedia WebView Session Adapter
   // Replaces legacy CrotpediaCookieStore + CrotpediaAuthManager + CrotpediaSource.
   // Provides CF bypass + auth via WebViewSessionAdapter for multi-source arch.
@@ -525,12 +539,19 @@ void _setupDataSources() {
     );
   });
 
-  // DoujinDesu v2 WebView Session Adapter
-  // Uses isolated cookie storage so Cloudflare challenge cookies are persisted
-  // per source and do not leak across provider sessions.
+  // DoujinDesu v2 WebView Session Adapter — legacy alias.
+  // Delegates to WebViewSessionRegistry; behavior identical to the previous
+  // inline factory (isolated cookie storage per source, no cookie leakage).
   getIt.registerLazySingleton<WebViewSessionAdapter>(
     instanceName: 'doujindesuv2',
     () {
+      final adapter = getIt<WebViewSessionRegistry>().get(
+        'doujindesuv2',
+        baseUrlFallback: 'https://doujindesu.tv',
+      );
+      if (adapter != null) return adapter;
+      // Fallback: configs not loaded yet (eager resolution during setup).
+      // Replicates the legacy inline factory byte-for-byte.
       final rawConfig =
           getIt<RemoteConfigService>().getRawConfig('doujindesuv2') ?? {};
       final baseUrl =
@@ -546,9 +567,39 @@ void _setupDataSources() {
     },
   );
 
+  // Komiktap WebView Session Adapter — legacy alias.
+  // Delegates to WebViewSessionRegistry. Sucuri overrides stay inline here
+  // per controller ruling (not moved to JSON extension config).
   getIt.registerLazySingleton<WebViewSessionAdapter>(
     instanceName: 'komiktap',
     () {
+      final adapter = getIt<WebViewSessionRegistry>().get(
+        'komiktap',
+        baseUrlFallback: 'https://komiktap.info',
+        mutateRawConfig: (rawCopy) {
+          final network = Map<String, dynamic>.from(
+            (rawCopy['network'] is Map ? rawCopy['network'] as Map : null)
+                    ?.cast<String, dynamic>() ??
+                const {},
+          );
+          final siteProtection = Map<String, dynamic>.from(
+            (network['siteProtection'] is Map
+                        ? network['siteProtection'] as Map
+                        : null)
+                    ?.cast<String, dynamic>() ??
+                const {},
+          );
+          network['requiresBypass'] = true;
+          siteProtection.putIfAbsent(
+              'autoCloseOnCookie', () => 'sucuri_cloudproxy_');
+          network['siteProtection'] = siteProtection;
+          rawCopy['network'] = network;
+          return rawCopy;
+        },
+      );
+      if (adapter != null) return adapter;
+      // Fallback: configs not loaded yet (eager resolution during setup).
+      // Replicates the legacy inline factory byte-for-byte.
       final rawConfig = Map<String, dynamic>.from(
         getIt<RemoteConfigService>().getRawConfig('komiktap') ?? {},
       );
@@ -611,9 +662,48 @@ void _setupDataSources() {
     return raw;
   }
 
+  // HentaiRead WebView Session Adapter — legacy alias.
+  // Delegates to WebViewSessionRegistry. Turnstile overrides stay inline here
+  // per controller ruling (not moved to JSON extension config). Jar key
+  // remains `cf_hentairead` so existing persisted cookies keep working.
   getIt.registerLazySingleton<WebViewSessionAdapter>(
     instanceName: 'cf_hentairead',
     () {
+      final adapter = getIt<WebViewSessionRegistry>().get(
+        'hentairead',
+        cookieJarKey: 'cf_hentairead',
+        baseUrlFallback: 'https://hentairead.com',
+        mutateRawConfig: (rawCopy) {
+          // Turnstile sites set cf_clearance pre-challenge; disable
+          // auto-close so WebView stays open until user solves the
+          // interactive challenge and presses back.
+          final network = Map<String, dynamic>.from(
+              (rawCopy['network'] is Map ? rawCopy['network'] as Map : null)
+                      ?.cast<String, dynamic>() ??
+                  {});
+          final cf = Map<String, dynamic>.from(
+              (network['cloudflare'] is Map
+                          ? network['cloudflare'] as Map
+                          : null)
+                      ?.cast<String, dynamic>() ??
+                  {});
+          cf['autoCloseOnCookie'] = '';
+          network['cloudflare'] = cf;
+          rawCopy['network'] = network;
+          return rawCopy;
+        },
+        bypassOptionsBuilder: (url, config) =>
+            WebViewReaderSourceFactory.buildBypassOptions(
+          url,
+          config,
+          readerPagePattern: '/english/p/',
+          captureHost: 'henread.xyz',
+          previewHost: 'hencover.xyz',
+        ),
+      );
+      if (adapter != null) return adapter;
+      // Fallback: configs not loaded yet (eager resolution during setup).
+      // Replicates the legacy inline factory byte-for-byte.
       final rawConfig = turnstileConfig('hentairead');
       final baseUrl =
           rawConfig['baseUrl']?.toString() ?? 'https://hentairead.com';
@@ -990,6 +1080,8 @@ void _setupDataSources() {
             resolver: getIt<SourceFactoryResolver>(),
             genericFactory: getIt<GenericSourceFactory>(),
             logger: getIt<Logger>(),
+            sessionRegistry: getIt<WebViewSessionRegistry>(),
+            cookieJarFactory: secureCookieJar,
           ));
 
   // Content Source Registry
@@ -1015,8 +1107,37 @@ void _setupDataSources() {
 
       final config = jsonDecode(jsonEncode(rawConfig)) as Map<String, dynamic>;
       try {
-        final sourceInstance = resolver.createSource(config);
-        registry.register(sourceInstance);
+        // Bypass routing (OPSI A): no explicit factory + bypass declared in
+        // config → GenericBypassSourceFactory with the isolated
+        // WebViewSessionRegistry session, so installed CF sources work
+        // without a per-source code registration.
+        final resolved = resolver.resolve(config);
+        if (resolved is GenericSourceFactory &&
+            sourceRequiresBypass(rawConfig)) {
+          final adapter =
+              getIt<WebViewSessionRegistry>().get(source.source);
+          // Fallback: never throw during setup (Wave 1C alias pattern) —
+          // replicate the session inline when the registry has none yet.
+          final sessionAdapter = adapter ??
+              WebViewSessionAdapter(
+                dio: getIt<Dio>(),
+                cookieJar: secureCookieJar(source.source),
+                config: WebViewSessionConfig.fromJson(config),
+                baseUrl: config['baseUrl']?.toString() ??
+                    'https://${source.source}',
+                logger: getIt<Logger>(),
+              );
+          final bypassFactory = GenericBypassSourceFactory(
+            sourceId: source.source,
+            dio: getIt<Dio>(),
+            sessionAdapter: sessionAdapter,
+            logger: getIt<Logger>(),
+          );
+          registry.register(bypassFactory.create(config));
+        } else {
+          final sourceInstance = resolver.createSource(config);
+          registry.register(sourceInstance);
+        }
         logger.d('Dynamically registered source: ${source.source}');
       } catch (e) {
         logger.e('Failed to register dynamic source ${source.source}: $e');
