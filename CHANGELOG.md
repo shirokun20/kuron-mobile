@@ -8,17 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### 🔥 Removed
-
-- **Rust image pipeline** (openspec: `de-rust-dart-only`): `packages/kuron_native/rust/`, `buildRustLibs` (cargo-ndk) + `jniLibs/libkuron_rust.so`, `rust_bridge.dart`, dan semua cabang `RustBridge` di `MosaicBuilder`/`FallbackImageHandler`/`reader_translation_cubit`/`HeaderInspectorService` dihapus — pipeline image 100% Dart (`package:image`); toolchain lokal `~/.cargo`/`~/.rustup` (±3,1GB) di-uninstall; CI tanpa setup Rust. Hemat ±4MB per ABI.
-- **ONNX 40MB keluar dari APK** (openspec: `onnx-runtime-download`): `bubble_detector.onnx` tidak lagi dibundel/diunduh saat build — jadi unduhan runtime ter-resume (OkHttp `Range` → `.part`, SHA256 → rename atomik) via layar "Model AI" di Settings (status/progres/hapus + retry, ARB en/id/zh); absen = fallback full-image, bukan crash. Hemat 42.241.751B per APK.
-- **Dependency majors** (openspec: `dependency-major-upgrades`): floor SDK `^3.5.4` → `^3.13.0` (6 pubspec); `flutter_local_notifications` 22→23, `window_manager` 0.5→0.6 (import pindah ke `legacy.dart`, desktop-only; +nativeapi ×3, −screen_retriever ×5 tak terpakai). Tanpa dependensi baru, tanpa regresi AVIF/WebView.
-- **Build toolchain** (buntut upgrade): AGP 9.0.1→9.1.1 + Gradle 9.1.0→9.3.1 (dituntut `androidx.core:core-ktx:1.19.0`).
-- **Diet APK universal** (1 file, tanpa split): ARM-only — `--target-platform android-arm,android-arm64` (lib Flutter) + `packaging.jniLibs excludes lib/x86_64/**` (lib AAR: ffmpeg/onnxruntime/cronet; `ndk.abiFilters` diabaikan Flutter plugin) + `--split-debug-info` (simbol `libapp.so` keluar APK, simpan `build/symbols/` buat symbolikasi). 359,6MB → **238,2MB** (−34%), 0 `*.onnx`/`.so`-rust/x86_64.
-
-### 🐛 Fixed
-
-- **Reader cache path escape untuk contentId ber-leading-slash** (chapter id Komikcast = href mentah `/series/...`): semua `path.join` yang melibatkan contentId di `LocalImagePreloader` (streaming `create(recursive:)`, lookup, evict, clear) + writer/lookup download & PDF + kandidat probe offline kini lewat satu choke point `DownloadStorageUtils.safePathSegment` (buang leading `/`, sisa `/` → `__`, tolak kosong/`..`); id bersih = identity sehingga library lama tidak pindah, lokasi cache chapter slash-id pindah (orphan lama diurus sweeper/expiry). Download selama ini lolos karena `download_bloc` sudah memakai elegantId — menjelaskan anomali reader-gagal/download-ok.
+- 📤 (Rust pipeline): dropped Rust toolchain + `rust_bridge` — image pipeline now 100% Dart (±4MB/APK).
+- 📤 (ONNX 40MB): `bubble_detector.onnx` out of the APK — runtime download via the "Model AI" screen (resumable + SHA256); missing model = full-image fallback.
+- 🆕 (deps): floor SDK `^3.5.4` → `^3.13.0`, notifications 22→23, `window_manager` moved to `legacy.dart` (desktop-only).
+- ⚙️ (build): AGP 9.1.1 + Gradle 9.3.1 (required by `androidx.core:core-ktx:1.19.0`).
+- 📤 (APK diet): ARM-only + debug symbols stripped — 359.6MB → 238.2MB (−34%).
+- 🐛 (reader): leading-slash chapter ids (Komikcast `/series/...`) no longer crash cache writes.
 
 ## [0.9.29+39] - 2026-11-06
 

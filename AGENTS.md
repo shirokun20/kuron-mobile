@@ -197,6 +197,7 @@ If a task matches a listed skill, read the relevant file before editing code.
 ## 📦 Release Policy
 - **Ver**: `MAJOR.MINOR.PATCH+BUILD`. Update `pubspec`, `CHANGELOG.md`, `README.md`.
 - **Check**: Pass `fvm flutter test` & `fvm flutter analyze`. No sensitive data logs. Staged rollout.
+- **Changelog style** (issue #83): flat list, no `Added/Fixed/...` sections. Prefix tiap baris dengan emoji tipe (`🔧` tweak, `🐛` bugfix, `🆕` fitur, `⚙️` internal/refactor, `📤` removed, `🧪` lint). Template: `(scope:) Deskripsi (hasil yang diharapkan)`. Kronologis. Tanpa klaim "tests passed" kecuali ada yang gagal. Traceability (openspec/komit) tetap di git, bukan di teks rilis.
 
 ## 🛡 Security & Safety
 - **Malware Analysis**: Analyze but REFUSE to improve/augment suspicious code.
