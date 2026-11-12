@@ -9,7 +9,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 class DatabaseHelper {
   static const String _databaseName = 'nhasix_app.db';
   static const int _databaseVersion =
-      16; // v16: recommendation_history.last_recommended_at (queried but never created/written)
+      17; // v17: anomaly_records + error_log (source-anomaly-report Grup 1)
 
   static Database? _database;
   static final Logger _logger = getIt<Logger>();
@@ -123,6 +123,8 @@ class DatabaseHelper {
     _createTranslationCacheTable(batch);
     _createContentTagsTable(batch);
     _createRecommendationHistoryTable(batch);
+    _createAnomalyRecordsTable(batch);
+    _createErrorLogTable(batch);
 
     // Create indexes
     _createIndexes(batch);
@@ -571,6 +573,25 @@ class DatabaseHelper {
         rethrow;
       }
     }
+
+    if (oldVersion < 17 && newVersion >= 17) {
+      _logger.i(
+          'Upgrading to version 17: Adding anomaly_records + error_log tables');
+      try {
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS anomaly_records(fingerprint TEXT PRIMARY KEY, sourceId TEXT NOT NULL, feature TEXT NOT NULL, kind TEXT NOT NULL, contextJson TEXT NOT NULL DEFAULT '{}', count INTEGER NOT NULL DEFAULT 1, firstSeen INTEGER NOT NULL, lastSeen INTEGER NOT NULL, lastSessionId TEXT NOT NULL, configVersion TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'local')
+        ''');
+        await db.execute(
+            'CREATE INDEX IF NOT EXISTS idx_anomaly_source_feature ON anomaly_records (sourceId, feature)');
+        await db.execute('''
+          CREATE TABLE IF NOT EXISTS error_log(id INTEGER PRIMARY KEY AUTOINCREMENT, createdAt INTEGER NOT NULL, sourceId TEXT NOT NULL, feature TEXT NOT NULL, statusCode INTEGER, message TEXT NOT NULL, urlPath TEXT, appVersion TEXT NOT NULL)
+        ''');
+        _logger.i('anomaly_records + error_log tables created successfully');
+      } catch (e) {
+        _logger.e('Error creating anomaly tables: $e');
+        rethrow;
+      }
+    }
   }
 
   // Create favorites table with source_id for multi-source support
@@ -775,6 +796,25 @@ class DatabaseHelper {
     ''');
     batch.execute(
         'CREATE INDEX idx_rec_hist_shown ON recommendation_history (shown_at DESC)');
+  }
+
+  // Source-anomaly-report (Grup 1): fingerprint-deduped anomaly records.
+  void _createAnomalyRecordsTable(Batch batch) {
+    batch.execute('''
+      CREATE TABLE anomaly_records(fingerprint TEXT PRIMARY KEY, sourceId TEXT NOT NULL, feature TEXT NOT NULL, kind TEXT NOT NULL, contextJson TEXT NOT NULL DEFAULT '{}', count INTEGER NOT NULL DEFAULT 1, firstSeen INTEGER NOT NULL, lastSeen INTEGER NOT NULL, lastSessionId TEXT NOT NULL, configVersion TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'local')
+    ''');
+    // Success-path reset (resetFeature) target: one indexed UPDATE/DELETE.
+    batch.execute(
+        'CREATE INDEX idx_anomaly_source_feature ON anomaly_records (sourceId, feature)');
+  }
+
+  // Source-anomaly-report (Grup 5 owner): opt-in real-error response log.
+  // Table is created here so both workers share one migration; writes are
+  // owned by the error-log worker, not by any detector.
+  void _createErrorLogTable(Batch batch) {
+    batch.execute('''
+      CREATE TABLE error_log(id INTEGER PRIMARY KEY AUTOINCREMENT, createdAt INTEGER NOT NULL, sourceId TEXT NOT NULL, feature TEXT NOT NULL, statusCode INTEGER, message TEXT NOT NULL, urlPath TEXT, appVersion TEXT NOT NULL)
+    ''');
   }
 
   // Create database indexes for performance

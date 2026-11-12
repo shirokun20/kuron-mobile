@@ -33,6 +33,7 @@ import 'settings_privacy_widgets.dart';
 import 'settings_app_lock_widgets.dart';
 import 'settings_kuron_backup.dart';
 import 'settings_nclient_import.dart';
+import 'settings_anomaly_widgets.dart';
 import 'ai_settings_screen.dart';
 import 'ai_model_download_screen.dart';
 
@@ -443,6 +444,11 @@ class _SettingsScreenState extends State<SettingsScreen>
               theme: theme,
             ),
           ], theme),
+
+          SizedBox(height: DesignTokens.spaceXl),
+
+          // Anomaly & Error Log Section
+          buildAnomalySection(context, theme, l10n),
 
           SizedBox(height: DesignTokens.spaceXl),
 

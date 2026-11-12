@@ -21,6 +21,7 @@ import 'package:nhasixapp/core/utils/tag_color_palette.dart';
 import 'package:nhasixapp/core/services/tag_blacklist_service.dart';
 import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
 import 'package:nhasixapp/presentation/utils/chapter_language_presenter.dart';
+import '../../../core/services/anomaly/anomaly_store.dart';
 import '../../../core/utils/error_message_utils.dart';
 import '../../widgets/download_button_widget.dart';
 import '../../widgets/kuro_mascot.dart';
@@ -757,6 +758,24 @@ class _DetailScreenState extends State<DetailScreen> {
         Logger().w(
           'Tag mapping failed for $tagType:$tagName (tagId=$tagId), navigation cancelled to avoid invalid query',
         );
+        // Source-anomaly-report (Grup 2.3): record the config-level
+        // mapping failure. Snackbar behavior below stays unchanged.
+        try {
+          final rawConfig = _detailCubit.getRawConfig(actualSourceId);
+          unawaited(AnomalyStore.instance.recordEvent(
+            sourceId: actualSourceId,
+            feature: 'tag-nav',
+            kind: 'mapping-failed',
+            contextJson: {
+              'tagType': tagType,
+              'tagName': tagName,
+              'tagId': tagId,
+            },
+            configVersion: (rawConfig?['version'] as String?) ?? 'unknown',
+          ));
+        } catch (_) {
+          // Detector must never break navigation.
+        }
         if (mounted) {
           final messenger = ScaffoldMessenger.of(context);
           messenger.showSnackBar(

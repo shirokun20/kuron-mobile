@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/data/models/content_model.dart';
 
@@ -8,6 +10,8 @@ import '../../domain/value_objects/value_objects.dart';
 import '../datasources/remote/remote_data_source.dart';
 import '../../core/services/cache/cache_manager.dart' as multi_cache;
 import '../models/tag_model.dart';
+import '../../core/services/anomaly/anomaly_store.dart';
+import '../../core/services/error_log/error_log.dart';
 import '../../core/services/detail_cache_service.dart';
 import '../datasources/remote/exceptions.dart';
 import '../../core/services/request_deduplication_service.dart';
@@ -25,7 +29,11 @@ class ContentRepositoryImpl implements ContentRepository {
     required this.contentCacheManager,
     required this.tagCacheManager,
     Logger? logger,
-  }) : _logger = logger ?? Logger();
+    AnomalyStore? anomalyStore,
+    SourceHealthTracker? healthTracker,
+  })  : _logger = logger ?? Logger(),
+        _anomalyStore = anomalyStore ?? AnomalyStore.instance,
+        _healthTracker = healthTracker ?? SourceHealthTracker.instance;
 
   final core.ContentSourceRegistry contentSourceRegistry;
   final RemoteConfigService remoteConfigService;
@@ -35,6 +43,8 @@ class ContentRepositoryImpl implements ContentRepository {
   final multi_cache.CacheManager<Map<String, dynamic>> contentCacheManager;
   final multi_cache.CacheManager<List<Tag>> tagCacheManager;
   final Logger _logger;
+  final AnomalyStore _anomalyStore;
+  final SourceHealthTracker _healthTracker;
 
   static const Duration cacheExpiration = Duration(hours: 6);
   static const int defaultPageSize = 20;
@@ -83,12 +93,22 @@ class ContentRepositoryImpl implements ContentRepository {
         _logger.i(
             'Fetched and cached ${entities.length} contents from ${_activeSource.id}');
 
+        if (entities.isNotEmpty) {
+          _markSourceHealthy(_activeSource.id, 'list');
+        }
+
         return _mapToAppContentListResult(coreResult);
       } catch (e) {
         _logger.w('Failed to fetch from source: $e');
+        _recordError(
+          sourceId: _sourceIdFor(null),
+          feature: 'getContentList',
+          error: e,
+        );
         rethrow;
       }
     } catch (e, stackTrace) {
+      // Same error as the inner catch above — recorded once there.
       _logger.e('Failed to get content list', error: e, stackTrace: stackTrace);
       rethrow;
     }
@@ -163,6 +183,11 @@ class ContentRepositoryImpl implements ContentRepository {
             final coreContent = await source.getDetail(contentId.value);
             final entity = _mapToAppContent(coreContent);
 
+            await _detectDetailParse(
+              sourceId: source.id,
+              entity: entity,
+            );
+
             await Future.wait([
               contentCacheManager.set(
                   cacheKey, ContentModel.fromEntity(entity).toJson()),
@@ -171,6 +196,11 @@ class ContentRepositoryImpl implements ContentRepository {
 
             return entity;
           } catch (e) {
+            _recordError(
+              sourceId: _sourceIdFor(sourceId),
+              feature: 'getContentDetail',
+              error: e,
+            );
             if (e is core.LoginRequiredException) {
               rethrow;
             }
@@ -178,6 +208,7 @@ class ContentRepositoryImpl implements ContentRepository {
             throw NetworkException('Failed to fetch content detail: $e');
           }
         } catch (e, stackTrace) {
+          // Already recorded by the inner catch — no duplicate row.
           _logger.e('Failed to get content detail',
               error: e, stackTrace: stackTrace);
           rethrow;
@@ -195,12 +226,22 @@ class ContentRepositoryImpl implements ContentRepository {
         final coreFilter = _mapToCoreSearchFilter(filter);
         final coreResult = await _activeSource.search(coreFilter);
 
+        if (coreResult.contents.isNotEmpty) {
+          _markSourceHealthy(_activeSource.id, 'search');
+        }
+
         return _mapToAppContentListResult(coreResult);
       } catch (e) {
         _logger.w('Search failed: $e');
+        _recordError(
+          sourceId: _sourceIdFor(null),
+          feature: 'search',
+          error: e,
+        );
         rethrow;
       }
     } catch (e, stackTrace) {
+      // Same error as the inner catch above — recorded once there.
       _logger.e('Failed to search content', error: e, stackTrace: stackTrace);
       rethrow;
     }
@@ -228,6 +269,11 @@ class ContentRepositoryImpl implements ContentRepository {
       return _mapToAppContentListResult(coreResult);
     } catch (e) {
       _logger.w('Failed to fetch popular content from source: $e');
+      _recordError(
+        sourceId: _sourceIdFor(null),
+        feature: 'getPopularContent',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -300,8 +346,11 @@ class ContentRepositoryImpl implements ContentRepository {
         sortBy: sortBy,
       );
 
-      return await searchContent(filter);
+      final result = await searchContent(filter);
+      await _detectTagListEmpty(tag: tag, result: result);
+      return result;
     } catch (e, stackTrace) {
+      // searchContent (called above) already recorded this error.
       _logger.e('Failed to get content by tag',
           error: e, stackTrace: stackTrace);
       rethrow;
@@ -329,9 +378,15 @@ class ContentRepositoryImpl implements ContentRepository {
         }
       } catch (e) {
         _logger.w('Related content failed: $e');
+        _recordError(
+          sourceId: _sourceIdFor(sourceId),
+          feature: 'getRelatedContent',
+          error: e,
+        );
       }
       return [];
     } catch (e, stackTrace) {
+      // Same error as the inner catch above — recorded once there.
       _logger.e('Failed to get related content',
           error: e, stackTrace: stackTrace);
       return [];
@@ -360,6 +415,11 @@ class ContentRepositoryImpl implements ContentRepository {
     } catch (e, stackTrace) {
       _logger.e('Failed to get random galleries',
           error: e, stackTrace: stackTrace);
+      _recordError(
+        sourceId: _sourceIdFor(sourceId),
+        feature: 'getRandomGalleries',
+        error: e,
+      );
       return [];
     }
   }
@@ -399,6 +459,11 @@ class ContentRepositoryImpl implements ContentRepository {
       return entities;
     } catch (e) {
       _logger.w('Failed to fetch tags from remote: $e');
+      _recordError(
+        sourceId: _sourceIdFor(null),
+        feature: 'getAllTags',
+        error: e,
+      );
       rethrow;
     }
   }
@@ -409,6 +474,8 @@ class ContentRepositoryImpl implements ContentRepository {
       await remoteDataSource.getContentDetailViaApi(contentId.value);
       return true;
     } catch (e) {
+      // Deliberately not recorded: a missing/unpublished content id is a
+      // valid answer, not a real error response.
       _logger.d('Content verification failed: $e');
       return false;
     }
@@ -431,12 +498,26 @@ class ContentRepositoryImpl implements ContentRepository {
       // Call getChapterImages on whatever source implements it (works for
       // GenericHttpSource, KomiktapSource, CrotpediaSource, or any future source).
       final result = await source.getChapterImages(chapterId.value);
-      if (result != null) return result;
+      if (result == null) {
+        // Null = source does not support chapter images → NOT an anomaly.
+        _logger
+            .w('Source ${source.displayName} does not support chapter images');
+        return const ChapterData(images: []);
+      }
 
-      _logger.w('Source ${source.displayName} does not support chapter images');
-      return const ChapterData(images: []);
+      await _detectReaderEmpty(
+        sourceId: source.id,
+        chapterId: chapterId.value,
+        result: result,
+      );
+      return result;
     } catch (e) {
       _logger.e('Failed to get chapter images: $e');
+      _recordError(
+        sourceId: _sourceIdFor(sourceId),
+        feature: 'getChapterImages',
+        error: e,
+      );
       return const ChapterData(images: []);
     }
   }
@@ -475,6 +556,11 @@ class ContentRepositoryImpl implements ContentRepository {
       return await _activeSource.getComments(contentId);
     } catch (e, stackTrace) {
       _logger.e('Failed to get comments', error: e, stackTrace: stackTrace);
+      _recordError(
+        sourceId: _sourceIdFor(null),
+        feature: 'getComments',
+        error: e,
+      );
       return [];
     }
   }
@@ -492,6 +578,165 @@ class ContentRepositoryImpl implements ContentRepository {
         tags.sort((a, b) => b.count.compareTo(a.count));
         break;
     }
+  }
+
+  // --- Error-response recording (Grup 5) ---
+  //
+  // Fire-and-forget: [ErrorLog.record] never throws and never changes the
+  // return value of the catch block it sits in. CF/challenge pages, 403
+  // WAF, login-walls and valid-empty answers are filtered inside the
+  // store, so these hooks only report *candidate* real errors. Failures
+  // already owned by the anomaly discriminators never reach here — those
+  // paths return normally instead of throwing.
+
+  String _sourceIdFor(String? preferred) {
+    try {
+      return preferred ?? _activeSource.id;
+    } catch (_) {
+      return preferred ?? 'unknown';
+    }
+  }
+
+  int? _statusCodeOf(Object error) {
+    if (error is RemoteDataSourceException) {
+      final parsed = int.tryParse(error.code ?? '');
+      if (parsed != null) return parsed;
+    }
+    final match =
+        RegExp(r'\b(?:HTTP\s*)?([45]\d{2})\b').firstMatch(error.toString());
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
+
+  void _recordError({
+    required String sourceId,
+    required String feature,
+    required Object error,
+    String? urlPath,
+  }) {
+    try {
+      unawaited(ErrorLog.record(
+        sourceId: sourceId,
+        feature: feature,
+        statusCode: _statusCodeOf(error),
+        message: error.toString(),
+        urlPath: urlPath,
+      ));
+    } catch (e) {
+      _logger.d('Error-log hook failed: $e');
+    }
+  }
+
+  // --- Source-anomaly detectors (Grup 1+2) ---
+  //
+  // Every detector checks [SourceHealthTracker] first: when all features
+  // fail it is a network outage, not a config bug — zero records.
+  // Detectors never throw and never log errors (error logging is owned
+  // by the Grup 5 worker); a storage failure only skips the record.
+
+  void _markSourceHealthy(String sourceId, String feature) {
+    try {
+      _healthTracker.markSuccess(sourceId, feature);
+    } catch (e) {
+      _logger.w('Health signal failed: $e');
+    }
+  }
+
+  String _configVersionOf(String sourceId) {
+    try {
+      return remoteConfigService.getInstalledVersion(sourceId) ?? 'unknown';
+    } catch (_) {
+      return 'unknown';
+    }
+  }
+
+  Future<void> _detectReaderEmpty({
+    required String sourceId,
+    required String chapterId,
+    required ChapterData result,
+  }) async {
+    try {
+      if (result.images.isNotEmpty || result.videoUrls.isNotEmpty) {
+        _healthTracker.markSuccess(sourceId, 'reader');
+        await _anomalyStore.resetFeature(sourceId, 'reader-empty');
+        return;
+      }
+      // Empty reader candidate. External/unavailable chapters never reach
+      // here (DetailCubit routes them to the browser instead of fetching).
+      if (!_healthTracker.isHealthy(sourceId)) return;
+      await _anomalyStore.recordEvent(
+        sourceId: sourceId,
+        feature: 'reader-empty',
+        kind: 'empty',
+        contextJson: {'chapterId': chapterId},
+        configVersion: _configVersionOf(sourceId),
+      );
+    } catch (e) {
+      _logger.w('Reader-empty detector failed: $e');
+    }
+  }
+
+  Future<void> _detectTagListEmpty({
+    required Tag tag,
+    required ContentListResult result,
+  }) async {
+    try {
+      final sourceId = _activeSource.id;
+      if (result.contents.isNotEmpty) {
+        _healthTracker.markSuccess(sourceId, 'tag-list');
+        await _anomalyStore.resetFeature(sourceId, 'tag-list-empty');
+        return;
+      }
+      if (!_healthTracker.isHealthy(sourceId)) return;
+      await _anomalyStore.recordEvent(
+        sourceId: sourceId,
+        feature: 'tag-list-empty',
+        kind: 'empty',
+        contextJson: {'tagType': tag.type, 'tagName': tag.name},
+        configVersion: _configVersionOf(sourceId),
+      );
+    } catch (e) {
+      _logger.w('Tag-list-empty detector failed: $e');
+    }
+  }
+
+  Future<void> _detectDetailParse({
+    required String sourceId,
+    required Content entity,
+  }) async {
+    try {
+      final titleBad = _isInvalidCachedTitle(entity.title);
+      if (!titleBad) {
+        final chapters = entity.chapters;
+        // Non-empty chapter lists are always fine — even when every entry
+        // is declared external/unavailable (Keputusan 10: legitimate).
+        if (chapters == null ||
+            !remoteConfigService.isFeatureEnabled(
+                sourceId, (f) => f.chapters) ||
+            chapters.isNotEmpty) {
+          await _markDetailHealthy(sourceId);
+          return;
+        }
+        // Fresh fetch with zero chapters on a chapter-enabled source
+        // falls through to the anomaly candidate below.
+      }
+      if (!_healthTracker.isHealthy(sourceId)) return;
+      await _anomalyStore.recordEvent(
+        sourceId: sourceId,
+        feature: 'detail-parse',
+        kind: 'parse-failed',
+        contextJson: {
+          'reason': titleBad ? 'empty-title' : 'empty-chapters',
+        },
+        configVersion: _configVersionOf(sourceId),
+      );
+    } catch (e) {
+      _logger.w('Detail-parse detector failed: $e');
+    }
+  }
+
+  Future<void> _markDetailHealthy(String sourceId) async {
+    _healthTracker.markSuccess(sourceId, 'detail');
+    await _anomalyStore.resetFeature(sourceId, 'detail-parse');
   }
 
   // --- Mappers ---

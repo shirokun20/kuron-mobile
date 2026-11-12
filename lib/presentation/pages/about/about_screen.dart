@@ -15,6 +15,7 @@ import 'package:nhasixapp/presentation/widgets/update_available_sheet.dart';
 import 'package:nhasixapp/presentation/widgets/legal_content_sheet.dart';
 import 'package:nhasixapp/core/services/legal_content_service.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'tickets_screen.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -267,6 +268,19 @@ class _AboutContentState extends State<_AboutContent>
                     onTap: () =>
                         _launchURL('https://github.com/shirokun20/nhasixapp'),
                     isExternal: true,
+                  ),
+                  _buildDivider(),
+                  _buildMenuItem(
+                    context,
+                    icon: Icons.confirmation_number_outlined,
+                    title: 'Tickets',
+                    subtitle: 'Daftar issue terbuka kuron-mobile & kuron-extensions',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const TicketsScreen(),
+                      ),
+                    ),
                   ),
                   _buildDivider(),
                   _buildMenuItem(

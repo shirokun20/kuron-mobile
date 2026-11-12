@@ -11,6 +11,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:nhasixapp/data/datasources/local/database_helper.dart';
 import 'package:nhasixapp/data/datasources/local/local_data_source.dart';
 import 'package:nhasixapp/data/datasources/remote/cloudflare_bypass_no_webview.dart';
+import 'package:nhasixapp/core/services/anomaly/anomaly_store.dart';
+import 'package:nhasixapp/presentation/pages/settings/anomaly/anomaly_store_adapter.dart';
+import 'package:nhasixapp/presentation/pages/settings/anomaly/anomaly_store_contract.dart';
+import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_adapter.dart';
+import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_contract.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_prefetch_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_translation_cubit.dart';
@@ -1562,6 +1567,11 @@ void _setupCubits() {
         preferencesService: getIt<PreferencesService>(),
         logger: getIt<Logger>(),
       ));
+  // Source-anomaly diagnostics (Grup 6 integration): UI contracts bound to
+  // real stores. Screens resolve these via GetIt with NoOp fallback.
+  getIt.registerLazySingleton<AnomalyStoreContract>(
+      () => AnomalyStoreAdapter(AnomalyStore.instance));
+  getIt.registerLazySingleton<ErrorLogContract>(() => ErrorLogAdapter());
 
   // ThemeCubit - App-wide theme management
   getIt.registerLazySingleton<ThemeCubit>(() => ThemeCubit(
