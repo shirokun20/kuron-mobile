@@ -17,6 +17,7 @@ import '../parsers/generic_html_parser.dart';
 import '../parsers/generic_json_parser.dart';
 import '../url_builder/generic_url_builder.dart';
 import 'generic_adapter.dart';
+import 'fetch_error_hook.dart';
 
 // Function type for generating anti-detection headers dynamically.
 // Returns a map of HTTP headers. Optional [referer] parameter can be passed.
@@ -376,6 +377,13 @@ class GenericRestAdapter implements GenericAdapter {
     } catch (e, stackTrace) {
       _logger.e('$_sourceId REST search failed',
           error: e, stackTrace: stackTrace);
+      FetchErrorReporter.notify(
+        e,
+        sourceId: _sourceId,
+        feature: 'list',
+        url: e is DioException ? e.requestOptions.uri.toString() : null,
+        statusCode: e is DioException ? e.response?.statusCode : null,
+      );
       return const AdapterSearchResult(items: [], hasNextPage: false);
     }
   }
@@ -433,6 +441,13 @@ class GenericRestAdapter implements GenericAdapter {
       );
     } catch (e) {
       _logger.e('$_sourceId REST detail failed for $contentId', error: e);
+      FetchErrorReporter.notify(
+        e,
+        sourceId: _sourceId,
+        feature: 'detail',
+        url: url,
+        statusCode: e is DioException ? e.response?.statusCode : null,
+      );
       return AdapterDetailResult(
         content: _emptyContent(contentId),
         imageUrls: [],

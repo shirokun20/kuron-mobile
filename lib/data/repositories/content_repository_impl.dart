@@ -95,6 +95,9 @@ class ContentRepositoryImpl implements ContentRepository {
 
         if (entities.isNotEmpty) {
           _markSourceHealthy(_activeSource.id, 'list');
+          await _anomalyStore.resetFeature(_activeSource.id, 'home-empty');
+        } else if (page == 1) {
+          await _detectHomeEmpty(_activeSource.id);
         }
 
         return _mapToAppContentListResult(coreResult);
@@ -111,6 +114,24 @@ class ContentRepositoryImpl implements ContentRepository {
       // Same error as the inner catch above — recorded once there.
       _logger.e('Failed to get content list', error: e, stackTrace: stackTrace);
       rethrow;
+    }
+  }
+  /// Home page 1 came back empty. Recorded only when another feature
+  /// already proved this source alive this session (detail/reader OK):
+  /// an empty homepage on a live source is config drift, while empty
+  /// home + everything failing is a network outage (correctly silent).
+  /// Page > 1 is excluded — reaching a catalog's end is legitimate.
+  Future<void> _detectHomeEmpty(String sourceId) async {
+    try {
+      if (!_healthTracker.isHealthy(sourceId)) return;
+      await _anomalyStore.recordEvent(
+        sourceId: sourceId,
+        feature: 'home-empty',
+        kind: 'empty',
+        configVersion: _configVersionOf(sourceId),
+      );
+    } catch (e) {
+      _logger.w('Home-empty detector failed: $e');
     }
   }
 

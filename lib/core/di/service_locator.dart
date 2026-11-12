@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -16,6 +17,7 @@ import 'package:nhasixapp/presentation/pages/settings/anomaly/anomaly_store_adap
 import 'package:nhasixapp/presentation/pages/settings/anomaly/anomaly_store_contract.dart';
 import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_adapter.dart';
 import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_contract.dart';
+import 'package:nhasixapp/core/services/error_log/error_log.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_prefetch_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_translation_cubit.dart';
@@ -1572,6 +1574,20 @@ void _setupCubits() {
   getIt.registerLazySingleton<AnomalyStoreContract>(
       () => AnomalyStoreAdapter(AnomalyStore.instance));
   getIt.registerLazySingleton<ErrorLogContract>(() => ErrorLogAdapter());
+  // kuron_generic fetch failures arrive here as empty results (UI stays
+  // stable); report the real error to the log. Exclusions (CF/403/login)
+  // are enforced inside ErrorLog.record. Anomaly stays silent: a dead host
+  // is a network outage, not a config bug.
+  FetchErrorReporter.onError =
+      (error, {sourceId, feature, url, statusCode}) {
+    unawaited(ErrorLog.record(
+      sourceId: sourceId ?? 'unknown',
+      feature: feature ?? 'list',
+      statusCode: statusCode,
+      message: error.toString(),
+      urlPath: url,
+    ));
+  };
 
   // ThemeCubit - App-wide theme management
   getIt.registerLazySingleton<ThemeCubit>(() => ThemeCubit(

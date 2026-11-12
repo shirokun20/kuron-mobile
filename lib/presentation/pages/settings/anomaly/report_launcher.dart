@@ -3,6 +3,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:nhasixapp/core/services/report/report_builder.dart';
+
 import 'anomaly_store_contract.dart' as anomaly;
 import 'error_log_contract.dart' as elog;
 
@@ -63,15 +64,10 @@ Uri buildErrorReportUrl(
     message: entry.message,
     appVersion: appVersion,
   );
-  return ReportBuilder.buildPrefilledUrl(
-    repo: repo,
-    title: title,
-    body: body,
-  );
+  return ReportBuilder.buildPrefilledUrl(repo: repo, title: title, body: body);
 }
 
-String suggestedAnomalyRepo() =>
-    ReportBuilder.suggestRepo(isSourceLayer: true);
+String suggestedAnomalyRepo() => ReportBuilder.suggestRepo(isSourceLayer: true);
 
 String suggestedErrorRepo(elog.ErrorLogEntry entry) =>
     ReportBuilder.suggestRepo(isSourceLayer: entry.sourceId.isNotEmpty);

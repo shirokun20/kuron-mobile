@@ -80,6 +80,7 @@ import '../readers/reader_image_resolver.dart';
 import '../routing/search_query_routing.dart';
 import '../url_builder/generic_url_builder.dart';
 import 'generic_adapter.dart';
+import 'fetch_error_hook.dart';
 
 // ### Module map
 // - `readers/reader_image_resolver.dart` — chapter-image mode handlers
@@ -1627,17 +1628,21 @@ class GenericScraperAdapter implements GenericAdapter {
         final cfMitigated = e.response?.headers.value('cf-mitigated');
         if (cfMitigated != null) {
           _logger.w(
-              '$_sourceId detected Cloudflare 403 in detail page for $contentId, re-throwing for WebViewSessionAdapter');
+              '[$_sourceId] detected Cloudflare 403 in detail page for $contentId, re-throwing for WebViewSessionAdapter');
           rethrow;
         }
       }
       _logger.e('$_sourceId scraper detail failed for $contentId', error: e);
+      FetchErrorReporter.notify(e, sourceId: _sourceId,
+          url: url, feature: 'detail', statusCode: e.response?.statusCode);
       return AdapterDetailResult(
           content: _emptyContent(contentId), imageUrls: []);
     } catch (e, stack) {
       Logger().e('[$_sourceId] getDetail ERROR (Exception): $e');
       Logger().e('[$_sourceId] stack: $stack');
       _logger.e('$_sourceId scraper detail failed for $contentId', error: e);
+      FetchErrorReporter.notify(e, sourceId: _sourceId,
+          url: url, feature: 'detail');
       return AdapterDetailResult(
           content: _emptyContent(contentId), imageUrls: []);
     }
@@ -2760,10 +2765,14 @@ class GenericScraperAdapter implements GenericAdapter {
       }
       _logger.e('$_sourceId scraper chapter fetch failed for $chapterId',
           error: e);
+      FetchErrorReporter.notify(e, sourceId: _sourceId,
+          url: url, feature: 'reader', statusCode: e.response?.statusCode);
       return null;
     } catch (e) {
       _logger.e('$_sourceId scraper chapter fetch failed for $chapterId',
           error: e);
+      FetchErrorReporter.notify(e, sourceId: _sourceId,
+          url: url, feature: 'reader');
       return null;
     }
   }
@@ -3148,6 +3157,10 @@ class GenericScraperAdapter implements GenericAdapter {
       );
     } catch (e) {
       _logger.e('$_sourceId scraper list fetch failed: $url', error: e);
+      FetchErrorReporter.notify(e, sourceId: _sourceId,
+          url: url,
+          feature: 'list',
+          statusCode: e is DioException ? e.response?.statusCode : null);
       return const AdapterSearchResult(items: [], hasNextPage: false);
     }
   }

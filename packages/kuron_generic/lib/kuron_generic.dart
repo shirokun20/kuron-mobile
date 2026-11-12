@@ -9,6 +9,7 @@ library;
 export 'src/adapters/generic_adapter.dart';
 export 'src/adapters/generic_rest_adapter.dart';
 export 'src/adapters/generic_scraper_adapter.dart';
+export 'src/adapters/fetch_error_hook.dart';
 export 'src/readers/reader_image_resolver.dart';
 export 'src/routing/search_query_routing.dart';
 export 'src/nhentai/nhentai_shapes.dart';
