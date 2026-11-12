@@ -16,6 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **Build toolchain** (buntut upgrade): AGP 9.0.1→9.1.1 + Gradle 9.1.0→9.3.1 (dituntut `androidx.core:core-ktx:1.19.0`).
 - **Diet APK universal** (1 file, tanpa split): ARM-only — `--target-platform android-arm,android-arm64` (lib Flutter) + `packaging.jniLibs excludes lib/x86_64/**` (lib AAR: ffmpeg/onnxruntime/cronet; `ndk.abiFilters` diabaikan Flutter plugin) + `--split-debug-info` (simbol `libapp.so` keluar APK, simpan `build/symbols/` buat symbolikasi). 359,6MB → **238,2MB** (−34%), 0 `*.onnx`/`.so`-rust/x86_64.
 
+### 🐛 Fixed
+
+- **Reader cache path escape untuk contentId ber-leading-slash** (chapter id Komikcast = href mentah `/series/...`): semua `path.join` yang melibatkan contentId di `LocalImagePreloader` (streaming `create(recursive:)`, lookup, evict, clear) + writer/lookup download & PDF + kandidat probe offline kini lewat satu choke point `DownloadStorageUtils.safePathSegment` (buang leading `/`, sisa `/` → `__`, tolak kosong/`..`); id bersih = identity sehingga library lama tidak pindah, lokasi cache chapter slash-id pindah (orphan lama diurus sweeper/expiry). Download selama ini lolos karena `download_bloc` sudah memakai elegantId — menjelaskan anomali reader-gagal/download-ok.
+
 ## [0.9.29+39] - 2026-11-06
 
 ### 🐛 Fixed

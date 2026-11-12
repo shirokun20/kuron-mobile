@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:path/path.dart' as path;
@@ -16,6 +17,7 @@ import '../utils/permission_helper.dart';
 import '../utils/storage_settings.dart';
 import '../constants/app_constants.dart' as app_constants;
 import '../utils/directory_utils.dart';
+import '../utils/download_storage_utils.dart';
 
 // Service untuk handle actual file download
 class DownloadService {
@@ -24,7 +26,7 @@ class DownloadService {
     required this._notificationService,
     required this._sourceRegistry, // NEW
     Logger? logger,
-  })  : _logger = logger ?? Logger();
+  }) : _logger = logger ?? Logger();
 
   final Dio _httpClient;
   final NotificationService _notificationService;
@@ -57,13 +59,16 @@ class DownloadService {
       if (savePath != null && savePath.isNotEmpty) {
         // Appending 'images' for consistency with _createDownloadDirectory structure
         downloadDir = Directory(
-            path.join(savePath, app_constants.AppStorage.imagesSubfolder));
+          path.join(savePath, app_constants.AppStorage.imagesSubfolder),
+        );
         if (!await downloadDir.exists()) {
           await downloadDir.create(recursive: true);
         }
       } else {
-        downloadDir =
-            await _createDownloadDirectory(content.id, content.source);
+        downloadDir = await _createDownloadDirectory(
+          content.id,
+          content.source,
+        );
       }
 
       // Calculate actual page range to download
@@ -74,37 +79,45 @@ class DownloadService {
       if (actualStartPage < 1 ||
           actualEndPage > content.imageUrls.length ||
           actualStartPage > actualEndPage) {
-        throw ArgumentError(_getLocalized('invalidPageRange',
+        throw ArgumentError(
+          _getLocalized(
+            'invalidPageRange',
             args: {
               'start': actualStartPage,
               'end': actualEndPage,
-              'total': content.imageUrls.length
+              'total': content.imageUrls.length,
             },
             fallback:
-                'Invalid page range: $actualStartPage-$actualEndPage (total: ${content.imageUrls.length})'));
+                'Invalid page range: $actualStartPage-$actualEndPage (total: ${content.imageUrls.length})',
+          ),
+        );
       }
 
       final isRangeDownload = startPage != null || endPage != null;
       final pagesToDownload = actualEndPage - actualStartPage + 1;
 
       _logger.i(
-          'Download range: pages $actualStartPage-$actualEndPage ($pagesToDownload pages)${isRangeDownload ? ' [RANGE]' : ' [FULL]'}');
+        'Download range: pages $actualStartPage-$actualEndPage ($pagesToDownload pages)${isRangeDownload ? ' [RANGE]' : ' [FULL]'}',
+      );
 
       // ✅ FIXED: Check existing downloaded files for proper resume
       final existingFiles = await _getExistingDownloadedFiles(downloadDir);
-      final totalImages =
-          isRangeDownload ? pagesToDownload : content.imageUrls.length;
+      final totalImages = isRangeDownload
+          ? pagesToDownload
+          : content.imageUrls.length;
 
       // ✅ FIX: Initialize to 0 to prevent double-counting
       // The loop will count both existing and newly downloaded files
       var downloadedCount = 0;
 
       _logger.i(
-          'Found ${existingFiles.length} existing files, will verify in loop');
+        'Found ${existingFiles.length} existing files, will verify in loop',
+      );
 
       // Show start notification with range info
-      final rangeText =
-          isRangeDownload ? ' (Pages $actualStartPage-$actualEndPage)' : '';
+      final rangeText = isRangeDownload
+          ? ' (Pages $actualStartPage-$actualEndPage)'
+          : '';
       await _notificationService.showDownloadStarted(
         contentId: content.id,
         title: '${content.title}$rangeText',
@@ -164,12 +177,14 @@ class DownloadService {
           final rawProgress = downloadedCount / totalImages;
           final progressPercentage = (rawProgress * 90).toInt(); // Cap at 90%
 
-          onProgress(DownloadProgress(
-            contentId: content.id,
-            downloadedPages: progressPercentage,
-            totalPages: 100,
-            currentFileName: '$fileName (cached)',
-          ));
+          onProgress(
+            DownloadProgress(
+              contentId: content.id,
+              downloadedPages: progressPercentage,
+              totalPages: 100,
+              currentFileName: '$fileName (cached)',
+            ),
+          );
 
           continue;
         }
@@ -204,7 +219,8 @@ class DownloadService {
           onProgress(progress);
 
           _logger.d(
-              'Download progress: $progressPercentage% ($downloadedCount/$totalImages files)');
+            'Download progress: $progressPercentage% ($downloadedCount/$totalImages files)',
+          );
         } catch (e, stackTrace) {
           _logger.e('Failed to download page $pageNum: $e and $stackTrace');
           // Continue with next image instead of failing completely,
@@ -218,12 +234,14 @@ class DownloadService {
       _logger.i('Starting strict file verification phase...');
 
       // Emit -2 to signal verification start to DownloadBloc
-      onProgress(DownloadProgress(
-        contentId: content.id,
-        downloadedPages: -2, // SIGNAL: Verification Start
-        totalPages: 0, // 0% verification progress
-        currentFileName: 'Verifying files...',
-      ));
+      onProgress(
+        DownloadProgress(
+          contentId: content.id,
+          downloadedPages: -2, // SIGNAL: Verification Start
+          totalPages: 0, // 0% verification progress
+          currentFileName: 'Verifying files...',
+        ),
+      );
 
       // We expect (actualEndPage - actualStartPage + 1) images for this batch
       final expectedBatchCount = actualEndPage - actualStartPage + 1;
@@ -244,12 +262,14 @@ class DownloadService {
         if (pageNum % 20 == 0) {
           final verifyProgress =
               ((pageNum - actualStartPage) / expectedBatchCount * 100).toInt();
-          onProgress(DownloadProgress(
-            contentId: content.id,
-            downloadedPages: -2, // SIGNAL: Verification Progress
-            totalPages: verifyProgress, // 0-100% verification
-            currentFileName: 'Verifying files...',
-          ));
+          onProgress(
+            DownloadProgress(
+              contentId: content.id,
+              downloadedPages: -2, // SIGNAL: Verification Progress
+              totalPages: verifyProgress, // 0-100% verification
+              currentFileName: 'Verifying files...',
+            ),
+          );
         }
       }
 
@@ -264,39 +284,50 @@ class DownloadService {
       }
 
       // Update verification to 100%
-      onProgress(DownloadProgress(
-        contentId: content.id,
-        downloadedPages: -2,
-        totalPages: 100, // 100% verification
-        currentFileName: 'Verifying files...',
-      ));
+      onProgress(
+        DownloadProgress(
+          contentId: content.id,
+          downloadedPages: -2,
+          totalPages: 100, // 100% verification
+          currentFileName: 'Verifying files...',
+        ),
+      );
 
       _logger.i(
-          'File verification complete: All $expectedBatchCount files verified (pages $actualStartPage-$actualEndPage)');
+        'File verification complete: All $expectedBatchCount files verified (pages $actualStartPage-$actualEndPage)',
+      );
 
       // ✅ Phase 3: Metadata Generation (95-98%)
       _logger.i('Starting metadata generation phase...');
       // No specific notification for metadata, just log it
 
       // Save metadata with range information
-      await _saveDownloadMetadata(content, downloadDir, downloadedFiles,
-          actualStartPage, actualEndPage);
+      await _saveDownloadMetadata(
+        content,
+        downloadDir,
+        downloadedFiles,
+        actualStartPage,
+        actualEndPage,
+      );
 
       _logger.i('Metadata generation complete');
 
       // ✅ Phase 4: Completion (100%)
       // Emit normal completion event
-      onProgress(DownloadProgress(
-        contentId: content.id,
-        downloadedPages: 100,
-        totalPages: 100,
-        currentFileName: 'Completed',
-      ));
+      onProgress(
+        DownloadProgress(
+          contentId: content.id,
+          downloadedPages: 100,
+          totalPages: 100,
+          currentFileName: 'Completed',
+        ),
+      );
 
       // NOTE: Notification is handled by DownloadBloc._onStart() to avoid duplication
 
       _logger.i(
-          'Download completed for content: ${content.id}${isRangeDownload ? " (range: $actualStartPage-$actualEndPage)" : ""}');
+        'Download completed for content: ${content.id}${isRangeDownload ? " (range: $actualStartPage-$actualEndPage)" : ""}',
+      );
 
       return DownloadResult(
         success: true,
@@ -335,11 +366,13 @@ class DownloadService {
   }) async {
     // Create dio instance with custom timeout if provided
     final dio = timeoutDuration != null
-        ? Dio(BaseOptions(
-            connectTimeout: timeoutDuration,
-            receiveTimeout: timeoutDuration,
-            sendTimeout: timeoutDuration,
-          ))
+        ? Dio(
+            BaseOptions(
+              connectTimeout: timeoutDuration,
+              receiveTimeout: timeoutDuration,
+              sendTimeout: timeoutDuration,
+            ),
+          )
         : _httpClient;
     if (timeoutDuration != null) {
       dio.httpClientAdapter = NativeAdapter();
@@ -361,9 +394,13 @@ class DownloadService {
       final file = File(filePath);
       await file.writeAsBytes(response.data!);
     } else {
-      throw Exception(_getLocalized('noDataReceived',
+      throw Exception(
+        _getLocalized(
+          'noDataReceived',
           args: {'url': imageUrl},
-          fallback: 'No data received for image: $imageUrl'));
+          fallback: 'No data received for image: $imageUrl',
+        ),
+      );
     }
   }
 
@@ -416,8 +453,9 @@ class DownloadService {
         cookies: cookies,
       );
 
-      _logger
-          .d('Got headers from source $sourceId: ${headers.keys.join(", ")}');
+      _logger.d(
+        'Got headers from source $sourceId: ${headers.keys.join(", ")}',
+      );
       return headers;
     } catch (e) {
       // Fallback if source not found
@@ -431,7 +469,8 @@ class DownloadService {
 
   // ✅ NEW: Get existing downloaded files for proper resume
   Future<List<String>> _getExistingDownloadedFiles(
-      Directory downloadDir) async {
+    Directory downloadDir,
+  ) async {
     try {
       if (!await downloadDir.exists()) {
         return [];
@@ -439,19 +478,22 @@ class DownloadService {
 
       final files = await downloadDir
           .list()
-          .where((entity) =>
-              entity is File &&
-              (entity.path.endsWith('.jpg') ||
-                  entity.path.endsWith('.jpeg') ||
-                  entity.path.endsWith('.png') ||
-                  entity.path.endsWith('.webp') ||
-                  entity.path.endsWith('.avif')))
+          .where(
+            (entity) =>
+                entity is File &&
+                (entity.path.endsWith('.jpg') ||
+                    entity.path.endsWith('.jpeg') ||
+                    entity.path.endsWith('.png') ||
+                    entity.path.endsWith('.webp') ||
+                    entity.path.endsWith('.avif')),
+          )
           .cast<File>()
           .toList();
 
       // Sort files by name to maintain page order
       files.sort(
-          (a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
+        (a, b) => path.basename(a.path).compareTo(path.basename(b.path)),
+      );
 
       final filePaths = files.map((f) => f.path).toList();
       _logger.d('Found ${filePaths.length} existing downloaded files');
@@ -465,18 +507,27 @@ class DownloadService {
 
   // Create download directory structure
   Future<Directory> _createDownloadDirectory(
-      String contentId, String sourceId) async {
+    String contentId,
+    String sourceId,
+  ) async {
     // Use smart Downloads directory detection
     final downloadsPath = await _getDownloadsDirectory();
     final nhasixDir = Directory(
-        path.join(downloadsPath, app_constants.AppStorage.backupFolderName));
+      path.join(downloadsPath, app_constants.AppStorage.backupFolderName),
+    );
 
     // Use source-based path
     final sourceDir = Directory(path.join(nhasixDir.path, sourceId));
 
-    final contentDir = Directory(path.join(sourceDir.path, contentId));
+    final contentDir = Directory(
+      path.join(
+        sourceDir.path,
+        DownloadStorageUtils.safePathSegment(contentId),
+      ),
+    );
     final imagesDir = Directory(
-        path.join(contentDir.path, app_constants.AppStorage.imagesSubfolder));
+      path.join(contentDir.path, app_constants.AppStorage.imagesSubfolder),
+    );
 
     // Create directories if they don't exist
     if (!await imagesDir.exists()) {
@@ -497,13 +548,17 @@ class DownloadService {
 
       if (!await nomediaFile.exists()) {
         await nomediaFile.writeAsString(
-            '# This file prevents Android Media Scanner from indexing this folder\n'
-            '# Images in this folder and subfolders will not appear in Gallery apps\n'
-            '# Created by Kuron for privacy protection\n');
-        _logger.i(_getLocalized('createdNoMediaFile',
+          '# This file prevents Android Media Scanner from indexing this folder\n'
+          '# Images in this folder and subfolders will not appear in Gallery apps\n'
+          '# Created by Kuron for privacy protection\n',
+        );
+        _logger.i(
+          _getLocalized(
+            'createdNoMediaFile',
             args: {'path': nomediaFile.path},
-            fallback:
-                'Created .nomedia file for privacy: ${nomediaFile.path}'));
+            fallback: 'Created .nomedia file for privacy: ${nomediaFile.path}',
+          ),
+        );
       }
     } catch (e) {
       _logger.w('Failed to create .nomedia file: $e');
@@ -517,12 +572,17 @@ class DownloadService {
     try {
       final downloadsPath = await _getDownloadsDirectory();
       final nhasixDir = Directory(
-          path.join(downloadsPath, app_constants.AppStorage.backupFolderName));
+        path.join(downloadsPath, app_constants.AppStorage.backupFolderName),
+      );
 
       if (await nhasixDir.exists()) {
         await _createNoMediaFile(nhasixDir);
-        _logger.i(_getLocalized('privacyProtectionEnsured',
-            fallback: 'Privacy protection ensured for existing downloads'));
+        _logger.i(
+          _getLocalized(
+            'privacyProtectionEnsured',
+            fallback: 'Privacy protection ensured for existing downloads',
+          ),
+        );
       }
     } catch (e) {
       _logger.e('Error ensuring privacy protection: $e');
@@ -577,8 +637,12 @@ class DownloadService {
       'pages_downloaded': endPage - startPage + 1,
     };
 
-    final metadataFile = File(path.join(
-        downloadDir.parent.path, app_constants.AppStorage.metadataFileName));
+    final metadataFile = File(
+      path.join(
+        downloadDir.parent.path,
+        app_constants.AppStorage.metadataFileName,
+      ),
+    );
     await metadataFile.writeAsString(
       const JsonEncoder.withIndent('  ').convert(metadata),
     );
@@ -588,9 +652,12 @@ class DownloadService {
   Future<void> _checkPermissions() async {
     final hasPermission = await PermissionHelper.hasStoragePermission();
     if (!hasPermission) {
-      throw Exception(_getLocalized('storagePermissionRequired',
-          fallback:
-              'Storage permission is required for downloads. Please grant storage permission in app settings.'));
+      throw Exception(
+        _getLocalized(
+          'storagePermissionRequired',
+          fallback: 'Storage permission is required for downloads. Please grant storage permission in app settings.',
+        ),
+      );
     }
   }
 
@@ -599,12 +666,18 @@ class DownloadService {
     try {
       final downloadsPath = await _getDownloadsDirectory();
       final nhasixDir = Directory(
-          path.join(downloadsPath, app_constants.AppStorage.backupFolderName));
+        path.join(downloadsPath, app_constants.AppStorage.backupFolderName),
+      );
 
       if (!await nhasixDir.exists()) return null;
 
       // 1. Check legacy path first (nhasix/{id})
-      final legacyDir = Directory(path.join(nhasixDir.path, contentId));
+      final legacyDir = Directory(
+        path.join(
+          nhasixDir.path,
+          DownloadStorageUtils.safePathSegment(contentId),
+        ),
+      );
       if (await legacyDir.exists()) {
         return legacyDir.path;
       }
@@ -614,7 +687,12 @@ class DownloadService {
         await for (final entity in nhasixDir.list()) {
           if (entity is Directory) {
             // Check if this source directory contains the contentId
-            final contentDir = Directory(path.join(entity.path, contentId));
+            final contentDir = Directory(
+              path.join(
+                entity.path,
+                DownloadStorageUtils.safePathSegment(contentId),
+              ),
+            );
             if (await contentDir.exists()) {
               return contentDir.path;
             }
@@ -653,7 +731,8 @@ class DownloadService {
     if (downloadPath == null) return false;
 
     final imagesDir = Directory(
-        path.join(downloadPath, app_constants.AppStorage.imagesSubfolder));
+      path.join(downloadPath, app_constants.AppStorage.imagesSubfolder),
+    );
     if (!await imagesDir.exists()) return false;
 
     final files = await imagesDir.list().toList();
@@ -667,7 +746,8 @@ class DownloadService {
       if (downloadPath == null) return [];
 
       final imagesDir = Directory(
-          path.join(downloadPath, app_constants.AppStorage.imagesSubfolder));
+        path.join(downloadPath, app_constants.AppStorage.imagesSubfolder),
+      );
       if (!await imagesDir.exists()) return [];
 
       final files = await imagesDir
@@ -678,7 +758,8 @@ class DownloadService {
 
       // Sort files by name to maintain page order
       files.sort(
-          (a, b) => path.basename(a.path).compareTo(path.basename(b.path)));
+        (a, b) => path.basename(a.path).compareTo(path.basename(b.path)),
+      );
 
       return files.map((f) => f.path).toList();
     } catch (e) {
@@ -689,14 +770,18 @@ class DownloadService {
 
   // Set localization callback for getting localized strings
   void setLocalizationCallback(
-      String Function(String key, {Map<String, dynamic>? args}) localize) {
+    String Function(String key, {Map<String, dynamic>? args}) localize,
+  ) {
     _localize = localize;
     _logger.i('DownloadService: Localization callback set');
   }
 
   // Get localized string with fallback
-  String _getLocalized(String key,
-      {Map<String, dynamic>? args, String? fallback}) {
+  String _getLocalized(
+    String key, {
+    Map<String, dynamic>? args,
+    String? fallback,
+  }) {
     try {
       return _localize?.call(key, args: args) ?? fallback ?? key;
     } catch (e) {
@@ -744,7 +829,8 @@ class DownloadService {
       _logger.d('Checking directories for content $contentId:');
       _logger.d('Content dir: $downloadPath');
       _logger.d(
-          'Images dir: ${imagesDir.path} (exists: ${await imagesDir.exists()})');
+        'Images dir: ${imagesDir.path} (exists: ${await imagesDir.exists()})',
+      );
 
       // Use the same logic as _createDownloadDirectory - images dir is primary
       if (!await imagesDir.exists()) {
@@ -761,17 +847,20 @@ class DownloadService {
 
       final files = await imagesDir
           .list()
-          .where((entity) =>
-              entity is File &&
-              (entity.path.endsWith('.jpg') ||
-                  entity.path.endsWith('.jpeg') ||
-                  entity.path.endsWith('.png') ||
-                  entity.path.endsWith('.webp') ||
-                  entity.path.endsWith('.avif')))
+          .where(
+            (entity) =>
+                entity is File &&
+                (entity.path.endsWith('.jpg') ||
+                    entity.path.endsWith('.jpeg') ||
+                    entity.path.endsWith('.png') ||
+                    entity.path.endsWith('.webp') ||
+                    entity.path.endsWith('.avif')),
+          )
           .length;
 
       _logger.i(
-          'Found $files downloaded image files for content $contentId in ${imagesDir.path}');
+        'Found $files downloaded image files for content $contentId in ${imagesDir.path}',
+      );
       return files;
     } catch (e) {
       _logger.e('Error counting downloaded files for $contentId: $e');
@@ -816,13 +905,15 @@ class DownloadService {
           final endPage = metadata['end_page'] ?? metadata['total_pages'];
           expectedCount = endPage - startPage + 1;
           _logger.d(
-              'Range download: $startPage-$endPage, expected: $expectedCount');
+            'Range download: $startPage-$endPage, expected: $expectedCount',
+          );
         } else {
           // Use snake_case key as saved in metadata
           final totalPagesFromMeta = metadata['total_pages'] ?? 0;
           expectedCount = totalPagesFromMeta;
           _logger.d(
-              'Full download: total_pages=${metadata['total_pages']}, expected: $expectedCount');
+            'Full download: total_pages=${metadata['total_pages']}, expected: $expectedCount',
+          );
         }
 
         final result = {

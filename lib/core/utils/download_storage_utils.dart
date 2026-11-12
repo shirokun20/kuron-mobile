@@ -7,7 +7,9 @@ import 'package:path/path.dart' as path;
 import 'package:crypto/crypto.dart';
 
 import '../constants/app_constants.dart';
+
 import 'package:kuron_core/kuron_core.dart'; // Import ContentMetadata
+
 import 'directory_utils.dart';
 
 // Extracted from DownloadBloc to reduce complexity and promote reusability.
@@ -52,8 +54,9 @@ class DownloadStorageUtils {
               await entity.delete();
               _logger.d('Deleted temp file: ${entity.path}');
             } catch (e) {
-              _logger
-                  .w('Failed to delete temp file: ${entity.path}, error: $e');
+              _logger.w(
+                'Failed to delete temp file: ${entity.path}, error: $e',
+              );
             }
           }
         }
@@ -73,19 +76,25 @@ class DownloadStorageUtils {
       File? metadataFile;
 
       if (sourceId != null && sourceId.isNotEmpty) {
-        final contentDir =
-            await getContentDirectory(contentId, sourceId: sourceId);
-        final candidate =
-            File(path.join(contentDir, AppStorage.metadataFileName));
+        final contentDir = await getContentDirectory(
+          contentId,
+          sourceId: sourceId,
+        );
+        final candidate = File(
+          path.join(contentDir, AppStorage.metadataFileName),
+        );
         if (await candidate.exists()) {
           metadataFile = candidate;
         }
       } else {
         for (final knownSourceId in AppStorage.knownSources) {
-          final contentDir =
-              await getContentDirectory(contentId, sourceId: knownSourceId);
-          final candidate =
-              File(path.join(contentDir, AppStorage.metadataFileName));
+          final contentDir = await getContentDirectory(
+            contentId,
+            sourceId: knownSourceId,
+          );
+          final candidate = File(
+            path.join(contentDir, AppStorage.metadataFileName),
+          );
           if (await candidate.exists()) {
             metadataFile = candidate;
             break;
@@ -96,12 +105,14 @@ class DownloadStorageUtils {
       // Fallback to legacy path: nhasix/{contentId}/metadata.json
       if (metadataFile == null) {
         final downloadsPath = await getDownloadsDirectory();
-        final legacyCandidate = File(path.join(
-          downloadsPath,
-          AppStorage.backupFolderName,
-          contentId,
-          AppStorage.metadataFileName,
-        ));
+        final legacyCandidate = File(
+          path.join(
+            downloadsPath,
+            AppStorage.backupFolderName,
+            contentId,
+            AppStorage.metadataFileName,
+          ),
+        );
         if (await legacyCandidate.exists()) {
           metadataFile = legacyCandidate;
         }
@@ -134,10 +145,13 @@ class DownloadStorageUtils {
   ) {
     String formatSlug(String slug) {
       if (slug.isEmpty || !slug.contains('-')) return slug;
-      return slug.split('-').map((word) {
-        if (word.isEmpty) return '';
-        return word[0].toUpperCase() + word.substring(1).toLowerCase();
-      }).join(' ');
+      return slug
+          .split('-')
+          .map((word) {
+            if (word.isEmpty) return '';
+            return word[0].toUpperCase() + word.substring(1).toLowerCase();
+          })
+          .join(' ');
     }
 
     if (metadata == null) return formatSlug(contentId);
@@ -249,10 +263,13 @@ class DownloadStorageUtils {
     try {
       _logger.d('Getting image paths for content: $contentId');
 
-      final contentDir =
-          await getContentDirectory(contentId, sourceId: sourceId);
-      final imagesDir =
-          Directory(path.join(contentDir, AppStorage.imagesSubfolder));
+      final contentDir = await getContentDirectory(
+        contentId,
+        sourceId: sourceId,
+      );
+      final imagesDir = Directory(
+        path.join(contentDir, AppStorage.imagesSubfolder),
+      );
 
       // Check if directory exists
       if (!await imagesDir.exists()) {
@@ -268,8 +285,14 @@ class DownloadStorageUtils {
           .whereType<File>()
           .where((file) {
             final extension = path.extension(file.path).toLowerCase();
-            return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']
-                .contains(extension);
+            return [
+              '.jpg',
+              '.jpeg',
+              '.png',
+              '.gif',
+              '.webp',
+              '.avif',
+            ].contains(extension);
           })
           .map((file) => file.path)
           .toList();
@@ -277,15 +300,18 @@ class DownloadStorageUtils {
       // Sort by filename to maintain page order
       imagePaths.sort();
 
-      _logger
-          .i('Found ${imagePaths.length} image files for content: $contentId');
+      _logger.i(
+        'Found ${imagePaths.length} image files for content: $contentId',
+      );
 
       if (imagePaths.isEmpty) {
         _logger.w(
-            'No downloaded images found for content: $contentId, folder: ${imagesDir.path}');
+          'No downloaded images found for content: $contentId, folder: ${imagesDir.path}',
+        );
       } else {
         _logger.d(
-            'Image files: ${imagePaths.take(5).join(', ')}${imagePaths.length > 5 ? '...' : ''}');
+          'Image files: ${imagePaths.take(5).join(', ')}${imagePaths.length > 5 ? '...' : ''}',
+        );
       }
 
       return imagePaths;
@@ -310,11 +336,12 @@ class DownloadStorageUtils {
     // 6 bytes = 48 bits, enough to avoid collisions for this use case
     // while keeping string very short (approx 8-10 chars max)
     final bigInt = BigInt.parse(
-        digest.bytes
-            .sublist(0, 6)
-            .map((b) => b.toRadixString(16).padLeft(2, '0'))
-            .join(),
-        radix: 16);
+      digest.bytes
+          .sublist(0, 6)
+          .map((b) => b.toRadixString(16).padLeft(2, '0'))
+          .join(),
+      radix: 16,
+    );
 
     return bigInt.toRadixString(36);
   }
@@ -325,19 +352,51 @@ class DownloadStorageUtils {
     return getElegantId(contentId);
   }
 
+  /// Maps a raw content/chapter id to a single safe filesystem segment.
+  ///
+  /// Some sources (e.g. Komikcast) use raw hrefs like `/series/<slug>/<ch>`
+  /// as chapter ids. `package:path` discards every segment before an
+  /// absolute one, so `path.join(dir, '/series/...', ...)` escapes the app
+  /// dir and `create(recursive: true)` dies with FileSystemException.
+  /// Centralize ALL contentId-to-path-segment mapping here so every path
+  /// (reader cache, downloads, pdf, offline lookups) stays consistent.
+  ///
+  /// Side effect: locations for ids containing `/` MOVE to the sanitized
+  /// form. Clean ids are returned unchanged (identity), so existing
+  /// libraries are untouched. Orphan dirs from the old layout, if any, are
+  /// ignored here; the periodic sweeper/expiry reclaims them.
+  static String safePathSegment(String contentId) {
+    var segment = contentId.trim().replaceAll(RegExp(r'^/+'), '');
+    segment = segment.replaceAll('/', '__');
+    if (segment.isEmpty || segment == '.' || segment == '..') {
+      throw ArgumentError.value(
+        contentId,
+        'contentId',
+        'must not be empty or a bare relative-path token',
+      );
+    }
+    return segment;
+  }
+
   // This checks locations in the following order:
   // 1. Elegant ID (New Standard)
   // 2. Safe ID (Truncated - Migration Interim)
   // 3. Original ID (Legacy)
-  static Future<String> getContentDirectory(String contentId,
-      {String? sourceId}) async {
+  static Future<String> getContentDirectory(
+    String contentId, {
+    String? sourceId,
+  }) async {
     final downloadsDir = await getDownloadsDirectory();
     final effectiveSourceId = sourceId ?? AppStorage.defaultSourceId;
 
     // 1. Check Elegant ID Path (New Standard)
     final elegantId = getElegantId(contentId);
-    final elegantPath = path.join(downloadsDir, AppStorage.backupFolderName,
-        effectiveSourceId, elegantId);
+    final elegantPath = path.join(
+      downloadsDir,
+      AppStorage.backupFolderName,
+      effectiveSourceId,
+      elegantId,
+    );
     if (await Directory(elegantPath).exists()) {
       return elegantPath;
     }
@@ -350,8 +409,12 @@ class DownloadStorageUtils {
       final hash = digest.toString().substring(0, 8);
       final truncatedId = '${contentId.substring(0, 40)}_$hash';
 
-      final truncatedPath = path.join(downloadsDir, AppStorage.backupFolderName,
-          effectiveSourceId, truncatedId);
+      final truncatedPath = path.join(
+        downloadsDir,
+        AppStorage.backupFolderName,
+        effectiveSourceId,
+        truncatedId,
+      );
       if (await Directory(truncatedPath).exists()) {
         return truncatedPath; // Found interim folder
       }
@@ -359,8 +422,12 @@ class DownloadStorageUtils {
 
     // 3. Check Original ID Path (Legacy / Standard for short IDs)
     if (elegantId != contentId) {
-      final originalPath = path.join(downloadsDir, AppStorage.backupFolderName,
-          effectiveSourceId, contentId);
+      final originalPath = path.join(
+        downloadsDir,
+        AppStorage.backupFolderName,
+        effectiveSourceId,
+        contentId,
+      );
       if (await Directory(originalPath).exists()) {
         return originalPath;
       }
@@ -373,14 +440,20 @@ class DownloadStorageUtils {
     return elegantPath;
   }
 
-  static Future<String> getNewContentDirectory(String contentId,
-      {String? sourceId}) async {
+  static Future<String> getNewContentDirectory(
+    String contentId, {
+    String? sourceId,
+  }) async {
     final downloadsDir = await getDownloadsDirectory();
     final effectiveSourceId = sourceId ?? AppStorage.defaultSourceId;
     final safeId = getSafeContentId(contentId);
 
     return path.join(
-        downloadsDir, AppStorage.backupFolderName, effectiveSourceId, safeId);
+      downloadsDir,
+      AppStorage.backupFolderName,
+      effectiveSourceId,
+      safeId,
+    );
   }
 
   static Future<String> getSourceDirectory({String? sourceId}) async {
@@ -398,8 +471,10 @@ class DownloadStorageUtils {
     String contentId, {
     String? sourceId,
   }) async {
-    final imagePaths =
-        await getDownloadedImagePaths(contentId, sourceId: sourceId);
+    final imagePaths = await getDownloadedImagePaths(
+      contentId,
+      sourceId: sourceId,
+    );
     return imagePaths.isNotEmpty;
   }
 
@@ -423,23 +498,21 @@ class DownloadStorageUtils {
       }
 
       // Check if it's actually a content folder (has metadata.json or images)
-      final hasMetadata =
-          await File(path.join(legacyPath, AppStorage.metadataFileName))
-              .exists();
-      final hasImages =
-          await Directory(path.join(legacyPath, AppStorage.imagesSubfolder))
-              .exists();
+      final hasMetadata = await File(
+        path.join(legacyPath, AppStorage.metadataFileName),
+      ).exists();
+      final hasImages = await Directory(
+        path.join(legacyPath, AppStorage.imagesSubfolder),
+      ).exists();
 
       if (!hasMetadata && !hasImages) {
         return false; // Not a content folder (could be source folder)
       }
 
       // Create source directory if needed
-      final sourceDir = Directory(path.join(
-        downloadsPath,
-        AppStorage.backupFolderName,
-        sourceId,
-      ));
+      final sourceDir = Directory(
+        path.join(downloadsPath, AppStorage.backupFolderName, sourceId),
+      );
       if (!await sourceDir.exists()) {
         await sourceDir.create(recursive: true);
       }
@@ -453,8 +526,9 @@ class DownloadStorageUtils {
       );
 
       // Update metadata.json to v2 if it exists
-      final metadataFile =
-          File(path.join(legacyPath, AppStorage.metadataFileName));
+      final metadataFile = File(
+        path.join(legacyPath, AppStorage.metadataFileName),
+      );
       if (await metadataFile.exists()) {
         try {
           final metadataContent = await metadataFile.readAsString();
@@ -471,8 +545,9 @@ class DownloadStorageUtils {
           );
 
           // Write back updated metadata
-          await metadataFile
-              .writeAsString(jsonEncode(updatedMetadata.toJson()));
+          await metadataFile.writeAsString(
+            jsonEncode(updatedMetadata.toJson()),
+          );
           _logger.d('Upgraded metadata for $contentId to v2');
         } catch (e) {
           _logger.w('Failed to upgrade metadata for $contentId: $e');

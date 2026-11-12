@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
@@ -8,6 +9,7 @@ import 'package:crypto/crypto.dart';
 
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/domain/extensions/content_extensions.dart';
+
 import '../../domain/entities/download_status.dart';
 import '../../domain/repositories/user_data_repository.dart';
 import '../constants/app_constants.dart';
@@ -17,10 +19,8 @@ import 'reader_image_repair_utils.dart';
 import 'capped_map.dart';
 
 class OfflineContentManager {
-  OfflineContentManager({
-    required this._userDataRepository,
-    Logger? logger,
-  })  : _logger = logger ?? Logger();
+  OfflineContentManager({required this._userDataRepository, Logger? logger})
+    : _logger = logger ?? Logger();
 
   final UserDataRepository _userDataRepository;
   final Logger _logger;
@@ -33,20 +33,24 @@ class OfflineContentManager {
   // Cache for content metadata
   final Map<String, Map<String, dynamic>> _metadataCache =
       CappedMap<String, Map<String, dynamic>>(100);
-  final Map<String, DateTime> _metadataCacheTime =
-      CappedMap<String, DateTime>(100);
+  final Map<String, DateTime> _metadataCacheTime = CappedMap<String, DateTime>(
+    100,
+  );
   static const Duration _metadataCacheDuration = Duration(minutes: 10);
 
   // 🚀 OPTIMIZATION: Cache for content paths and image URLs to reduce I/O
   final Map<String, String> _pathCache = CappedMap<String, String>(100);
-  final Map<String, DateTime> _pathMissCacheTime =
-      CappedMap<String, DateTime>(100);
-  final Map<String, DateTime> _pathMissLogTime =
-      CappedMap<String, DateTime>(100);
+  final Map<String, DateTime> _pathMissCacheTime = CappedMap<String, DateTime>(
+    100,
+  );
+  final Map<String, DateTime> _pathMissLogTime = CappedMap<String, DateTime>(
+    100,
+  );
   final Map<String, List<String>> _imageUrlsCache =
       CappedMap<String, List<String>>(100);
-  final Map<String, DateTime> _imageUrlsCacheTime =
-      CappedMap<String, DateTime>(100);
+  final Map<String, DateTime> _imageUrlsCacheTime = CappedMap<String, DateTime>(
+    100,
+  );
   final Map<String, Future<void>> _chapterMetadataWriteQueue = {};
 
   static const Duration _urlCacheDuration = Duration(minutes: 5);
@@ -76,8 +80,9 @@ class OfflineContentManager {
     // _logger.d("🔍 Checking offline availability for $contentId");
     try {
       // 1. Check DB first (fastest)
-      final downloadStatus =
-          await _userDataRepository.getDownloadStatus(contentId);
+      final downloadStatus = await _userDataRepository.getDownloadStatus(
+        contentId,
+      );
 
       if (downloadStatus?.state == DownloadState.completed) {
         // _logger.d("✅ Content $contentId is marked as COMPLETED in DB");
@@ -92,7 +97,8 @@ class OfflineContentManager {
               downloadStatus.state == DownloadState.queued ||
               downloadStatus.state == DownloadState.paused)) {
         _logger.d(
-            '⏳ Content $contentId is ${downloadStatus.state} — skipping filesystem fallback');
+          '⏳ Content $contentId is ${downloadStatus.state} — skipping filesystem fallback',
+        );
         return false;
       }
 
@@ -138,8 +144,11 @@ class OfflineContentManager {
       _logger.w('❌ No images found in $contentPath for $contentId');
       return false;
     } catch (e, stackTrace) {
-      _logger.e('Error checking offline availability for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error checking offline availability for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }
@@ -161,8 +170,9 @@ class OfflineContentManager {
     }
 
     try {
-      final downloadStatus =
-          await _userDataRepository.getDownloadStatus(contentId);
+      final downloadStatus = await _userDataRepository.getDownloadStatus(
+        contentId,
+      );
 
       // First, try to get path from database
       if (downloadStatus?.downloadPath != null) {
@@ -172,7 +182,8 @@ class OfflineContentManager {
           return dbPath;
         }
         _logger.w(
-            '⚠️ Path from DB does not exist: $dbPath. Searching alternatives...');
+          '⚠️ Path from DB does not exist: $dbPath. Searching alternatives...',
+        );
       }
 
       // Fallback: try to find the content in multiple possible locations
@@ -181,8 +192,9 @@ class OfflineContentManager {
 
       for (final contentPath in possiblePaths) {
         if (await Directory(contentPath).exists()) {
-          _logger
-              .i('✅ Found offline content path for $contentId: $contentPath');
+          _logger.i(
+            '✅ Found offline content path for $contentId: $contentPath',
+          );
           // 🚀 OPTIMIZATION: Update cache
           _pathCache[contentId] = contentPath;
           _pathMissCacheTime.remove(contentId);
@@ -197,18 +209,24 @@ class OfflineContentManager {
           DateTime.now().difference(missLoggedAt) > _pathMissLogThrottle) {
         _pathMissLogTime[contentId] = DateTime.now();
         _logger.w(
-            '❌ No offline content path found for $contentId after strict scan');
+          '❌ No offline content path found for $contentId after strict scan',
+        );
       }
       return null;
     } catch (e, stackTrace) {
-      _logger.e('Error getting offline content path for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error getting offline content path for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
 
-  Future<List<String>> _getPossibleDownloadPaths(String contentId,
-      {String? sourceId}) async {
+  Future<List<String>> _getPossibleDownloadPaths(
+    String contentId, {
+    String? sourceId,
+  }) async {
     final paths = <String>[];
     // final effectiveSourceId = sourceId ?? AppStorage.defaultSourceId; // Removed unused variable
 
@@ -225,10 +243,19 @@ class OfflineContentManager {
 
       final safeContentId = DownloadStorageUtils.getSafeContentId(contentId);
       // Note: safeContentId IS elegantId now, but we keep variable for clarity vs legacy checks below
+      // Slash-safe segment for raw-href ids (e.g. Komikcast `/series/...`).
+      // Writers store these sanitized; probe them alongside the raw form.
+      String? safeSegment;
+      try {
+        safeSegment = DownloadStorageUtils.safePathSegment(contentId);
+      } catch (_) {}
 
       for (final sId in distinctSources) {
         // NEW: Source-based paths (nhasix/{source}/{contentId}/)
         paths.add(path.join(downloadsPath, 'nhasix', sId, contentId));
+        if (safeSegment != null && safeSegment != contentId) {
+          paths.add(path.join(downloadsPath, 'nhasix', sId, safeSegment));
+        }
 
         // NEW: Source-based ELEGANT/SAFE paths
         if (safeContentId != contentId) {
@@ -251,6 +278,9 @@ class OfflineContentManager {
 
       // LEGACY: Direct paths (nhasix/{contentId}/)
       paths.add(path.join(downloadsPath, 'nhasix', contentId));
+      if (safeSegment != null && safeSegment != contentId) {
+        paths.add(path.join(downloadsPath, 'nhasix', safeSegment));
+      }
       if (safeContentId != contentId) {
         paths.add(path.join(downloadsPath, 'nhasix', safeContentId));
       }
@@ -258,14 +288,38 @@ class OfflineContentManager {
       // Try app documents directory
       final documentsDir = await getApplicationDocumentsDirectory();
       for (final sId in distinctSources) {
-        paths.add(path.join(
-            documentsDir.path, 'downloads', 'nhasix', sId, contentId));
+        paths.add(
+          path.join(documentsDir.path, 'downloads', 'nhasix', sId, contentId),
+        );
+        if (safeSegment != null && safeSegment != contentId) {
+          paths.add(
+            path.join(
+              documentsDir.path,
+              'downloads',
+              'nhasix',
+              sId,
+              safeSegment,
+            ),
+          );
+        }
         if (safeContentId != contentId) {
-          paths.add(path.join(
-              documentsDir.path, 'downloads', 'nhasix', sId, safeContentId));
+          paths.add(
+            path.join(
+              documentsDir.path,
+              'downloads',
+              'nhasix',
+              sId,
+              safeContentId,
+            ),
+          );
         }
       }
       paths.add(path.join(documentsDir.path, 'downloads', 'nhasix', contentId));
+      if (safeSegment != null && safeSegment != contentId) {
+        paths.add(
+          path.join(documentsDir.path, 'downloads', 'nhasix', safeSegment),
+        );
+      }
 
       // Try external storage directory directly
       try {
@@ -277,15 +331,39 @@ class OfflineContentManager {
           for (final folderName in folderNames) {
             for (final sId in distinctSources) {
               // NEW: Source-based paths
-              paths.add(path.join(
-                  externalRoot, folderName, 'nhasix', sId, contentId));
+              paths.add(
+                path.join(externalRoot, folderName, 'nhasix', sId, contentId),
+              );
+              if (safeSegment != null && safeSegment != contentId) {
+                paths.add(
+                  path.join(
+                    externalRoot,
+                    folderName,
+                    'nhasix',
+                    sId,
+                    safeSegment,
+                  ),
+                );
+              }
               if (safeContentId != contentId) {
-                paths.add(path.join(
-                    externalRoot, folderName, 'nhasix', sId, safeContentId));
+                paths.add(
+                  path.join(
+                    externalRoot,
+                    folderName,
+                    'nhasix',
+                    sId,
+                    safeContentId,
+                  ),
+                );
               }
             }
             // LEGACY: Direct paths
             paths.add(path.join(externalRoot, folderName, 'nhasix', contentId));
+            if (safeSegment != null && safeSegment != contentId) {
+              paths.add(
+                path.join(externalRoot, folderName, 'nhasix', safeSegment),
+              );
+            }
           }
         }
       } catch (e) {
@@ -311,6 +389,15 @@ class OfflineContentManager {
             '/sdcard/Downloads/nhasix/$sId/$safeContentId',
           ]);
         }
+        if (safeSegment != null && safeSegment != contentId) {
+          paths.addAll([
+            '/storage/emulated/0/Download/nhasix/$sId/$safeSegment',
+            '/storage/emulated/0/Downloads/nhasix/$sId/$safeSegment',
+            '/storage/emulated/0/Unduhan/nhasix/$sId/$safeSegment',
+            '/sdcard/Download/nhasix/$sId/$safeSegment',
+            '/sdcard/Downloads/nhasix/$sId/$safeSegment',
+          ]);
+        }
       }
 
       paths.addAll([
@@ -320,6 +407,15 @@ class OfflineContentManager {
         '/sdcard/Download/nhasix/$contentId',
         '/sdcard/Downloads/nhasix/$contentId',
       ]);
+      if (safeSegment != null && safeSegment != contentId) {
+        paths.addAll([
+          '/storage/emulated/0/Download/nhasix/$safeSegment',
+          '/storage/emulated/0/Downloads/nhasix/$safeSegment',
+          '/storage/emulated/0/Unduhan/nhasix/$safeSegment',
+          '/sdcard/Download/nhasix/$safeSegment',
+          '/sdcard/Downloads/nhasix/$safeSegment',
+        ]);
+      }
     } catch (e) {
       _logger.w('Error getting possible download paths: $e');
     }
@@ -339,8 +435,9 @@ class OfflineContentManager {
         }
       }
 
-      _logger
-          .w('Content $contentId not found in any known filesystem location');
+      _logger.w(
+        'Content $contentId not found in any known filesystem location',
+      );
       return null;
     } catch (e) {
       _logger.e('Error scanning filesystem for $contentId: $e');
@@ -393,17 +490,21 @@ class OfflineContentManager {
       if (imageFiles.isEmpty) {
         final files = await contentDir.list().toList();
         imageFiles = files
-            .where((file) =>
-                file is File &&
-                _isImageFile(file.path) &&
-                path.basename(file.path) != 'metadata.json')
+            .where(
+              (file) =>
+                  file is File &&
+                  _isImageFile(file.path) &&
+                  path.basename(file.path) != 'metadata.json',
+            )
             .cast<File>()
             .toList();
       }
 
       // Sort by filename to maintain page order
-      imageFiles.sort((a, b) =>
-          _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)));
+      imageFiles.sort(
+        (a, b) =>
+            _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)),
+      );
 
       final diskUrls = imageFiles.map((file) => file.path).toList();
 
@@ -422,8 +523,11 @@ class OfflineContentManager {
 
       return urls;
     } catch (e, stackTrace) {
-      _logger.e('Error getting offline image URLs for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error getting offline image URLs for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -477,8 +581,9 @@ class OfflineContentManager {
 
       // Create a set of physically downloaded page numbers to avoid injecting placeholders
       // if the page has actually been redownloaded but metadata.json wasn't updated yet.
-      final downloadedPages =
-          diskUrls.map((url) => _extractPageNumber(url)).toSet();
+      final downloadedPages = diskUrls
+          .map((url) => _extractPageNumber(url))
+          .toSet();
 
       // Rebuild the full list by interleaving disk files and placeholders
       // at their correct positions. Range downloads keep original gallery page
@@ -486,9 +591,11 @@ class OfflineContentManager {
       // slice (`start_page..end_page`).
       final result = <String>[];
       var diskIndex = 0;
-      for (var pageNum = effectiveStartPage;
-          pageNum <= effectiveEndPage!;
-          pageNum++) {
+      for (
+        var pageNum = effectiveStartPage;
+        pageNum <= effectiveEndPage!;
+        pageNum++
+      ) {
         if (failedMap.containsKey(pageNum) &&
             !downloadedPages.contains(pageNum)) {
           result.add('$kFailedPagePrefix${failedMap[pageNum]}');
@@ -502,7 +609,8 @@ class OfflineContentManager {
       }
 
       _logger.d(
-          '📋 Injected ${failedMap.length} failed-page placeholder(s) for content at $contentPath');
+        '📋 Injected ${failedMap.length} failed-page placeholder(s) for content at $contentPath',
+      );
       return result;
     } catch (e) {
       _logger.w('Failed to inject failed-page placeholders: $e');
@@ -539,71 +647,69 @@ class OfflineContentManager {
     }
 
     final metadataPath = path.join(contentPath, 'metadata.json');
-    await _serializeChapterMetadataWrite(
-      metadataPath,
-      () async {
-        final metadata = await _readMetadataJson(metadataPath);
-        if (metadata == null) {
-          return;
+    await _serializeChapterMetadataWrite(metadataPath, () async {
+      final metadata = await _readMetadataJson(metadataPath);
+      if (metadata == null) {
+        return;
+      }
+
+      final originalFileName = path.basename(normalizedOriginalPath);
+      final convertedFileName = path.basename(normalizedConvertedPath);
+      if (originalFileName.isEmpty || convertedFileName.isEmpty) {
+        return;
+      }
+
+      final targetBaseName = path
+          .basenameWithoutExtension(convertedFileName)
+          .toLowerCase();
+      var changed = false;
+
+      List<dynamic>? rewriteStringList(dynamic rawList) {
+        if (rawList is! List) {
+          return null;
         }
 
-        final originalFileName = path.basename(normalizedOriginalPath);
-        final convertedFileName = path.basename(normalizedConvertedPath);
-        if (originalFileName.isEmpty || convertedFileName.isEmpty) {
-          return;
-        }
-
-        final targetBaseName =
-            path.basenameWithoutExtension(convertedFileName).toLowerCase();
-        var changed = false;
-
-        List<dynamic>? rewriteStringList(dynamic rawList) {
-          if (rawList is! List) {
-            return null;
+        final next = <dynamic>[];
+        for (final entry in rawList) {
+          if (entry is! String) {
+            next.add(entry);
+            continue;
           }
 
-          final next = <dynamic>[];
-          for (final entry in rawList) {
-            if (entry is! String) {
-              next.add(entry);
-              continue;
-            }
-
-            final rewritten = _rewriteMetadataLocalImageReference(
-              value: entry,
-              originalFileName: originalFileName,
-              convertedFileName: convertedFileName,
-              targetBaseName: targetBaseName,
-            );
-            if (rewritten != entry) {
-              changed = true;
-            }
-            next.add(rewritten);
+          final rewritten = _rewriteMetadataLocalImageReference(
+            value: entry,
+            originalFileName: originalFileName,
+            convertedFileName: convertedFileName,
+            targetBaseName: targetBaseName,
+          );
+          if (rewritten != entry) {
+            changed = true;
           }
-          return next;
+          next.add(rewritten);
         }
+        return next;
+      }
 
-        final rewrittenFiles = rewriteStringList(metadata['files']);
-        if (rewrittenFiles != null) {
-          metadata['files'] = rewrittenFiles;
-        }
+      final rewrittenFiles = rewriteStringList(metadata['files']);
+      if (rewrittenFiles != null) {
+        metadata['files'] = rewrittenFiles;
+      }
 
-        final rewrittenImageUrls = rewriteStringList(metadata['imageUrls']);
-        if (rewrittenImageUrls != null) {
-          metadata['imageUrls'] = rewrittenImageUrls;
-        }
+      final rewrittenImageUrls = rewriteStringList(metadata['imageUrls']);
+      if (rewrittenImageUrls != null) {
+        metadata['imageUrls'] = rewrittenImageUrls;
+      }
 
-        if (!changed) {
-          return;
-        }
+      if (!changed) {
+        return;
+      }
 
-        await File(metadataPath).writeAsString(json.encode(metadata));
-        _logger.i(
-          'Rewrote metadata image extension for $contentId '
-          'page=$pageNumber ($originalFileName -> $convertedFileName)',
-        );
-      },
-    );
+      await File(metadataPath).writeAsString(json.encode(metadata));
+      _logger.i(
+        'Rewrote metadata image extension for $contentId '
+        'page=$pageNumber ($originalFileName -> $convertedFileName)',
+      );
+    });
     invalidateCacheFor(contentId);
   }
 
@@ -686,78 +792,76 @@ class OfflineContentManager {
     }
 
     final metadataPath = path.join(contentPath, 'metadata.json');
-    await _serializeChapterMetadataWrite(
-      metadataPath,
-      () async {
-        final metadata = await _readMetadataJson(metadataPath);
-        if (metadata == null) {
-          return;
-        }
+    await _serializeChapterMetadataWrite(metadataPath, () async {
+      final metadata = await _readMetadataJson(metadataPath);
+      if (metadata == null) {
+        return;
+      }
 
-        final failedRaw = metadata['failed_pages'];
-        final originalFailed = failedRaw is List
-            ? failedRaw
-                .map((entry) => entry is Map
-                    ? Map<String, dynamic>.from(
-                        entry.map(
-                          (key, value) => MapEntry(key.toString(), value),
-                        ),
-                      )
-                    : <String, dynamic>{'raw': entry})
+      final failedRaw = metadata['failed_pages'];
+      final originalFailed = failedRaw is List
+          ? failedRaw
+                .map(
+                  (entry) => entry is Map
+                      ? Map<String, dynamic>.from(
+                          entry.map(
+                            (key, value) => MapEntry(key.toString(), value),
+                          ),
+                        )
+                      : <String, dynamic>{'raw': entry},
+                )
                 .toList()
-            : <Map<String, dynamic>>[];
+          : <Map<String, dynamic>>[];
 
-        final mergedByPage = <int, Map<String, dynamic>>{};
-        for (final entry in originalFailed) {
-          final dynamic rawPage = entry['page'];
-          final page = rawPage is num
-              ? rawPage.toInt()
-              : int.tryParse(rawPage?.toString() ?? '');
-          if (page != null && page > 0) {
-            mergedByPage[page] = entry;
-          }
+      final mergedByPage = <int, Map<String, dynamic>>{};
+      for (final entry in originalFailed) {
+        final dynamic rawPage = entry['page'];
+        final page = rawPage is num
+            ? rawPage.toInt()
+            : int.tryParse(rawPage?.toString() ?? '');
+        if (page != null && page > 0) {
+          mergedByPage[page] = entry;
         }
+      }
 
-        for (final page in touchedPages) {
-          final hasValidPage = await _hasValidPageFile(
-            contentPath: contentPath,
-            pageNumber: page,
-          );
-          if (hasValidPage) {
-            mergedByPage.remove(page);
-            continue;
-          }
-
-          final sourceUrl = sourceUrlByPage[page];
-          if (sourceUrl != null && sourceUrl.isNotEmpty) {
-            mergedByPage[page] = <String, dynamic>{
-              'page': page,
-              'url': sourceUrl,
-            };
-          }
-        }
-
-        final nextFailedPages = mergedByPage.values.toList()
-          ..sort((a, b) {
-            final left = (a['page'] as num?)?.toInt() ?? 0;
-            final right = (b['page'] as num?)?.toInt() ?? 0;
-            return left.compareTo(right);
-          });
-
-        final changed =
-            !_failedPagesEquivalent(originalFailed, nextFailedPages);
-        if (!changed) {
-          return;
-        }
-
-        metadata['failed_pages'] = nextFailedPages;
-        await File(metadataPath).writeAsString(json.encode(metadata));
-        _logger.i(
-          'Reconciled metadata failed_pages for chapter at $contentPath '
-          '(pages: ${touchedPages.toList()..sort()})',
+      for (final page in touchedPages) {
+        final hasValidPage = await _hasValidPageFile(
+          contentPath: contentPath,
+          pageNumber: page,
         );
-      },
-    );
+        if (hasValidPage) {
+          mergedByPage.remove(page);
+          continue;
+        }
+
+        final sourceUrl = sourceUrlByPage[page];
+        if (sourceUrl != null && sourceUrl.isNotEmpty) {
+          mergedByPage[page] = <String, dynamic>{
+            'page': page,
+            'url': sourceUrl,
+          };
+        }
+      }
+
+      final nextFailedPages = mergedByPage.values.toList()
+        ..sort((a, b) {
+          final left = (a['page'] as num?)?.toInt() ?? 0;
+          final right = (b['page'] as num?)?.toInt() ?? 0;
+          return left.compareTo(right);
+        });
+
+      final changed = !_failedPagesEquivalent(originalFailed, nextFailedPages);
+      if (!changed) {
+        return;
+      }
+
+      metadata['failed_pages'] = nextFailedPages;
+      await File(metadataPath).writeAsString(json.encode(metadata));
+      _logger.i(
+        'Reconciled metadata failed_pages for chapter at $contentPath '
+        '(pages: ${touchedPages.toList()..sort()})',
+      );
+    });
   }
 
   Future<Map<String, dynamic>?> _readMetadataJson(String metadataPath) async {
@@ -771,9 +875,7 @@ class OfflineContentManager {
       return null;
     }
 
-    return decoded.map(
-      (key, value) => MapEntry(key.toString(), value),
-    );
+    return decoded.map((key, value) => MapEntry(key.toString(), value));
   }
 
   String _rewriteMetadataLocalImageReference({
@@ -788,8 +890,9 @@ class OfflineContentManager {
     }
 
     final isLocalPath = isLocalReaderImagePath(trimmed);
-    final normalizedValue =
-        trimmed.startsWith('file://') ? trimmed.substring(7) : trimmed;
+    final normalizedValue = trimmed.startsWith('file://')
+        ? trimmed.substring(7)
+        : trimmed;
     final basename = path.basename(normalizedValue);
     if (basename.isEmpty) {
       return value;
@@ -830,9 +933,11 @@ class OfflineContentManager {
     for (var index = 0; index < left.length; index++) {
       final leftEntry = left[index];
       final rightEntry = right[index];
-      final leftPage = (leftEntry['page'] as num?)?.toInt() ??
+      final leftPage =
+          (leftEntry['page'] as num?)?.toInt() ??
           int.tryParse(leftEntry['page']?.toString() ?? '');
-      final rightPage = (rightEntry['page'] as num?)?.toInt() ??
+      final rightPage =
+          (rightEntry['page'] as num?)?.toInt() ??
           int.tryParse(rightEntry['page']?.toString() ?? '');
       final leftUrl = leftEntry['url']?.toString() ?? '';
       final rightUrl = rightEntry['url']?.toString() ?? '';
@@ -878,10 +983,9 @@ class OfflineContentManager {
           if (await entity.length() <= 0) {
             continue;
           }
-          final bytes = await entity.openRead(0, 16).fold<List<int>>(
-            <int>[],
-            (acc, value) => acc..addAll(value),
-          );
+          final bytes = await entity
+              .openRead(0, 16)
+              .fold<List<int>>(<int>[], (acc, value) => acc..addAll(value));
           final inferred = inferImageExtension(bytes: bytes);
           if (inferred != null && inferred.isNotEmpty) {
             return true;
@@ -913,8 +1017,10 @@ class OfflineContentManager {
     });
   }
 
-  Future<String?> getOfflineFirstImagePath(String contentId,
-      {String? downloadPath}) async {
+  Future<String?> getOfflineFirstImagePath(
+    String contentId, {
+    String? downloadPath,
+  }) async {
     try {
       final contentPath =
           downloadPath ?? await getOfflineContentPath(contentId);
@@ -1003,8 +1109,11 @@ class OfflineContentManager {
       final file = File(offlineImagePath);
       return await file.exists() && await file.length() > 0;
     } catch (e, stackTrace) {
-      _logger.e('Error checking if image is downloaded: $imageUrl',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error checking if image is downloaded: $imageUrl',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }
@@ -1035,8 +1144,11 @@ class OfflineContentManager {
 
       return offlineIds;
     } catch (e, stackTrace) {
-      _logger.e('Error getting offline content IDs',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error getting offline content IDs',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
@@ -1088,8 +1200,9 @@ class OfflineContentManager {
     Map<String, dynamic>? metadata,
     String contentPath,
   ) {
-    final metadataSourceId =
-        DownloadStorageUtils.getSourceIdFromMetadata(metadata);
+    final metadataSourceId = DownloadStorageUtils.getSourceIdFromMetadata(
+      metadata,
+    );
     if (metadataSourceId != null && metadataSourceId.isNotEmpty) {
       return metadataSourceId;
     }
@@ -1106,10 +1219,12 @@ class OfflineContentManager {
       final matchingIds = <String>[];
 
       // Get favorites and history for additional metadata
-      final favorites =
-          await _userDataRepository.getFavorites(limit: AppLimits.maxBatchSize);
-      final history =
-          await _userDataRepository.getHistory(limit: AppLimits.maxBatchSize);
+      final favorites = await _userDataRepository.getFavorites(
+        limit: AppLimits.maxBatchSize,
+      );
+      final history = await _userDataRepository.getHistory(
+        limit: AppLimits.maxBatchSize,
+      );
 
       final favoriteMap = {for (var fav in favorites) fav['id']: fav};
       final historyMap = {for (var hist in history) hist.contentId: hist};
@@ -1146,14 +1261,18 @@ class OfflineContentManager {
 
       return matchingIds;
     } catch (e, stackTrace) {
-      _logger.e('Error searching offline content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error searching offline content',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
 
   Future<Map<String, dynamic>?> getOfflineContentMetadata(
-      String contentId) async {
+    String contentId,
+  ) async {
     try {
       // Check cache first
       if (_metadataCache.containsKey(contentId) &&
@@ -1165,13 +1284,19 @@ class OfflineContentManager {
       }
 
       // Try to get from favorites first
-      final favorites =
-          await _userDataRepository.getFavorites(limit: AppLimits.maxBatchSize);
-      final favorite =
-          favorites.where((fav) => fav['id'] == contentId).firstOrNull;
-      _logger.i(_getLocalized('offlineContentMetadata',
+      final favorites = await _userDataRepository.getFavorites(
+        limit: AppLimits.maxBatchSize,
+      );
+      final favorite = favorites
+          .where((fav) => fav['id'] == contentId)
+          .firstOrNull;
+      _logger.i(
+        _getLocalized(
+          'offlineContentMetadata',
           args: {'contentId': contentId, 'source': 'favorites'},
-          fallback: 'apakah data dari favorite? ${favorite != null}'));
+          fallback: 'apakah data dari favorite? ${favorite != null}',
+        ),
+      );
       if (favorite != null) {
         final metadata = {
           'id': contentId,
@@ -1187,9 +1312,13 @@ class OfflineContentManager {
 
       // Try to get from history
       final historyEntry = await _userDataRepository.getHistoryEntry(contentId);
-      _logger.i(_getLocalized('offlineContentMetadata',
+      _logger.i(
+        _getLocalized(
+          'offlineContentMetadata',
           args: {'contentId': contentId, 'source': 'history'},
-          fallback: 'apakah data dari history? ${historyEntry != null}'));
+          fallback: 'apakah data dari history? ${historyEntry != null}',
+        ),
+      );
       _logger.i('isi file history nya: $historyEntry');
       if (historyEntry != null) {
         final metadata = {
@@ -1225,7 +1354,7 @@ class OfflineContentManager {
               'source': 'metadata_file',
               'sourceId':
                   DownloadStorageUtils.getSourceIdFromMetadata(fileMetadata) ??
-                      SourceType.nhentai.id,
+                  SourceType.nhentai.id,
             };
             // Cache the result
             _metadataCache[contentId] = metadata;
@@ -1250,8 +1379,11 @@ class OfflineContentManager {
       _metadataCacheTime[contentId] = DateTime.now();
       return metadata;
     } catch (e, stackTrace) {
-      _logger.e('Error getting offline content metadata for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error getting offline content metadata for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -1269,8 +1401,9 @@ class OfflineContentManager {
 
       // 2. Fallback: Only iterate filesystem if DB returns 0 (e.g. migration needed or clean install)
       // This is still slow but should rarely happen for existing users with data
-      _logger
-          .w('⚠️ DB download size is 0, falling back to slow filesystem scan');
+      _logger.w(
+        '⚠️ DB download size is 0, falling back to slow filesystem scan',
+      );
       final offlineIds = await getOfflineContentIds();
       int fsTotalSize = 0;
 
@@ -1291,21 +1424,29 @@ class OfflineContentManager {
 
       return fsTotalSize;
     } catch (e, stackTrace) {
-      _logger.e('Error calculating offline storage usage',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error calculating offline storage usage',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return 0;
     }
   }
 
   Future<List<Content>> getAllOfflineContentFromFileSystem(
-      String loadPath) async {
+    String loadPath,
+  ) async {
     return await scanBackupFolder(loadPath);
   }
 
   Future<void> cleanupOrphanedFiles() async {
     try {
-      _logger.i(_getLocalized('cleanupOrphanedFilesStarted',
-          fallback: 'Starting cleanup of orphaned offline files'));
+      _logger.i(
+        _getLocalized(
+          'cleanupOrphanedFilesStarted',
+          fallback: 'Starting cleanup of orphaned offline files',
+        ),
+      );
 
       final appDir = await getApplicationDocumentsDirectory();
       final downloadsDir = Directory(path.join(appDir.path, 'downloads'));
@@ -1329,11 +1470,18 @@ class OfflineContentManager {
         }
       }
 
-      _logger.i(_getLocalized('cleanupOrphanedFilesCompleted',
-          fallback: 'Cleanup of orphaned offline files completed'));
+      _logger.i(
+        _getLocalized(
+          'cleanupOrphanedFilesCompleted',
+          fallback: 'Cleanup of orphaned offline files completed',
+        ),
+      );
     } catch (e, stackTrace) {
-      _logger.e('Error during cleanup of orphaned files',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error during cleanup of orphaned files',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -1363,8 +1511,10 @@ class OfflineContentManager {
       }
 
       // Extract sourceId from metadata or path
-      final sourceId =
-          _extractSourceIdFromMetadataOrPath(metadata, contentPath);
+      final sourceId = _extractSourceIdFromMetadataOrPath(
+        metadata,
+        contentPath,
+      );
 
       // Get image files
       final imageUrls = await getOfflineImageUrls(contentId);
@@ -1394,8 +1544,11 @@ class OfflineContentManager {
         japaneseTitle: null,
       );
     } catch (e, stackTrace) {
-      _logger.e('Error creating offline content for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error creating offline content for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return null;
     }
   }
@@ -1447,7 +1600,9 @@ class OfflineContentManager {
   }
 
   Future<List<Content>> searchOfflineContentFromFileSystem(
-      String backupPath, String query) async {
+    String backupPath,
+    String query,
+  ) async {
     try {
       final backupDir = Directory(backupPath);
 
@@ -1470,13 +1625,18 @@ class OfflineContentManager {
           if (knownSources.contains(folderName)) {
             // Search inside source folder
             _logger.d('Searching in source folder: $folderName');
-            final sourceResults =
-                await _searchInFolder(entity.path, queryLower);
+            final sourceResults = await _searchInFolder(
+              entity.path,
+              queryLower,
+            );
             matchingWithTimes.addAll(sourceResults);
           } else {
             // Legacy: Could be a content folder directly
-            final result =
-                await _searchContentFolder(entity, folderName, queryLower);
+            final result = await _searchContentFolder(
+              entity,
+              folderName,
+              queryLower,
+            );
             if (result != null) {
               matchingWithTimes.add(result);
             }
@@ -1489,17 +1649,23 @@ class OfflineContentManager {
       final matchingContents = matchingWithTimes.map((e) => e.key).toList();
 
       _logger.i(
-          'Found ${matchingContents.length} matching content items for query: $query');
+        'Found ${matchingContents.length} matching content items for query: $query',
+      );
       return matchingContents;
     } catch (e, stackTrace) {
-      _logger.e('Error searching offline content from file system',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error searching offline content from file system',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
 
   Future<List<MapEntry<Content, DateTime>>> _searchInFolder(
-      String folderPath, String queryLower) async {
+    String folderPath,
+    String queryLower,
+  ) async {
     final results = <MapEntry<Content, DateTime>>[];
     final folderDir = Directory(folderPath);
 
@@ -1508,8 +1674,11 @@ class OfflineContentManager {
     await for (final entity in folderDir.list()) {
       if (entity is Directory) {
         final contentId = path.basename(entity.path);
-        final result =
-            await _searchContentFolder(entity, contentId, queryLower);
+        final result = await _searchContentFolder(
+          entity,
+          contentId,
+          queryLower,
+        );
         if (result != null) {
           results.add(result);
         }
@@ -1520,7 +1689,10 @@ class OfflineContentManager {
   }
 
   Future<MapEntry<Content, DateTime>?> _searchContentFolder(
-      FileSystemEntity entity, String contentId, String queryLower) async {
+    FileSystemEntity entity,
+    String contentId,
+    String queryLower,
+  ) async {
     try {
       // Search in content ID
       final contentIdMatch = contentId.toLowerCase().contains(queryLower);
@@ -1568,10 +1740,12 @@ class OfflineContentManager {
       if (imageFiles.isEmpty) {
         final contentEntities = await Directory(entity.path).list().toList();
         final directImageFiles = contentEntities
-            .where((f) =>
-                f is File &&
-                _isImageFile(f.path) &&
-                path.basename(f.path) != 'metadata.json')
+            .where(
+              (f) =>
+                  f is File &&
+                  _isImageFile(f.path) &&
+                  path.basename(f.path) != 'metadata.json',
+            )
             .cast<File>()
             .toList();
         if (directImageFiles.isNotEmpty) {
@@ -1582,8 +1756,10 @@ class OfflineContentManager {
       if (imageFiles.isEmpty) return null;
 
       // Sort images by page number
-      imageFiles.sort((a, b) =>
-          _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)));
+      imageFiles.sort(
+        (a, b) =>
+            _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)),
+      );
 
       final imageUrls = imageFiles.map((f) => f.path).toList();
 
@@ -1616,7 +1792,8 @@ class OfflineContentManager {
       final modifiedTime = folderStat.modified;
 
       _logger.d(
-          'Found matching content: $contentId - $title (${imageUrls.length} pages)');
+        'Found matching content: $contentId - $title (${imageUrls.length} pages)',
+      );
 
       return MapEntry(content, modifiedTime);
     } catch (e) {
@@ -1651,8 +1828,10 @@ class OfflineContentManager {
             contentWithTimes.addAll(sourceContents);
           } else {
             // Could be legacy content folder, try to scan it directly
-            final contentResult =
-                await _tryParseContentFolder(entity, folderName);
+            final contentResult = await _tryParseContentFolder(
+              entity,
+              folderName,
+            );
             if (contentResult != null) {
               contentWithTimes.add(contentResult);
             }
@@ -1667,14 +1846,18 @@ class OfflineContentManager {
       _logger.i('Found ${contents.length} backup content items');
       return contents;
     } catch (e, stackTrace) {
-      _logger.e('Error scanning backup folder: $backupPath',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error scanning backup folder: $backupPath',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return [];
     }
   }
 
   Future<List<MapEntry<Content, DateTime>>> _scanContentFolder(
-      String folderPath) async {
+    String folderPath,
+  ) async {
     final folderDir = Directory(folderPath);
     final results = <MapEntry<Content, DateTime>>[];
 
@@ -1708,18 +1891,21 @@ class OfflineContentManager {
                   newMetadata['tags'].isNotEmpty &&
                   newMetadata['tags'][0] is String) {
                 newMetadata['tags'] = (newMetadata['tags'] as List)
-                    .map((t) => {
-                          'name': t.toString(),
-                          'type': 'tag',
-                          'count': 0,
-                          'url': ''
-                        })
+                    .map(
+                      (t) => {
+                        'name': t.toString(),
+                        'type': 'tag',
+                        'count': 0,
+                        'url': '',
+                      },
+                    )
                     .toList();
               }
 
               await metadataFile.writeAsString(jsonEncode(newMetadata));
               _logger.i(
-                  'Auto-upgraded metadata for $contentId to v2 in $sourceName folder');
+                'Auto-upgraded metadata for $contentId to v2 in $sourceName folder',
+              );
             }
           }
         } catch (e) {
@@ -1736,7 +1922,9 @@ class OfflineContentManager {
   }
 
   Future<MapEntry<Content, DateTime>?> _tryParseContentFolder(
-      FileSystemEntity entity, String contentId) async {
+    FileSystemEntity entity,
+    String contentId,
+  ) async {
     try {
       final imagesDir = Directory(path.join(entity.path, 'images'));
       List<File> imageFiles = [];
@@ -1759,10 +1947,12 @@ class OfflineContentManager {
           final contentDir = Directory(entity.path);
           final contentEntities = await contentDir.list().toList();
           final directImageFiles = contentEntities
-              .where((f) =>
-                  f is File &&
-                  _isImageFile(f.path) &&
-                  path.basename(f.path) != 'metadata.json')
+              .where(
+                (f) =>
+                    f is File &&
+                    _isImageFile(f.path) &&
+                    path.basename(f.path) != 'metadata.json',
+              )
               .cast<File>()
               .toList();
 
@@ -1777,8 +1967,10 @@ class OfflineContentManager {
       if (imageFiles.isEmpty) return null;
 
       // Sort images by page number
-      imageFiles.sort((a, b) =>
-          _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)));
+      imageFiles.sort(
+        (a, b) =>
+            _extractPageNumber(a.path).compareTo(_extractPageNumber(b.path)),
+      );
 
       final imageUrls = imageFiles.map((f) => f.path).toList();
 
@@ -1802,24 +1994,27 @@ class OfflineContentManager {
 
           actualContentId =
               DownloadStorageUtils.getOriginalContentIdFromMetadata(
-            metadata,
-            fallbackContentId: contentId,
-          );
+                metadata,
+                fallbackContentId: contentId,
+              );
         }
       } catch (e) {
         _logger.w('Error reading metadata for $contentId: $e');
       }
 
       // Extract sourceId from metadata or path
-      final sourceId =
-          _extractSourceIdFromMetadataOrPath(metadata, entity.path);
+      final sourceId = _extractSourceIdFromMetadataOrPath(
+        metadata,
+        entity.path,
+      );
 
       // AUTO-GENERATE metadata.json for manually placed content (e.g., from external sources)
       // This ensures content works properly even if placed without metadata
       if (!metadataExists && imageFiles.isNotEmpty) {
         try {
           _logger.i(
-              'Auto-generating metadata.json for manually imported content: $contentId');
+            'Auto-generating metadata.json for manually imported content: $contentId',
+          );
           await DownloadStorageUtils.saveLocalMetadata(
             contentId: actualContentId,
             sourceId: sourceId,
@@ -1873,8 +2068,15 @@ class OfflineContentManager {
 
   bool _isImageFile(String filePath) {
     final extension = path.extension(filePath).toLowerCase();
-    return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.bmp']
-        .contains(extension);
+    return [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.webp',
+      '.avif',
+      '.bmp',
+    ].contains(extension);
   }
 
   int _extractPageNumber(String filePath) {
@@ -2009,13 +2211,14 @@ class OfflineContentManager {
                 // This moves nhasix/{id} -> nhasix/nhentai/{id}
                 final migrated =
                     await DownloadStorageUtils.migrateToSourceFolder(
-                  folderName,
-                  sourceId:
-                      AppStorage.defaultSourceId, // Default for legacy content
-                );
+                      folderName,
+                      sourceId: AppStorage
+                          .defaultSourceId, // Default for legacy content
+                    );
                 if (migrated) {
                   _logger.i(
-                      'Auto-migrated legacy content $folderName to nhentai source');
+                    'Auto-migrated legacy content $folderName to nhentai source',
+                  );
                 }
               }
             }
@@ -2045,8 +2248,9 @@ class OfflineContentManager {
         await _userDataRepository.deleteDownloadStatus(download.contentId);
       }
 
-      final scopeLabel =
-          sourceId == null ? 'all sources' : sourceId.toLowerCase();
+      final scopeLabel = sourceId == null
+          ? 'all sources'
+          : sourceId.toLowerCase();
       _logger.i(
         'Cleared $completedCount completed $scopeLabel records before resync',
       );
@@ -2158,8 +2362,10 @@ class OfflineContentManager {
 
   // [contentPath] - optional direct path to content directory (for backup items)
   // Returns true if deletion was successful (idempotent - returns true if either DB or filesystem deleted)
-  Future<bool> deleteOfflineContent(String contentId,
-      {String? contentPath}) async {
+  Future<bool> deleteOfflineContent(
+    String contentId, {
+    String? contentPath,
+  }) async {
     try {
       _logger.i('Deleting offline content: $contentId');
 
@@ -2211,18 +2417,25 @@ class OfflineContentManager {
       final success = filesystemDeleted || dbDeleted;
       if (!success) {
         _logger.w(
-            'Delete failed: content $contentId not found in filesystem or DB');
+          'Delete failed: content $contentId not found in filesystem or DB',
+        );
       }
       return success;
     } catch (e, stackTrace) {
-      _logger.e('Error deleting offline content for $contentId',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Error deleting offline content for $contentId',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return false;
     }
   }
 
-  String _getLocalized(String key,
-      {Map<String, dynamic>? args, String? fallback}) {
+  String _getLocalized(
+    String key, {
+    Map<String, dynamic>? args,
+    String? fallback,
+  }) {
     try {
       return _localize?.call(key, args: args) ?? fallback ?? key;
     } catch (e) {
