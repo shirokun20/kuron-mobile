@@ -412,6 +412,17 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<bool?> setCookies({
+    required String url,
+    required String cookies,
+  }) async {
+    return await methodChannel.invokeMethod<bool>(
+      'setCookies',
+      {'url': url, 'cookies': cookies},
+    );
+  }
+
+  @override
   Future<String> runProxyWebView({
     required String pageUrl,
     required String html,

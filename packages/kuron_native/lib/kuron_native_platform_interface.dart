@@ -272,6 +272,17 @@ abstract class KuronNativePlatform extends PlatformInterface {
     );
   }
 
+  // Write cookies into the native WebView cookie store (shared with
+  // headless loads).
+  Future<bool?> setCookies({
+    required String url,
+    required String cookies,
+  }) {
+    throw UnimplementedError(
+      'setCookies() has not been implemented.',
+    );
+  }
+
   // Get current DNS over HTTPS provider.
   // Returns: -1 (disabled), 1 (Cloudflare), 2 (Google), 3 (AdGuard), 4 (Quad9)
   Future<int> getDohProvider() {

@@ -56,8 +56,8 @@ class WebViewSessionConfig {
       loginSuccessFilter: (auth['loginSuccessFilter'] as String?) ?? '',
       autoCloseOnCookie:
           (siteProtection['autoCloseOnCookie'] as String?)?.trim() ??
-              (cf['autoCloseOnCookie'] as String?)?.trim() ??
-              (bypassEnabled ? 'cf_clearance' : ''),
+          (cf['autoCloseOnCookie'] as String?)?.trim() ??
+          (bypassEnabled ? 'cf_clearance' : ''),
     );
   }
 }
@@ -96,8 +96,9 @@ WebViewBypassOptions _defaultBypassOptionsBuilder(
   WebViewSessionConfig config,
 ) {
   return WebViewBypassOptions(
-    autoCloseOnCookie:
-        config.autoCloseOnCookie.isEmpty ? null : config.autoCloseOnCookie,
+    autoCloseOnCookie: config.autoCloseOnCookie.isEmpty
+        ? null
+        : config.autoCloseOnCookie,
   );
 }
 
@@ -113,24 +114,15 @@ class WebViewAuthResult {
     this.username,
   });
 
-  factory WebViewAuthResult.success(String username) => WebViewAuthResult._(
-        success: true,
-        username: username,
-      );
+  factory WebViewAuthResult.success(String username) =>
+      WebViewAuthResult._(success: true, username: username);
 
-  factory WebViewAuthResult.failure(String message) => WebViewAuthResult._(
-        success: false,
-        errorMessage: message,
-      );
+  factory WebViewAuthResult.failure(String message) =>
+      WebViewAuthResult._(success: false, errorMessage: message);
 }
 
 // State of authentication
-enum WebViewAuthState {
-  notLoggedIn,
-  loggingIn,
-  loggedIn,
-  error,
-}
+enum WebViewAuthState { notLoggedIn, loggingIn, loggedIn, error }
 
 // An adapter that orchestrates Cloudflare bypass and authentication
 // through a shared Dio instance and CookieJar.
@@ -157,6 +149,7 @@ class WebViewSessionAdapter {
       _CappedMap<String, String>(50);
   static final Map<String, String> _cachedUserAgents =
       _CappedMap<String, String>(50);
+
   /// Matches [url] against a sync header cache keyed by base URL or host.
   ///
   /// Exact host wins; a subdomain request (e.g. `cdn5.ravenscans.org`)
@@ -214,14 +207,15 @@ class WebViewSessionAdapter {
     KuronNative? native,
     Logger? logger,
     WebViewBypassOptionsBuilder? bypassOptionsBuilder,
-  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
-        _native = native ?? KuronNative.instance,
-        _logger = logger ?? Logger(),
-        _bypassOptionsBuilder =
-            bypassOptionsBuilder ?? _defaultBypassOptionsBuilder {
+  }) : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+       _native = native ?? KuronNative.instance,
+       _logger = logger ?? Logger(),
+       _bypassOptionsBuilder =
+           bypassOptionsBuilder ?? _defaultBypassOptionsBuilder {
     // Avoid stacking duplicate cookie interceptors when adapter is recreated.
-    final hasCookieManager =
-        _dio.interceptors.whereType<CookieManager>().isNotEmpty;
+    final hasCookieManager = _dio.interceptors
+        .whereType<CookieManager>()
+        .isNotEmpty;
     if (!hasCookieManager) {
       _dio.interceptors.add(CookieManager(_cookieJar));
     }
@@ -269,8 +263,9 @@ class WebViewSessionAdapter {
     ];
 
     final lowerHtml = html.toLowerCase();
-    return indicators
-        .any((indicator) => lowerHtml.contains(indicator.toLowerCase()));
+    return indicators.any(
+      (indicator) => lowerHtml.contains(indicator.toLowerCase()),
+    );
   }
 
   @visibleForTesting
@@ -320,8 +315,9 @@ class WebViewSessionAdapter {
         requestUa ??= _cachedUserAgents[Uri.tryParse(url)?.host ?? ''];
       } catch (_) {}
       if (requestUa == null || requestUa.isEmpty) {
-        final persistedUa =
-            await _secureStorage.read(key: _uaKey).catchError((_) => null);
+        final persistedUa = await _secureStorage
+            .read(key: _uaKey)
+            .catchError((_) => null);
         if (persistedUa != null && persistedUa.isNotEmpty) {
           requestUa = persistedUa;
         }
@@ -329,9 +325,9 @@ class WebViewSessionAdapter {
       if (requestUa == null || requestUa.isEmpty) {
         requestUa =
             (options.headers?['User-Agent'] as String?)?.trim().isNotEmpty ==
-                    true
-                ? options.headers!['User-Agent'] as String
-                : null;
+                true
+            ? options.headers!['User-Agent'] as String
+            : null;
       }
       if (requestUa != null && requestUa.isNotEmpty) {
         options.headers?['User-Agent'] = requestUa;
@@ -396,7 +392,8 @@ class WebViewSessionAdapter {
       // WebView per concurrent caller) then do a single jar-scoped attempt.
       if (_bypassingUrls.contains(url)) {
         _logger.w(
-            'Already bypassing $url, waiting for the in-flight bypass...');
+          'Already bypassing $url, waiting for the in-flight bypass...',
+        );
         for (var i = 0; i < 15 && _bypassingUrls.contains(url); i++) {
           await Future.delayed(const Duration(seconds: 2));
         }
@@ -450,45 +447,20 @@ class WebViewSessionAdapter {
       );
 
       if (result != null && result['success'] == true) {
-        final cookiesRaw =
-            (result['cookies'] as List<dynamic>?)?.cast<String>() ?? [];
-        final userAgent = result['userAgent'] as String?;
         final pageHtml = result['pageHtml'] as String?;
         final usedSslFallback = result['usedSslFallback'] as bool? ?? false;
 
         if (usedSslFallback) {
           _logger.w(
-              '⚠️ WebView SSL fallback used — server certificate was not trusted.');
+            '⚠️ WebView SSL fallback used — server certificate was not trusted.',
+          );
         }
 
-        if (userAgent != null && userAgent.isNotEmpty) {
-          _dio.options.headers['User-Agent'] = userAgent;
-          // Persist so cold-start probes reuse the UA that minted the
-          // current cf_clearance (challenge is UA-bound).
-          await _secureStorage
-              .write(key: _uaKey, value: userAgent)
-              .catchError((_) {});
-          _cachedUserAgents[_baseUrl] = userAgent;
-          try {
-            _cachedUserAgents[Uri.parse(_baseUrl).host] = userAgent;
-            _cachedUserAgents[Uri.parse(targetUrl).host] = userAgent;
-          } catch (_) {}
-          _logger.i('🔄 Synced User-Agent: $userAgent');
-        }
-
-        // Untrusted-session cookies ride only this verify chain, then drop
-        // (no jar write, no secure storage). Local var, never instance state —
-        // no cross-chain races on concurrent bypasses.
-        String? untrustedHeader;
-        if (cookiesRaw.isNotEmpty) {
-          if (usedSslFallback) {
-            untrustedHeader = cookiesRaw.join('; ');
-            _logger.w(
-                '⚠️ SSL fallback — using ${cookiesRaw.length} untrusted cookie(s) for this request chain only (not persisted)');
-          } else {
-            await _saveRawCookies(cookiesRaw, targetUrl);
-          }
-        }
+        final untrustedHeader = await _persistBypassSession(
+          result,
+          targetUrl,
+          usedSslFallback: usedSslFallback,
+        );
 
         if (bypassOptions.preferCapturedImageUrls) {
           final capturedUrls = (result['capturedImageUrls'] as List<dynamic>?)
@@ -497,10 +469,9 @@ class WebViewSessionAdapter {
               .toList();
           if (capturedUrls != null && capturedUrls.isNotEmpty) {
             _logger.i(
-                '📸 Using WebView-captured image URLs (${capturedUrls.length}) — skipping Dio verify');
-            final chapterData = <String, dynamic>{
-              'images': capturedUrls,
-            };
+              '📸 Using WebView-captured image URLs (${capturedUrls.length}) — skipping Dio verify',
+            );
+            final chapterData = <String, dynamic>{'images': capturedUrls};
             return Response<String>(
               statusCode: 200,
               data: jsonEncode(chapterData),
@@ -517,9 +488,10 @@ class WebViewSessionAdapter {
           // captured HTML directly.
           final htmlContent = await _readCapturedHtml(pageHtml!);
           if (htmlContent != null) {
-            _logger
-                .w('⚠️ SSL fallback — skipping Dio re-verify, serving captured '
-                    'HTML (${htmlContent.length} chars)');
+            _logger.w(
+              '⚠️ SSL fallback — skipping Dio re-verify, serving captured '
+              'HTML (${htmlContent.length} chars)',
+            );
             return _htmlResponse<T>(htmlContent, targetUrl);
           }
         }
@@ -530,7 +502,8 @@ class WebViewSessionAdapter {
           final htmlContent = await _readCapturedHtml(pageHtml!);
           if (htmlContent != null) {
             _logger.i(
-                '📄 Using WebView-captured HTML (${htmlContent.length} chars) — skipping Dio verify');
+              '📄 Using WebView-captured HTML (${htmlContent.length} chars) — skipping Dio verify',
+            );
             return _htmlResponse<T>(htmlContent, targetUrl);
           }
         }
@@ -553,6 +526,77 @@ class WebViewSessionAdapter {
 
   bool _hasCapturedHtml(String? pageHtml) =>
       pageHtml != null && pageHtml.isNotEmpty && pageHtml.startsWith('/');
+
+  Future<String?> _persistBypassSession(
+    Map<String, dynamic> result,
+    String targetUrl, {
+    bool usedSslFallback = false,
+  }) async {
+    final cookiesRaw =
+        (result['cookies'] as List<dynamic>?)?.cast<String>() ?? [];
+    final userAgent = result['userAgent'] as String?;
+
+    if (userAgent != null && userAgent.isNotEmpty) {
+      _dio.options.headers['User-Agent'] = userAgent;
+      // Persist so cold-start probes reuse the UA that minted the
+      // current cf_clearance (challenge is UA-bound).
+      await _secureStorage
+          .write(key: _uaKey, value: userAgent)
+          .catchError((_) {});
+      _cachedUserAgents[_baseUrl] = userAgent;
+      try {
+        _cachedUserAgents[Uri.parse(_baseUrl).host] = userAgent;
+        _cachedUserAgents[Uri.parse(targetUrl).host] = userAgent;
+      } catch (_) {}
+      _logger.i('🔄 Synced User-Agent: $userAgent');
+    }
+
+    // Untrusted-session cookies ride only this verify chain, then drop
+    // (no jar write, no secure storage). Local var, never instance state —
+    // no cross-chain races on concurrent bypasses.
+    String? untrustedHeader;
+    if (cookiesRaw.isNotEmpty) {
+      if (usedSslFallback) {
+        untrustedHeader = cookiesRaw.join('; ');
+        _logger.w(
+          '⚠️ SSL fallback — using ${cookiesRaw.length} untrusted cookie(s) for this request chain only (not persisted)',
+        );
+      } else {
+        await _saveRawCookies(cookiesRaw, targetUrl);
+      }
+    }
+    return untrustedHeader;
+  }
+
+  /// Opens the visible in-app WebView for [url] and polls [pageFinishedScript]
+  /// until it yields a non-empty result, then persists the minted cookies +
+  /// User-Agent and returns `pageFinishedScriptResult`.
+  ///
+  /// Used when a JS-rendered reader (e.g. Cloudflare Turnstile gating a
+  /// Next.js Server Action) fails inside the detached headless WebView.
+  Future<String?> runInteractivePageScript({
+    required String url,
+    required String pageFinishedScript,
+  }) async {
+    if (!_config.bypassEnabled) return null;
+    final bypassOptions = _bypassOptionsBuilder(url, _config);
+    final result = await _native.showLoginWebView(
+      url: url,
+      successUrlFilters: const [],
+      initialCookie: getCachedCookieHeaderForUrl(url),
+      userAgent: null,
+      autoCloseOnCookie: null,
+      captureRequestPatterns: bypassOptions.captureRequestPatterns,
+      allowRequestPatterns: bypassOptions.allowRequestPatterns,
+      pageFinishedScript: pageFinishedScript,
+      blockNetworkImages: false,
+      clearCookies: false,
+    );
+    if (result == null || result['success'] != true) return null;
+    final usedSslFallback = result['usedSslFallback'] as bool? ?? false;
+    await _persistBypassSession(result, url, usedSslFallback: usedSslFallback);
+    return result['pageFinishedScriptResult'] as String?;
+  }
 
   /// Reads the HTML file captured by the WebView. evaluateJavascript returns
   /// a JSON-encoded string (quoted + escaped) — decode when present.
@@ -614,9 +658,7 @@ class WebViewSessionAdapter {
             options: Options(
               followRedirects: true,
               validateStatus: (status) => status != null && status < 500,
-              headers: {
-                'Cookie': ?untrustedHeader,
-              },
+              headers: {'Cookie': ?untrustedHeader},
             ),
           );
 
@@ -682,8 +724,9 @@ class WebViewSessionAdapter {
     try {
       if (_cachedUserAgents[_baseUrl] == null ||
           _cachedUserAgents[_baseUrl]!.isEmpty) {
-        final persistedUa =
-            await _secureStorage.read(key: _uaKey).catchError((_) => null);
+        final persistedUa = await _secureStorage
+            .read(key: _uaKey)
+            .catchError((_) => null);
         if (persistedUa != null && persistedUa.isNotEmpty) {
           _cachedUserAgents[_baseUrl] = persistedUa;
           try {
@@ -720,8 +763,9 @@ class WebViewSessionAdapter {
     }).toList();
 
     await _cookieJar.saveFromResponse(uri, cookiesToSave);
-    final cookieHeader =
-        cookiesToSave.map((c) => '${c.name}=${c.value}').join('; ');
+    final cookieHeader = cookiesToSave
+        .map((c) => '${c.name}=${c.value}')
+        .join('; ');
     _cachedCookieHeaders[_baseUrl] = cookieHeader;
     _cachedCookieHeaders[uri.host] = cookieHeader;
     _logger.d('Saved ${cookiesToSave.length} cookies to jar for ${uri.host}');
@@ -744,8 +788,8 @@ class WebViewSessionAdapter {
     try {
       // 1. Getting Nonce
       final loginPageRes = await requestWithBypass<String>(_config.loginUrl);
-      final nonceMatch =
-          RegExp(_config.nonceRegex).firstMatch(loginPageRes.data ?? '');
+      final nonceMatch = RegExp(_config.nonceRegex)
+          .firstMatch(loginPageRes.data ?? '');
       final nonce = nonceMatch?.group(1) ?? '';
 
       if (nonce.isEmpty) {
@@ -754,17 +798,19 @@ class WebViewSessionAdapter {
       }
 
       // 2. Submit Logic
-      final postRes = await _dio.post(_config.loginUrl,
-          data: {
-            'koi_user_login': email,
-            'koi_user_pass': password,
-            'koi_login_nonce': nonce,
-          },
-          options: Options(
-            contentType: Headers.formUrlEncodedContentType,
-            followRedirects: false,
-            validateStatus: (s) => s != null && s < 500,
-          ));
+      final postRes = await _dio.post(
+        _config.loginUrl,
+        data: {
+          'koi_user_login': email,
+          'koi_user_pass': password,
+          'koi_login_nonce': nonce,
+        },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+          followRedirects: false,
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
 
       // Check failure signs from form HTML response
       final postHtml = postRes.data.toString();
@@ -801,8 +847,10 @@ class WebViewSessionAdapter {
   Future<bool> _verifyLoginSession() async {
     if (_config.bookmarkVerifyUrl.isNotEmpty) {
       try {
-        final res = await _dio.get(_config.bookmarkVerifyUrl,
-            options: Options(followRedirects: false));
+        final res = await _dio.get(
+          _config.bookmarkVerifyUrl,
+          options: Options(followRedirects: false),
+        );
         // Accessing bookmark should return 200. If we get 302, it redirects to login=unauthenticated
         if (res.statusCode == 200) {
           return true;
@@ -869,6 +917,7 @@ class WebViewSessionAdapter {
     _username = null;
   }
 }
+
 class _CappedMap<K, V> extends MapBase<K, V> {
   final int maxCapacity;
   final LinkedHashMap<K, V> _inner = LinkedHashMap<K, V>();

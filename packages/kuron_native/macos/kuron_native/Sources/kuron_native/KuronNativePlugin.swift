@@ -173,6 +173,33 @@ public class KuronNativePlugin: NSObject, FlutterPlugin {
       let timeout = Double(i("timeoutMs") ?? 10000) / 1000.0
       KuronWebViewFlows.headlessEval(url: url, script: script, timeout: timeout, completion: result)
 
+    case "setCookies":
+      guard let urlString = s("url"), let url = URL(string: urlString),
+            let cookies = s("cookies") else {
+        result(FlutterError(code: "INVALID_ARGS", message: "url/cookies required", details: nil)); return
+      }
+      let host = url.host ?? ""
+      let isSecure = url.scheme == "https"
+      let store = WKWebsiteDataStore.default().httpCookieStore
+      let parts = cookies.split(separator: ";").map {
+        $0.trimmingCharacters(in: .whitespaces)
+      }.filter { !$0.isEmpty && $0.contains("=") }
+      if parts.isEmpty { result(true); return }
+      let group = DispatchGroup()
+      for part in parts {
+        let kv = part.split(separator: "=", maxSplits: 1).map(String.init)
+        guard kv.count == 2 else { continue }
+        var props: [HTTPCookiePropertyKey: Any] = [
+          .domain: host, .path: "/", .name: kv[0], .value: kv[1],
+        ]
+        if isSecure { props[.secure] = "TRUE" }
+        if let cookie = HTTPCookie(properties: props) {
+          group.enter()
+          store.setCookie(cookie) { group.leave() }
+        }
+      }
+      group.notify(queue: .main) { result(true) }
+
     case "runProxyWebView":
       KuronWebViewFlows.runProxy(args: args ?? [:], completion: result)
 

@@ -272,6 +272,16 @@ class KuronNative {
     );
   }
 
+  /// Writes cookies into the native WebView cookie store (shared with
+  /// headless loads) so JS-rendered pages pass Cloudflare with the same
+  /// clearance the Dart cookie jar already holds.
+  Future<bool?> setCookies({
+    required String url,
+    required String cookies,
+  }) {
+    return KuronNativePlatform.instance.setCookies(url: url, cookies: cookies);
+  }
+
   /// Per-request headless WebView for the WebView proxy engine.
   Future<String> runProxyWebView({
     required String pageUrl,

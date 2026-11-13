@@ -98,6 +98,7 @@ class KuronNativePlugin :
             val latch = CountDownLatch(1)
             var jsResult: String? = null
             var webViewRef: android.webkit.WebView? = null
+            val startTime = android.os.SystemClock.uptimeMillis()
 
             Handler(Looper.getMainLooper()).post {
                 val webView = android.webkit.WebView(context)
@@ -108,17 +109,51 @@ class KuronNativePlugin :
                     databaseEnabled = true
                     blockNetworkImage = true
                 }
-                webView.webViewClient = object : android.webkit.WebViewClient() {
-                    override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
-                        view?.evaluateJavascript(script) { value ->
-                            jsResult = value
+                // Poll the script until it yields a non-empty result or the
+                // caller's timeout fires (macOS headlessEval parity). Needed
+                // for JS-rendered pages whose content arrives after
+                // onPageFinished (e.g. Next.js Server Action chapters).
+                val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+                fun settle(value: String?) {
+                    if (!finished.compareAndSet(false, true)) return
+                    jsResult = value
+                    try {
+                        webView.stopLoading()
+                        webView.destroy()
+                    } catch (_: Exception) {}
+                    webViewRef = null
+                    latch.countDown()
+                }
+                fun poll() {
+                    // stopLoading/destroy (timeout or settle) nulls the ref;
+                    // evaluating afterwards only spams "called on a destroyed
+                    // WebView" warnings (seen in the wild), so bail out.
+                    if (finished.get() || webViewRef == null) return
+                    // Hard stop: never outlive the caller's timeout by much,
+                    // even if evaluate callbacks stop arriving.
+                    if (android.os.SystemClock.uptimeMillis() - startTime >
+                        timeoutMs + 5000) return
+                    try {
+                        webView.evaluateJavascript(script) { value ->
+                            if (finished.get()) return@evaluateJavascript
+                            val cleaned = value
                                 ?.removeSurrounding("\"")
                                 ?.takeUnless { it == "null" || it.isEmpty() }
-                            webView.stopLoading()
-                            webView.destroy()
-                            webViewRef = null
-                            latch.countDown()
+                            if (cleaned != null) {
+                                settle(cleaned)
+                            } else {
+                                Handler(Looper.getMainLooper())
+                                    .postDelayed({ poll() }, 500)
+                            }
                         }
+                    } catch (_: Exception) {
+                        Handler(Looper.getMainLooper())
+                            .postDelayed({ poll() }, 500)
+                    }
+                }
+                webView.webViewClient = object : android.webkit.WebViewClient() {
+                    override fun onPageFinished(view: android.webkit.WebView?, url: String?) {
+                        poll()
                     }
                 }
                 webView.loadUrl(url)
@@ -146,6 +181,30 @@ class KuronNativePlugin :
                 result.success(null)
             }
         }.start()
+    }
+
+    /// Writes Dart-side jar cookies into the native WebView cookie store so
+  /// headless loads (e.g. JS-rendered readers) pass Cloudflare with the
+  /// same clearance the Dio stack already holds.
+  private fun handleSetCookies(call: MethodCall, result: Result) {
+        val url = call.argument<String>("url") ?: run {
+            result.error("INVALID_ARGS", "url is required", null); return
+        }
+        val cookies = call.argument<String>("cookies") ?: run {
+            result.error("INVALID_ARGS", "cookies is required", null); return
+        }
+        try {
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            cookieManager.setAcceptCookie(true)
+            cookies.split(";")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() && it.contains("=") }
+                .forEach { cookieManager.setCookie(url, it) }
+            cookieManager.flush()
+            result.success(true)
+        } catch (e: Exception) {
+            result.error("SET_COOKIES_FAILED", e.message, null)
+        }
     }
 
     companion object {
@@ -296,6 +355,9 @@ class KuronNativePlugin :
             }
             "runProxyWebView" -> {
                 ProxyWebViewHandler(context).handle(call, result)
+            }
+            "setCookies" -> {
+                handleSetCookies(call, result)
             }
             "clearCookies" -> {
                 handleClearCookies(result)

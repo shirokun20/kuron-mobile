@@ -5,6 +5,8 @@ import 'package:logger/logger.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 
 import '../webview_session/webview_session_adapter.dart';
+import '../webview_dom/webview_chapter_extractor.dart';
+import '../webview_dom/webview_dom_reader_source.dart';
 
 // Reusable factory for any source that needs Cloudflare bypass via
 // [WebViewSessionAdapter]. Wraps Dio with an interceptor that delegates
@@ -46,12 +48,48 @@ class GenericBypassSourceFactory implements SourceFactory {
       logger: _logger,
     );
 
-    return GenericHttpSource(
+    final inner = GenericHttpSource(
       rawConfig: config,
       dio: interceptingDio,
       logger: _logger,
       bypassCookieProvider: WebViewSessionAdapter.getCachedCookieHeaderForUrl,
       bypassUaProvider: WebViewSessionAdapter.getCachedUserAgentForUrl,
+    );
+    return _maybeWrapWebViewDom(inner, config);
+  }
+
+  /// JS-rendered readers (Next.js Server Action chapters): the HTML
+  /// carries zero image URLs, so route chapter fetches through a
+  /// headless WebView render. Opt-in per source via
+  /// `scraper.selectors.reader.mode == 'webviewDom'`.
+  ContentSource _maybeWrapWebViewDom(
+    GenericHttpSource inner,
+    Map<String, dynamic> config,
+  ) {
+    final scraper = config['scraper'] as Map?;
+    final selectors = scraper?['selectors'] as Map?;
+    final reader = selectors?['reader'] as Map?;
+    if (reader?['mode'] != 'webviewDom') return inner;
+    final images = reader?['images'] as Map?;
+    final selectorValue = images?['selector'];
+    final selectors_ = selectorValue is List
+        ? selectorValue.whereType<String>().toList()
+        : <String>[selectorValue?.toString() ?? 'img'];
+    final attribute = images?['attribute']?.toString();
+    _logger.i(
+      '$_sourceId: webview-dom reader enabled (selectors: $selectors_)',
+    );
+    return WebViewDomReaderSource(
+      inner: inner,
+      extractor: WebViewChapterExtractor(),
+      baseUrl: (config['baseUrl'] ?? inner.baseUrl).toString(),
+      imageSelectors: selectors_,
+      imageAttributes: [
+        if (attribute != null && attribute.isNotEmpty) attribute,
+        'src',
+      ],
+      interactiveCollect: (pageUrl, script) => _sessionAdapter
+          .runInteractivePageScript(url: pageUrl, pageFinishedScript: script),
     );
   }
 }
@@ -72,7 +110,7 @@ class BypassDioInterceptor with DioMixin implements Dio {
     required this._sessionAdapter,
     required this._logger,
     this.forwardSessionCookie = false,
-  })  : _baseDio = baseDio {
+  }) : _baseDio = baseDio {
     options = baseDio.options;
     interceptors.addAll(baseDio.interceptors);
     httpClientAdapter = baseDio.httpClientAdapter;
@@ -102,7 +140,8 @@ class BypassDioInterceptor with DioMixin implements Dio {
     // vihentai laravel_session) so the bypass sends it alongside cf_clearance.
     if (forwardSessionCookie && this.options.headers.containsKey('Cookie')) {
       final withCookie = Map<String, dynamic>.from(
-          passthroughOptions.headers ?? <String, dynamic>{});
+        passthroughOptions.headers ?? <String, dynamic>{},
+      );
       withCookie['Cookie'] = this.options.headers['Cookie'];
       passthroughOptions = passthroughOptions.copyWith(headers: withCookie);
     }
@@ -149,8 +188,9 @@ class BypassDioInterceptor with DioMixin implements Dio {
     // valid session never trips the challenge (and never voids the clearance
     // by sending it under a mismatched UA).
     var effectiveOptions = options;
-    final bypassCookie =
-        WebViewSessionAdapter.getCachedCookieHeaderForUrl(path);
+    final bypassCookie = WebViewSessionAdapter.getCachedCookieHeaderForUrl(
+      path,
+    );
     final bypassUa = WebViewSessionAdapter.getCachedUserAgentForUrl(path);
     if ((bypassCookie?.isNotEmpty ?? false) ||
         (bypassUa?.isNotEmpty ?? false)) {
@@ -184,8 +224,9 @@ class BypassDioInterceptor with DioMixin implements Dio {
         _sessionAdapter.baseUrl,
         options: Options(headers: options?.headers),
       );
-      final freshCookie =
-          WebViewSessionAdapter.getCachedCookieHeaderForUrl(path);
+      final freshCookie = WebViewSessionAdapter.getCachedCookieHeaderForUrl(
+        path,
+      );
       final freshUa = WebViewSessionAdapter.getCachedUserAgentForUrl(path);
       final retryHeaders = Map<String, dynamic>.from(options?.headers ?? {});
       if (freshCookie != null && freshCookie.isNotEmpty) {
@@ -194,8 +235,9 @@ class BypassDioInterceptor with DioMixin implements Dio {
       if (freshUa != null && freshUa.isNotEmpty) {
         retryHeaders['User-Agent'] = freshUa;
       }
-      final retryOptions =
-          (options ?? Options()).copyWith(headers: retryHeaders);
+      final retryOptions = (options ?? Options()).copyWith(
+        headers: retryHeaders,
+      );
       // Retry POST with fresh cookies/UA after bypass
       return await _baseDio.post<T>(
         path,
