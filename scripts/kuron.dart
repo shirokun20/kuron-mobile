@@ -53,8 +53,7 @@ const List<String> _kuroArt = [
 // Magenta → pink → cyan gradient across the 6 art lines.
 const List<int> _kuroGradient = [199, 201, 213, 165, 123, 51];
 
-String _grad(String s, int code) =>
-    _ansi ? '\x1B[1;38;5;${code}m$s\x1B[0m' : s;
+String _grad(String s, int code) => _ansi ? '\x1B[1;38;5;${code}m$s\x1B[0m' : s;
 
 void printBanner() {
   if (_bannerDone) return;
@@ -63,7 +62,8 @@ void printBanner() {
     stdout.writeln(_grad(_kuroArt[i], _kuroGradient[i]));
   }
   stdout.writeln(
-      '  ${cyan(kKuroFullName)} ${dim('v$kKuroVersion')}  🐈‍⬛  ${dim('(=^･ω･^=)ฅ')}');
+    '  ${cyan(kKuroFullName)} ${dim('v$kKuroVersion')}  🐈‍⬛  ${dim('(=^･ω･^=)ฅ')}',
+  );
   stdout.writeln('  ${dim(kKuroTagline)}');
   stdout.writeln('  ${dim('─' * 46)}\n');
 }
@@ -76,7 +76,9 @@ String _padCells(String s, int width) {
 
 // Rounded result box, e.g. build success summary.
 void printResultBox({required bool success, required List<String> rows}) {
-  final title = success ? '🎉 BUILD SUCCESS — Kuron delivered!' : '💥 BUILD FAILED';
+  final title = success
+      ? '🎉 BUILD SUCCESS — Kuron delivered!'
+      : '💥 BUILD FAILED';
   var inner = title;
   for (final r in rows) {
     if (_cells(r) > _cells(inner)) inner = r;
@@ -123,7 +125,7 @@ class KuroRun {
   final Stopwatch _sw = Stopwatch();
 
   KuroRun(this.label, {bool? animated})
-      : animated = animated ?? stdout.hasTerminal && stdout.supportsAnsiEscapes;
+    : animated = animated ?? stdout.hasTerminal && stdout.supportsAnsiEscapes;
 
   void start() {
     _sw.start();
@@ -165,7 +167,10 @@ class KuroRun {
     final elapsed = _fmt(_sw.elapsed);
     if (!animated) {
       stdout.writeln(
-          success ? '✔ ${doneLabel ?? label} (${elapsed}s)' : '✘ $label FAILED (${elapsed}s)');
+        success
+            ? '✔ ${doneLabel ?? label} (${elapsed}s)'
+            : '✘ $label FAILED (${elapsed}s)',
+      );
       return;
     }
     _timer?.cancel();
@@ -173,7 +178,8 @@ class KuroRun {
     stdout.write(_clear);
     if (success) {
       stdout.writeln(
-          '${green('✔')} 🐈‍⬛💨 ${doneLabel ?? label} ${dim('(${elapsed}s)')}');
+        '${green('✔')} 🐈‍⬛💨 ${doneLabel ?? label} ${dim('(${elapsed}s)')}',
+      );
     } else {
       stdout.writeln('${red('✘')} $label ${dim('FAILED after ${elapsed}s)')}');
     }
@@ -225,8 +231,7 @@ int _termWidth() {
 }
 
 // Clip [label] (rune-safe) so prefix + label + suffix fits [maxWidth].
-String _fitLabel(String label, String prefix, String suffix,
-    [int? maxWidth]) {
+String _fitLabel(String label, String prefix, String suffix, [int? maxWidth]) {
   final room = (maxWidth ?? _termWidth()) - _cells(prefix) - _cells(suffix);
   if (_cells(label) <= room) return label;
   var keep = room - 1; // room for '…'
@@ -253,32 +258,39 @@ Future<int> runWithCat(
   cat.start();
   final proc = await spawn();
   final outTail = <String>[];
-  final sub1 =
-      proc.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-    if (verbose) {
-      stdout.write('$_clear$line\n');
-    } else if (outTail.length < 200) {
-      outTail.add(line);
-    } else {
-      outTail.removeAt(0);
-      outTail.add(line);
-    }
-  });
-  final sub2 =
-      proc.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-    if (verbose) {
-      stdout.write('$_clear${dim(line)}\n');
-    } else if (outTail.length < 200) {
-      outTail.add(line);
-    }
-  });
+  final sub1 = proc.stdout
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())
+      .listen((line) {
+        if (verbose) {
+          stdout.write('$_clear$line\n');
+        } else if (outTail.length < 200) {
+          outTail.add(line);
+        } else {
+          outTail.removeAt(0);
+          outTail.add(line);
+        }
+      });
+  final sub2 = proc.stderr
+      .transform(utf8.decoder)
+      .transform(const LineSplitter())
+      .listen((line) {
+        if (verbose) {
+          stdout.write('$_clear${dim(line)}\n');
+        } else if (outTail.length < 200) {
+          outTail.add(line);
+        }
+      });
   final code = await proc.exitCode;
   await sub1.cancel();
   await sub2.cancel();
   cat.stop(success: code == 0);
   if (code != 0 && !verbose) {
     fail('Last output before failure:');
-    for (final line in outTail.length > 25 ? outTail.sublist(outTail.length - 25) : outTail) {
+    for (final line
+        in outTail.length > 25
+            ? outTail.sublist(outTail.length - 25)
+            : outTail) {
       stdout.writeln('  $line');
     }
     stdout.writeln(dim('Tip: re-run with --verbose to stream full output.'));
@@ -306,9 +318,12 @@ bool get hasFvm {
 
 List<String> get flutterPrefix => hasFvm ? ['fvm', 'flutter'] : ['flutter'];
 
-Future<Process> spawnCmd(List<String> cmd, {String? cwd}) =>
-    Process.start(cmd.first, cmd.sublist(1),
-        workingDirectory: cwd ?? repoRoot, runInShell: true);
+Future<Process> spawnCmd(List<String> cmd, {String? cwd}) => Process.start(
+  cmd.first,
+  cmd.sublist(1),
+  workingDirectory: cwd ?? repoRoot,
+  runInShell: true,
+);
 
 Future<int> sh(List<String> cmd, {String? cwd}) async {
   final proc = await spawnCmd(cmd, cwd: cwd);
@@ -325,7 +340,10 @@ class KArgs {
   final List<String> rest;
   KArgs(this.opts, this.flags, this.rest);
 
-  static KArgs parse(List<String> args, {Map<String, String> aliases = const {}}) {
+  static KArgs parse(
+    List<String> args, {
+    Map<String, String> aliases = const {},
+  }) {
     final opts = <String, String>{};
     final flags = <String>{};
     final rest = <String>[];
@@ -356,17 +374,23 @@ class KArgs {
 
 // ── build: optimized APK (mirrors scripts/build_optimized.sh) ──
 Future<int> cmdBuild(List<String> raw) async {
-  final a = KArgs.parse(raw, aliases: {'-f': '--flavor', '-t': '--type', '-v': '--verbose'});
+  final a = KArgs.parse(
+    raw,
+    aliases: {'-f': '--flavor', '-t': '--type', '-v': '--verbose'},
+  );
   final verbose = a.has('verbose') || a.has('v');
-  var type = (a['type'] ?? (a.rest.isNotEmpty ? a.rest.first : 'release')).toLowerCase();
+  var type = (a['type'] ?? (a.rest.isNotEmpty ? a.rest.first : 'release'))
+      .toLowerCase();
   if (type != 'release' && type != 'debug') type = 'release';
   final flavorEnv = Platform.environment['FLAVOR'];
   final defaultFlavor = type == 'release' ? 'prod' : 'dev';
   final flavor = (a['flavor'] ?? flavorEnv ?? defaultFlavor).toLowerCase();
-  final splitAbi = a.has('split-abi') ||
+  final splitAbi =
+      a.has('split-abi') ||
       a.has('splitAbi') ||
       (Platform.environment['SPLIT_ABI'] ?? 'false').toLowerCase() == 'true';
-  final secret = a['secret'] ?? Platform.environment['DOUJINDESU_APP_SECRET'] ?? '';
+  final secret =
+      a['secret'] ?? Platform.environment['DOUJINDESU_APP_SECRET'] ?? '';
 
   final appName = flavor == 'dev' ? 'Kuron Dev' : 'Kuron';
   var appId = flavor == 'dev' ? 'id.nhasix.app.dev' : 'id.nhasix.app';
@@ -379,27 +403,24 @@ Future<int> cmdBuild(List<String> raw) async {
     final pub = File('$repoRoot/pubspec.yaml').readAsStringSync();
     version = RegExp(r'version:\s*(\S+)').firstMatch(pub)?.group(1) ?? '?';
   } catch (_) {}
-  stdout.writeln('  ${dim('Version:')} $version   ${dim('App:')} $appName ($appId)');
-  stdout.writeln('  ${dim('Flavor:')} $flavor  ${dim('Type:')} $type  '
-      '${dim('ABI:')} ${splitAbi ? 'split-per-abi' : 'universal'}');
+  stdout.writeln(
+    '  ${dim('Version:')} $version   ${dim('App:')} $appName ($appId)',
+  );
+  stdout.writeln(
+    '  ${dim('Flavor:')} $flavor  ${dim('Type:')} $type  '
+    '${dim('ABI:')} ${splitAbi ? 'split-per-abi' : 'universal'}',
+  );
   stdout.writeln('  ${dim('Flutter:')} ${flutterPrefix.join(' ')}\n');
 
-  final hasCargo = _which('cargo') != null;
-  final totalSteps = hasCargo ? 3 : 2;
+  const totalSteps = 2;
   var stepNo = 0;
 
   var code = await runWithCat(
-      '[${++stepNo}/$totalSteps] Cleaning project',
-      () => spawnCmd([...flutterPrefix, 'clean']),
-      verbose: verbose);
+    '[${++stepNo}/$totalSteps] Cleaning project',
+    () => spawnCmd([...flutterPrefix, 'clean']),
+    verbose: verbose,
+  );
   if (code != 0) return code;
-
-  if (hasCargo) {
-    code = await runWithCat('[${++stepNo}/$totalSteps] Cleaning rust target',
-        () => spawnCmd(['cargo', 'clean', '--manifest-path', 'packages/kuron_native/rust/Cargo.toml']),
-        verbose: verbose);
-    if (code != 0) return code;
-  }
 
   // Auto-export KEYSTORE_BASE64 for release (same rule as build_optimized.sh).
   final env = Map<String, String>.from(Platform.environment);
@@ -412,26 +433,39 @@ Future<int> cmdBuild(List<String> raw) async {
   }
 
   final cmd = <String>[
-    ...flutterPrefix, 'build', 'apk',
+    ...flutterPrefix,
+    'build',
+    'apk',
     type == 'release' ? '--release' : '--debug',
-    '--flavor', flavor,
+    '--flavor',
+    flavor,
     if (splitAbi) '--split-per-abi',
     '--dart-define=cronetHttpNoPlay=true',
     if (secret.isNotEmpty) '--dart-define=DOUJINDESU_APP_SECRET=$secret',
   ];
-  if (secret.isNotEmpty) info('Injected DOUJINDESU_APP_SECRET via --dart-define');
+  if (secret.isNotEmpty)
+    info('Injected DOUJINDESU_APP_SECRET via --dart-define');
   stdout.writeln(dim('  \$ ${cmd.join(' ')}'));
 
   code = await runWithCat(
-      '[${++stepNo}/$totalSteps] Kuron is building $appName [$flavor/$type]',
-      () => Process.start(cmd.first, cmd.sublist(1),
-          workingDirectory: repoRoot, runInShell: true, environment: env),
-      verbose: verbose);
+    '[${++stepNo}/$totalSteps] Kuron is building $appName [$flavor/$type]',
+    () => Process.start(
+      cmd.first,
+      cmd.sublist(1),
+      workingDirectory: repoRoot,
+      runInShell: true,
+      environment: env,
+    ),
+    verbose: verbose,
+  );
   if (code != 0) {
-    printResultBox(success: false, rows: [
-      'Step: building $appName [$flavor/$type]',
-      'Kuron tripped! (=；ェ；=) Tip: re-run with --verbose.',
-    ]);
+    printResultBox(
+      success: false,
+      rows: [
+        'Step: building $appName [$flavor/$type]',
+        'Kuron tripped! (=；ェ；=) Tip: re-run with --verbose.',
+      ],
+    );
     return code;
   }
 
@@ -447,15 +481,21 @@ Future<int> cmdBuild(List<String> raw) async {
   for (final pattern in candidates) {
     if (found.isNotEmpty) break;
     final dirPart = pattern.split('*').first;
-    final dirPath = '$repoRoot/${dirPart.substring(0, dirPart.lastIndexOf('/'))}';
+    final dirPath =
+        '$repoRoot/${dirPart.substring(0, dirPart.lastIndexOf('/'))}';
     final dir = Directory(dirPath);
     if (!dir.existsSync()) continue;
-    final files = dir
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.apk') && f.uri.pathSegments.last.startsWith('kuron_'))
-        .toList()
-      ..sort();
+    final files =
+        dir
+            .listSync()
+            .whereType<File>()
+            .where(
+              (f) =>
+                  f.path.endsWith('.apk') &&
+                  f.uri.pathSegments.last.startsWith('kuron_'),
+            )
+            .toList()
+          ..sort();
     found.addAll(files);
   }
   if (found.isEmpty) {
@@ -480,13 +520,16 @@ Future<int> cmdBuild(List<String> raw) async {
     }
   }
   stdout.writeln('');
-  printResultBox(success: true, rows: [
-    for (final apk in found)
-      '📱 ${apk.uri.pathSegments.last} · ${_human(apk.lengthSync())}',
-    '📦 Total (this run): ${found.length} · ${_human(totalBytes)}',
-    '💾 Universal ref: ${universalRef.isEmpty ? 'N/A (split-per-abi)' : universalRef}',
-    '📂 Saved to apk-output/  (=^･ω･^=)ฅ',
-  ]);
+  printResultBox(
+    success: true,
+    rows: [
+      for (final apk in found)
+        '📱 ${apk.uri.pathSegments.last} · ${_human(apk.lengthSync())}',
+      '📦 Total (this run): ${found.length} · ${_human(totalBytes)}',
+      '💾 Universal ref: ${universalRef.isEmpty ? 'N/A (split-per-abi)' : universalRef}',
+      '📂 Saved to apk-output/  (=^･ω･^=)ฅ',
+    ],
+  );
   return 0;
 }
 
@@ -519,10 +562,14 @@ Future<int> cmdPubGet(List<String> raw) async {
   var okCount = 0, failCount = 0;
   final failed = <String>[];
   for (final dir in pkgDirs) {
-    final name = dir == repoRoot ? 'root app' : dir.split(Platform.pathSeparator).last;
-    final code = await runWithCat('pub get: $name',
-        () => spawnCmd([...flutterPrefix, 'pub', 'get'], cwd: dir),
-        verbose: verbose);
+    final name = dir == repoRoot
+        ? 'root app'
+        : dir.split(Platform.pathSeparator).last;
+    final code = await runWithCat(
+      'pub get: $name',
+      () => spawnCmd([...flutterPrefix, 'pub', 'get'], cwd: dir),
+      verbose: verbose,
+    );
     if (code == 0) {
       okCount++;
     } else {
@@ -531,7 +578,9 @@ Future<int> cmdPubGet(List<String> raw) async {
     }
   }
   stdout.writeln('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  stdout.writeln('📊 ${cyan('Summary:')} ${green('✅ $okCount')}  ${red('❌ $failCount')}');
+  stdout.writeln(
+    '📊 ${cyan('Summary:')} ${green('✅ $okCount')}  ${red('❌ $failCount')}',
+  );
   if (failed.isNotEmpty) {
     fail('Failed: ${failed.join(', ')}');
     return 1;
@@ -573,7 +622,9 @@ Future<int> cmdFeature(List<String> raw) async {
       stdout.writeln('  ${dim('Exists:')} $dirPath');
     }
   }
-  final cubitFile = File('$repoRoot/lib/presentation/cubits/$name/${name}_cubit.dart');
+  final cubitFile = File(
+    '$repoRoot/lib/presentation/cubits/$name/${name}_cubit.dart',
+  );
   if (!cubitFile.existsSync()) {
     cubitFile.writeAsStringSync('''
 import 'package:logger/logger.dart';
@@ -593,8 +644,10 @@ class ${pascal}Cubit extends BaseCubit<${pascal}State> {
 ''');
     stdout.writeln('  ${green('Created:')} ${cubitFile.path}');
   }
-  stdout.writeln('\nNext (manual): entity → repository iface → model/impl → '
-      'register in lib/core/di/service_locator.dart');
+  stdout.writeln(
+    '\nNext (manual): entity → repository iface → model/impl → '
+    'register in lib/core/di/service_locator.dart',
+  );
   stdout.writeln(green('🎉 Kuron scaffolded $name! (=^･ω･^=)ฅ'));
   return 0;
 }
@@ -626,7 +679,12 @@ Future<int> cmdStatus(List<String> raw) async {
     final c = _countTasks(File('${entry.path}/tasks.md'), doneRe, openRe);
     final pct = c[1] == 0 ? 0 : (c[0] * 100 / c[1]).round();
     final bar = _bar(c[0], c[1]);
-    rows.add([name, '$bar ${c[0]}/${c[1]}', '$pct%', pct == 100 ? 'Done' : 'Active']);
+    rows.add([
+      name,
+      '$bar ${c[0]}/${c[1]}',
+      '$pct%',
+      pct == 100 ? 'Done' : 'Active',
+    ]);
   }
   rows.sort((x, y) => x[0].compareTo(y[0]));
   final buf = StringBuffer('# OpenSpec Changes Dashboard\n\n');
@@ -639,11 +697,15 @@ Future<int> cmdStatus(List<String> raw) async {
   for (final r in archivedRows) {
     buf.writeln(r);
   }
-  buf.writeln('\n_Last updated: ${DateTime.now().toString().split('.').first}_ '
-      '(generated by scripts/kuron.dart)');
+  buf.writeln(
+    '\n_Last updated: ${DateTime.now().toString().split('.').first}_ '
+    '(generated by scripts/kuron.dart)',
+  );
   File('$repoRoot/openspec/STATUS.md').writeAsStringSync(buf.toString());
   stdout.writeln(buf.toString());
-  ok('Dashboard written to openspec/STATUS.md — Kuron counted everything! 🐈‍⬛');
+  ok(
+    'Dashboard written to openspec/STATUS.md — Kuron counted everything! 🐈‍⬛',
+  );
   return 0;
 }
 
@@ -678,24 +740,29 @@ Future<int> cmdAssets(List<String> raw) async {
     info('No assets/ directory — nothing to audit. Kuron naps. 😴');
     return 0;
   }
-  final files = assets
-      .listSync(recursive: true)
-      .whereType<File>()
-      .map((f) => (f, f.lengthSync()))
-      .toList()
-    ..sort((x, y) => y.$2.compareTo(x.$2));
+  final files =
+      assets
+          .listSync(recursive: true)
+          .whereType<File>()
+          .map((f) => (f, f.lengthSync()))
+          .toList()
+        ..sort((x, y) => y.$2.compareTo(x.$2));
   stdout.writeln('Asset size audit (budget: ${limitKb}KB per file)\n');
   var over = 0;
   for (final (f, size) in files) {
     final kb = size ~/ 1024;
     if (kb > limitKb) {
       over++;
-      stdout.writeln('  ${red('OVER')}  ${kb}KB  ${f.path.replaceFirst('$repoRoot/', '')}');
+      stdout.writeln(
+        '  ${red('OVER')}  ${kb}KB  ${f.path.replaceFirst('$repoRoot/', '')}',
+      );
     }
   }
   stdout.writeln('\nLargest 10 assets:');
   for (final (f, size) in files.take(10)) {
-    stdout.writeln('  ${_human(size).padLeft(8)}  ${f.path.replaceFirst('$repoRoot/', '')}');
+    stdout.writeln(
+      '  ${_human(size).padLeft(8)}  ${f.path.replaceFirst('$repoRoot/', '')}',
+    );
   }
   stdout.writeln('');
   if (over > 0) {
@@ -718,16 +785,28 @@ Future<int> cmdClearCache(List<String> raw) async {
     return 1;
   }
   Future<int> adb(List<String> args) => sh(['adb', ...args]);
-  var code = await runWithCat('Checking device $appId',
-      () => spawnCmd(['adb', 'shell', 'run-as', appId, 'true']));
+  var code = await runWithCat(
+    'Checking device $appId',
+    () => spawnCmd(['adb', 'shell', 'run-as', appId, 'true']),
+  );
   if (code != 0) {
     fail('run-as failed for $appId (app not installed or not debuggable).');
     return 1;
   }
   info('Clearing config cache for $appId …');
   await adb(['shell', 'am', 'force-stop', appId]);
-  code = await runWithCat('Removing app_flutter/configs',
-      () => spawnCmd(['adb', 'shell', 'run-as', appId, 'rm', '-rf', 'app_flutter/configs']));
+  code = await runWithCat(
+    'Removing app_flutter/configs',
+    () => spawnCmd([
+      'adb',
+      'shell',
+      'run-as',
+      appId,
+      'rm',
+      '-rf',
+      'app_flutter/configs',
+    ]),
+  );
   if (code != 0) return code;
   ok('Done. Relaunch the app to re-fetch configs. 🐈‍⬛');
   return 0;
@@ -742,9 +821,26 @@ Future<int> cmdSearch(List<String> raw) async {
   final dir = a.rest.length > 2 ? a.rest[2] : 'lib/';
   switch (mode) {
     case 'text':
-      return sh(['rg', '--color=always', '-n', '--heading', '-t', 'dart', pattern, '$repoRoot/$dir']);
+      return sh([
+        'rg',
+        '--color=always',
+        '-n',
+        '--heading',
+        '-t',
+        'dart',
+        pattern,
+        '$repoRoot/$dir',
+      ]);
     case 'ast':
-      return sh(['semgrep', '--lang', 'dart', '-e', pattern, '$repoRoot/$dir', '--no-git-ignore']);
+      return sh([
+        'semgrep',
+        '--lang',
+        'dart',
+        '-e',
+        pattern,
+        '$repoRoot/$dir',
+        '--no-git-ignore',
+      ]);
     case 'audit':
       return _audit();
     case 'debugprint':
@@ -769,7 +865,9 @@ Future<int> _audit() async {
   // Mirrors AGENTS.md layer + hygiene rules (subset of smart_search.sh audit).
   var bad = 0;
   info('Audit: domain must stay pure Dart (no package:flutter)…');
-  bad += await sh(['rg', '-l', 'package:flutter', '$repoRoot/lib/domain']) == 0 ? 0 : 0;
+  bad += await sh(['rg', '-l', 'package:flutter', '$repoRoot/lib/domain']) == 0
+      ? 0
+      : 0;
   info('Audit: no print/debugPrint in lib…');
   final c1 = await spawnCmd(['rg', '-l', r'debugPrint|(?<!\w)print\(', 'lib']);
   final found = await c1.stdout.transform(utf8.decoder).join();
@@ -786,21 +884,43 @@ Future<int> _audit() async {
 void printHelp() {
   printBanner();
   stdout.writeln('${_bold}Usage:$_reset  kuron <command> [options]\n');
-  stdout.writeln('  ${green('build')} [release|debug] [--flavor prod|dev] [--split-abi] [--verbose]');
-  stdout.writeln('      Optimized APK (cronetHttpNoPlay, keystore, apk-output/) — with 🐈‍⬛ run animation');
-  stdout.writeln('  ${green('pub-get')}                                     Root + all packages/');
-  stdout.writeln('  ${green('feature')} <name>                                Scaffold Clean Architecture module');
-  stdout.writeln('  ${green('status')}                                       Refresh openspec/STATUS.md');
-  stdout.writeln('  ${green('assets')} [--limit-kb 200]                       Asset size budget audit');
-  stdout.writeln('  ${green('clear-cache')} [app-id]                          ADB wipe remote-config cache');
-  stdout.writeln('  ${green('search')} <mode> <pattern> [dir]                text|ast|audit|debugprint|violations');
-  stdout.writeln('  ${green('help')}                                         This menu\n');
-  stdout.writeln(dim('No args on a TTY → interactive wizard. CI / pipes → help + exit 1.'));
+  stdout.writeln(
+    '  ${green('build')} [release|debug] [--flavor prod|dev] [--split-abi] [--verbose]',
+  );
+  stdout.writeln(
+    '      Optimized APK (cronetHttpNoPlay, keystore, apk-output/) — with 🐈‍⬛ run animation',
+  );
+  stdout.writeln(
+    '  ${green('pub-get')}                                     Root + all packages/',
+  );
+  stdout.writeln(
+    '  ${green('feature')} <name>                                Scaffold Clean Architecture module',
+  );
+  stdout.writeln(
+    '  ${green('status')}                                       Refresh openspec/STATUS.md',
+  );
+  stdout.writeln(
+    '  ${green('assets')} [--limit-kb 200]                       Asset size budget audit',
+  );
+  stdout.writeln(
+    '  ${green('clear-cache')} [app-id]                          ADB wipe remote-config cache',
+  );
+  stdout.writeln(
+    '  ${green('search')} <mode> <pattern> [dir]                text|ast|audit|debugprint|violations',
+  );
+  stdout.writeln(
+    '  ${green('help')}                                         This menu\n',
+  );
+  stdout.writeln(
+    dim('No args on a TTY → interactive wizard. CI / pipes → help + exit 1.'),
+  );
 }
 
 // ── Interactive wizard (TTY + no args) ──
 String _ask(String question, {String? def}) {
-  stdout.write('  ${cyan('?')} $question${def != null ? dim(' [$def]') : ''}: ');
+  stdout.write(
+    '  ${cyan('?')} $question${def != null ? dim(' [$def]') : ''}: ',
+  );
   final ans = stdin.readLineSync()?.trim() ?? '';
   return ans.isEmpty ? (def ?? '') : ans;
 }
@@ -839,7 +959,11 @@ List<String> buildMenuFrame(List<String> items, int idx, int width) {
     }
   }
   final hint = _fitLabel(
-      '↑↓ move · Enter select · 1-7 jump · q cancel', '  ', '', width);
+    '↑↓ move · Enter select · 1-7 jump · q cancel',
+    '  ',
+    '',
+    width,
+  );
   lines.add('$_clear${dim('  $hint')}');
   return lines;
 }
@@ -916,7 +1040,10 @@ Future<int> runWizard() async {
   switch (pick) {
     case 1:
       final type = _ask('Build type', def: 'release');
-      final flavor = _ask('Flavor (prod/dev)', def: type == 'debug' ? 'dev' : 'prod');
+      final flavor = _ask(
+        'Flavor (prod/dev)',
+        def: type == 'debug' ? 'dev' : 'prod',
+      );
       final split = _ask('Split per ABI? (y/N)', def: 'N').toLowerCase() == 'y';
       return cmdBuild([type, '--flavor', flavor, if (split) '--split-abi']);
     case 2:
@@ -930,7 +1057,10 @@ Future<int> runWizard() async {
     case 6:
       return cmdClearCache([_ask('App ID', def: 'id.nhasix.app.dev.debug')]);
     default:
-      final mode = _ask('Mode (text/ast/audit/debugprint/violations)', def: 'text');
+      final mode = _ask(
+        'Mode (text/ast/audit/debugprint/violations)',
+        def: 'text',
+      );
       final pattern = mode == 'audit' ? '' : _ask('Pattern');
       final dir = _ask('Directory', def: 'lib/');
       return cmdSearch([mode, if (pattern.isNotEmpty) pattern, dir]);
@@ -980,7 +1110,8 @@ Future<void> main(List<String> args) async {
   }
 
   // No args: TTY → wizard; CI/pipe → help + non-zero (never hang on input).
-  final isCI = Platform.environment.containsKey('CI') ||
+  final isCI =
+      Platform.environment.containsKey('CI') ||
       Platform.environment.containsKey('GITHUB_ACTIONS');
   if (stdin.hasTerminal && !isCI) {
     exit(await runWizard());
