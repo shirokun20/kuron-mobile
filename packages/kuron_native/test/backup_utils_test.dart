@@ -180,6 +180,13 @@ class MockKuronNativePlatform
   Future<void> clearCookies() async {}
 
   @override
+  Future<bool?> setCookies({
+    required String url,
+    required String cookies,
+  }) async =>
+      true;
+
+  @override
   Future<void> clearAnimatedWebPCache() async {}
 
   @override

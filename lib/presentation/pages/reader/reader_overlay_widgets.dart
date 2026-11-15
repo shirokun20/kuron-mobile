@@ -39,16 +39,50 @@ IconData _getReadingModeIcon(ReadingMode mode) {
 
 // ───── Failed page card ─────
 
-class _FailedPageCard extends StatelessWidget {
+class _FailedPageCard extends StatefulWidget {
   const _FailedPageCard({
     required this.pageNumber,
     this.canRetry = false,
     this.onRetry,
+    this.canOpenSourcePage = false,
+    this.onOpenSourcePage,
   });
 
   final int pageNumber;
   final bool canRetry;
-  final VoidCallback? onRetry;
+  final Future<bool> Function()? onRetry;
+  final bool canOpenSourcePage;
+  final Future<bool> Function()? onOpenSourcePage;
+
+  @override
+  State<_FailedPageCard> createState() => _FailedPageCardState();
+}
+
+class _FailedPageCardState extends State<_FailedPageCard> {
+  bool _isRetrying = false;
+  bool _isOpeningSourcePage = false;
+
+  bool get _isBusy => _isRetrying || _isOpeningSourcePage;
+
+  Future<void> _handleRetry() async {
+    if (_isBusy) return;
+    setState(() => _isRetrying = true);
+    try {
+      await widget.onRetry?.call();
+    } finally {
+      if (mounted) setState(() => _isRetrying = false);
+    }
+  }
+
+  Future<void> _handleOpenSourcePage() async {
+    if (_isBusy) return;
+    setState(() => _isOpeningSourcePage = true);
+    try {
+      await widget.onOpenSourcePage?.call();
+    } finally {
+      if (mounted) setState(() => _isOpeningSourcePage = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,18 +95,50 @@ class _FailedPageCard extends StatelessWidget {
             Icon(Icons.cloud_off_rounded,
                 size: 48, color: Theme.of(context).colorScheme.error),
             const SizedBox(height: 12),
-            Text(AppLocalizations.of(context)!.pageFailedDownload(pageNumber),
+            Text(AppLocalizations.of(context)!.pageFailedDownload(widget.pageNumber),
                 style: TextStyleConst.titleSmall),
             const SizedBox(height: 4),
             Text(AppLocalizations.of(context)!.tapToRetry,
                 style: TextStyleConst.bodySmall),
-            if (canRetry)
+            if (widget.canOpenSourcePage)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: _isBusy ? null : _handleOpenSourcePage,
+                    icon: _isOpeningSourcePage
+                        ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        : const Icon(Icons.language, size: 18),
+                    label: Text(_isOpeningSourcePage
+                        ? AppLocalizations.of(context)!.readerOpeningSourcePage
+                        : AppLocalizations.of(context)!.readerOpenSourcePage),
+                  ),
+                ),
+              ),
+            if (widget.canRetry)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: FilledButton.tonalIcon(
-                  icon: const Icon(Icons.refresh, size: 18),
+                  icon: _isRetrying
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        )
+                      : const Icon(Icons.refresh, size: 18),
                   label: Text(AppLocalizations.of(context)!.retry),
-                  onPressed: onRetry,
+                  onPressed: _isBusy ? null : _handleRetry,
                 ),
               ),
           ],

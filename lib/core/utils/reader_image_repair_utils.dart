@@ -111,6 +111,11 @@ SourceImageResolutionRules resolveSourceImageResolutionRules(
     imageUrlsConfig['linkSelector'] ?? imageUrlsConfig['linkSelectors'],
     fallback: kEhentaiDefaultLinkSelectors,
   );
+  // Capability is purely config-driven: a source opts into the reader
+  // source-page (browser) fallback by declaring
+  // `scraper.selectors.detail.imageUrls` in its extension config
+  // (e.g. ehentai `mode: ehentai_page_fetch` + `imageSelector: #img`).
+  // No per-sourceId branching here — setup lives in kuron-extensions.
   final supportsManualSourcePageRepair = imageUrlsConfig.isNotEmpty &&
       (imageSelectors.isNotEmpty || linkSelectors.isNotEmpty);
 

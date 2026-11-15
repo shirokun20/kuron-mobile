@@ -31,7 +31,9 @@ class WebViewDomReaderSource implements ContentSource {
   }) : _baseUrl = baseUrl.endsWith('/')
            ? baseUrl.substring(0, baseUrl.length - 1)
            : baseUrl,
-       _interactiveCollect = interactiveCollect,
+       // `interactiveCollect` is public API used cross-library; an
+       // initializing formal would rename it to `_interactiveCollect`.
+       _interactiveCollect = interactiveCollect, // ignore: prefer_initializing_formals
        _logger = logger ?? Logger();
 
   final ContentSource _inner;

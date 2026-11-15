@@ -84,10 +84,21 @@ class _ReaderImageViewer extends StatelessWidget {
     if (OfflineContentManager.isFailedPagePlaceholder(imageUrl)) {
       final originalUrl =
           OfflineContentManager.extractOriginalUrlFromPlaceholder(imageUrl);
+      final resolvedSourceId = sourceId ?? cubit.state.content?.sourceId;
+      final canOpenSourcePage = _canOpenSourcePage(
+        imageUrl: imageUrl,
+        sourceId: resolvedSourceId,
+      );
+      final openForRepair = onOpenSourcePageForRepair;
       return _FailedPageCard(
         pageNumber: pageNumber,
         canRetry: originalUrl != null && originalUrl.trim().isNotEmpty,
-        onRetry: () => onRepairBrokenImage?.call(pageNumber),
+        onRetry: () =>
+            onRepairBrokenImage?.call(pageNumber) ?? Future.value(false),
+        canOpenSourcePage: canOpenSourcePage && openForRepair != null,
+        onOpenSourcePage: canOpenSourcePage && openForRepair != null
+            ? () => openForRepair.call(pageNumber)
+            : null,
       );
     }
 

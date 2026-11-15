@@ -91,29 +91,18 @@ class ReaderScreen extends StatefulWidget {
   /// Whether a heavy animated page must NOT auto-switch the reader out of
   /// continuous scroll.
   ///
-  /// Config-driven: a source opts out with
-  /// `scraper.selectors.reader.heavyImageAutoSwitch: false` (webtoon and
-  /// dual-page chapters have to keep continuous scroll even when one page is a
-  /// ≥2 MB animated WebP). Declared value wins in both directions.
-  ///
-  /// ponytail: [_legacyHeavyImageAutoSkipSources] is the pre-config list. It
-  /// stays only so already-published sources keep their behaviour before their
-  /// config declares the flag; it is deleted once every config says it.
-  static const Set<String> _legacyHeavyImageAutoSkipSources = {
-    'manga18.club',
-    'ehentai',
-    'komiktap',
-  };
-
+  /// Purely config-driven: a source opts out by declaring
+  /// `scraper.selectors.reader.heavyImageAutoSwitch: false` in its extension
+  /// config (webtoon and dual-page chapters have to keep continuous scroll
+  /// even when one page is a ≥2 MB animated WebP). Declared value wins in
+  /// both directions; undeclared sources keep auto-switch enabled.
   @visibleForTesting
   static bool shouldSkipHeavyImageAutoSwitch({
-    required String? sourceId,
     Map<String, dynamic>? rawConfig,
   }) {
     final declared = _readerFlag(rawConfig, 'heavyImageAutoSwitch');
     if (declared != null) return !declared;
-    return _legacyHeavyImageAutoSkipSources
-        .contains((sourceId ?? '').toLowerCase());
+    return false;
   }
 
   /// Reads one key out of `scraper.selectors.reader` in a raw source config.
@@ -634,10 +623,7 @@ class _ReaderScreenState extends State<ReaderScreen>
     final rawConfig = sourceId == null
         ? null
         : getIt<RemoteConfigService>().getRawConfig(sourceId);
-    if (ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-      sourceId: sourceId,
-      rawConfig: rawConfig,
-    )) {
+    if (ReaderScreen.shouldSkipHeavyImageAutoSwitch(rawConfig: rawConfig)) {
       return;
     }
 

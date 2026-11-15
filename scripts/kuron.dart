@@ -443,8 +443,9 @@ Future<int> cmdBuild(List<String> raw) async {
     '--dart-define=cronetHttpNoPlay=true',
     if (secret.isNotEmpty) '--dart-define=DOUJINDESU_APP_SECRET=$secret',
   ];
-  if (secret.isNotEmpty)
+  if (secret.isNotEmpty) {
     info('Injected DOUJINDESU_APP_SECRET via --dart-define');
+  }
   stdout.writeln(dim('  \$ ${cmd.join(' ')}'));
 
   code = await runWithCat(

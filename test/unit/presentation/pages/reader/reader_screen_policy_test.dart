@@ -18,7 +18,6 @@ void main() {
     test('config flag opts a source out', () {
       expect(
         ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-          sourceId: 'mangapedia',
           rawConfig: _config(heavyImageAutoSwitch: false),
         ),
         isTrue,
@@ -29,46 +28,33 @@ void main() {
     test('config flag can also opt a source in', () {
       expect(
         ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-          sourceId: 'manga18.club',
           rawConfig: _config(heavyImageAutoSwitch: true),
         ),
         isFalse,
-        reason: 'declared true overrides the legacy source list',
+        reason: 'declared true keeps auto-switch enabled',
       );
     });
 
-    test('legacy source list still applies without the flag', () {
-      for (final id in ['manga18.club', 'ehentai', 'komiktap']) {
+    test('undeclared sources keep auto-switch enabled', () {
+      // Purely config-driven: no hardcoded source list. Sources without
+      // the flag (or without config) auto-switch on heavy images.
+      for (final id in ['manga18.club', 'ehentai', 'komiktap', 'nhentai']) {
         expect(
           ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-            sourceId: id,
             rawConfig: _config(),
           ),
-          isTrue,
-          reason: '$id must keep webtoon/dual-page mode',
-        );
-        expect(
-          ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-              sourceId: id.toUpperCase()),
-          isTrue,
+          isFalse,
+          reason: '$id without the flag must auto-switch',
         );
       }
-    });
-
-    test('other sources keep auto-switch enabled', () {
       expect(
-        ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-          sourceId: 'nhentai',
-          rawConfig: _config(),
-        ),
+        ReaderScreen.shouldSkipHeavyImageAutoSwitch(),
         isFalse,
       );
-      for (final id in [null, '', 'nhentai']) {
-        expect(
-          ReaderScreen.shouldSkipHeavyImageAutoSwitch(sourceId: id),
-          isFalse,
-        );
-      }
+      expect(
+        ReaderScreen.shouldSkipHeavyImageAutoSwitch(rawConfig: null),
+        isFalse,
+      );
     });
 
     test('a non-boolean flag value falls back instead of guessing', () {
@@ -78,10 +64,9 @@ void main() {
       reader['heavyImageAutoSwitch'] = 'false';
       expect(
         ReaderScreen.shouldSkipHeavyImageAutoSwitch(
-          sourceId: 'komiktap',
           rawConfig: raw,
         ),
-        isTrue,
+        isFalse,
       );
     });
   });

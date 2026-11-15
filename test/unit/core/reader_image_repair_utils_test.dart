@@ -116,6 +116,35 @@ void main() {
       );
     });
 
+    test('supports repair for extension provision shape (ehentai)', () {
+      // Mirrors kuron-extensions `ehentai-config.json`:
+      // `scraper.selectors.detail.imageUrls = {mode, imageSelector}`
+      // with no linkSelector key — fallback link selectors keep the gate true.
+      expect(
+        supportsSourcePageManualRepair(<String, dynamic>{
+          'scraper': <String, dynamic>{
+            'selectors': <String, dynamic>{
+              'detail': <String, dynamic>{
+                'imageUrls': <String, dynamic>{
+                  'mode': 'ehentai_page_fetch',
+                  'imageSelector': '#img',
+                },
+              },
+            },
+          },
+        }),
+        isTrue,
+      );
+    });
+
+    test('still rejects manual repair without config', () {
+      expect(supportsSourcePageManualRepair(null), isFalse);
+      expect(
+        supportsSourcePageManualRepair(const <String, dynamic>{}),
+        isFalse,
+      );
+    });
+
     test('does not enable manual source-page repair for reader-only configs',
         () {
       expect(
