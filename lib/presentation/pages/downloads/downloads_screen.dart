@@ -598,8 +598,11 @@ class _DownloadsScreenState extends State<DownloadsScreen>
         if (!mounted) return;
         final encodedContentId = Uri.encodeComponent(download.contentId);
         await context.push(
-          '/reader/$encodedContentId',
-          extra: buildReaderRouteExtra(content: offlineContent),
+          '/reader/$encodedContentId?fromOffline=true',
+          extra: buildReaderRouteExtra(
+            content: offlineContent,
+            fromOffline: true,
+          ),
         );
         return;
       }
@@ -631,8 +634,11 @@ class _DownloadsScreenState extends State<DownloadsScreen>
     if (!mounted) return;
     final encodedContentId = Uri.encodeComponent(download.contentId);
     await context.push(
-      '/reader/$encodedContentId',
-      extra: buildReaderRouteExtra(content: content),
+      '/reader/$encodedContentId?fromOffline=true',
+      extra: buildReaderRouteExtra(
+        content: content,
+        fromOffline: true,
+      ),
     );
   }
 

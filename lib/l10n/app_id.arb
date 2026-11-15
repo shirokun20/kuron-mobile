@@ -3401,5 +3401,7 @@
   "streakDayThu": "Km",
   "streakDayFri": "Jm",
   "streakDaySat": "Sb",
-  "streakDaySun": "Mn"
+  "streakDaySun": "Mn",
+  "pauseOnOnlineReaderOnlyTitle": "Jeda Unduhan Saat Membaca Online Saja",
+  "pauseOnOnlineReaderOnlyDescription": "Biarkan unduhan latar belakang tetap berjalan saat membaca chapter offline atau tersimpan"
 }

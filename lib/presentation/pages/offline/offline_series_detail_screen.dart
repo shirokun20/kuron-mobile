@@ -262,6 +262,7 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
         context,
         content.id,
         content: content,
+        fromOffline: true,
       );
     }
 

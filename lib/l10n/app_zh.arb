@@ -3977,5 +3977,7 @@
   "streakDayThu": "四",
   "streakDayFri": "五",
   "streakDaySat": "六",
-  "streakDaySun": "日"
+  "streakDaySun": "日",
+  "pauseOnOnlineReaderOnlyTitle": "仅在在线阅读时暂停下载",
+  "pauseOnOnlineReaderOnlyDescription": "在离线或已保存章节阅读时保持后台下载继续运行"
 }

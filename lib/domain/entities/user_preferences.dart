@@ -86,6 +86,7 @@ class UserPreferences extends Equatable {
     this.timeoutDurationSeconds = 300,
     this.enableNotifications = true,
     this.wifiOnly = false,
+    this.pauseOnOnlineReaderOnly = true,
   });
 
   final String theme; // light, dark, amoled, note, note_dark
@@ -136,6 +137,7 @@ class UserPreferences extends Equatable {
   final int timeoutDurationSeconds; // Duration stored as seconds
   final bool enableNotifications;
   final bool wifiOnly;
+  final bool pauseOnOnlineReaderOnly;
 
   @override
   List<Object?> get props => [
@@ -182,6 +184,7 @@ class UserPreferences extends Equatable {
         timeoutDurationSeconds,
         enableNotifications,
         wifiOnly,
+        pauseOnOnlineReaderOnly,
       ];
 
   UserPreferences copyWith({
@@ -231,6 +234,7 @@ class UserPreferences extends Equatable {
     int? timeoutDurationSeconds,
     bool? enableNotifications,
     bool? wifiOnly,
+    bool? pauseOnOnlineReaderOnly,
   }) {
     return UserPreferences(
       theme: theme ?? this.theme,
@@ -286,6 +290,8 @@ class UserPreferences extends Equatable {
           timeoutDurationSeconds ?? this.timeoutDurationSeconds,
       enableNotifications: enableNotifications ?? this.enableNotifications,
       wifiOnly: wifiOnly ?? this.wifiOnly,
+      pauseOnOnlineReaderOnly:
+          pauseOnOnlineReaderOnly ?? this.pauseOnOnlineReaderOnly,
     );
   }
 
@@ -412,6 +418,7 @@ class UserPreferences extends Equatable {
       'timeoutDurationSeconds': timeoutDurationSeconds,
       'enableNotifications': enableNotifications,
       'wifiOnly': wifiOnly,
+      'pauseOnOnlineReaderOnly': pauseOnOnlineReaderOnly,
     };
   }
 
@@ -478,6 +485,8 @@ class UserPreferences extends Equatable {
           _safeParseInt(json['timeoutDurationSeconds'], 300),
       enableNotifications: _safeParseBool(json['enableNotifications'], true),
       wifiOnly: _safeParseBool(json['wifiOnly'], false),
+      pauseOnOnlineReaderOnly:
+          _safeParseBool(json['pauseOnOnlineReaderOnly'], true),
     );
   }
 

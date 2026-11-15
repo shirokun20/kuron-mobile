@@ -1,44 +1,27 @@
-/// Builds zero-secret GitHub issue links for anomaly / error reports.
-///
-/// Keputusan 4: every build uses one channel — a prefilled `issues/new`
-/// URL the user opens and submits themselves. No PAT, no auto-create,
-/// no GitHub search. Keputusan 7: titles follow the existing
-/// `[bug][<sourceId>] <feature>: <kind>` convention of `kuron-extensions`.
-///
-/// Payload hygiene (spec "Payload laporan tanpa data pribadi dan URL
-/// bersih"): only technical fields leave the device, every URL is reduced
-/// to its path (query params + fragment dropped), and the anomaly
-/// fingerprint token is always present so duplicates can be spotted.
 class ReportBuilder {
-  ReportBuilder._();
+  const ReportBuilder._();
 
-  /// Owner of both report targets.
-  static const String defaultOwner = 'shirokun20';
-
-  /// Source-layer bugs (config/selector/parsing) live here.
-  static const String extensionsRepo = 'kuron-extensions';
-
-  /// App-layer bugs (feature code, UI, storage) live here.
   static const String mobileRepo = 'kuron-mobile';
+  static const String extensionsRepo = 'kuron-extensions';
+  static const String _owner = 'shirokun20';
 
-  /// Prefix of the hidden dedup token appended to every report body.
-  static const String fingerprintTokenPrefix = '<!-- kuron-anomaly:';
+  /// Suggests destination repo: source-layer issues -> kuron-extensions,
+  /// app/feature issues -> kuron-mobile.
+  static String suggestRepo({required bool isSourceLayer}) {
+    return isSourceLayer ? extensionsRepo : mobileRepo;
+  }
 
-  /// Suggested target repo: source-layer failures belong to the config
-  /// repo, app-layer failures to the app repo. The user may override it.
-  static String suggestRepo({required bool isSourceLayer}) =>
-      isSourceLayer ? extensionsRepo : mobileRepo;
-
-  /// `[bug][<sourceId>] <feature>: <kind>` — same shape as the 58 issues
-  /// the generator-validation machine already files.
+  /// Builds issue title following `[bug][sourceId] feature: kind`.
   static String buildIssueTitle({
     required String sourceId,
     required String feature,
     required String kind,
-  }) => '[bug][$sourceId] $feature: $kind';
+  }) {
+    return '[bug][$sourceId] $feature: $kind';
+  }
 
-  /// Technical-only report body. Optional fields are omitted when absent
-  /// so an anomaly report and an error-log report share one shape.
+  /// Builds report body with technical fields only, query-free URLs/paths,
+  /// and fingerprint token.
   static String buildReportBody({
     required String sourceId,
     required String feature,
@@ -51,111 +34,139 @@ class ReportBuilder {
     String? urlPath,
     String? message,
   }) {
-    final lines = <String>[
-      '### Kuron report',
-      '',
-      '- sourceId: `${_clean(sourceId)}`',
-      '- feature: `${_clean(feature)}`',
-      '- kind: `${_clean(kind)}`',
-    ];
+    final buffer = StringBuffer();
+    buffer.writeln('## Summary');
+    buffer.writeln('- Source: `$sourceId`');
+    buffer.writeln('- Feature: `$feature`');
+    buffer.writeln('- Kind: `$kind`');
+    if (statusCode != null) {
+      buffer.writeln('- Status: `HTTP $statusCode`');
+    }
+    buffer.writeln('- Config version: `${_safeValue(configVersion)}`');
+    buffer.writeln('- App version: `${_safeValue(appVersion)}`');
+    buffer.writeln('- Fingerprint: `$fingerprint`');
 
-    void addField(String label, String? value) {
-      if (value == null) return;
-      final cleaned = _clean(value);
-      if (cleaned.isEmpty) return;
-      lines.add('- $label: `$cleaned`');
+    final cleanTemplate = _cleanPathOrUrl(templatePath);
+    final cleanUrlPath = _cleanPathOrUrl(urlPath);
+    final cleanMessage = _cleanMessage(message);
+
+    if (cleanTemplate.isNotEmpty ||
+        cleanUrlPath.isNotEmpty ||
+        cleanMessage.isNotEmpty) {
+      buffer.writeln();
+      buffer.writeln('## Technical context');
+      if (cleanTemplate.isNotEmpty) {
+        buffer.writeln('- Template/path: `$cleanTemplate`');
+      }
+      if (cleanUrlPath.isNotEmpty) {
+        buffer.writeln('- URL path: `$cleanUrlPath`');
+      }
+      if (cleanMessage.isNotEmpty) {
+        buffer.writeln('- Message: $cleanMessage');
+      }
     }
 
-    addField('template', templatePath == null ? null : pathOnly(templatePath));
-    addField('configVersion', configVersion);
-    addField('appVersion', appVersion);
-    if (statusCode != null) lines.add('- statusCode: `$statusCode`');
-    addField('urlPath', urlPath == null ? null : pathOnly(urlPath));
-    addField('message', message);
-
-    final token = fingerprint.trim();
-    lines
-      ..add('')
-      ..add(
-        token.isEmpty
-            ? '$fingerprintTokenPrefix -->'
-            : '$fingerprintTokenPrefix $token -->',
-      );
-
-    return stripQueryParamsFromUrls(lines.join('\n'));
+    buffer.writeln();
+    buffer.writeln('<!-- kuron-anomaly: $fingerprint -->');
+    return buffer.toString().trim();
   }
 
-  /// Prefilled `https://github.com/<owner>/<repo>/issues/new` link.
+  /// Builds a prefilled GitHub new-issue URL.
   ///
-  /// [repo] accepts either a bare name (`kuron-mobile`) or `owner/repo`.
-  /// The body is query-stripped and, when [fingerprint] is given, carries
-  /// exactly one dedup token line.
+  /// [repo] must be the repository name (e.g. kuron-mobile) or owner/repo.
+  /// Body is sanitized (query params stripped) and fingerprint token is
+  /// ensured when [fingerprint] is provided.
   static Uri buildPrefilledUrl({
     required String repo,
     required String title,
     required String body,
     String? fingerprint,
   }) {
-    final trimmedRepo = repo.trim();
-    final fullRepo = trimmedRepo.contains('/')
-        ? trimmedRepo
-        : '$defaultOwner/$trimmedRepo';
-
-    var cleanBody = stripQueryParamsFromUrls(body);
-    final token = fingerprint?.trim() ?? '';
-    if (token.isNotEmpty) {
-      final tokenLine = '$fingerprintTokenPrefix $token -->';
-      if (!cleanBody.contains(tokenLine)) {
-        cleanBody = cleanBody.trim().isEmpty
-            ? tokenLine
-            : '$cleanBody\n\n$tokenLine';
+    final ownerRepo = repo.contains('/') ? repo : '$_owner/$repo';
+    var sanitizedBody = stripQueryParamsFromUrls(body);
+    if (fingerprint != null && fingerprint.isNotEmpty) {
+      final token = '<!-- kuron-anomaly: $fingerprint -->';
+      if (!sanitizedBody.contains(token)) {
+        sanitizedBody = sanitizedBody.trimRight();
+        sanitizedBody =
+            sanitizedBody.isEmpty ? token : '$sanitizedBody\n\n$token';
       }
     }
-
-    return Uri.https('github.com', '/$fullRepo/issues/new', {
-      'title': title,
-      'body': cleanBody,
-    });
+    return Uri.https(
+      'github.com',
+      '/$ownerRepo/issues/new',
+      <String, String>{
+        'title': title,
+        'body': sanitizedBody,
+      },
+    );
   }
 
-  /// Reduces [value] to its path: absolute URLs keep only `uri.path`,
-  /// anything already path-like is only query-stripped.
-  static String pathOnly(String? value) {
-    if (value == null) return '';
-    final cleaned = stripQueryParamsFromUrls(value.trim());
-    if (cleaned.isEmpty) return '';
-    final uri = Uri.tryParse(cleaned);
-    if (uri != null && uri.hasScheme && uri.path.isNotEmpty) {
-      return uri.path;
-    }
-    final cut = cleaned.indexOf(RegExp(r'[?#]'));
-    return cut < 0 ? cleaned : cleaned.substring(0, cut);
-  }
-
-  /// Removes `?query` and `#fragment` from every URL found in [text].
-  ///
-  /// Trailing sentence punctuation is preserved so plain prose survives
-  /// the rewrite (`https://b.test/y?k=v.` → `https://b.test/y.`).
+  /// Strips query params and fragments from all URLs found in [text].
+  /// Keeps scheme/host/path only for absolute URLs; relative paths unchanged.
   static String stripQueryParamsFromUrls(String text) {
-    if (text.isEmpty) return text;
-    return text.replaceAllMapped(_urlPattern, (match) {
+    final urlPattern = RegExp(r'https?://[^\s)>\]"''`]+');
+    return text.replaceAllMapped(urlPattern, (match) {
       final raw = match.group(0)!;
-      final punctuation = _trailingPunctuation.firstMatch(raw)?.group(0) ?? '';
-      final base = punctuation.isEmpty
-          ? raw
-          : raw.substring(0, raw.length - punctuation.length);
-      final cut = base.indexOf(RegExp(r'[?#]'));
-      final stripped = cut < 0 ? base : base.substring(0, cut);
-      return '$stripped$punctuation';
+      final trimmed = _trimTrailingPunctuation(raw);
+      final urlPart = trimmed.value;
+      try {
+        final uri = Uri.parse(urlPart);
+        final clean = Uri(
+          scheme: uri.scheme,
+          host: uri.host,
+          port: uri.hasPort ? uri.port : null,
+          path: uri.path,
+        ).toString();
+        return '$clean${trimmed.trailing}';
+      } catch (_) {
+        return raw;
+      }
     });
   }
 
-  static final RegExp _urlPattern = RegExp(r'https?://[^\s<>"]+');
+  static String _cleanPathOrUrl(String? value) {
+    if (value == null || value.trim().isEmpty) return '';
+    final trimmed = value.trim();
+    final stripped = stripQueryParamsFromUrls(trimmed);
+    try {
+      final uri = Uri.parse(stripped);
+      if (uri.hasScheme || uri.hasAuthority) {
+        return uri.path.isEmpty ? '/' : uri.path;
+      }
+    } catch (_) {
+      // fall through
+    }
+    final q = stripped.indexOf('?');
+    final h = stripped.indexOf('#');
+    var end = stripped.length;
+    if (q >= 0 && q < end) end = q;
+    if (h >= 0 && h < end) end = h;
+    return stripped.substring(0, end);
+  }
 
-  static final RegExp _trailingPunctuation = RegExp(r'[.,;:!?]+$');
+  static String _cleanMessage(String? message) {
+    if (message == null || message.trim().isEmpty) return '';
+    return stripQueryParamsFromUrls(message.trim());
+  }
 
-  /// Collapses whitespace and backticks so a field can never break out of
-  /// its markdown line.
-  static String _clean(String value) =>
-      value.replaceAll('`', "'").replaceAll(RegExp(r'\s+'), ' ').trim();
+  static String _safeValue(String? value) {
+    if (value == null || value.trim().isEmpty) return 'unknown';
+    return value.trim();
+  }
+
+  static _Trimmed _trimTrailingPunctuation(String value) {
+    var end = value.length;
+    const trailing = {'.', ',', ';', ':', '!', '?'};
+    while (end > 0 && trailing.contains(value[end - 1])) {
+      end--;
+    }
+    return _Trimmed(value.substring(0, end), value.substring(end));
+  }
+}
+
+class _Trimmed {
+  const _Trimmed(this.value, this.trailing);
+  final String value;
+  final String trailing;
 }

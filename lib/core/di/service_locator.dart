@@ -400,6 +400,11 @@ void _setupServices() {
       () => ValueNotifier<bool>(false),
       instanceName: 'globalReaderActive');
 
+  // Global online reader-active notifier — used by coordinator + DownloadBloc
+  getIt.registerLazySingleton<ValueNotifier<bool>>(
+      () => ValueNotifier<bool>(false),
+      instanceName: 'globalOnlineReaderActive');
+
   // Github Update Service
   getIt.registerLazySingleton<UpdateService>(() => UpdateService(
         logger: getIt<Logger>(),
@@ -1542,6 +1547,8 @@ void _setupBlocs() {
         appLocalizations: null, // Initialized during main setup
         readerActiveNotifier:
             getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive'),
+        onlineReaderActiveNotifier:
+            getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive'),
       ));
 
   // Register other BLoCs when implemented

@@ -10634,6 +10634,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Su'**
   String get streakDaySun;
+
+  /// No description provided for @pauseOnOnlineReaderOnlyTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause Downloads While Reading Online Only'**
+  String get pauseOnOnlineReaderOnlyTitle;
+
+  /// No description provided for @pauseOnOnlineReaderOnlyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep background downloads running when reading offline or saved chapters'**
+  String get pauseOnOnlineReaderOnlyDescription;
 }
 
 class _AppLocalizationsDelegate

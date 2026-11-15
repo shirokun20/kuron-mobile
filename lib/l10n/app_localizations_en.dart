@@ -6213,4 +6213,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get streakDaySun => 'Su';
+
+  @override
+  String get pauseOnOnlineReaderOnlyTitle =>
+      'Pause Downloads While Reading Online Only';
+
+  @override
+  String get pauseOnOnlineReaderOnlyDescription =>
+      'Keep background downloads running when reading offline or saved chapters';
 }

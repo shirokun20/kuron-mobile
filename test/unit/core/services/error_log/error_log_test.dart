@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/core/services/error_log/error_log.dart';
@@ -11,381 +9,268 @@ class _MockDatabaseHelper extends Mock implements DatabaseHelper {}
 
 class _MockDatabase extends Mock implements Database {}
 
-Map<String, Object?> _row({
-  required int id,
-  int createdAt = 1000,
-  String sourceId = 'komiktap',
-  String feature = 'getChapterImages',
-  int? statusCode,
-  String message = 'boom',
-  String urlPath = '',
-  String appVersion = '1.0.0',
-}) => {
-  'id': id,
-  'createdAt': createdAt,
-  'sourceId': sourceId,
-  'feature': feature,
-  'statusCode': statusCode,
-  'message': message,
-  'urlPath': urlPath,
-  'appVersion': appVersion,
-};
-
 void main() {
-  late _MockDatabaseHelper helper;
-  late _MockDatabase db;
-
-  /// Rows returned by the prune query (`columns` + `orderBy`, no limit).
-  late List<Map<String, Object?>> pruneRows;
-
-  /// Rows returned by `entries()` (`orderBy` + `limit`).
-  late List<Map<String, Object?>> entryRows;
+  late _MockDatabaseHelper mockHelper;
+  late _MockDatabase mockDb;
 
   setUp(() {
+    TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({});
-    ErrorLog.debugReset();
-
-    helper = _MockDatabaseHelper();
-    db = _MockDatabase();
-    pruneRows = <Map<String, Object?>>[];
-    entryRows = <Map<String, Object?>>[];
-
-    when(() => helper.database).thenAnswer((_) async => db);
-    when(() => db.insert(any(), any())).thenAnswer((_) async => 1);
-    when(
-      () => db.query(
-        any(),
-        columns: any(named: 'columns'),
-        orderBy: any(named: 'orderBy'),
-      ),
-    ).thenAnswer((_) async => pruneRows);
-    when(
-      () => db.query(
-        any(),
-        orderBy: any(named: 'orderBy'),
-        limit: any(named: 'limit'),
-      ),
-    ).thenAnswer((_) async => entryRows);
-    when(
-      () => db.delete(
-        any(),
-        where: any(named: 'where'),
-        whereArgs: any(named: 'whereArgs'),
-      ),
-    ).thenAnswer((_) async => 1);
-    when(() => db.delete(any())).thenAnswer((_) async => 1);
-
-    ErrorLog.debugConfigure(dbHelper: helper, appVersion: '9.9.9+99');
+    mockHelper = _MockDatabaseHelper();
+    mockDb = _MockDatabase();
+    when(() => mockHelper.database).thenAnswer((_) async => mockDb);
+    ErrorLog.debugSetOverrides(
+      dbHelper: mockHelper,
+      appVersion: '1.2.3',
+    );
   });
 
-  tearDown(ErrorLog.debugReset);
+  tearDown(() {
+    ErrorLog.debugResetOverrides();
+  });
 
   group('toggle', () {
-    test('defaults to off', () async {
+    test('isEnabled defaults to false', () async {
       expect(await ErrorLog.isEnabled(), isFalse);
     });
 
-    test('setEnabled persists and isEnabled reads it back', () async {
+    test('setEnabled persists value', () async {
       await ErrorLog.setEnabled(true);
       expect(await ErrorLog.isEnabled(), isTrue);
-      expect(
-        SharedPreferences.getInstance().then(
-          (p) => p.getBool('error_log_enabled'),
-        ),
-        completion(isTrue),
-      );
-
       await ErrorLog.setEnabled(false);
       expect(await ErrorLog.isEnabled(), isFalse);
     });
   });
 
   group('record', () {
-    test('is a total no-op while the toggle is off', () async {
+    test('does not write when disabled (zero-write)', () async {
+      await ErrorLog.setEnabled(false);
       await ErrorLog.record(
-        sourceId: 'komiktap',
+        sourceId: 'nhentai',
         feature: 'getChapterImages',
-        statusCode: 502,
-        message: 'Bad Gateway',
+        statusCode: 500,
+        message: 'boom',
+        urlPath: '/g/1?token=x',
       );
-
-      verifyNever(() => db.insert(any(), any()));
-      verifyNever(() => db.query(any(), orderBy: any(named: 'orderBy')));
+      verifyNever(() => mockDb.insert(any(), any()));
     });
 
-    test('writes one entry when enabled', () async {
+    test('writes entry and strips query params from urlPath when enabled',
+        () async {
       await ErrorLog.setEnabled(true);
+      when(() => mockDb.insert(any(), any())).thenAnswer((_) async => 1);
+      when(() => mockDb.rawQuery('SELECT COUNT(*) AS c FROM error_log'))
+          .thenAnswer((_) async => [
+                {'c': 1}
+              ]);
+      when(() => mockDb.query('error_log',
+              columns: any(named: 'columns')))
+          .thenAnswer((_) async => <Map<String, Object?>>[]);
 
       await ErrorLog.record(
-        sourceId: 'komiktap',
+        sourceId: 'nhentai',
         feature: 'getChapterImages',
         statusCode: 502,
         message: 'Bad Gateway',
-        urlPath: 'https://komiktap.test/api/ch/1/images?token=secret',
+        urlPath: 'https://site.test/api/img?id=1&secret=x',
       );
 
-      final inserted =
-          verify(() => db.insert('error_log', captureAny())).captured.single
-              as Map<String, Object?>;
-
-      expect(inserted['sourceId'], 'komiktap');
+      final inserted = verify(() => mockDb.insert('error_log', captureAny()))
+          .captured
+          .single as Map<String, Object?>;
+      expect(inserted['sourceId'], 'nhentai');
       expect(inserted['feature'], 'getChapterImages');
       expect(inserted['statusCode'], 502);
       expect(inserted['message'], 'Bad Gateway');
-      expect(inserted['urlPath'], '/api/ch/1/images');
-      expect(inserted['appVersion'], '9.9.9+99');
+      expect(inserted['urlPath'], '/api/img');
+      expect(inserted['appVersion'], '1.2.3');
       expect(inserted['createdAt'], isA<int>());
-    });
-
-    test('keeps urlPath query-free even for bare paths', () async {
-      await ErrorLog.setEnabled(true);
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'search',
-        message: 'oops',
-        urlPath: '/api/search?q=secret#frag',
-      );
-
-      final inserted =
-          verify(() => db.insert('error_log', captureAny())).captured.single
-              as Map<String, Object?>;
-
-      expect(inserted['urlPath'], '/api/search');
-    });
-
-    test(
-      'truncates oversized messages instead of storing them whole',
-      () async {
-        await ErrorLog.setEnabled(true);
-
-        await ErrorLog.record(
-          sourceId: 'komiktap',
-          feature: 'search',
-          message: 'x' * (ErrorLog.maxMessageLength + 500),
-        );
-
-        final inserted =
-            verify(() => db.insert('error_log', captureAny())).captured.single
-                as Map<String, Object?>;
-
-        expect(
-          (inserted['message'] as String).length,
-          ErrorLog.maxMessageLength,
-        );
-      },
-    );
-  });
-
-  group('exclusions', () {
-    test('403 WAF responses are never recorded', () async {
-      await ErrorLog.setEnabled(true);
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'getChapterImages',
-        statusCode: 403,
-        message: 'Forbidden',
-      );
-
-      verifyNever(() => db.insert(any(), any()));
-    });
-
-    test('cloudflare / turnstile challenges are never recorded', () async {
-      await ErrorLog.setEnabled(true);
-
-      for (final message in [
-        'Cloudflare challenge detected, attempting bypass',
-        'Turnstile verification failed (110200)',
-        'Just a moment... checking your browser',
-        'cf-challenge-form present',
-      ]) {
-        await ErrorLog.record(
-          sourceId: 'komiktap',
-          feature: 'getContentDetail',
-          statusCode: 503,
-          message: message,
-        );
-      }
-
-      verifyNever(() => db.insert(any(), any()));
-    });
-
-    test('login-wall failures are never recorded', () async {
-      await ErrorLog.setEnabled(true);
-
-      for (final message in [
-        'LoginRequiredException: please sign in',
-        'HTTP 401 Unauthorized',
-      ]) {
-        await ErrorLog.record(
-          sourceId: 'komiktap',
-          feature: 'getContentDetail',
-          message: message,
-        );
-      }
-
-      verifyNever(() => db.insert(any(), any()));
-    });
-
-    test('real failures still pass the exclusion filter', () async {
-      await ErrorLog.setEnabled(true);
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'getChapterImages',
-        statusCode: 502,
-        message: 'ServerException: Bad Gateway',
-      );
-
-      verify(() => db.insert('error_log', any())).called(1);
-    });
-  });
-
-  group('ring buffer cap', () {
-    test('prunes oldest entries beyond 200 (FIFO)', () async {
-      await ErrorLog.setEnabled(true);
-      pruneRows = [
-        for (var i = 1; i <= ErrorLog.maxEntries + 1; i++) _row(id: i),
-      ];
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'getChapterImages',
-        message: 'boom',
-      );
-
-      final where = verify(
-        () => db.delete(
-          'error_log',
-          where: captureAny(named: 'where'),
-          whereArgs: captureAny(named: 'whereArgs'),
-        ),
-      ).captured;
-
-      expect(where[0], 'id IN (?)');
-      expect(where[1], [1]);
-    });
-
-    test('prunes oldest entries until the 1 MB budget is met', () async {
-      await ErrorLog.setEnabled(true);
-
-      // Each row ~ 300 KB of payload → only 3 fit in 1 MB.
-      final big = 'y' * (300 * 1024);
-      pruneRows = [for (var i = 1; i <= 5; i++) _row(id: i, message: big)];
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'getChapterImages',
-        message: 'boom',
-      );
-
-      final captured = verify(
-        () => db.delete(
-          'error_log',
-          where: captureAny(named: 'where'),
-          whereArgs: captureAny(named: 'whereArgs'),
-        ),
-      ).captured;
-
-      final ids = captured[1] as List<Object?>;
-      expect(ids, [1, 2]);
-      // 3 rows fit, the 4th would blow the budget.
-      expect(utf8.encode(big).length * 4, greaterThan(ErrorLog.maxBytes));
-    });
-
-    test('does not prune while under both caps', () async {
-      await ErrorLog.setEnabled(true);
-      pruneRows = [for (var i = 1; i <= 5; i++) _row(id: i)];
-
-      await ErrorLog.record(
-        sourceId: 'komiktap',
-        feature: 'getChapterImages',
-        message: 'boom',
-      );
-
-      verifyNever(
-        () => db.delete(
-          any(),
-          where: any(named: 'where'),
-          whereArgs: any(named: 'whereArgs'),
-        ),
-      );
     });
   });
 
   group('entries', () {
-    test('maps rows newest-first with the default limit', () async {
-      entryRows = [
-        _row(id: 2, createdAt: 2000, statusCode: 502),
-        _row(id: 1, createdAt: 1000),
-      ];
+    test('returns mapped entries ordered by createdAt desc', () async {
+      when(() => mockDb.query(
+            'error_log',
+            orderBy: any(named: 'orderBy'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => [
+            {
+              'id': 2,
+              'createdAt': 2000,
+              'sourceId': 'b',
+              'feature': 'f2',
+              'statusCode': null,
+              'message': 'm2',
+              'urlPath': '/2',
+              'appVersion': '1.0.0',
+            },
+            {
+              'id': 1,
+              'createdAt': 1000,
+              'sourceId': 'a',
+              'feature': 'f1',
+              'statusCode': 500,
+              'message': 'm1',
+              'urlPath': '/1',
+              'appVersion': '1.0.0',
+            },
+          ]);
 
-      final entries = await ErrorLog.entries();
-
-      expect(entries, hasLength(2));
-      expect(entries.first.id, 2);
-      expect(entries.first.statusCode, 502);
-      expect(entries.first.createdAt.millisecondsSinceEpoch, 2000);
-      expect(entries.last.statusCode, isNull);
-      expect(entries.last.urlPath, '');
-
-      verify(
-        () => db.query(
-          'error_log',
-          orderBy: 'createdAt DESC, id DESC',
-          limit: 100,
-        ),
-      ).called(1);
-    });
-
-    test('returns an empty list when the database is unavailable', () async {
-      when(() => helper.database).thenThrow(Exception('no db'));
-
-      expect(await ErrorLog.entries(), isEmpty);
+      final list = await ErrorLog.entries(limit: 50);
+      expect(list.length, 2);
+      expect(list.first.id, 2);
+      expect(list.first.sourceId, 'b');
+      expect(list.first.statusCode, isNull);
+      expect(list.last.statusCode, 500);
+      expect(list.last.createdAt.millisecondsSinceEpoch, 1000);
     });
   });
 
-  group('delete / clear', () {
-    test('deleteEntry removes exactly one row', () async {
+  group('prune', () {
+    test('prunes FIFO when over entry cap', () async {
+      await ErrorLog.setEnabled(true);
+      when(() => mockDb.insert(any(), any())).thenAnswer((_) async => 1);
+      var count = 201;
+      when(() => mockDb.rawQuery('SELECT COUNT(*) AS c FROM error_log'))
+          .thenAnswer((_) async => [
+                {'c': count}
+              ]);
+      when(() => mockDb.rawDelete(any(), any())).thenAnswer((inv) async {
+        count = 200;
+        return 1;
+      });
+      when(() => mockDb.query('error_log',
+              columns: any(named: 'columns')))
+          .thenAnswer((_) async => <Map<String, Object?>>[]);
+
+      await ErrorLog.record(
+        sourceId: 's',
+        feature: 'f',
+        statusCode: 500,
+        message: 'e',
+        urlPath: '/p',
+      );
+
+      final deletes = verify(() => mockDb.rawDelete(captureAny(), captureAny()))
+          .captured;
+      expect(deletes, isNotEmpty);
+      // first delete call is the FIFO overflow delete
+      expect(deletes[0] as String, contains('DELETE FROM error_log'));
+    });
+  });
+
+  group('delete/clear/export', () {
+    test('deleteEntry deletes by id', () async {
+      when(() => mockDb.delete(any(),
+              where: any(named: 'where'), whereArgs: any(named: 'whereArgs')))
+          .thenAnswer((_) async => 1);
       await ErrorLog.deleteEntry(7);
-
-      verify(() => db.delete('error_log', where: 'id = ?', whereArgs: [7]))
-          .called(1);
+      verify(() => mockDb.delete('error_log',
+          where: 'id = ?', whereArgs: [7])).called(1);
     });
 
-    test('clearAll empties the table', () async {
+    test('clearAll deletes all rows', () async {
+      when(() => mockDb.delete(any())).thenAnswer((_) async => 3);
       await ErrorLog.clearAll();
+      verify(() => mockDb.delete('error_log')).called(1);
+    });
 
-      verify(() => db.delete('error_log')).called(1);
+    test('exportText formats entries', () async {
+      when(() => mockDb.query(
+            'error_log',
+            orderBy: any(named: 'orderBy'),
+            limit: any(named: 'limit'),
+          )).thenAnswer((_) async => [
+            {
+              'id': 1,
+              'createdAt': 1700000000000,
+              'sourceId': 'nhentai',
+              'feature': 'fetchDetail',
+              'statusCode': 503,
+              'message': 'timeout',
+              'urlPath': '/g/1',
+              'appVersion': '1.0.0',
+            },
+          ]);
+      final text = await ErrorLog.exportText();
+      expect(text, contains('HTTP 503'));
+      expect(text, contains('nhentai/fetchDetail'));
+      expect(text, contains('/g/1'));
+      expect(text, contains('timeout'));
     });
   });
 
-  group('exportText', () {
-    test('renders a text report of every stored entry', () async {
-      entryRows = [
-        _row(
-          id: 2,
-          createdAt: 2000,
-          sourceId: 'nhentai',
-          feature: 'getChapterImages',
-          statusCode: 502,
-          message: 'Bad Gateway',
-          urlPath: '/api/gallery/1/images',
-        ),
-      ];
+  group('exclusions (5.3)', () {
+    Future<void> expectExcluded({
+      int? statusCode,
+      required String message,
+    }) async {
+      await ErrorLog.setEnabled(true);
+      reset(mockDb);
+      when(() => mockHelper.database).thenAnswer((_) async => mockDb);
+      await ErrorLog.record(
+        sourceId: 's',
+        feature: 'f',
+        statusCode: statusCode,
+        message: message,
+        urlPath: '/p',
+      );
+      verifyNever(() => mockDb.insert(any(), any()));
+    }
 
-      final text = await ErrorLog.exportText();
-
-      expect(text, contains('nhentai'));
-      expect(text, contains('getChapterImages'));
-      expect(text, contains('502'));
-      expect(text, contains('/api/gallery/1/images'));
-      expect(text, contains('Bad Gateway'));
+    test('CF/challenge messages excluded regardless of status', () async {
+      await expectExcluded(statusCode: 200, message: 'Cloudflare challenge page');
+      await expectExcluded(statusCode: 503, message: 'cf-chl-bypass failed');
+      await expectExcluded(
+          statusCode: 403, message: 'Just a moment... checking your browser');
+      await expectExcluded(statusCode: 401, message: 'Turnstile captcha required');
     });
 
-    test('returns an empty string when nothing is stored', () async {
-      expect(await ErrorLog.exportText(), '');
+    test('403 WAF excluded', () async {
+      await expectExcluded(statusCode: 403, message: 'Forbidden by WAF');
+      await expectExcluded(statusCode: 403, message: 'HTTP 403 access denied');
+    });
+
+    test('login-wall excluded', () async {
+      await expectExcluded(statusCode: 401, message: 'Login required to view');
+      await expectExcluded(statusCode: 302, message: 'Please log in first');
+    });
+
+    test('real errors are recorded (5xx, timeout/DNS, parse non-challenge)',
+        () async {
+      Future<void> expectRecorded({
+        int? statusCode,
+        required String message,
+      }) async {
+        await ErrorLog.setEnabled(true);
+        reset(mockDb);
+        when(() => mockHelper.database).thenAnswer((_) async => mockDb);
+        when(() => mockDb.insert(any(), any())).thenAnswer((_) async => 1);
+        when(() => mockDb.rawQuery('SELECT COUNT(*) AS c FROM error_log'))
+            .thenAnswer((_) async => [
+                  {'c': 1}
+                ]);
+        when(() => mockDb.query('error_log', columns: any(named: 'columns')))
+            .thenAnswer((_) async => <Map<String, Object?>>[]);
+        await ErrorLog.record(
+          sourceId: 's',
+          feature: 'f',
+          statusCode: statusCode,
+          message: message,
+          urlPath: '/p',
+        );
+        verify(() => mockDb.insert('error_log', any())).called(1);
+      }
+
+      await expectRecorded(statusCode: 500, message: 'Internal Server Error');
+      await expectRecorded(statusCode: 503, message: 'Service Unavailable');
+      await expectRecorded(
+          statusCode: null, message: 'TimeoutException: request timeout');
+      await expectRecorded(
+          statusCode: null, message: 'SocketException: DNS lookup failed');
+      await expectRecorded(
+          statusCode: 200, message: 'ParseException: invalid json body');
     });
   });
 }

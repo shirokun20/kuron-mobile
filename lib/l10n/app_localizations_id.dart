@@ -6240,4 +6240,12 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get streakDaySun => 'Mn';
+
+  @override
+  String get pauseOnOnlineReaderOnlyTitle =>
+      'Jeda Unduhan Saat Membaca Online Saja';
+
+  @override
+  String get pauseOnOnlineReaderOnlyDescription =>
+      'Biarkan unduhan latar belakang tetap berjalan saat membaca chapter offline atau tersimpan';
 }

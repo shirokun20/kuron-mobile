@@ -10,6 +10,7 @@ Map<String, dynamic> buildReaderRouteExtra({
   List<Chapter>? allChapters,
   Chapter? currentChapter,
   String? activeChapterLanguage,
+  bool fromOffline = false,
 }) {
   return <String, dynamic>{
     'content': content,
@@ -19,7 +20,14 @@ Map<String, dynamic> buildReaderRouteExtra({
     'allChapters': allChapters?.map(_serializeChapter).toList(),
     'currentChapter': _serializeChapter(currentChapter),
     'activeChapterLanguage': activeChapterLanguage,
+    'fromOffline': fromOffline,
   };
+}
+
+bool readReaderFromOffline(Object? value) {
+  if (value is bool) return value;
+  if (value is String) return value.toLowerCase() == 'true';
+  return false;
 }
 
 Map<String, dynamic>? asReaderRouteExtra(Object? extra) {

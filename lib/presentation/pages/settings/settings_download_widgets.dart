@@ -346,6 +346,22 @@ Widget buildDownloadSection(
           },
           theme: theme,
         ),
+        buildSettingsDivider(theme),
+
+        // Pause on online reader only
+        buildSettingsSwitchTile(
+          title: l10n.pauseOnOnlineReaderOnlyTitle,
+          subtitle: l10n.pauseOnOnlineReaderOnlyDescription,
+          value: settings.pauseOnOnlineReaderOnly,
+          onChanged: (value) {
+            context.read<DownloadBloc>().add(
+                  DownloadSettingsUpdateEvent(
+                    pauseOnOnlineReaderOnly: value,
+                  ),
+                );
+          },
+          theme: theme,
+        ),
       ], theme);
     },
   );

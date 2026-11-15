@@ -75,6 +75,7 @@ class ReaderScreen extends StatefulWidget {
     this.allChapters,
     this.currentChapter,
     this.activeChapterLanguage,
+    this.fromOffline = false,
   });
 
   final String contentId;
@@ -87,6 +88,7 @@ class ReaderScreen extends StatefulWidget {
   final List<Chapter>? allChapters;
   final Chapter? currentChapter;
   final String? activeChapterLanguage;
+  final bool fromOffline;
 
   /// Whether a heavy animated page must NOT auto-switch the reader out of
   /// continuous scroll.
@@ -115,6 +117,17 @@ class ReaderScreen extends StatefulWidget {
     if (reader is! Map) return null;
     final value = reader[key];
     return value is bool ? value : null;
+  }
+
+  /// Determines whether the reader session starts in offline mode.
+  @visibleForTesting
+  static bool determineInitialIsOffline({
+    required bool fromOffline,
+    Content? preloadedContent,
+  }) {
+    return fromOffline ||
+        (preloadedContent?.imageUrls.any((u) => isLocalReaderImagePath(u)) ??
+            false);
   }
 
   @override
@@ -213,12 +226,18 @@ class _ReaderScreenState extends State<ReaderScreen>
   Ticker? _pageTicker;
   int _pendingEstimatedPage = 0;
   bool _isTicking = false;
+  late bool _isReportedOnline;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    MemoryBudgetCoordinator().incrementReaderCount();
+    final initialIsOffline = ReaderScreen.determineInitialIsOffline(
+      fromOffline: widget.fromOffline,
+      preloadedContent: widget.preloadedContent,
+    );
+    _isReportedOnline = !initialIsOffline;
+    MemoryBudgetCoordinator().incrementReaderCount(isOnline: _isReportedOnline);
     _lastReportedPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage - 1);
     _verticalPageController =
@@ -358,6 +377,16 @@ class _ReaderScreenState extends State<ReaderScreen>
         _preloadedContent = parsedDirectContent;
         _logger.i('  ✓ Direct Content: ${_preloadedContent?.title}');
       }
+    }
+
+    if (_isReportedOnline &&
+        (_preloadedContent?.imageUrls.any((u) => isLocalReaderImagePath(u)) ??
+            false)) {
+      MemoryBudgetCoordinator().updateReaderOnlineState(
+        isOnline: false,
+        wasOnline: _isReportedOnline,
+      );
+      _isReportedOnline = false;
     }
   }
 
@@ -838,7 +867,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       overlays: SystemUiOverlay.values,
     );
 
-    MemoryBudgetCoordinator().decrementReaderCount();
+    MemoryBudgetCoordinator().decrementReaderCount(wasOnline: _isReportedOnline);
     super.dispose();
   }
 
@@ -1267,10 +1296,26 @@ class _ReaderScreenState extends State<ReaderScreen>
           return previous.currentPage != current.currentPage ||
               previous.readingMode != current.readingMode ||
               previous.showUI != current.showUI ||
+              previous.isOfflineMode != current.isOfflineMode ||
               prevContentId != currContentId ||
               prevImageCount != currImageCount;
         },
         listener: (context, state) {
+          if (state.isOfflineMode != null) {
+            final isOffline = state.isOfflineMode! ||
+                (state.content?.imageUrls
+                        .any((u) => isLocalReaderImagePath(u)) ??
+                    false);
+            final isOnline = !isOffline;
+            if (isOnline != _isReportedOnline) {
+              MemoryBudgetCoordinator().updateReaderOnlineState(
+                isOnline: isOnline,
+                wasOnline: _isReportedOnline,
+              );
+              _isReportedOnline = isOnline;
+            }
+          }
+
           if (_isContinuousScrollDisabledForCurrentContent() &&
               state.readingMode == ReadingMode.continuousScroll) {
             _readerCubit.changeReadingMode(

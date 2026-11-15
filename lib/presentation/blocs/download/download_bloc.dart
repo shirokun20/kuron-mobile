@@ -58,6 +58,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     this._appLocalizations,
     DownloadManager? downloadManager, // NEW: Optional for testing
     ValueNotifier<bool>? readerActiveNotifier,
+    ValueNotifier<bool>? onlineReaderActiveNotifier,
   })  : _downloadManager = downloadManager ??
             DownloadManager(), // Use injected or default singleton
         super(const DownloadInitial()) {
@@ -90,7 +91,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
     _initializeProgressStream();
 
-    _initReaderActiveListener(readerActiveNotifier);
+    _initReaderActiveListener(
+      readerActiveNotifier,
+      onlineReaderActiveNotifier,
+    );
   }
 
   final DownloadContentUseCase _downloadContentUseCase;
@@ -285,32 +289,71 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   Set<String> get readerAutoPaused => Set.unmodifiable(_readerAutoPaused);
   ValueNotifier<bool>? _readerActiveNotifier;
   VoidCallback? _readerActiveListener;
+  ValueNotifier<bool>? _onlineReaderActiveNotifier;
+  VoidCallback? _onlineReaderActiveListener;
 
-  void _initReaderActiveListener(ValueNotifier<bool>? notifier) {
-    ValueNotifier<bool>? resolved = notifier;
-    if (resolved == null) {
+  /// Evaluates whether active reader sessions should pause/block downloads.
+  /// If [settings.pauseOnOnlineReaderOnly] is true, downloads are only blocked
+  /// when an online reader session is active. If false, any active reader blocks downloads.
+  /// When [onlineReaderActiveNotifier] is omitted (e.g. isolated legacy unit tests),
+  /// falls back to checking [_readerActiveNotifier].
+  bool get isReaderDownloadBlocked {
+    if (_onlineReaderActiveNotifier == null) {
+      return _readerActiveNotifier?.value ?? false;
+    }
+    final onlineActive = _onlineReaderActiveNotifier!.value;
+    if (onlineActive) return true;
+    final anyActive = _readerActiveNotifier?.value ?? false;
+    return !_settings.pauseOnOnlineReaderOnly && anyActive;
+  }
+
+  void _initReaderActiveListener(
+    ValueNotifier<bool>? anyNotifier,
+    ValueNotifier<bool>? onlineNotifier,
+  ) {
+    ValueNotifier<bool>? resolvedAny = anyNotifier;
+    if (resolvedAny == null) {
       try {
-        resolved =
+        resolvedAny =
             getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
       } catch (_) {
         // Not registered in getIt (e.g. isolated unit tests)
       }
     }
-    if (resolved != null) {
-      _readerActiveNotifier = resolved;
+
+    ValueNotifier<bool>? resolvedOnline = onlineNotifier;
+    if (resolvedOnline == null) {
+      try {
+        resolvedOnline =
+            getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive');
+      } catch (_) {
+        // Not registered in getIt (e.g. isolated unit tests)
+      }
+    }
+
+    if (resolvedAny != null) {
+      _readerActiveNotifier = resolvedAny;
       _readerActiveListener = () {
-        final active = _readerActiveNotifier?.value ?? false;
-        handleReaderActiveChanged(active);
+        handleReaderActiveChanged(isReaderDownloadBlocked);
       };
       _readerActiveNotifier!.addListener(_readerActiveListener!);
-      if (_readerActiveNotifier!.value) {
-        handleReaderActiveChanged(true);
-      }
+    }
+
+    if (resolvedOnline != null) {
+      _onlineReaderActiveNotifier = resolvedOnline;
+      _onlineReaderActiveListener = () {
+        handleReaderActiveChanged(isReaderDownloadBlocked);
+      };
+      _onlineReaderActiveNotifier!.addListener(_onlineReaderActiveListener!);
+    }
+
+    if (isReaderDownloadBlocked) {
+      handleReaderActiveChanged(true);
     }
   }
 
-  /// Called with the `globalReaderActive` value. On entry, every content with
-  /// downloading status in this bloc's own [DownloadLoaded] state is paused
+  /// Called with the `isReaderDownloadBlocked` value. On entry/transition to blocked,
+  /// every content with downloading status in this bloc's own [DownloadLoaded] state is paused
   /// via [DownloadManager.pauseDownload] (native cancel) and recorded. On
   /// exit, exactly that recorded set is resumed; user-paused stays paused.
   Future<void> handleReaderActiveChanged(bool active) async {
@@ -528,6 +571,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         enableNotifications: userPrefs.enableNotifications,
         wifiOnly: userPrefs.wifiOnly,
         customStorageRoot: customRoot,
+        pauseOnOnlineReaderOnly: userPrefs.pauseOnOnlineReaderOnly,
       );
       _logger.d(
           '📁 DOWNLOAD_BLOC: DownloadSettings created with customStorageRoot: ${_settings.customStorageRoot}');
@@ -594,9 +638,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     if (state is! DownloadLoaded) return;
     final currentState = state as DownloadLoaded;
 
-    // Do not start new queued downloads while reader is active!
-    if (_readerActiveNotifier?.value == true) {
-      _logger.d('DownloadBloc: Reader is active, deferring queue processing');
+    // Do not start new queued downloads while reader is blocking downloads!
+    if (isReaderDownloadBlocked) {
+      _logger.d(
+          'DownloadBloc: Reader is active and blocking downloads, deferring queue processing');
       return;
     }
 
@@ -2273,6 +2318,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     try {
       _logger.i('DownloadBloc: Updating download settings');
 
+      final wasBlocked = isReaderDownloadBlocked;
       _settings = _settings.copyWith(
         maxConcurrentDownloads: event.maxConcurrentDownloads,
         imageQuality: event.imageQuality,
@@ -2283,6 +2329,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         enableNotifications: event.enableNotifications,
         wifiOnly: event.wifiOnly,
         customStorageRoot: event.customStorageRoot,
+        pauseOnOnlineReaderOnly: event.pauseOnOnlineReaderOnly,
       );
 
       emit(currentState.copyWith(settings: _settings));
@@ -2298,9 +2345,15 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         timeoutDurationSeconds: event.timeoutDuration?.inSeconds,
         enableNotifications: event.enableNotifications,
         wifiOnly: event.wifiOnly,
+        pauseOnOnlineReaderOnly: event.pauseOnOnlineReaderOnly,
       );
 
       await _userDataRepository.saveUserPreferences(updatedUserPrefs);
+
+      final isNowBlocked = isReaderDownloadBlocked;
+      if (wasBlocked != isNowBlocked) {
+        handleReaderActiveChanged(isNowBlocked);
+      }
 
       _logger.i(
           'DownloadBloc: Updated download settings - concurrent: ${_settings.maxConcurrentDownloads}, quality: ${_settings.imageQuality}, wifiOnly: ${_settings.wifiOnly}, notifications: ${_settings.enableNotifications}, customRoot: ${_settings.customStorageRoot}');
@@ -3009,6 +3062,12 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     if (_readerActiveNotifier != null && _readerActiveListener != null) {
       _readerActiveNotifier!.removeListener(_readerActiveListener!);
       _readerActiveListener = null;
+    }
+
+    if (_onlineReaderActiveNotifier != null &&
+        _onlineReaderActiveListener != null) {
+      _onlineReaderActiveNotifier!.removeListener(_onlineReaderActiveListener!);
+      _onlineReaderActiveListener = null;
     }
 
     _dbFlushTimer?.cancel();

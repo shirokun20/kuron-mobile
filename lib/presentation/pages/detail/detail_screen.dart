@@ -1836,6 +1836,15 @@ class _DetailScreenState extends State<DetailScreen> {
     Logger().i(
         '  chapterData.nextId: ${launchPayload.chapterData?.nextChapterId ?? "NULL"}');
 
+    final downloadState = context.read<DownloadBloc>().state;
+    final targetId = launchPayload.currentChapter?.id ?? content.id;
+    final isDownloaded = downloadState is DownloadLoaded &&
+        downloadState.downloads.any(
+          (d) =>
+              (d.contentId == targetId || d.contentId == content.id) &&
+              d.state == DownloadState.completed,
+        );
+
     await AppRouter.goToReader(
       context,
       content.id,
@@ -1848,6 +1857,7 @@ class _DetailScreenState extends State<DetailScreen> {
       allChapters: launchPayload.allChapters,
       currentChapter: launchPayload.currentChapter,
       activeChapterLanguage: launchPayload.currentChapter?.language,
+      fromOffline: isDownloaded,
     );
 
     if (!mounted) {

@@ -1,15 +1,13 @@
-import 'dart:convert';
+import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 
-import 'package:nhasixapp/core/services/report/report_builder.dart';
 import 'package:nhasixapp/data/datasources/local/database_helper.dart';
 
-/// One recorded error-response row (`error_log` table, DDL owned by Grup 1).
+/// Error-response log entry.
 class ErrorLogEntry {
   const ErrorLogEntry({
     required this.id,
@@ -18,8 +16,7 @@ class ErrorLogEntry {
     required this.feature,
     this.statusCode,
     required this.message,
-    this.urlPath = '',
-    this.appVersion = '',
+    required this.urlPath,
   });
 
   final int id;
@@ -29,140 +26,85 @@ class ErrorLogEntry {
   final int? statusCode;
   final String message;
   final String urlPath;
-  final String appVersion;
-
-  factory ErrorLogEntry.fromMap(Map<String, Object?> map) => ErrorLogEntry(
-    id: (map['id'] as num?)?.toInt() ?? 0,
-    createdAt: DateTime.fromMillisecondsSinceEpoch(
-      (map['createdAt'] as num?)?.toInt() ?? 0,
-    ),
-    sourceId: map['sourceId'] as String? ?? '',
-    feature: map['feature'] as String? ?? '',
-    statusCode: (map['statusCode'] as num?)?.toInt(),
-    message: map['message'] as String? ?? '',
-    urlPath: map['urlPath'] as String? ?? '',
-    appVersion: map['appVersion'] as String? ?? '',
-  );
 }
 
-/// Opt-in ring buffer of real error responses (Keputusan 6).
+/// Local error-response logging store (opt-in).
 ///
-/// Recorded: repository exceptions, HTTP 5xx, timeout/DNS failures and
-/// non-challenge parse failures. Never recorded: CF/Turnstile challenges
-/// (any status), 403 WAF, login-walls, valid-empty responses, and
-/// failures already owned by the anomaly discriminators.
-///
-/// Toggle off (the default) means *zero writes* — [record] returns before
-/// touching the database. Cap: [maxEntries] rows or [maxBytes], whichever
-/// is reached first; the oldest rows are pruned FIFO.
+/// Public API is static as specified by source-anomaly-report (Grup 5.1-5.3).
 class ErrorLog {
   ErrorLog._();
 
   static const String tableName = 'error_log';
-
-  /// SharedPreferences key for the Settings toggle (default off).
-  static const String prefKeyEnabled = 'error_log_enabled';
-
-  /// Row cap of the ring buffer.
-  static const int maxEntries = 200;
-
-  /// Byte budget of the ring buffer (1 MB).
-  static const int maxBytes = 1024 * 1024;
-
-  /// Anything longer is truncated before storage — one stack trace must
-  /// not be able to eat the whole budget.
-  static const int maxMessageLength = 2000;
+  static const String _enabledKey = 'error_log_enabled';
+  static const int defaultLimit = 100;
+  static const int _capEntries = 200;
+  static const int _capBytes = 1024 * 1024; // 1 MB
 
   static final Logger _logger = Logger();
-
-  static const List<String> _pruneColumns = [
-    'id',
-    'sourceId',
-    'feature',
-    'message',
-    'urlPath',
-    'appVersion',
-  ];
-
-  /// Statuses that are never real errors: 401 login-wall, 403 WAF.
-  static const List<int> _excludedStatusCodes = [401, 403];
-
-  /// Substrings (lower-cased) marking a challenge / login-wall page. These
-  /// are protections working as designed, not app bugs.
-  static const List<String> _excludedMarkers = [
-    'challenge',
-    'cloudflare',
-    'cf-clearance',
-    'cf_clearance',
-    'turnstile',
-    'captcha',
-    'just a moment',
-    'checking your browser',
-    'attention required',
-    'loginrequired',
-    'login required',
-    'login_required',
-    'unauthorized',
-  ];
-
   static DatabaseHelper? _dbHelperOverride;
-  static bool? _enabledCache;
   static String? _appVersionOverride;
-  static String _cachedAppVersion = '';
-  static Future<SharedPreferences>? _prefsFuture;
+  static Future<SharedPreferences>? _prefsFutureOverride;
 
-  /// Test seam: point the store at a mocked helper and/or force the toggle.
-  @visibleForTesting
+  /// Test-only overrides.
+  static void debugSetOverrides({
+    DatabaseHelper? dbHelper,
+    String? appVersion,
+    Future<SharedPreferences>? prefsFuture,
+  }) {
+    _dbHelperOverride = dbHelper;
+    _appVersionOverride = appVersion;
+    _prefsFutureOverride = prefsFuture;
+  }
+
+  /// Alias for [debugSetOverrides].
   static void debugConfigure({
     DatabaseHelper? dbHelper,
-    bool? enabled,
     String? appVersion,
-  }) {
-    _dbHelperOverride = dbHelper ?? _dbHelperOverride;
-    _enabledCache = enabled ?? _enabledCache;
-    _appVersionOverride = appVersion ?? _appVersionOverride;
-  }
+    Future<SharedPreferences>? prefsFuture,
+  }) =>
+      debugSetOverrides(
+        dbHelper: dbHelper,
+        appVersion: appVersion,
+        prefsFuture: prefsFuture,
+      );
 
-  /// Test seam: forget every override and cached value.
-  @visibleForTesting
-  static void debugReset() {
+  static void debugResetOverrides() {
     _dbHelperOverride = null;
-    _enabledCache = null;
     _appVersionOverride = null;
-    _cachedAppVersion = '';
-    _prefsFuture = null;
+    _prefsFutureOverride = null;
   }
 
-  /// Whether error logging is on (default off). Never throws.
-  static Future<bool> isEnabled() async {
-    final cached = _enabledCache;
-    if (cached != null) return cached;
+  /// Alias for [debugResetOverrides].
+  static void debugReset() => debugResetOverrides();
+
+  static Future<Database?> _db() async {
     try {
-      final prefs = await (_prefsFuture ??= SharedPreferences.getInstance());
-      final value = prefs.getBool(prefKeyEnabled) ?? false;
-      _enabledCache = value;
-      return value;
+      final helper = _dbHelperOverride ?? DatabaseHelper.instance;
+      return await helper.database;
     } catch (e) {
-      _logger.w('ErrorLog.isEnabled failed: $e');
-      return false;
+      _logger.w('ErrorLog unavailable: $e');
+      return null;
     }
   }
 
-  /// Persists the Settings toggle. Off stops every write immediately.
-  static Future<void> setEnabled(bool v) async {
-    _enabledCache = v;
+  static Future<SharedPreferences> _prefs() {
+    final override = _prefsFutureOverride;
+    if (override != null) return override;
+    return SharedPreferences.getInstance();
+  }
+
+  static Future<String> _appVersion() async {
+    final override = _appVersionOverride;
+    if (override != null) return override;
     try {
-      final prefs = await (_prefsFuture ??= SharedPreferences.getInstance());
-      await prefs.setBool(prefKeyEnabled, v);
-    } catch (e) {
-      _logger.w('ErrorLog.setEnabled failed: $e');
+      final info = await PackageInfo.fromPlatform();
+      return info.version;
+    } catch (_) {
+      return 'unknown';
     }
   }
 
-  /// Records one real error response. No-op when disabled or excluded.
-  ///
-  /// Fire-and-forget by design: callers sit inside repository `catch`
-  /// blocks, so this never throws and never changes their return value.
+  /// Records a real error response. No-op when logging is disabled or excluded.
   static Future<void> record({
     required String sourceId,
     required String feature,
@@ -172,47 +114,176 @@ class ErrorLog {
   }) async {
     try {
       if (!await isEnabled()) return;
-
-      final text = message.length > maxMessageLength
-          ? message.substring(0, maxMessageLength)
-          : message;
-      if (isExcluded(statusCode: statusCode, message: text)) return;
-
+      if (shouldExclude(statusCode: statusCode, message: message)) return;
       final db = await _db();
       if (db == null) return;
 
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final appVersion = await _appVersion();
+      final path = _sanitizeUrlPath(urlPath);
+
       await db.insert(tableName, {
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': now,
         'sourceId': sourceId,
         'feature': feature,
         'statusCode': statusCode,
-        'message': text,
-        'urlPath': ReportBuilder.pathOnly(urlPath),
-        'appVersion': await _appVersion(),
+        'message': message,
+        'urlPath': path,
+        'appVersion': appVersion,
       });
-
       await _prune(db);
     } catch (e) {
       _logger.w('ErrorLog.record failed: $e');
     }
   }
 
-  /// Pure exclusion rule (spec "Error-response logging opt-in dengan
-  /// pengecualian jelas"): protections and valid-empty answers are not
-  /// app errors.
-  static bool isExcluded({int? statusCode, required String message}) {
-    if (statusCode != null && _excludedStatusCodes.contains(statusCode)) {
-      return true;
+  /// Exclusions per spec: CF/challenge (any status), 403 WAF, login-wall,
+  /// kosong-valid, kegagalan diskriminator-anomaly.
+  /// Repo hooks only call record for exception/error paths (not valid-empty
+  /// success) and discriminator failures are never routed here.
+  static bool shouldExclude({
+    required int? statusCode,
+    required String message,
+  }) {
+    final lower = message.toLowerCase();
+
+    // CF/challenge/Turnstile/captcha (any status).
+    const challengeHints = <String>[
+      'cloudflare',
+      'cf-chl',
+      'cf_chl',
+      'challenge',
+      'turnstile',
+      'captcha',
+      'just a moment',
+      'attention required',
+      'checking your browser',
+      'ddos-guard',
+      'sucuri',
+    ];
+    if (challengeHints.any(lower.contains)) return true;
+
+    // 403 WAF / access denied by protection.
+    if (statusCode == 403) {
+      const wafHints = <String>[
+        'waf',
+        'forbidden',
+        'access denied',
+        'blocked',
+        'cloudfront',
+        'akamai',
+        'imperva',
+        'incapsula',
+        'firewall',
+        'bot',
+      ];
+      // Treat 403 from protective layers as excluded; generic 403 also excluded
+      // as WAF/login-wall ambiguous in this context.
+      if (wafHints.any(lower.contains) ||
+          lower.contains('403') ||
+          true) {
+        return true;
+      }
     }
-    final lowered = message.toLowerCase();
-    for (final marker in _excludedMarkers) {
-      if (lowered.contains(marker)) return true;
-    }
+
+    // Login-wall indicators.
+    const loginHints = <String>[
+      'login required',
+      'login wall',
+      'sign in',
+      'signin',
+      'please log in',
+      'please login',
+      'authentication required',
+      'unauthorized access',
+      'not logged in',
+    ];
+    if (loginHints.any(lower.contains)) return true;
+
     return false;
   }
 
-  /// Stored entries, newest first.
-  static Future<List<ErrorLogEntry>> entries({int limit = 100}) async {
+  static String _sanitizeUrlPath(String? urlPath) {
+    if (urlPath == null || urlPath.isEmpty) return '';
+    try {
+      final uri = Uri.parse(urlPath);
+      if (uri.hasScheme || uri.hasAuthority) {
+        return uri.path;
+      }
+      // relative/path?query -> path without query
+      final q = urlPath.indexOf('?');
+      final h = urlPath.indexOf('#');
+      var end = urlPath.length;
+      if (q >= 0) end = q < end ? q : end;
+      if (h >= 0) end = h < end ? h : end;
+      return urlPath.substring(0, end);
+    } catch (_) {
+      final q = urlPath.indexOf('?');
+      return q >= 0 ? urlPath.substring(0, q) : urlPath;
+    }
+  }
+
+  static Future<void> _prune(Database db) async {
+    try {
+      // Entry cap: FIFO by oldest createdAt/id.
+      final countResult =
+          await db.rawQuery('SELECT COUNT(*) AS c FROM $tableName');
+      var count = (countResult.first['c'] as num?)?.toInt() ?? 0;
+      while (count > _capEntries) {
+        final overflow = count - _capEntries;
+        await db.rawDelete(
+          'DELETE FROM $tableName WHERE id IN (SELECT id FROM $tableName ORDER BY createdAt ASC, id ASC LIMIT ?)',
+          [overflow],
+        );
+        final again =
+            await db.rawQuery('SELECT COUNT(*) AS c FROM $tableName');
+        count = (again.first['c'] as num?)?.toInt() ?? 0;
+      }
+
+      // Size cap: approximate by serialized payload length.
+      while (await _approxSize(db) > _capBytes) {
+        final deleted = await db.rawDelete(
+          'DELETE FROM $tableName WHERE id IN (SELECT id FROM $tableName ORDER BY createdAt ASC, id ASC LIMIT 1)',
+        );
+        if (deleted == 0) break;
+      }
+    } catch (e) {
+      _logger.w('ErrorLog.prune failed: $e');
+    }
+  }
+
+  static Future<int> _approxSize(Database db) async {
+    final rows = await db.query(tableName,
+        columns: ['message', 'urlPath', 'sourceId', 'feature', 'appVersion']);
+    var total = 0;
+    for (final row in rows) {
+      for (final value in row.values) {
+        if (value is String) total += value.length;
+      }
+      total += 32; // overhead for ints/timestamps/row
+    }
+    return total;
+  }
+
+  static Future<bool> isEnabled() async {
+    try {
+      final prefs = await _prefs();
+      return prefs.getBool(_enabledKey) ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> setEnabled(bool v) async {
+    try {
+      final prefs = await _prefs();
+      await prefs.setBool(_enabledKey, v);
+    } catch (e) {
+      _logger.w('ErrorLog.setEnabled failed: $e');
+    }
+  }
+
+  static Future<List<ErrorLogEntry>> entries({int limit = defaultLimit}) async {
     try {
       final db = await _db();
       if (db == null) return const [];
@@ -221,14 +292,26 @@ class ErrorLog {
         orderBy: 'createdAt DESC, id DESC',
         limit: limit,
       );
-      return rows.map(ErrorLogEntry.fromMap).toList();
+      return rows.map(_fromMap).toList();
     } catch (e) {
       _logger.w('ErrorLog.entries failed: $e');
       return const [];
     }
   }
 
-  /// Removes one entry (user action in Settings).
+  static ErrorLogEntry _fromMap(Map<String, Object?> map) {
+    final createdAtMs = (map['createdAt'] as num?)?.toInt() ?? 0;
+    return ErrorLogEntry(
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMs),
+      sourceId: map['sourceId'] as String? ?? '',
+      feature: map['feature'] as String? ?? '',
+      statusCode: (map['statusCode'] as num?)?.toInt(),
+      message: map['message'] as String? ?? '',
+      urlPath: map['urlPath'] as String? ?? '',
+    );
+  }
+
   static Future<void> deleteEntry(int id) async {
     try {
       final db = await _db();
@@ -239,7 +322,6 @@ class ErrorLog {
     }
   }
 
-  /// Empties the ring buffer (user action in Settings).
   static Future<void> clearAll() async {
     try {
       final db = await _db();
@@ -250,100 +332,23 @@ class ErrorLog {
     }
   }
 
-  /// Plain-text dump for the user's own export action. Never uploaded.
   static Future<String> exportText() async {
     try {
-      final rows = await entries(limit: maxEntries);
-      if (rows.isEmpty) return '';
-      final buffer = StringBuffer()
-        ..writeln('# Kuron error log (${rows.length} entries)')
-        ..writeln();
-      for (final entry in rows) {
-        final status = entry.statusCode == null
-            ? ''
-            : ' | HTTP ${entry.statusCode}';
+      final list = await entries(limit: _capEntries);
+      if (list.isEmpty) return '';
+      final buffer = StringBuffer();
+      for (final e in list) {
+        final ts = e.createdAt.toIso8601String();
+        final status = e.statusCode != null ? 'HTTP ${e.statusCode}' : 'ERR';
         buffer.writeln(
-          '[${entry.id}] ${entry.createdAt.toIso8601String()} | '
-          '${entry.sourceId} | ${entry.feature}$status | '
-          'app ${entry.appVersion}',
-        );
-        if (entry.urlPath.isNotEmpty) {
-          buffer.writeln('    url: ${entry.urlPath}');
-        }
-        buffer.writeln('    msg: ${entry.message}');
+            '[$ts] [$status] ${e.sourceId}/${e.feature} ${e.urlPath}');
+        buffer.writeln(e.message);
+        buffer.writeln('---');
       }
       return buffer.toString().trimRight();
     } catch (e) {
       _logger.w('ErrorLog.exportText failed: $e');
       return '';
     }
-  }
-
-  static Future<Database?> _db() async {
-    try {
-      final helper = _dbHelperOverride ?? DatabaseHelper.instance;
-      return await helper.database;
-    } catch (e) {
-      _logger.w('ErrorLog store unavailable: $e');
-      return null;
-    }
-  }
-
-  static Future<String> _appVersion() async {
-    final override = _appVersionOverride;
-    if (override != null && override.isNotEmpty) return override;
-    if (_cachedAppVersion.isNotEmpty) return _cachedAppVersion;
-    try {
-      final info = await PackageInfo.fromPlatform();
-      final build = info.buildNumber;
-      _cachedAppVersion = build.isEmpty
-          ? info.version
-          : '${info.version}+$build';
-      if (_cachedAppVersion.isEmpty) _cachedAppVersion = 'unknown';
-    } catch (_) {
-      _cachedAppVersion = 'unknown';
-    }
-    return _cachedAppVersion;
-  }
-
-  /// FIFO prune: oldest rows go first until both caps are satisfied.
-  static Future<void> _prune(Database db) async {
-    final rows = await db.query(
-      tableName,
-      columns: _pruneColumns,
-      orderBy: 'id ASC',
-    );
-    if (rows.isEmpty) return;
-
-    var remaining = rows.length;
-    var bytes = rows.fold<int>(0, (sum, row) => sum + _rowBytes(row));
-    final expired = <Object?>[];
-
-    for (final row in rows) {
-      if (remaining <= maxEntries && bytes <= maxBytes) break;
-      expired.add(row['id']);
-      remaining--;
-      bytes -= _rowBytes(row);
-    }
-    if (expired.isEmpty) return;
-
-    final placeholders = List.filled(expired.length, '?').join(',');
-    await db.delete(
-      tableName,
-      where: 'id IN ($placeholders)',
-      whereArgs: expired,
-    );
-  }
-
-  static int _rowBytes(Map<String, Object?> row) {
-    final payload = [
-      row['sourceId'],
-      row['feature'],
-      row['message'],
-      row['urlPath'],
-      row['appVersion'],
-    ].map((value) => value?.toString() ?? '').join();
-    // 64 bytes covers ids, timestamps and SQLite row overhead.
-    return utf8.encode(payload).length + 64;
   }
 }

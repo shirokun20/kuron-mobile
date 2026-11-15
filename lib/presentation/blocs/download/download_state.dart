@@ -248,6 +248,7 @@ class DownloadSettings extends Equatable {
     this.enableNotifications = true,
     this.wifiOnly = false,
     this.customStorageRoot,
+    this.pauseOnOnlineReaderOnly = true,
   });
 
   final int maxConcurrentDownloads;
@@ -259,6 +260,7 @@ class DownloadSettings extends Equatable {
   final bool enableNotifications;
   final bool wifiOnly;
   final String? customStorageRoot;
+  final bool pauseOnOnlineReaderOnly;
 
   @override
   List<Object?> get props => [
@@ -269,9 +271,9 @@ class DownloadSettings extends Equatable {
         retryDelay,
         timeoutDuration,
         enableNotifications,
-        enableNotifications,
         wifiOnly,
         customStorageRoot,
+        pauseOnOnlineReaderOnly,
       ];
 
   // Copy with updated values
@@ -285,6 +287,7 @@ class DownloadSettings extends Equatable {
     bool? enableNotifications,
     bool? wifiOnly,
     String? customStorageRoot,
+    bool? pauseOnOnlineReaderOnly,
   }) {
     return DownloadSettings(
       maxConcurrentDownloads:
@@ -297,6 +300,8 @@ class DownloadSettings extends Equatable {
       enableNotifications: enableNotifications ?? this.enableNotifications,
       wifiOnly: wifiOnly ?? this.wifiOnly,
       customStorageRoot: customStorageRoot ?? this.customStorageRoot,
+      pauseOnOnlineReaderOnly:
+          pauseOnOnlineReaderOnly ?? this.pauseOnOnlineReaderOnly,
     );
   }
 

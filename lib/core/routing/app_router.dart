@@ -221,6 +221,9 @@ class AppRouter {
           final activeChapterLanguage = readReaderActiveChapterLanguage(
             extra?['activeChapterLanguage'],
           );
+          final fromOffline =
+              state.uri.queryParameters['fromOffline'] == 'true' ||
+                  readReaderFromOffline(extra?['fromOffline']);
 
           return AppAnimations.animatedPageBuilder(
             context,
@@ -238,6 +241,7 @@ class AppRouter {
                 allChapters: allChapters,
                 currentChapter: currentChapter,
                 activeChapterLanguage: activeChapterLanguage,
+                fromOffline: fromOffline,
               ),
             ),
             kind: RouteKind.forward,
@@ -655,11 +659,13 @@ class AppRouter {
       Content? parentContent, // Parent series for chapter mode
       List<Chapter>? allChapters, // All chapters for navigation
       Chapter? currentChapter,
-      String? activeChapterLanguage}) {
+      String? activeChapterLanguage,
+      bool fromOffline = false}) {
     // Current chapter being read
     final encodedContentId = Uri.encodeComponent(contentId);
+    final offlineParam = fromOffline ? '&fromOffline=true' : '';
     return context.push(
-        '/reader/$encodedContentId?page=$page&forceStartFromBeginning=$forceStartFromBeginning',
+        '/reader/$encodedContentId?page=$page&forceStartFromBeginning=$forceStartFromBeginning$offlineParam',
         extra: buildReaderRouteExtra(
           content: content,
           imageMetadata: imageMetadata,
@@ -668,6 +674,7 @@ class AppRouter {
           allChapters: allChapters,
           currentChapter: currentChapter,
           activeChapterLanguage: activeChapterLanguage,
+          fromOffline: fromOffline,
         ));
   }
 

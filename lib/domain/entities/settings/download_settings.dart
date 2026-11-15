@@ -11,6 +11,7 @@ class DownloadSettings {
     required this.deleteAfterReading,
     this.maxRetryAttempts = 3,
     this.downloadQuality = 'high',
+    this.pauseOnOnlineReaderOnly = true,
   });
 
   final int maxConcurrentDownloads;
@@ -19,4 +20,5 @@ class DownloadSettings {
   final bool deleteAfterReading;
   final int maxRetryAttempts;
   final String downloadQuality;
+  final bool pauseOnOnlineReaderOnly;
 }

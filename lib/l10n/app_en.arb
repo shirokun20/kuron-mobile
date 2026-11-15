@@ -4457,5 +4457,7 @@
   "streakDayThu": "Th",
   "streakDayFri": "Fr",
   "streakDaySat": "Sa",
-  "streakDaySun": "Su"
+  "streakDaySun": "Su",
+  "pauseOnOnlineReaderOnlyTitle": "Pause Downloads While Reading Online Only",
+  "pauseOnOnlineReaderOnlyDescription": "Keep background downloads running when reading offline or saved chapters"
 }

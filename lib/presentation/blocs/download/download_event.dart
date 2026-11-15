@@ -210,6 +210,7 @@ class DownloadSettingsUpdateEvent extends DownloadEvent {
     this.enableNotifications,
     this.wifiOnly,
     this.customStorageRoot,
+    this.pauseOnOnlineReaderOnly,
   });
 
   final int? maxConcurrentDownloads;
@@ -221,6 +222,7 @@ class DownloadSettingsUpdateEvent extends DownloadEvent {
   final bool? enableNotifications;
   final bool? wifiOnly;
   final String? customStorageRoot;
+  final bool? pauseOnOnlineReaderOnly;
 
   @override
   List<Object?> get props => [
@@ -233,6 +235,7 @@ class DownloadSettingsUpdateEvent extends DownloadEvent {
         enableNotifications,
         wifiOnly,
         customStorageRoot,
+        pauseOnOnlineReaderOnly,
       ];
 }
 

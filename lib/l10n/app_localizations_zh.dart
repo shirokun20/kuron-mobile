@@ -6048,4 +6048,10 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get streakDaySun => '日';
+
+  @override
+  String get pauseOnOnlineReaderOnlyTitle => '仅在在线阅读时暂停下载';
+
+  @override
+  String get pauseOnOnlineReaderOnlyDescription => '在离线或已保存章节阅读时保持后台下载继续运行';
 }

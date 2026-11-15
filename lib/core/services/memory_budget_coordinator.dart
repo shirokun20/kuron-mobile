@@ -22,6 +22,7 @@ class MemoryBudgetCoordinator {
   int _appHeapEstimateMB = 256;
   bool _isReaderActive = false;
   int _activeReaderCount = 0;
+  int _activeOnlineReaderCount = 0;
   int _readerDecodedBudgetBytes = 50 * 1024 * 1024;
   int _imageCacheBudgetBytes = 30 * 1024 * 1024;
   int _maxDownloadParallel = 3;
@@ -34,6 +35,8 @@ class MemoryBudgetCoordinator {
 
   bool get isReaderActive => _isReaderActive;
   int get activeReaderCount => _activeReaderCount;
+  int get activeOnlineReaderCount => _activeOnlineReaderCount;
+  bool get isOnlineReaderActive => _activeOnlineReaderCount > 0;
   int get readerDecodedBudgetBytes => _readerDecodedBudgetBytes;
   int get imageCacheBudgetBytes => _imageCacheBudgetBytes;
   int get maxDownloadParallel => _maxDownloadParallel;
@@ -73,16 +76,35 @@ class MemoryBudgetCoordinator {
     _maxDownloadParallel = _isReaderActive ? 1 : 3;
   }
 
-  void incrementReaderCount() {
+  void incrementReaderCount({bool isOnline = true}) {
     _activeReaderCount++;
+    if (isOnline) {
+      _activeOnlineReaderCount++;
+    }
     _syncReaderActive();
   }
 
-  void decrementReaderCount() {
+  void decrementReaderCount({bool wasOnline = true}) {
     if (_activeReaderCount > 0) {
       _activeReaderCount--;
     }
+    if (wasOnline && _activeOnlineReaderCount > 0) {
+      _activeOnlineReaderCount--;
+    }
     _syncReaderActive();
+  }
+
+  void updateReaderOnlineState({
+    required bool isOnline,
+    required bool wasOnline,
+  }) {
+    if (isOnline == wasOnline) return;
+    if (isOnline) {
+      _activeOnlineReaderCount++;
+    } else if (_activeOnlineReaderCount > 0) {
+      _activeOnlineReaderCount--;
+    }
+    _syncOnlineReaderActive();
   }
 
   void _syncReaderActive() {
@@ -94,12 +116,25 @@ class MemoryBudgetCoordinator {
         notifier.value = active;
       }
     } catch (_) {}
+    _syncOnlineReaderActive();
     onReaderActiveChanged(active);
+  }
+
+  void _syncOnlineReaderActive() {
+    final onlineActive = _activeOnlineReaderCount > 0;
+    try {
+      final notifier =
+          getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive');
+      if (notifier.value != onlineActive) {
+        notifier.value = onlineActive;
+      }
+    } catch (_) {}
   }
 
   @visibleForTesting
   void resetReaderCountForTesting() {
     _activeReaderCount = 0;
+    _activeOnlineReaderCount = 0;
     _syncReaderActive();
   }
 

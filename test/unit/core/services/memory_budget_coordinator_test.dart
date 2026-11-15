@@ -212,5 +212,67 @@ void main() {
       expect(c.isReaderActive, false);
       expect(c.activeReaderCount, 0);
     });
+
+    test('online vs offline reader tracking and idempotency', () {
+      final c = MemoryBudgetCoordinator();
+      if (!getIt.isRegistered<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive')) {
+        getIt.registerSingleton<ValueNotifier<bool>>(
+          ValueNotifier<bool>(false),
+          instanceName: 'globalOnlineReaderActive',
+        );
+      }
+      if (!getIt.isRegistered<ValueNotifier<bool>>(instanceName: 'globalReaderActive')) {
+        getIt.registerSingleton<ValueNotifier<bool>>(
+          ValueNotifier<bool>(false),
+          instanceName: 'globalReaderActive',
+        );
+      }
+      final onlineNotifier = getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive');
+      final anyNotifier = getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
+
+      c.resetReaderCountForTesting();
+      expect(c.activeReaderCount, 0);
+      expect(c.activeOnlineReaderCount, 0);
+      expect(c.isOnlineReaderActive, false);
+      expect(onlineNotifier.value, false);
+      expect(anyNotifier.value, false);
+
+      // 1. Offline reader enters
+      c.incrementReaderCount(isOnline: false);
+      expect(c.activeReaderCount, 1);
+      expect(c.activeOnlineReaderCount, 0);
+      expect(c.isReaderActive, true);
+      expect(c.isOnlineReaderActive, false);
+      expect(anyNotifier.value, true);
+      expect(onlineNotifier.value, false);
+
+      // 2. Offline reader transitions to online chapter
+      c.updateReaderOnlineState(isOnline: true, wasOnline: false);
+      expect(c.activeReaderCount, 1);
+      expect(c.activeOnlineReaderCount, 1);
+      expect(c.isOnlineReaderActive, true);
+      expect(onlineNotifier.value, true);
+
+      // 3. Repeated idempotent calls do not drift the count
+      c.updateReaderOnlineState(isOnline: true, wasOnline: true);
+      c.updateReaderOnlineState(isOnline: true, wasOnline: true);
+      expect(c.activeReaderCount, 1);
+      expect(c.activeOnlineReaderCount, 1);
+
+      // 4. Transitions back to offline chapter
+      c.updateReaderOnlineState(isOnline: false, wasOnline: true);
+      expect(c.activeReaderCount, 1);
+      expect(c.activeOnlineReaderCount, 0);
+      expect(c.isOnlineReaderActive, false);
+      expect(onlineNotifier.value, false);
+
+      // 5. Offline reader exits
+      c.decrementReaderCount(wasOnline: false);
+      expect(c.activeReaderCount, 0);
+      expect(c.activeOnlineReaderCount, 0);
+      expect(c.isReaderActive, false);
+      expect(anyNotifier.value, false);
+      expect(onlineNotifier.value, false);
+    });
   });
 }
