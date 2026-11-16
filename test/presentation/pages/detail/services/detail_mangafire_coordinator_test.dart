@@ -121,6 +121,41 @@ void main() {
       expect(lang, 'en');
     });
 
+    test(
+        'resolveSelectedLanguage defaults to en even when content.language is another language',
+        () {
+      final content = Content(
+        id: '1',
+        title: 'Test',
+        sourceId: 'mangafire',
+        url: '',
+        coverUrl: '',
+        artists: const [],
+        characters: const [],
+        parodies: const [],
+        groups: const [],
+        language: 'es-la',
+        pageCount: 0,
+        imageUrls: const [],
+        uploadDate: DateTime(2020),
+        tags: [
+          const Tag(
+              id: 1,
+              count: 0,
+              name: 'es-la',
+              type: '__mangafire_chapter_language'),
+          const Tag(
+              id: 1,
+              count: 0,
+              name: 'en',
+              type: '__mangafire_chapter_language'),
+        ],
+      );
+
+      final lang = coordinator.resolveSelectedLanguage(content);
+      expect(lang, 'en');
+    });
+
     test('loadLaneIfNeeded calls loadChapterLane and updates loading state',
         () async {
       when(() => mockDetailCubit.loadChapterLane(

@@ -6,6 +6,7 @@ import 'package:logger/logger.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:path/path.dart' as p;
 
+import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/core/utils/reader_image_repair_utils.dart';
 import 'package:nhasixapp/core/services/local_image_preloader.dart';
 import 'package:nhasixapp/core/services/request_deduplication_service.dart';
@@ -78,6 +79,7 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
     ReaderImageNetworkDownload? networkDownload,
     ReaderImageLegacyLookup? legacyLookup,
     ReaderImageLocalLookup? localLookup,
+    this.registry,
   })  : _dedup = dedup ?? RequestDeduplicationService(),
         _networkDownload = networkDownload ?? _defaultStreamingDownload,
         _legacyLookup = legacyLookup ?? _defaultLegacyLookup,
@@ -88,6 +90,7 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
   final ReaderImageNetworkDownload _networkDownload;
   final ReaderImageLegacyLookup _legacyLookup;
   final ReaderImageLocalLookup _localLookup;
+  final ContentSourceRegistry? registry;
 
   @override
   Future<PageImageResult> resolvePage({
@@ -155,6 +158,10 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
     }
 
     // 3) Network download (deduped + streamed to canonical).
+    final effectiveHeaders = headers ??
+        (sourceId != null && sourceId.isNotEmpty
+            ? registry?.getSource(sourceId)?.getImageDownloadHeaders(imageUrl: url)
+            : null);
     final requestKey = 'pageimg:$url';
     final deduped = _dedup.deduplicate<String?>(
       requestKey,
@@ -162,7 +169,7 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
         url: url,
         contentId: contentId,
         pageNumber: pageNumber,
-        headers: headers,
+        headers: effectiveHeaders,
         cancelToken: cancelToken,
       ),
       cancelToken: cancelToken,

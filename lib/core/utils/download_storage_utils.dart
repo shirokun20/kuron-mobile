@@ -11,6 +11,7 @@ import '../constants/app_constants.dart';
 import 'package:kuron_core/kuron_core.dart'; // Import ContentMetadata
 
 import 'directory_utils.dart';
+import 'storage_settings.dart';
 
 // Extracted from DownloadBloc to reduce complexity and promote reusability.
 // Contains methods for directory detection, file management, and metadata reading.
@@ -103,7 +104,7 @@ class DownloadStorageUtils {
       }
 
       // Fallback to legacy path: nhasix/{contentId}/metadata.json
-      if (metadataFile == null) {
+      if (metadataFile == null && await StorageSettings.hasCustomRoot()) {
         final downloadsPath = await getDownloadsDirectory();
         final legacyCandidate = File(
           path.join(

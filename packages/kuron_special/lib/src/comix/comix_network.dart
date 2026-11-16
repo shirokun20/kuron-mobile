@@ -46,6 +46,7 @@ class ComixImageHeaderInterceptor extends Interceptor {
       path = ComixImagePolicy.requestUrl(path);
       options.path = path;
     }
+    options.headers.remove('Referer');
     if (ComixImagePolicy.shouldRemoveOrigin(
       options.uri.toString(),
       _baseUrlHost,

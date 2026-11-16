@@ -115,8 +115,10 @@ void main() {
         .expand((e) => e.value)
         .toList();
     expect(genreValues, ['23']);
-    // ...and the raw tag text must NOT leak into a title keyword search.
+    // ...and the raw tag text must NOT leak into a title query.
+    expect(url.queryParameters['q'], isNull);
     expect(url.queryParameters['keyword'], isNull);
+    expect(url.queryParameters['sort'], isNull);
     // No rating gate by default: suggestive-only hides safe/erotica/
     // pornographic results on the live API.
     expect(
@@ -128,7 +130,7 @@ void main() {
     );
   });
 
-  test('plain title search still uses keyword', () async {
+  test('plain title search uses web q and sort params', () async {
     final capturing = _CapturingAdapter();
     final result = await _adapter(capturing).search(
       const SearchFilter(query: 'crown island', page: 1),
@@ -136,7 +138,9 @@ void main() {
     );
     expect(result.items, hasLength(1));
     final url = capturing.browseUrls.single;
-    expect(url.queryParameters['keyword'], 'crown island');
+    expect(url.queryParameters['q'], 'crown island');
+    expect(url.queryParameters['sort'], 'relevance:desc');
+    expect(url.queryParameters['keyword'], isNull);
   });
 
   test('by-tag result exposes meta totals for pagination', () async {
@@ -162,5 +166,54 @@ void main() {
     expect(result.hasNextPage, isTrue);
     expect(result.totalItems, 48536);
     expect(result.totalPages, 1734);
+    final url = capturing.browseUrls.single;
+    expect(url.queryParameters['q'], isNull);
+    expect(url.queryParameters['sort'], 'chapter_updated_at:desc');
+  });
+
+  test('browse web params map to native API params', () {
+    final adapter = _adapter(_CapturingAdapter());
+    final relevance = adapter.nativeMangaParamsForTest(
+      Uri.parse(
+        'https://comix.to/browse?q=the+honor+student&sort=relevance%3Adesc&page=18'
+        '&genres_in[]=23&content_rating[]=safe&content_rating[]=pornographic'
+        '&types[]=manga&demographics[]=shounen',
+      ),
+    );
+    expect(relevance['keyword'], ['the honor student']);
+    expect(relevance['order[relevance]'], ['desc']);
+    expect(relevance['page'], ['18']);
+    expect(relevance['genres_in[]'], ['23']);
+    expect(
+      relevance['content_rating[]'],
+      containsAll(['safe', 'pornographic']),
+    );
+    expect(relevance['types[]'], ['manga']);
+    expect(relevance['demographics[]'], ['shounen']);
+    expect(relevance['limit'], ['28']);
+
+    final score = adapter.nativeMangaParamsForTest(
+      Uri.parse('https://comix.to/browse?sort=score:desc&page=1'),
+    );
+    expect(score['order[score]'], ['desc']);
+
+    final updated = adapter.nativeMangaParamsForTest(
+      Uri.parse('https://comix.to/browse?sort=chapter_updated_at:desc&page=1'),
+    );
+    expect(updated['order[chapter_updated_at]'], ['desc']);
+  });
+
+  test('raw keyword envelope from app search is unpacked', () async {
+    final capturing = _CapturingAdapter();
+    final result = await _adapter(capturing).search(
+      const SearchFilter(query: 'raw:keyword=the%20honor', page: 1),
+      _config(),
+    );
+    expect(result.items, hasLength(1));
+    final url = capturing.browseUrls.single;
+    expect(url.queryParameters['q'], 'the honor');
+    expect(url.queryParameters['sort'], 'relevance:desc');
+    expect(url.queryParameters['keyword'], isNull);
+    expect(url.toString(), isNot(contains('raw')));
   });
 }

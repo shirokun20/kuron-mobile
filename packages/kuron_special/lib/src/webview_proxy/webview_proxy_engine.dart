@@ -145,7 +145,14 @@ String buildBrowseScript({
             const url = new URL(rawUrl || '', window.location.origin);
             if (!url.pathname.includes(apiPathMarker)) return false;
             if (!expectedKeyword) return true;
-            return (rawUrl || '').includes(expectedKeyword);
+            const raw = String(rawUrl || '');
+            const decoded = decodeURIComponent(raw.replace(/\\+/g, ' '));
+            const kw = expectedKeyword.toLowerCase();
+            const rawLower = raw.toLowerCase();
+            const decodedLower = decoded.toLowerCase();
+            return decodedLower.includes(kw) ||
+                   rawLower.includes(kw.replace(/ /g, '+')) ||
+                   rawLower.includes(encodeURIComponent(kw).toLowerCase());
         } catch (e) {
             return false;
         }
@@ -176,7 +183,12 @@ String buildBrowseScript({
         this.addEventListener('load', function () {
             try {
                 if (shouldCaptureUrl(this.__comixBrowseUrl)) {
-                    captureText(this.responseText);
+                    const data = (this.response != null && typeof this.response === 'object') ? this.response : this.responseText;
+                    if (typeof data === 'string') {
+                        captureText(data);
+                    } else if (data && typeof data === 'object') {
+                        capture(data, true);
+                    }
                 }
             } catch (e) {}
         });
@@ -187,7 +199,13 @@ String buildBrowseScript({
     const proxiedParse = new Proxy(originalParse, {
         apply(target, thisArg, args) {
             const parsed = Reflect.apply(target, thisArg, args);
-            if (!expectedKeyword) capture(parsed);
+            if (!expectedKeyword) {
+                capture(parsed);
+            }
+            // When expectedKeyword is set, rely on fetch/XHR hooks that can
+            // verify the request URL. Blindly capturing any items-shaped JSON
+            // here races with unrelated SPA payloads (home/trending shell data)
+            // and can return wrong results before the actual search API responds.
             return parsed;
         }
     });
@@ -208,17 +226,75 @@ String buildApiCaptureScript({
   required String passPayloadName,
   required String captureTestJs,
   String apiPathMarker = '',
-}) =>
-    '''
+  int? targetPage,
+}) {
+  final targetPageNum = targetPage ?? 1;
+  final paginationTriggerJs = (targetPageNum > 1)
+      ? '''
+    let pageAttempts = 0;
+    const pageTimer = setInterval(() => {
+        pageAttempts++;
+        if (window[payloadKey] || pageAttempts > 200) {
+            clearInterval(pageTimer);
+            return;
+        }
+        try {
+            // 1. Try React Fiber onPageChange on pager container
+            const pagerEl = document.querySelector('.title-detail__chapters-pager, .npager');
+            if (pagerEl) {
+                const fiberKey = Object.keys(pagerEl).find(k => k.startsWith('__reactFiber\$'));
+                let fiber = pagerEl[fiberKey];
+                let fired = false;
+                while (fiber) {
+                    if (fiber.memoizedProps && typeof fiber.memoizedProps.onPageChange === 'function') {
+                        fiber.memoizedProps.onPageChange(targetPage);
+                        fired = true;
+                        break;
+                    }
+                    fiber = fiber.return;
+                }
+                if (fired) return;
+            }
+
+            // 2. Try clicking exact numeric button
+            const pageButtons = Array.from(document.querySelectorAll('.npager button.npager__num, .title-detail__chapters-pager button'));
+            for (const btn of pageButtons) {
+                if (btn.textContent.trim() === String(targetPage)) {
+                    btn.click();
+                    return;
+                }
+            }
+
+            // 3. Fallback: click next page button
+            const nextBtn = document.querySelector('button[aria-label="Next page"]');
+            if (nextBtn) {
+                nextBtn.click();
+            }
+        } catch (e) {}
+    }, 150);
+'''
+      : '';
+
+  return '''
 (function () {
     const payloadKey = '$payloadKey';
     const apiPathMarker = '$apiPathMarker';
+    const targetPage = $targetPageNum;
+
+    const isPageMatch = parsed => {
+        if (!targetPage || targetPage <= 1) return true;
+        if (parsed && parsed.meta && typeof parsed.meta.page === 'number') {
+            return parsed.meta.page === targetPage;
+        }
+        return true;
+    };
+
     const capture = parsed => {
         try {
             if (window[payloadKey]) return true;
             let ok = false;
             try { ok = ($captureTestJs); } catch (e) { ok = false; }
-            if (ok) {
+            if (ok && isPageMatch(parsed)) {
                 window[payloadKey] = JSON.stringify(parsed);
                 window.$passPayloadName(window[payloadKey]);
                 return true;
@@ -228,8 +304,9 @@ String buildApiCaptureScript({
     };
 
     if (window[payloadKey]) return window[payloadKey];
-    if (window.__comixApiCaptureInstalled) return null;
-    window.__comixApiCaptureInstalled = true;
+    const installedKey = '__comixApiCaptureInstalled_' + payloadKey;
+    if (window[installedKey]) return null;
+    window[installedKey] = true;
 
     const shouldCaptureUrl = rawUrl => {
         if (!apiPathMarker) return true;
@@ -240,6 +317,9 @@ String buildApiCaptureScript({
             return false;
         }
     };
+
+    $paginationTriggerJs
+
     const captureText = text => {
         try {
             if (text) capture(JSON.parse(text));
@@ -265,7 +345,7 @@ String buildApiCaptureScript({
     const originalSend = XMLHttpRequest.prototype.send;
     XMLHttpRequest.prototype.open = function (method, url) {
         this.__comixApiUrl = String(url || '');
-        return originalOpen.apply(this, arguments);
+        return originalOpen.call(this, method, url);
     };
     XMLHttpRequest.prototype.send = function () {
         this.addEventListener('load', function () {
@@ -280,6 +360,7 @@ String buildApiCaptureScript({
     return window[payloadKey] || null;
 })();
 ''';
+}
 
 /// Chapter-list capture script (env bundle import + mangaApi.chapters loop).
 String buildChapterListScript({
@@ -305,7 +386,7 @@ String buildChapterListScript({
             if (!mainResponse.ok) throw new Error('Could not load main bundle');
             const mainJavaScript = await mainResponse.text();
             const environmentFile = mainJavaScript.match(
-                /from\\s*["']\\.\\/(env-[^"']+\\.js)["']/
+                /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
             )?.[1];
             if (!environmentFile) throw new Error('Could not find environment bundle');
 
@@ -316,20 +397,31 @@ String buildChapterListScript({
             const mangaApi = Object.values(environment).find(value =>
                 value &&
                 typeof value === 'object' &&
-                typeof value.chapters === 'function'
+                (typeof value.chapters === 'function' || typeof value['\$Q'] === 'function')
             );
             if (!mangaApi) throw new Error('Could not find manga API');
+            const fetchChapters = (mangaApi.chapters || mangaApi['\$Q']).bind(mangaApi);
 
             const items = [];
             let page = 1;
             while (page <= $maxChapterPages) {
-                const response = await mangaApi.chapters(mangaId, {
+                const response = await fetchChapters(mangaId, {
                     page,
                     limit: 100,
                     order: { number: 'desc' }
                 });
-                const pageItems = response?.items;
-                if (!Array.isArray(pageItems) || pageItems.length === 0) break;
+                const rawItems = response?.items ?? response?.K6;
+                if (!Array.isArray(rawItems) || rawItems.length === 0) break;
+                const pageItems = rawItems.map(item => ({
+                    ...item,
+                    id: item.id ?? item.Od,
+                    number: item.number ?? item.Iv ?? item._G,
+                    volume: item.volume ?? item._G,
+                    title: item.title ?? item.ux ?? '',
+                    name: item.name ?? item.title ?? item.ux ?? '',
+                    date: item.date ?? item.createdAtFormatted ?? item.Fa ?? item.uploadDate ?? item.xl,
+                    url: item.url ?? item.ek ?? item.href ?? ''
+                }));
 
                 items.push(...pageItems);
                 if (pageItems.some(item => item.id === latestChapterId)) break;
@@ -348,13 +440,19 @@ String buildChapterListScript({
 })();
 ''';
 
-/// Reader pages capture script (initial-data + JSON.parse proxy).
-String buildPageListScript({required String passPayloadName}) => '''
+/// Reader pages capture script (initial-data + JSON.parse proxy + active apicore import).
+String buildPageListScript({
+  required String passPayloadName,
+  String rejectName = r'$reject',
+  String chapterIdJson = 'null',
+  String mainScriptUrlJson = 'null',
+}) =>
+    '''
 (function () {
     const payloadKey = '__comixPagePayload';
     const capture = parsed => {
         try {
-            if (parsed && parsed.result && parsed.result.pages) {
+            if (parsed && (parsed.result?.pages || parsed.data?.pages || parsed.pages || Array.isArray(parsed.items) || Array.isArray(parsed.pi))) {
                 window[payloadKey] = JSON.stringify(parsed);
                 window.$passPayloadName(window[payloadKey]);
                 return true;
@@ -372,17 +470,65 @@ String buildPageListScript({required String passPayloadName}) => '''
     } catch (e) {}
 
     if (window[payloadKey]) return window[payloadKey];
-    if (JSON.parse.__comixPageCaptureInstalled) return null;
-    const originalParse = JSON.parse;
-    const proxiedParse = new Proxy(originalParse, {
-        apply(target, thisArg, args) {
-            const parsed = Reflect.apply(target, thisArg, args);
-            capture(parsed);
-            return parsed;
+    if (!JSON.parse.__comixPageCaptureInstalled) {
+        const originalParse = JSON.parse;
+        const proxiedParse = new Proxy(originalParse, {
+            apply(target, thisArg, args) {
+                const parsed = Reflect.apply(target, thisArg, args);
+                capture(parsed);
+                return parsed;
+            }
+        });
+        proxiedParse.__comixPageCaptureInstalled = true;
+        JSON.parse = proxiedParse;
+    }
+
+    (async () => {
+        try {
+            let chapterId = $chapterIdJson;
+            if (!chapterId) {
+                try {
+                    const raw = document.querySelector('script#initial-data')?.textContent;
+                    const parsed = raw && JSON.parse(raw);
+                    chapterId = parsed?.read?.chapterId;
+                } catch (e) {}
+            }
+            if (!chapterId) return;
+
+            let mainUrl = $mainScriptUrlJson;
+            if (!mainUrl) {
+                const scriptEl = document.querySelector('script[type=module][src*="/dist/main-"]');
+                mainUrl = scriptEl?.src || '';
+            }
+            if (!mainUrl) return;
+
+            const mainResponse = await fetch(mainUrl);
+            if (!mainResponse.ok) return;
+            const mainJavaScript = await mainResponse.text();
+            const environmentFile = mainJavaScript.match(
+                /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
+            )?.[1];
+            if (!environmentFile) return;
+            const envPath = new URL(environmentFile, mainUrl).href;
+            const envModule = await import(/* @vite-ignore */ envPath);
+
+            const chapterApi = envModule.chapterApi || envModule.\$n || envModule.n;
+            if (!chapterApi) return;
+            const fetchPages = chapterApi.read || chapterApi.pages || chapterApi.N4;
+            if (typeof fetchPages !== 'function') return;
+
+            const result = await fetchPages(chapterId);
+            if (window[payloadKey]) return;
+            if (capture(result)) return;
+            if (result) {
+                window[payloadKey] = JSON.stringify(result);
+                window.$passPayloadName(window[payloadKey]);
+            }
+        } catch (e) {
+            // Passive JSON.parse proxy remains active if active fetch fails
         }
-    });
-    proxiedParse.__comixPageCaptureInstalled = true;
-    JSON.parse = proxiedParse;
+    })();
+
     return window[payloadKey] || null;
 })();
 ''';
@@ -394,8 +540,8 @@ class WebViewProxyEngine {
     required this.allowedHosts,
     KuronNative? native,
     Logger? logger,
-  })  : _native = native ?? KuronNative.instance,
-        _logger = logger ?? Logger();
+  }) : _native = native ?? KuronNative.instance,
+       _logger = logger ?? Logger();
 
   final String sourceHost;
   final List<String> allowedHosts;
@@ -417,7 +563,7 @@ class WebViewProxyEngine {
     required String userAgent,
     String? initializationScript,
     required String Function(String passPayloadName, String rejectName)
-        buildScript,
+    buildScript,
     bool extendDeadlineOnApiTraffic = false,
   }) async {
     final bridgeName = _randomBridgeName();
@@ -425,14 +571,20 @@ class WebViewProxyEngine {
     final passPayloadName = _randomBridgeName();
     final rejectName = _randomBridgeName();
 
+    final captureScript = buildScript(passPayloadName, rejectName);
+    final effectiveInit = [
+      if (initializationScript != null &&
+          initializationScript.trim().isNotEmpty)
+        initializationScript,
+      captureScript,
+    ].join('\n');
     final bootstrap = buildBootstrapScript(
       bridgeName: bridgeName,
       errorBridgeName: errorBridgeName,
       passPayloadName: passPayloadName,
       rejectName: rejectName,
-      initializationScript: initializationScript,
+      initializationScript: effectiveInit,
     );
-    final captureScript = buildScript(passPayloadName, rejectName);
 
     late final String raw;
     try {
@@ -459,8 +611,9 @@ class WebViewProxyEngine {
       rethrow;
     }
 
-    final capture =
-        WebViewCapture.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    final capture = WebViewCapture.fromJson(
+      jsonDecode(raw) as Map<String, dynamic>,
+    );
     final material = capture.material;
     if (material != null && material.isValid) {
       _cipher = ComixCipher(material);

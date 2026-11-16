@@ -427,6 +427,7 @@ class ComixChapter {
     this.groupId,
     this.groupName,
     this.isOfficial = false,
+    this.chapterCount,
   });
 
   final int id;
@@ -446,26 +447,45 @@ class ComixChapter {
   final String? groupName;
   final bool isOfficial;
 
+  /// Chapter count for volume entries.
+  final int? chapterCount;
+
   factory ComixChapter.fromJson(Map<String, dynamic> json) {
-    final group = json['group'] as Map<String, dynamic>?;
-    final createdAt = json['createdAt'];
+    final group = json['group'] as Map<String, dynamic>? ??
+        json['cW'] as Map<String, dynamic>?;
+    final createdAt = json['createdAt'] ?? json['createdAtEpoch'];
     final epoch = createdAt is num
         ? createdAt.toInt()
         : int.tryParse('${createdAt ?? ''}');
+    final id = json['id'] ?? json['Od'];
+    final rawNumber = json['number'] ?? json['Iv'] ?? json['_G'] ?? 0;
     return ComixChapter(
-      id: (json['id'] as num).toInt(),
-      url: json['url'] as String? ?? '',
-      number: (json['number'] as num).toDouble(),
-      name: json['name'] as String? ?? '',
-      votes: (json['votes'] as num?)?.toInt() ?? 0,
+      id: id is num ? id.toInt() : (int.tryParse('$id') ?? 0),
+      url: json['url'] as String? ??
+          json['ek'] as String? ??
+          json['href'] as String? ??
+          '',
+      number: rawNumber is num
+          ? rawNumber.toDouble()
+          : (double.tryParse('$rawNumber') ?? 0.0),
+      name: json['name'] as String? ??
+          json['ux'] as String? ??
+          json['title'] as String? ??
+          '',
+      votes: (json['votes'] as num?)?.toInt() ??
+          (json['EH'] as num?)?.toInt() ??
+          0,
       createdAtFormatted: json['createdAtFormatted'] as String? ??
           json['created_at_formatted'] as String? ??
+          json['Fa'] as String? ??
           '',
       createdAtEpoch: epoch,
       language: json['language'] as String?,
-      groupId: (group?['id'] as num?)?.toInt(),
-      groupName: group?['name'] as String?,
+      groupId: (group?['id'] as num?)?.toInt() ??
+          (group?['NY'] as num?)?.toInt(),
+      groupName: group?['name'] as String? ?? group?['gf'] as String?,
       isOfficial: json['isOfficial'] as bool? ?? false,
+      chapterCount: (json['chapterCount'] as num?)?.toInt(),
     );
   }
 
@@ -473,17 +493,17 @@ class ComixChapter {
   String chapterPath(String mangaSlug) {
     final index = url.indexOf('/title/');
     if (index != -1) return url.substring(index + 1);
-    final num = number.truncateToDouble() == number
-        ? number.toInt().toString()
-        : number.toString();
+    final num = formattedNumber;
     return 'title/$mangaSlug/$id-chapter-$num';
   }
 
-  String displayName() {
-    final num = number.truncateToDouble() == number
-        ? number.toInt().toString()
-        : number.toString();
-    final base = 'Chapter $num';
+  String get formattedNumber => number.truncateToDouble() == number
+      ? number.toInt().toString()
+      : number.toString();
+
+  String displayName({String group = 'Chapter'}) {
+    final num = formattedNumber;
+    final base = '$group $num';
     return name.isEmpty ? base : '$base: $name';
   }
 
@@ -541,12 +561,45 @@ class ChapterPagesResponse {
   final List<ChapterPageDto> items;
 
   factory ChapterPagesResponse.fromJson(Map<String, dynamic> json) {
-    final result = json['result'] as Map<String, dynamic>? ?? {};
-    final pages = result['pages'] as Map<String, dynamic>? ?? {};
+    if (json['pi'] is List) {
+      final piList = json['pi'] as List;
+      final items = piList
+          .whereType<Map<String, dynamic>>()
+          .map((e) => ChapterPageDto(
+                (e['ek'] ?? e['url'] ?? '').toString(),
+                s: (e['s'] as num?)?.toInt() ?? 0,
+              ))
+          .where((e) => e.url.isNotEmpty)
+          .toList();
+      return ChapterPagesResponse('', items);
+    }
+
+    final Map<String, dynamic> pages;
+    if (json['result'] is Map<String, dynamic> &&
+        (json['result'] as Map<String, dynamic>)['pages']
+            is Map<String, dynamic>) {
+      pages = (json['result'] as Map<String, dynamic>)['pages']
+          as Map<String, dynamic>;
+    } else if (json['pages'] is Map<String, dynamic>) {
+      pages = json['pages'] as Map<String, dynamic>;
+    } else if (json['data'] is Map<String, dynamic> &&
+        (json['data'] as Map<String, dynamic>)['pages']
+            is Map<String, dynamic>) {
+      pages = (json['data'] as Map<String, dynamic>)['pages']
+          as Map<String, dynamic>;
+    } else if (json['result'] is Map<String, dynamic>) {
+      pages = json['result'] as Map<String, dynamic>;
+    } else {
+      pages = json;
+    }
+
+    final rawItems =
+        (pages['items'] ?? pages['pages'] ?? json['items']) as List?;
     return ChapterPagesResponse(
       pages['baseUrl'] as String? ?? pages['base_url'] as String? ?? '',
-      ((pages['items'] as List?) ?? [])
-          .map((e) => ChapterPageDto.fromJson(e as Map<String, dynamic>))
+      ((rawItems) ?? [])
+          .whereType<Map<String, dynamic>>()
+          .map((e) => ChapterPageDto.fromJson(e))
           .toList(),
     );
   }
@@ -559,7 +612,7 @@ class ChapterPageDto {
   final int s;
 
   factory ChapterPageDto.fromJson(Map<String, dynamic> json) => ChapterPageDto(
-        json['url'] as String? ?? '',
+        (json['url'] ?? json['ek'] ?? '').toString(),
         s: (json['s'] as num?)?.toInt() ?? 0,
       );
 }
@@ -575,6 +628,12 @@ extension _StringBlank on String {
 /// `$.data.languages[*]`, tagRelations `$.data.genres[*]` /
 /// `$.data.authors[*]` with `title`). Accepts both `{data: {...}}` and
 /// flat envelopes defensively.
+class MangafireTagItem {
+  const MangafireTagItem({required this.id, required this.name});
+  final int id;
+  final String name;
+}
+
 class MangafireDetail {
   const MangafireDetail({
     required this.hid,
@@ -585,8 +644,11 @@ class MangafireDetail {
     this.type = '',
     this.languages = const [],
     this.genres = const [],
+    this.genresWithIds = const [],
     this.authors = const [],
+    this.authorsWithIds = const [],
     this.year,
+    this.hasVolumes = false,
   });
 
   final String hid;
@@ -597,8 +659,11 @@ class MangafireDetail {
   final String type;
   final List<String> languages;
   final List<String> genres;
+  final List<MangafireTagItem> genresWithIds;
   final List<String> authors;
+  final List<MangafireTagItem> authorsWithIds;
   final int? year;
+  final bool hasVolumes;
 
   static List<String> _titles(dynamic v) {
     if (v is List) {
@@ -610,11 +675,30 @@ class MangafireDetail {
     return const [];
   }
 
+  static List<MangafireTagItem> _tagsWithIds(dynamic v) {
+    if (v is List) {
+      return v
+          .map((e) {
+            if (e is Map) {
+              final id = (e['id'] as num?)?.toInt() ?? 0;
+              final title = '${e['title'] ?? e['name'] ?? ''}';
+              return MangafireTagItem(id: id, name: title);
+            }
+            return MangafireTagItem(id: 0, name: '$e');
+          })
+          .where((e) => e.name.isNotEmpty)
+          .toList();
+    }
+    return const [];
+  }
+
   factory MangafireDetail.fromJson(Map<String, dynamic> json) {
     final data = json['data'] is Map<String, dynamic>
         ? json['data'] as Map<String, dynamic>
         : json;
     final poster = data['poster'];
+    final genresRaw = data['genres'] ?? data['genre'];
+    final authorsRaw = data['authors'] ?? data['author'];
     return MangafireDetail(
       hid: '${data['hid'] ?? ''}',
       title: '${data['title'] ?? ''}',
@@ -624,9 +708,12 @@ class MangafireDetail {
       status: '${data['status'] ?? ''}',
       type: '${data['type'] ?? ''}',
       languages: _titles(data['languages']),
-      genres: _titles(data['genres'] ?? data['genre']),
-      authors: _titles(data['authors'] ?? data['author']),
+      genres: _titles(genresRaw),
+      genresWithIds: _tagsWithIds(genresRaw),
+      authors: _titles(authorsRaw),
+      authorsWithIds: _tagsWithIds(authorsRaw),
       year: (data['year'] as num?)?.toInt(),
+      hasVolumes: (data['hasVolumes'] as bool?) ?? false,
     );
   }
 

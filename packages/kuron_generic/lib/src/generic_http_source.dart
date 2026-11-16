@@ -693,6 +693,13 @@ class GenericHttpSource implements ContentSource {
       }
     }
 
+    if (_id == 'comix') {
+      // Comix image CDNs (e.g. 8pl.*.site) reject requests containing a Referer header with HTTP 403.
+      // Explicitly remove Referer (and cross-host Origin) matching Comix.kt getImageRequest.
+      headers.remove('Referer');
+      headers.remove('Origin');
+    }
+
     if (_id == 'schale-network' || _id == 'hdoujin') {
       // CDN (erocdn.net) needs the source's main domain, not the API URL.
       // refererHeader above used _baseUrl (API), so restore from config.

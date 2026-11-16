@@ -211,6 +211,9 @@ class DetailCubit extends BaseCubit<DetailState> {
   }
 
   int resolveChapterPageLimit(String sourceId) {
+    if (sourceId == 'mangafire') {
+      return 20;
+    }
     final cfg = _remoteConfigService?.getRawConfig(sourceId);
     final chapterCfg = (cfg?['api']?['detail']?['chapters'] as Map?) ??
         (cfg?['api']?['chapters'] as Map?);
@@ -261,6 +264,17 @@ class DetailCubit extends BaseCubit<DetailState> {
       {String? sourceId, String? language, String? scanGroup}) {
     final lang = language ?? 'default';
     _allChaptersByLang[lang] = chapters;
+    final currentState = state;
+    if (currentState is DetailLoaded) {
+      final merged = mergeChaptersById(
+        currentState.content.chapters ?? const <Chapter>[],
+        chapters,
+      );
+      emit(currentState.copyWith(
+        content: currentState.content.copyWith(chapters: merged),
+        lastUpdated: DateTime.now(),
+      ));
+    }
   }
 
   // Get chapters for a given language. Returns null for unknown language.
@@ -390,12 +404,21 @@ class DetailCubit extends BaseCubit<DetailState> {
 
       if (shouldLoadChaptersAsync) {
         // Load initial chapters filtered by the source's default language
-        // (e.g. English for MangaDex) so users see the right language first.
+        // (e.g. English for MangaDex and MangaFire) so users see the right language first.
+        final initialLanguage = content.sourceId == 'mangafire'
+            ? (content.tags.any((t) =>
+                    t.type == '__mangafire_chapter_language' &&
+                    t.name.toLowerCase() == 'en')
+                ? 'en'
+                : (content.language.isNotEmpty && content.language != 'unknown'
+                    ? content.language
+                    : 'en'))
+            : null;
         unawaited(
           _loadInitialChapters(
             content.id,
             sourceId: content.sourceId,
-            language: null, // detail fetch handles language via adapter
+            language: initialLanguage,
           ),
         );
       }

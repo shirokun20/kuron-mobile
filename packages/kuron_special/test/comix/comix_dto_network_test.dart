@@ -1,7 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_special/src/comix/comix_adapter.dart';
+import 'package:kuron_special/src/comix/comix_descrambler.dart';
 import 'package:kuron_special/src/comix/comix_dto.dart';
 import 'package:kuron_special/src/comix/comix_network.dart';
 import 'package:kuron_special/src/webview_proxy/webview_proxy_engine.dart';
@@ -102,6 +106,24 @@ void main() {
     );
   });
 
+  test('ComixChapter parses minified apicore Fm shape correctly', () {
+    final chapter = ComixChapter.fromJson({
+      'Od': 11736727,
+      'Iv': 12,
+      '_G': null,
+      'ux': 'Training Begins',
+      'ek': '/title/7e6w1-iljinnyeodeul-jogyo-sijak/11736727-chapter-12',
+    });
+    expect(chapter.id, 11736727);
+    expect(chapter.number, 12.0);
+    expect(chapter.name, 'Training Begins');
+    expect(chapter.displayName(), 'Chapter 12: Training Begins');
+    expect(
+      chapter.chapterPath('7e6w1-iljinnyeodeul-jogyo-sijak'),
+      'title/7e6w1-iljinnyeodeul-jogyo-sijak/11736727-chapter-12',
+    );
+  });
+
   test('parseRelativeDate handles units', () {
     final now = DateTime.now().millisecondsSinceEpoch;
     final threeDays = ComixChapter.parseRelativeDate('3 days ago')!;
@@ -132,6 +154,32 @@ void main() {
     expect(pages[3], endsWith('#scrambled'));
   });
 
+  test('absolutizeUrl handles relative and schema-relative paths', () {
+    expect(
+      ComixAdapter.absolutizeUrl(
+        '/images/covers/47/d3/47d3a1c78909af0e52be4972ec94b0ecc500ba7a.jpg',
+        'https://comix.to',
+      ),
+      'https://comix.to/images/covers/47/d3/47d3a1c78909af0e52be4972ec94b0ecc500ba7a.jpg',
+    );
+    expect(
+      ComixAdapter.absolutizeUrl(
+        '//static.comix.to/cover.jpg',
+        'https://comix.to',
+      ),
+      'https://static.comix.to/cover.jpg',
+    );
+    expect(
+      ComixAdapter.absolutizeUrl(
+        'https://static.comix.to/cover.jpg',
+        'https://comix.to',
+      ),
+      'https://static.comix.to/cover.jpg',
+    );
+    expect(ComixAdapter.absolutizeUrl(null, 'https://comix.to'), '');
+    expect(ComixAdapter.absolutizeUrl('', 'https://comix.to'), '');
+  });
+
   test('image policy: Origin removal + fragment strip', () {
     expect(
       ComixImagePolicy.shouldRemoveOrigin(
@@ -158,6 +206,26 @@ void main() {
       ComixImagePolicy.requestUrl('https://x/i5/a#scrambled'),
       'https://x/i5/a',
     );
+  });
+
+  test('ComixImageHeaderInterceptor strips Referer and conditional Origin', () {
+    final interceptor = ComixImageHeaderInterceptor(baseUrlHost: 'comix.to');
+    final options = RequestOptions(
+      path: 'https://8pl.blogofscott.site/hi/test#scrambled',
+      headers: {
+        'Referer': 'https://comix.to/',
+        'Origin': 'https://comix.to',
+      },
+    );
+    interceptor.onRequest(options, RequestInterceptorHandler());
+    expect(options.path, 'https://8pl.blogofscott.site/hi/test');
+    expect(options.headers.containsKey('Referer'), isFalse);
+  });
+
+  test('ComixDescrambler.maybeDescramble returns null when no scramble headers present', () {
+    final bytes = Uint8List.fromList([1, 2, 3, 4]);
+    final out = ComixDescrambler.maybeDescramble(bytes: bytes, headers: {});
+    expect(out, isNull);
   });
 
   test('bootstrap script contains atob hijack + bridges', () {
@@ -198,8 +266,10 @@ void main() {
         latestChapterId: null,
       ),
       allOf(
-        contains('env-'),
-        contains('mangaApi.chapters'),
+        contains('(?:env|apicore)'),
+        contains('apicore)'),
+        contains('fetchChapters'),
+        contains(r"$Q"),
         contains('window.passC('),
       ),
     );
@@ -207,6 +277,44 @@ void main() {
       buildPageListScript(passPayloadName: 'passC'),
       allOf(contains('__comixPagePayload'), contains('window.passC(')),
     );
+    expect(
+      buildPageListScript(
+        passPayloadName: 'passC',
+        chapterIdJson: '11737225',
+        mainScriptUrlJson: '"https://comix.to/assets/build/dist/main.js"',
+      ),
+      allOf(
+        contains('__comixPagePayload'),
+        contains('(?:env|apicore)'),
+        contains('chapterApi'),
+        contains('N4'),
+        contains('fetchPages'),
+      ),
+    );
+  });
+
+  test('ChapterPagesResponse parses apicore pi shape and maps to images', () {
+    final response = ChapterPagesResponse.fromJson({
+      'pi': [
+        {
+          'ek': 'https://80pd.wowpic1.store/i5/001.webp',
+          'Cy': 1080,
+          'JF': 1920,
+          's': 1,
+        },
+        {
+          'ek': 'https://80pd.wowpic1.store/i5/002.webp',
+          'Cy': 1080,
+          'JF': 1920,
+          's': 0,
+        },
+      ],
+    });
+    expect(response.items, hasLength(2));
+    expect(response.items[0].url, 'https://80pd.wowpic1.store/i5/001.webp');
+    final pages = ComixAdapter.buildPages(response);
+    expect(pages[0], contains('?v3'));
+    expect(pages[1], 'https://80pd.wowpic1.store/i5/002.webp');
   });
 
   test('allowed host lists cover fallback + CF hosts', () {
@@ -293,6 +401,95 @@ void main() {
         contains('parsed && parsed.data'),
       ),
     );
+  });
+
+  test('generic api capture script with targetPage > 1 triggers pagination and validates page match', () {
+    final script = buildApiCaptureScript(
+      payloadKey: '__mfChaptersPayload_p2',
+      passPayloadName: 'passChapters',
+      captureTestJs: 'parsed && parsed.items',
+      apiPathMarker: '/chapters',
+      targetPage: 2,
+    );
+    expect(
+      script,
+      allOf(
+        contains('__mfChaptersPayload_p2'),
+        contains('window.passChapters('),
+        contains('const targetPage = 2;'),
+        contains('onPageChange(targetPage)'),
+        contains('.npager button.npager__num'),
+        contains('parsed.meta.page === targetPage'),
+      ),
+    );
+  });
+
+  test('MangaFire chapters page 2 payload parses items and displays chapter info', () {
+    const jsonStr = '''
+{
+    "items": [
+        {
+            "id": 3099671,
+            "number": 20,
+            "name": "Azusa's Determination",
+            "language": "en",
+            "type": "unofficial",
+            "createdAt": 1711521991
+        },
+        {
+            "id": 6476139,
+            "number": 7.1,
+            "name": "",
+            "language": "en",
+            "type": "unofficial",
+            "createdAt": 1769126555
+        }
+    ],
+    "meta": {
+        "total": 43,
+        "perPage": 20,
+        "page": 2,
+        "lastPage": 3,
+        "from": 21,
+        "to": 40,
+        "hasNext": true,
+        "hasPrev": true
+    }
+}
+''';
+    final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+    final items = (decoded['items'] as List)
+        .map((e) => ComixChapter.fromJson(e as Map<String, dynamic>))
+        .toList();
+    expect(items.length, 2);
+    expect(items[0].id, 3099671);
+    expect(items[0].number, 20.0);
+    expect(items[0].displayName(), "Chapter 20: Azusa's Determination");
+    expect(items[0].uploadDate(), isNotNull);
+
+    expect(items[1].id, 6476139);
+    expect(items[1].number, 7.1);
+    expect(items[1].displayName(), 'Chapter 7.1');
+  });
+
+  test('all generated scripts are syntactically valid JavaScript', () {
+    for (final page in [1, 2, 3]) {
+      final script = buildApiCaptureScript(
+        payloadKey: '__testKey',
+        passPayloadName: 'passTest',
+        captureTestJs: 'parsed && parsed.items',
+        targetPage: page,
+      );
+      final tempFile = File('${Directory.systemTemp.path}/test_capture_p$page.js');
+      tempFile.writeAsStringSync(script);
+      try {
+        final result = Process.runSync('node', ['-c', tempFile.path]);
+        expect(result.exitCode, 0,
+            reason: 'JS syntax error on page $page: ${result.stderr}');
+      } finally {
+        if (tempFile.existsSync()) tempFile.deleteSync();
+      }
+    }
   });
 }
 

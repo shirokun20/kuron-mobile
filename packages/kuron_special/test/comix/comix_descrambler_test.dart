@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:kuron_special/src/comix/comix_descrambler.dart';
+import 'package:logger/logger.dart';
 
 // Vectors generated from an independent Python mirror of Descrambler.kt
 // (see session log): LCG / Xorshift / buildOrder known-answer hex.
@@ -212,4 +214,66 @@ void main() {
       isNull,
     );
   });
+
+  test('interceptor passthroughs String response without error or warning', () {
+    final output = _CaptureOutput();
+    final interceptor = ComixDescramblerInterceptor(
+      logger: Logger(
+        filter: ProductionFilter(),
+        printer: SimplePrinter(),
+        output: output,
+        level: Level.all,
+      ),
+    );
+    final response = Response<String>(
+      requestOptions: RequestOptions(path: '/'),
+      data: '<html>cloudflare</html>',
+    );
+    final handler = _FakeResponseHandler();
+
+    interceptor.onResponse(response, handler);
+
+    expect(handler.nextCalled, isTrue);
+    expect(handler.resolveCalled, isFalse);
+    expect(handler.nextResponse?.data, '<html>cloudflare</html>');
+    expect(output.lines, isEmpty);
+  });
 }
+
+class _CaptureOutput extends LogOutput {
+  final List<String> lines = [];
+
+  @override
+  void output(OutputEvent event) {
+    lines.addAll(event.lines);
+  }
+}
+
+class _FakeResponseHandler implements ResponseInterceptorHandler {
+  bool nextCalled = false;
+  bool resolveCalled = false;
+  bool rejectCalled = false;
+  Response? nextResponse;
+  Response? resolvedResponse;
+
+  @override
+  void next(Response response) {
+    nextCalled = true;
+    nextResponse = response;
+  }
+
+  @override
+  void resolve(Response response) {
+    resolveCalled = true;
+    resolvedResponse = response;
+  }
+
+  @override
+  void reject(DioException error, [bool callFollowingErrorInterceptor = false]) {
+    rejectCalled = true;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+

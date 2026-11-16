@@ -344,6 +344,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
           contentId: state.content?.id ?? widget.contentId,
           visiblePageNotifier: widget.animatedPauseNotifier,
           cubit: widget.cubit,
+          sourceId: state.content?.sourceId,
           onHeavyImageDetected: widget.onHeavyImageDetected,
           onRepairBrokenImage: widget.onRepairBrokenImage,
           onOpenSourcePageForRepair: widget.onOpenSourcePageForRepair,

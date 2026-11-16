@@ -1229,6 +1229,7 @@ void _setupRepositories() {
       () => ReaderImageRepositoryImpl(
             logger: getIt<Logger>(),
             dedup: getIt<RequestDeduplicationService>(),
+            registry: getIt<ContentSourceRegistry>(),
           ));
 
   // Reader image pipeline (Batch 3.1: scraping/cache/convert off-widget)

@@ -591,7 +591,9 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
         : (loadedPresentation.selectedKey != null &&
                 availableLanguageKeys.contains(loadedPresentation.selectedKey))
             ? loadedPresentation.selectedKey
-            : availableLanguageKeys.firstOrNull;
+            : (availableLanguageKeys.contains('en')
+                ? 'en'
+                : availableLanguageKeys.firstOrNull);
     if (widget.selectedLanguageKey == null) {
       _selectedLanguageKey = selectedLanguageKey;
     }

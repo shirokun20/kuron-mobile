@@ -11,6 +11,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
+import 'package:kuron_special/kuron_special.dart';
 import '../utils/download_storage_utils.dart';
 
 import '../utils/storage_settings.dart';
@@ -61,13 +62,19 @@ class LocalImagePreloader {
   static List<String>? _cachedDownloadDirectories;
   static List<String>? _cachedExternalDownloadPaths;
   static List<String>? _cachedPossibleBasePaths;
+  static Future<List<String>>? _pendingDownloadDirectories;
+  static Future<List<String>>? _pendingPossibleBasePaths;
+  static bool _didLogPossibleBasePaths = false;
 
   /// Invalidates directory caches when custom storage root changes.
   static void invalidateDirectoryCache() {
     _cachedDownloadDirectories = null;
     _cachedExternalDownloadPaths = null;
     _cachedPossibleBasePaths = null;
+    _pendingDownloadDirectories = null;
+    _pendingPossibleBasePaths = null;
     _didLogDownloadDirectorySelection = false;
+    _didLogPossibleBasePaths = false;
   }
 
   static void _maybeScheduleCleanup() {
@@ -92,7 +99,23 @@ class LocalImagePreloader {
     if (_cachedPossibleBasePaths != null) {
       return _cachedPossibleBasePaths!;
     }
+    if (_pendingPossibleBasePaths != null) {
+      return _pendingPossibleBasePaths!;
+    }
+    final future = _resolvePossibleBasePaths();
+    _pendingPossibleBasePaths = future;
+    try {
+      final paths = await future;
+      _cachedPossibleBasePaths = paths;
+      return paths;
+    } finally {
+      _pendingPossibleBasePaths = null;
+    }
+  }
+
+  static Future<List<String>> _resolvePossibleBasePaths() async {
     final List<String> basePaths = [];
+    final bool shouldLog = !_didLogPossibleBasePaths;
 
     try {
       // Priority 1: External storage Download folder (permanently downloaded files)
@@ -101,9 +124,9 @@ class LocalImagePreloader {
         final downloadDir = Directory(path.join(downloadPath, _baseLocalPath));
         if (await downloadDir.exists()) {
           basePaths.add(path.join(downloadPath, _baseLocalPath));
-          _d(
-            '🐛 Found external storage: ${path.join(downloadPath, _baseLocalPath)}',
-          );
+          if (shouldLog) {
+            _d('Found external storage: ${path.join(downloadPath, _baseLocalPath)}');
+          }
         }
       }
 
@@ -111,8 +134,8 @@ class LocalImagePreloader {
       final cacheDir = await _getInternalCacheDirectory();
       if (cacheDir != null) {
         basePaths.add(cacheDir);
-        if (kDebugMode) {
-          _d('🐛 Added internal cache: $cacheDir');
+        if (shouldLog && kDebugMode) {
+          _d('Added internal cache: $cacheDir');
         }
         // NOTE: expired-cache cleanup no longer runs here — it is a periodic
         // task scheduled from getLocalImagePath (see _maybeScheduleCleanup).
@@ -122,7 +145,10 @@ class LocalImagePreloader {
       final appDir = await getApplicationDocumentsDirectory();
       final internalPath = path.join(appDir.path, _baseLocalPath);
       basePaths.add(internalPath);
-      _d('🐛 Added internal storage: $internalPath');
+      if (shouldLog) {
+        _d('Added internal storage: $internalPath');
+      }
+      _didLogPossibleBasePaths = true;
     } catch (e) {
       _logger.e('Error getting possible base paths: $e');
       // Fallback to internal storage only
@@ -130,7 +156,6 @@ class LocalImagePreloader {
       basePaths.add(path.join(appDir.path, _baseLocalPath));
     }
 
-    _cachedPossibleBasePaths = basePaths;
     return basePaths;
   }
 
@@ -140,6 +165,21 @@ class LocalImagePreloader {
     if (_cachedDownloadDirectories != null) {
       return _cachedDownloadDirectories!;
     }
+    if (_pendingDownloadDirectories != null) {
+      return _pendingDownloadDirectories!;
+    }
+    final future = _resolveDownloadDirectories();
+    _pendingDownloadDirectories = future;
+    try {
+      final paths = await future;
+      _cachedDownloadDirectories = paths;
+      return paths;
+    } finally {
+      _pendingDownloadDirectories = null;
+    }
+  }
+
+  static Future<List<String>> _resolveDownloadDirectories() async {
     final List<String> downloadPaths = [];
     final bool shouldLog = !_didLogDownloadDirectorySelection;
 
@@ -151,7 +191,7 @@ class LocalImagePreloader {
         if (await rootDir.exists()) {
           downloadPaths.add(customRoot);
           if (shouldLog) {
-            _d('🐛 Using custom storage root for images: $customRoot');
+            _d('Using custom storage root for images: $customRoot');
           }
         } else {
           _logger.w(
@@ -171,7 +211,7 @@ class LocalImagePreloader {
         if (!downloadPaths.contains(appExternalDownloads)) {
           downloadPaths.add(appExternalDownloads);
           if (shouldLog) {
-            _d('🐛 Using app-specific external storage: $appExternalDownloads');
+            _d('Using app-specific external storage: $appExternalDownloads');
           }
         }
       }
@@ -186,7 +226,7 @@ class LocalImagePreloader {
       if (!downloadPaths.contains(internalDownloads)) {
         downloadPaths.add(internalDownloads);
         if (shouldLog) {
-          _d('🐛 Using app documents storage: $internalDownloads');
+          _d('Using app documents storage: $internalDownloads');
         }
       }
       _didLogDownloadDirectorySelection = true;
@@ -194,7 +234,6 @@ class LocalImagePreloader {
       _logger.e('Error detecting Downloads directories: $e');
     }
 
-    _cachedDownloadDirectories = downloadPaths;
     return downloadPaths;
   }
 
@@ -764,26 +803,48 @@ class LocalImagePreloader {
       }
 
       // Download from network using Dio (supports cancellation)
+      final cleanUrl = networkUrl.contains('#')
+          ? networkUrl.split('#').first
+          : networkUrl;
       final dio = getIt<Dio>();
+      final requestHeaders = <String, dynamic>{
+        'User-Agent':
+            'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      };
+      if (headers != null) {
+        requestHeaders.addAll(headers);
+      } else if (cleanUrl.contains('nhentai.net')) {
+        requestHeaders['Referer'] = 'https://nhentai.net/';
+      }
+
       final response = await dio.get<List<int>>(
-        networkUrl,
+        cleanUrl,
         options: Options(
           responseType: ResponseType.bytes,
-          headers: {
-            'User-Agent': 'AppleWebKit/537.36',
-            'Referer': 'https://nhentai.net/',
-            ...?headers,
-          },
+          headers: requestHeaders,
         ),
         cancelToken: cancelToken,
       );
 
       if (response.statusCode == 200 && response.data != null) {
+        var data = Uint8List.fromList(response.data!);
+        try {
+          final descrambled = ComixDescrambler.maybeDescramble(
+            bytes: data,
+            headers: response.headers.map,
+          );
+          if (descrambled != null) {
+            data = descrambled;
+          }
+        } catch (e) {
+          _logger.w('Comix descramble failed on memory image: $e');
+        }
+
         // Save to internal cache
         final cachedPath = await _saveToInternalCache(
           contentId,
           pageNumber,
-          response.data!,
+          data,
         );
         return cachedPath;
       } else {
@@ -835,18 +896,28 @@ class LocalImagePreloader {
       );
       final tmpPath = '$targetPath.part';
 
+      final cleanUrl = networkUrl.contains('#')
+          ? networkUrl.split('#').first
+          : networkUrl;
+
       final dio = getIt<Dio>();
-      await dio.download(
-        networkUrl,
+      final requestHeaders = <String, dynamic>{
+        'User-Agent':
+            'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      };
+      if (headers != null) {
+        requestHeaders.addAll(headers);
+      } else if (cleanUrl.contains('nhentai.net')) {
+        requestHeaders['Referer'] = 'https://nhentai.net/';
+      }
+
+      final response = await dio.download(
+        cleanUrl,
         tmpPath,
         onReceiveProgress: onProgress,
         cancelToken: cancelToken,
         options: Options(
-          headers: {
-            'User-Agent': 'AppleWebKit/537.36',
-            'Referer': 'https://nhentai.net/',
-            ...?headers,
-          },
+          headers: requestHeaders,
         ),
       );
 
@@ -854,6 +925,20 @@ class LocalImagePreloader {
         _logger.w('🐛 [stream] Empty download: $networkUrl');
         return null;
       }
+
+      try {
+        final rawBytes = await File(tmpPath).readAsBytes();
+        final descrambled = ComixDescrambler.maybeDescramble(
+          bytes: rawBytes,
+          headers: response.headers.map,
+        );
+        if (descrambled != null) {
+          await File(tmpPath).writeAsBytes(descrambled, flush: true);
+        }
+      } catch (e) {
+        _logger.w('Comix descramble failed on streaming file: $e');
+      }
+
       // Atomic publish: replace any existing target before rename.
       if (await File(targetPath).exists()) {
         await File(targetPath).delete();

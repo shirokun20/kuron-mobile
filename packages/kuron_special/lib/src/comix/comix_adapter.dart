@@ -7,6 +7,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
 import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 
 import '../webview_proxy/webview_proxy_engine.dart';
 import 'comix_cipher.dart';
@@ -55,6 +56,36 @@ class ComixAdapter implements GenericAdapter {
   final Map<String, List<String>> _tagIdCache = {};
   final Map<int, String> _chapterPathCache = {};
 
+  /// Hid -> canonical title slug (e.g. `dwzjk-mediocre-mage-...`).
+  /// Comix chapter URLs 404 without the full slug suffix.
+  final Map<String, String> _canonicalSlugCache = {};
+
+  void _cacheCanonicalSlug(String hid, String detailPathOrUrl) {
+    if (hid.isEmpty || detailPathOrUrl.isEmpty) return;
+    var slug = detailPathOrUrl;
+    final titleIdx = slug.indexOf('/title/');
+    if (titleIdx != -1) {
+      slug = slug.substring(titleIdx + '/title/'.length);
+    } else if (slug.startsWith('title/')) {
+      slug = slug.substring('title/'.length);
+    } else if (slug.startsWith('/')) {
+      slug = slug.substring(1);
+    }
+    if (slug.isEmpty) return;
+    _canonicalSlugCache[hid] = slug;
+    if (_canonicalSlugCache.length > 500) {
+      _canonicalSlugCache.remove(_canonicalSlugCache.keys.first);
+    }
+  }
+
+  String _resolveCanonicalSlug(String contentId) {
+    final slug = contentId.startsWith('title/')
+        ? contentId.substring('title/'.length)
+        : contentId;
+    final hid = slug.split('-').first;
+    return _canonicalSlugCache[hid] ?? slug;
+  }
+
   String _baseUrl(Map<String, dynamic> rawConfig) =>
       (rawConfig['baseUrl'] as String?) ?? defaultBaseUrl;
 
@@ -89,28 +120,39 @@ class ComixAdapter implements GenericAdapter {
 
   /// Parses `type:name` queries produced by detail tag taps
   /// (navigation.tagQueryMapping mode=name, e.g. `tag:Romance`).
+  /// Only recognized tag kinds parse — anything else (notably the `raw:`
+  /// prefix produced by DynamicFormSearchUI / DetailTagQueryResolver)
+  /// is NOT a type query and must fall through to keyword handling.
+  static const _validTagTypes = {
+    'tag',
+    'genre',
+    'author',
+    'artist',
+    'demographic',
+  };
+
   static ({String type, String name})? _parseTypeQuery(String query) {
     final idx = query.indexOf(':');
     if (idx <= 0) return null;
     final type = query.substring(0, idx).trim().toLowerCase();
     final name = query.substring(idx + 1).trim();
-    if (type.isEmpty || name.isEmpty || type.contains(' ')) return null;
+    if (!_validTagTypes.contains(type) || name.isEmpty) return null;
     return (type: type, name: name);
   }
 
   /// API id-list param for a tag kind (keiyoushi Filters.kt mapping).
   static String _idsParam(String type) => switch (type) {
-        'artist' => 'artists[]',
-        'author' => 'authors[]',
-        _ => 'genres_in[]',
-      };
+    'artist' => 'artists[]',
+    'author' => 'authors[]',
+    _ => 'genres_in[]',
+  };
 
   /// tags/search API type for a tag kind.
   static String _resolveKind(String type) => switch (type) {
-        'artist' => 'artist',
-        'author' => 'author',
-        _ => 'tag',
-      };
+    'artist' => 'artist',
+    'author' => 'author',
+    _ => 'tag',
+  };
 
   Future<Map<String, List<String>>> _searchParams(
     SearchFilter filter,
@@ -119,34 +161,100 @@ class ComixAdapter implements GenericAdapter {
     final params = <String, List<String>>{};
     final radios = filter.radioGroupSelections;
 
-    final queryText = filter.query.trim();
+    var queryText = filter.query.trim();
+    var sortFromRaw = false;
+
+    void addRawParam(String rawKey, String rawValue) {
+      final key = rawKey.trim();
+      final value = rawValue.trim();
+      if (key.isEmpty || value.isEmpty) return;
+      if (key == 'sort') {
+        final colon = value.indexOf(':');
+        if (colon > 0 && colon < value.length - 1) {
+          final field = value.substring(0, colon).trim();
+          final direction = value.substring(colon + 1).trim();
+          if (field.isNotEmpty && direction.isNotEmpty) {
+            params['order[$field]'] = [direction];
+            sortFromRaw = true;
+          }
+        }
+        return;
+      }
+      if (key == 'keyword' || key == 'q') {
+        queryText = value;
+        return;
+      }
+      final values = value
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      if (values.isEmpty) return;
+      (params[key] ??= []).addAll(values);
+    }
+
+    if (queryText.startsWith('raw:')) {
+      final rawPart = queryText.substring('raw:'.length);
+      queryText = '';
+      final parsed = Uri(query: rawPart).queryParametersAll;
+      parsed.forEach((k, values) {
+        for (final v in values) {
+          if (k == 'rawParam') {
+            final eqIdx = v.indexOf('=');
+            if (eqIdx > 0) {
+              addRawParam(v.substring(0, eqIdx), v.substring(eqIdx + 1));
+            } else {
+              addRawParam(v, '');
+            }
+          } else {
+            addRawParam(k, v);
+          }
+        }
+      });
+    }
+
     final typed = queryText.isEmpty ? null : _parseTypeQuery(queryText);
     if (typed != null) {
-      // Tag tap: resolve the name to API ids instead of title keyword.
-      final ids = await resolveTagIds(
-        _resolveKind(typed.type),
-        typed.name,
-        rawConfig,
-      );
-      if (ids.isNotEmpty) {
-        params[_idsParam(typed.type)] = ids;
-      } else {
+      if (isMangafire) {
+        // MangaFire exposes no tags/search API — never resolve ids here.
+        // The SPA route carries the tag itself (see _mangafireListUri).
         params['keyword'] = [typed.name];
-        params['order[relevance]'] = ['desc'];
+        if (!sortFromRaw) {
+          params['order[relevance]'] = ['desc'];
+        }
+      } else {
+        // Tag tap: resolve the name to API ids instead of title keyword.
+        final ids = await resolveTagIds(
+          _resolveKind(typed.type),
+          typed.name,
+          rawConfig,
+        );
+        if (ids.isNotEmpty) {
+          params[_idsParam(typed.type)] = ids;
+        } else {
+          params['keyword'] = [typed.name];
+          if (!sortFromRaw) {
+            params['order[relevance]'] = ['desc'];
+          }
+        }
       }
     } else if (queryText.isNotEmpty) {
       params['keyword'] = [queryText];
-      params['order[relevance]'] = ['desc'];
+      if (!sortFromRaw) {
+        params['order[relevance]'] = ['desc'];
+      }
     } else {
-      switch (filter.sort) {
-        case SortOption.popular:
-        case SortOption.popularToday:
-        case SortOption.popularWeek:
-        case SortOption.popularMonth:
-        case SortOption.rating:
-          params['order[score]'] = ['desc'];
-        case SortOption.newest:
-          params['order[chapter_updated_at]'] = ['desc'];
+      if (!sortFromRaw) {
+        switch (filter.sort) {
+          case SortOption.popular:
+          case SortOption.popularToday:
+          case SortOption.popularWeek:
+          case SortOption.popularMonth:
+          case SortOption.rating:
+            params['order[score]'] = ['desc'];
+          case SortOption.newest:
+            params['order[chapter_updated_at]'] = ['desc'];
+        }
       }
     }
 
@@ -154,23 +262,32 @@ class ComixAdapter implements GenericAdapter {
     // suggestive-only hides safe/erotica/pornographic results (proven
     // live: 1 vs 4 items for the same genre). Default to all ratings
     // when the UI specifies none; explicit radio choices still win.
-    final contentRating =
-        radios['content_rating'] ?? 'safe,suggestive,erotica,pornographic';
-    for (final v in contentRating.split(',').map((e) => e.trim())) {
-      if (v.isNotEmpty) {
-        (params['content_rating[]'] ??= []).add(v);
+    if (!params.containsKey('content_rating[]') &&
+        !params.containsKey('content_rating')) {
+      final contentRating =
+          radios['content_rating'] ?? 'safe,suggestive,erotica,pornographic';
+      for (final v in contentRating.split(',').map((e) => e.trim())) {
+        if (v.isNotEmpty) {
+          (params['content_rating[]'] ??= []).add(v);
+        }
       }
     }
-    for (final t in radios['types']?.split(',') ?? const []) {
-      final v = t.trim();
-      if (v.isNotEmpty) (params['types[]'] ??= []).add(v);
+    if (!params.containsKey('types[]')) {
+      for (final t in radios['types']?.split(',') ?? const []) {
+        final v = t.trim();
+        if (v.isNotEmpty) (params['types[]'] ??= []).add(v);
+      }
     }
-    for (final d in radios['demographics']?.split(',') ?? const []) {
-      final v = d.trim();
-      if (v.isNotEmpty) (params['demographics[]'] ??= []).add(v);
+    if (!params.containsKey('demographics[]')) {
+      for (final d in radios['demographics']?.split(',') ?? const []) {
+        final v = d.trim();
+        if (v.isNotEmpty) (params['demographics[]'] ??= []).add(v);
+      }
     }
     // App-side FilterItems carry id=0 (no stored ids) — resolve by name.
+    // MangaFire has no tags/search API, so skip resolution there entirely.
     for (final tag in filter.includeTags) {
+      if (isMangafire) break;
       final ids = await resolveTagIds(
         _resolveKind(tag.type),
         tag.name,
@@ -181,6 +298,7 @@ class ComixAdapter implements GenericAdapter {
       }
     }
     for (final tag in filter.excludeTags) {
+      if (isMangafire) break;
       final ids = await resolveTagIds(
         _resolveKind(tag.type),
         tag.name,
@@ -195,55 +313,316 @@ class ComixAdapter implements GenericAdapter {
   }
 
   Uri _browseUri(String base, Map<String, List<String>> params) {
-    final query = <String, String>{};
+    final query = <String, dynamic>{};
     params.forEach((key, values) {
+      if (values.isEmpty) return;
+      if (key == 'keyword') {
+        query['q'] = values.last;
+        return;
+      }
+      final orderMatch = RegExp(r'^order\[([^\]]+)\]$').firstMatch(key);
+      if (orderMatch != null) {
+        final field = orderMatch.group(1);
+        final direction = values.last;
+        if (field != null && field.isNotEmpty) {
+          query['sort'] = '$field:$direction';
+        }
+        return;
+      }
       if (values.length == 1 && !key.endsWith('[]')) {
         query[key] = values.single;
       } else {
-        for (var i = 0; i < values.length; i++) {
-          query['${key.replaceAll('[]', '')}[$i]'] = values[i];
-        }
+        query[key.endsWith('[]') ? key : '$key[]'] = values;
       }
     });
     return Uri.parse('$base/browse').replace(queryParameters: query);
   }
 
-  /// Mangafire list route: home `/` for empty query, `/search/{q}` else.
+  static const _mangafireGenreNameToId = <String, String>{
+    'action': '1',
+    'adult': '268929',
+    'adventure': '78',
+    'avant garde': '3',
+    'boys love': '4',
+    'comedy': '5',
+    'crime': '268921',
+    'demons': '77',
+    'drama': '6',
+    'ecchi': '7',
+    'fantasy': '79',
+    'girls love': '9',
+    'gourmet': '10',
+    'harem': '11',
+    'hentai': '268930',
+    'historical': '268922',
+    'horror': '530',
+    'isekai': '13',
+    'iyashikei': '531',
+    'josei': '15',
+    'kids': '532',
+    'magic': '539',
+    'magical girls': '268923',
+    'mahou shoujo': '533',
+    'martial arts': '534',
+    'mature': '268931',
+    'mecha': '19',
+    'medical': '268924',
+    'military': '535',
+    'music': '21',
+    'mystery': '22',
+    'parody': '23',
+    'philosophical': '268925',
+    'psychological': '536',
+    'reverse harem': '25',
+    'romance': '26',
+    'school': '73',
+    'sci-fi': '28',
+    'seinen': '537',
+    'shoujo': '30',
+    'shounen': '31',
+    'slice of life': '538',
+    'smut': '268932',
+    'space': '33',
+    'sports': '34',
+    'super power': '75',
+    'superhero': '268926',
+    'supernatural': '76',
+    'suspense': '37',
+    'thriller': '38',
+    'tragedy': '268927',
+    'vampire': '39',
+    'wuxia': '268928',
+  };
+
+  /// MangaFire list route: `/browse` with keyword and page query parameters.
   /// The SPA boots on any route and issues its own `/api/titles` calls.
+  /// MangaFire expects clean query parameters (no bracketed `order[...]`, no
+  /// `rawParam` key). `raw:` queries produced by DynamicFormSearchUI /
+  /// DetailTagQueryResolver are unpacked and normalized.
   Uri _mangafireListUri(String base, SearchFilter filter) {
     final query = filter.query.trim();
-    if (query.isEmpty) return Uri.parse('$base/');
-    return Uri.parse('$base/search/${Uri.encodeComponent(query)}');
+    final page = filter.page;
+    final params = <String, List<String>>{};
+    String? explicitSort;
+
+    void setSort(String sortValue) {
+      final v = sortValue.trim();
+      if (v.isNotEmpty) explicitSort = v;
+    }
+
+    void addParam(String rawKey, String rawValue) {
+      final key = rawKey.trim();
+      final val = rawValue.trim();
+      if (key.isEmpty || val.isEmpty) return;
+
+      // rawParam must never leak; caller should unwrap, but guard here too.
+      if (key == 'rawParam') {
+        final eqIdx = val.indexOf('=');
+        if (eqIdx > 0) {
+          addParam(val.substring(0, eqIdx), val.substring(eqIdx + 1));
+        }
+        return;
+      }
+
+      // sort=field:direction
+      if (key == 'sort') {
+        setSort(val);
+        return;
+      }
+
+      // order[field]=direction -> sort=field:direction
+      final orderMatch = RegExp(r'^order\[([^\]]+)\]$').firstMatch(key);
+      if (orderMatch != null) {
+        final field = orderMatch.group(1)?.trim() ?? '';
+        if (field.isNotEmpty) {
+          setSort('$field:$val');
+        }
+        return;
+      }
+
+      // keyword/q aliases
+      if (key == 'keyword' || key == 'q') {
+        (params['keyword'] ??= []).addAll(
+          val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+        );
+        return;
+      }
+
+      // Strip trailing [] for MangaFire (e.g. genres_in[], content_rating[])
+      var cleanKey = key;
+      if (cleanKey.endsWith('[]')) {
+        cleanKey = cleanKey.substring(0, cleanKey.length - 2);
+      }
+      if (cleanKey.isEmpty) return;
+      (params[cleanKey] ??= []).addAll(
+        val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty),
+      );
+    }
+
+    if (query.startsWith('raw:')) {
+      final rawPart = query.substring('raw:'.length);
+      final parsed = Uri(query: rawPart).queryParametersAll;
+      parsed.forEach((k, values) {
+        for (final v in values) {
+          if (k == 'rawParam') {
+            final eqIdx = v.indexOf('=');
+            if (eqIdx > 0) {
+              addParam(v.substring(0, eqIdx), v.substring(eqIdx + 1));
+            }
+            // malformed rawParam with no '=' is dropped
+          } else {
+            addParam(k, v);
+          }
+        }
+      });
+    } else if (query.isNotEmpty) {
+      final typed = _parseTypeQuery(query);
+      if (typed != null) {
+        final normalizedName =
+            typed.name.toLowerCase().replaceAll('-', ' ').trim();
+        final genreId = _mangafireGenreNameToId[normalizedName];
+        if (genreId != null) {
+          addParam('genres_in', genreId);
+        } else if (typed.type == 'author') {
+          addParam('authors', typed.name);
+        } else if (typed.type == 'artist') {
+          addParam('artists', typed.name);
+        } else {
+          addParam('keyword', typed.name);
+        }
+      } else {
+        final normalizedQuery =
+            query.toLowerCase().replaceAll('-', ' ').trim();
+        final genreId = _mangafireGenreNameToId[normalizedQuery];
+        if (genreId != null) {
+          addParam('genres_in', genreId);
+        } else {
+          addParam('keyword', query);
+        }
+      }
+    }
+
+    if (!params.containsKey('keyword') &&
+        !params.containsKey('genres_in') &&
+        !params.containsKey('authors') &&
+        !params.containsKey('artists') &&
+        filter.includeTags.isNotEmpty) {
+      for (final firstTag in filter.includeTags) {
+        if (firstTag.id > 0) {
+          addParam('genres_in', '${firstTag.id}');
+          break;
+        } else {
+          final normalizedTagName =
+              firstTag.name.toLowerCase().replaceAll('-', ' ').trim();
+          final genreId = _mangafireGenreNameToId[normalizedTagName];
+          if (genreId != null) {
+            addParam('genres_in', genreId);
+            break;
+          } else if (firstTag.type == 'author') {
+            addParam('authors', firstTag.name);
+            break;
+          } else if (firstTag.type == 'artist') {
+            addParam('artists', firstTag.name);
+            break;
+          } else {
+            addParam('keyword', firstTag.name);
+            break;
+          }
+        }
+      }
+    }
+
+    final hasKeyword = (params['keyword'] ?? const []).isNotEmpty;
+    if (explicitSort == null) {
+      if (hasKeyword) {
+        explicitSort = 'relevance:desc';
+      } else {
+        switch (filter.sort) {
+          case SortOption.popular:
+          case SortOption.popularToday:
+          case SortOption.popularWeek:
+          case SortOption.popularMonth:
+          case SortOption.rating:
+            explicitSort = 'views_total:desc';
+          case SortOption.newest:
+            explicitSort = 'chapter_updated_at:desc';
+        }
+      }
+    }
+    if (explicitSort != null && explicitSort!.isNotEmpty) {
+      params['sort'] = [explicitSort!];
+    }
+
+    // MangaFire defaults to filtering out adult/ecchi unless content_rating is explicitly 'none'
+    // or specified. Web browse URL uses `content_rating=none` to include all titles.
+    if (!params.containsKey('content_rating')) {
+      params['content_rating'] = ['none'];
+    }
+
+    if (page > 1) {
+      params['page'] = ['$page'];
+    }
+
+    final queryMap = <String, String>{};
+    params.forEach((key, list) {
+      // Never emit rawParam or bracketed order[...] keys.
+      if (key == 'rawParam' || key.startsWith('order[')) return;
+      final unique = list.toSet().toList();
+      if (unique.isNotEmpty) {
+        queryMap[key] = unique.join(',');
+      }
+    });
+
+    return Uri.parse('$base/browse')
+        .replace(queryParameters: queryMap.isEmpty ? null : queryMap);
   }
+
+  /// Seeds MangaFire content preferences in localStorage before the SPA bundle boots.
+  /// Unblocks ecchi/erotica/adult content ratings and clears blocked genres so titles
+  /// like "The Honor Student's Secret Job" are not hidden by the SPA's default filters.
+  static String _mangafireContentFilterInit() => '''
+(function () {
+    try {
+        const key = 'mf_content_prefs';
+        const prefs = {
+            allowedTypes: null,
+            allowedContentRatings: null,
+            allowedDemographics: null,
+            blockedGenres: [],
+            blockedThemes: []
+        };
+        localStorage.setItem(key, JSON.stringify(prefs));
+    } catch (e) {}
+})();
+''';
 
   /// Mangafire Tier-3 only: no cipher exists for the VRF API and the shell
   /// has no SSR blob, so boot the SPA and capture `/api/titles` traffic.
   /// Envelope is top-level `{items, meta}` (live `$.items[*]` selector).
   Future<
-      ({
-        List<Content> items,
-        bool hasNext,
-        int? totalItems,
-        int? totalPages
-      })> _mangafireListFromWebView(
-    Uri url,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    ({List<Content> items, bool hasNext, int? totalItems, int? totalPages})
+  >
+  _mangafireListFromWebView(Uri url, Map<String, dynamic> rawConfig) async {
     final docResponse = await _dio.getUri(
       url,
       options: Options(responseType: ResponseType.plain),
     );
-    final keyword = url.pathSegments.length > 1 &&
-            url.pathSegments[url.pathSegments.length - 2] == 'search'
-        ? url.pathSegments.last
-        : '';
+    final filterMarker = url.queryParameters['genres_in'] ??
+        url.queryParameters['keyword'] ??
+        url.queryParameters['authors'] ??
+        url.queryParameters['artists'] ??
+        (url.pathSegments.length > 1 &&
+                url.pathSegments[url.pathSegments.length - 2] == 'search'
+            ? url.pathSegments.last
+            : '');
     final payload = await _engine.runInWebView(
       pageUrl: url.toString(),
       html: docResponse.data as String,
       userAgent: _userAgent(),
+      initializationScript: _mangafireContentFilterInit(),
       buildScript: (pass, _) => buildBrowseScript(
         passPayloadName: pass,
-        expectedKeywordJson: jsonEncode(keyword),
+        expectedKeywordJson: jsonEncode(filterMarker),
         apiPathMarker: '/api/titles',
       ),
     );
@@ -259,15 +638,9 @@ class ComixAdapter implements GenericAdapter {
   }
 
   Future<
-      ({
-        List<Content> items,
-        bool hasNext,
-        int? totalItems,
-        int? totalPages
-      })> _mangaListFromBrowse(
-    Uri url,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    ({List<Content> items, bool hasNext, int? totalItems, int? totalPages})
+  >
+  _mangaListFromBrowse(Uri url, Map<String, dynamic> rawConfig) async {
     if (isMangafire) {
       return _mangafireListFromWebView(url, rawConfig);
     }
@@ -281,8 +654,9 @@ class ComixAdapter implements GenericAdapter {
       final response = SearchResponse.fromJson(signed);
       if (response.items.isNotEmpty) {
         return (
-          items:
-              response.items.map((m) => _basicContent(m, rawConfig)).toList(),
+          items: response.items
+              .map((m) => _basicContent(m, rawConfig))
+              .toList(),
           hasNext: response.hasNext,
           totalItems: response.totalItems,
           totalPages: response.totalPages,
@@ -307,8 +681,14 @@ class ComixAdapter implements GenericAdapter {
     }
 
     // Tier 3 — per-request WebView.
-    final keyword =
-        url.queryParameters['q'] ?? url.queryParameters['keyword'] ?? '';
+    final genreMarker = url.queryParametersAll.entries
+        .where((e) => e.key.startsWith('genres_in'))
+        .expand((e) => e.value)
+        .firstOrNull;
+    final keyword = url.queryParameters['q'] ??
+        url.queryParameters['keyword'] ??
+        genreMarker ??
+        '';
     final contentRating = _effectiveContentRating(url);
     final payload = await _engine.runInWebView(
       pageUrl: url.toString(),
@@ -320,8 +700,9 @@ class ComixAdapter implements GenericAdapter {
         expectedKeywordJson: jsonEncode(keyword),
       ),
     );
-    final webResponse =
-        SearchResponse.fromJson(jsonDecode(payload) as Map<String, dynamic>);
+    final webResponse = SearchResponse.fromJson(
+      jsonDecode(payload) as Map<String, dynamic>,
+    );
     return (
       items: webResponse.items.map((m) => _basicContent(m, rawConfig)).toList(),
       hasNext: webResponse.hasNext,
@@ -335,13 +716,35 @@ class ComixAdapter implements GenericAdapter {
     url.queryParametersAll.forEach((name, values) {
       final filtered = values.where((v) => v.isNotEmpty).toList();
       if (filtered.isEmpty) return;
-      params[name] = name == 'content_rating'
-          ? filtered.expand((v) => v.split(',')).toList()
-          : filtered;
+      if (name == 'q') {
+        params['keyword'] = [filtered.last];
+        return;
+      }
+      if (name == 'sort') {
+        final sort = filtered.last;
+        final colon = sort.indexOf(':');
+        if (colon > 0 && colon < sort.length - 1) {
+          final field = sort.substring(0, colon).trim();
+          final direction = sort.substring(colon + 1).trim();
+          if (field.isNotEmpty && direction.isNotEmpty) {
+            params['order[$field]'] = [direction];
+          }
+        }
+        return;
+      }
+      final cleanName = name.replaceAll(RegExp(r'\[\d*\]'), '[]');
+      params[cleanName] =
+          cleanName == 'content_rating' || cleanName == 'content_rating[]'
+              ? filtered.expand((v) => v.split(',')).toList()
+              : filtered;
     });
     params.putIfAbsent('limit', () => ['$_defaultPageLimit']);
     return params;
   }
+
+  @visibleForTesting
+  Map<String, List<String>> nativeMangaParamsForTest(Uri url) =>
+      _nativeMangaParams(url);
 
   String _effectiveContentRating(Uri url) {
     final raw = url.queryParameters['content_rating'];
@@ -352,7 +755,8 @@ class ComixAdapter implements GenericAdapter {
     return 'pornographic';
   }
 
-  String _contentFilterInit(String rating) => '''
+  String _contentFilterInit(String rating) =>
+      '''
 (function () {
     const key = 'settings_v2';
     let settings = {};
@@ -384,15 +788,67 @@ class ComixAdapter implements GenericAdapter {
     } catch (_) {
       return null;
     }
-    for (final value in queries.values) {
-      try {
-        final parsed = SearchResponse.fromJson(value as Map<String, dynamic>);
-        if (parsed.items.isNotEmpty) return parsed;
-      } catch (_) {
-        // Not a SearchResponse-shaped query — keep looking.
+    // Prefer explicit browse/search/list queries over the shell's
+    // home/trending queries (which also decode as SearchResponse-shaped).
+    // If no browse-shaped query is present, avoid home-like queries and
+    // fall through to Tier 3 (WebView) when only shell sections remain.
+    final entries = queries.entries.toList();
+    final preferred = entries.where((e) {
+      final key = e.key.toLowerCase();
+      return key.contains('browse') ||
+          key.contains('search') ||
+          key.contains('"list"') ||
+          key.contains('keyword');
+    }).toList();
+    final fallback = entries.where((e) {
+      final key = e.key.toLowerCase();
+      const homeMarkers = [
+        'home',
+        'trending',
+        'featured',
+        'spotlight',
+        'banner',
+        'recommend',
+        'popular',
+        'latest_update',
+      ];
+      return !homeMarkers.any(key.contains);
+    }).toList();
+    for (final group in [preferred, fallback]) {
+      for (final entry in group) {
+        try {
+          final parsed = SearchResponse.fromJson(
+            entry.value as Map<String, dynamic>,
+          );
+          if (parsed.items.isNotEmpty) return parsed;
+        } catch (_) {
+          // Not a SearchResponse-shaped query — keep looking.
+        }
       }
+      // If we had preferred keys but none yielded results, do not fall
+      // back to generic/home-adjacent queries — let Tier 3 handle it.
+      if (group == preferred && preferred.isNotEmpty) return null;
     }
     return null;
+  }
+
+  static String absolutizeUrl(String? url, String base) =>
+      _absolutizeUrl(url, base);
+
+  static String _absolutizeUrl(String? url, String base) {
+    if (url == null) return '';
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return '';
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+    if (trimmed.startsWith('//')) {
+      return 'https:$trimmed';
+    }
+    final cleanBase =
+        base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    final cleanPath = trimmed.startsWith('/') ? trimmed : '/$trimmed';
+    return '$cleanBase$cleanPath';
   }
 
   Content _basicContent(ComixManga manga, Map<String, dynamic> rawConfig) {
@@ -402,7 +858,7 @@ class ComixAdapter implements GenericAdapter {
       id: manga.hid,
       sourceId: sourceId,
       title: manga.title,
-      coverUrl: manga.poster?.from('large') ?? '',
+      coverUrl: _absolutizeUrl(manga.poster?.from('large'), base),
       tags: _contentTags(manga),
       artists: manga.artists?.map((e) => e.title).toList() ?? const [],
       characters: const [],
@@ -436,12 +892,12 @@ class ComixAdapter implements GenericAdapter {
   }
 
   ContentStatus _statusOf(String status) => switch (status) {
-        'releasing' => ContentStatus.ongoing,
-        'on_hiatus' => ContentStatus.onHiatus,
-        'finished' => ContentStatus.completed,
-        'discontinued' => ContentStatus.cancelled,
-        _ => ContentStatus.unknown,
-      };
+    'releasing' => ContentStatus.ongoing,
+    'on_hiatus' => ContentStatus.onHiatus,
+    'finished' => ContentStatus.completed,
+    'discontinued' => ContentStatus.cancelled,
+    _ => ContentStatus.unknown,
+  };
 
   // ---------------------------------------------------------------- detail
 
@@ -462,8 +918,7 @@ class ComixAdapter implements GenericAdapter {
       options: Options(responseType: ResponseType.plain),
     );
     final document = html_parser.parse(response.data as String);
-    final detail = _extractInitialQueries(document)
-        .entries
+    final detail = _extractInitialQueries(document).entries
         .where((e) => e.key.contains('"detail"'))
         .map((e) => e.value)
         .firstOrNull;
@@ -471,13 +926,14 @@ class ComixAdapter implements GenericAdapter {
       throw const FormatException('Could not find manga detail in queries');
     }
     final manga = ComixManga.fromJson(detail as Map<String, dynamic>);
+    _cacheCanonicalSlug(manga.hid, manga.url ?? manga.detailPath);
     final authors = manga.authors?.map((e) => e.title).toList() ?? const [];
     final artists = manga.artists?.map((e) => e.title).toList() ?? const [];
     final content = Content(
       id: manga.hid,
       sourceId: _sourceId(rawConfig),
       title: manga.title,
-      coverUrl: manga.poster?.from('large') ?? '',
+      coverUrl: _absolutizeUrl(manga.poster?.from('large'), base),
       tags: _contentTags(manga),
       artists: artists.isNotEmpty ? artists : authors,
       characters: const [],
@@ -511,7 +967,7 @@ class ComixAdapter implements GenericAdapter {
         ? contentId.substring('manga/'.length)
         : contentId;
     slug = slug.startsWith('title/') ? slug.substring('title/'.length) : slug;
-    final pageUrl = '$base/manga/$slug';
+    final pageUrl = '$base/title/$slug';
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
       options: Options(responseType: ResponseType.plain),
@@ -520,6 +976,7 @@ class ComixAdapter implements GenericAdapter {
       pageUrl: pageUrl,
       html: docResponse.data as String,
       userAgent: _userAgent(),
+      initializationScript: _mangafireContentFilterInit(),
       buildScript: (pass, _) => buildApiCaptureScript(
         payloadKey: '__mfDetailPayload',
         passPayloadName: pass,
@@ -534,23 +991,55 @@ class ComixAdapter implements GenericAdapter {
     if (detail.hid.isEmpty) {
       throw const FormatException('Could not capture mangafire detail');
     }
-    var tagId = 0;
     final tags = <Tag>[
-      for (final g in detail.genres)
-        Tag(id: tagId++, name: g, type: 'tag', count: 0),
+      for (final g in detail.genresWithIds)
+        Tag(
+          id: g.id > 0
+              ? g.id
+              : int.tryParse(
+                    _mangafireGenreNameToId[g.name.toLowerCase()] ?? '0',
+                  ) ??
+                  0,
+          name: g.name,
+          type: 'tag',
+          count: 0,
+        ),
+      for (final lang in detail.languages)
+        Tag(
+          id: 0,
+          name: lang,
+          type: '__mangafire_chapter_language',
+          count: 0,
+        ),
+      const Tag(
+        id: 0,
+        name: 'Chapter',
+        type: '__mangafire_chapter_group',
+        count: 0,
+      ),
+      if (detail.hasVolumes)
+        const Tag(
+          id: 0,
+          name: 'Volume',
+          type: '__mangafire_chapter_group',
+          count: 0,
+        ),
     ];
     final content = Content(
       id: detail.hid,
       sourceId: _sourceId(rawConfig),
       title: detail.title,
-      coverUrl: detail.posterLarge ?? '',
+      coverUrl: _absolutizeUrl(detail.posterLarge, base),
       tags: tags,
       artists: detail.authors,
       characters: const [],
       parodies: const [],
       groups: const [],
-      language:
-          detail.languages.isNotEmpty ? detail.languages.first : 'unknown',
+      language: detail.languages.contains('en')
+          ? 'en'
+          : (detail.languages.isNotEmpty
+              ? detail.languages.first
+              : 'unknown'),
       pageCount: 0,
       imageUrls: const [],
       uploadDate: DateTime.fromMillisecondsSinceEpoch(0),
@@ -571,7 +1060,10 @@ class ComixAdapter implements GenericAdapter {
   /// label/slug match, else its first hit. Returning every near-synonym
   /// hit ANDs them on the server and empties the result.
   Future<List<String>> resolveTagIds(
-      String type, String name, Map<String, dynamic> rawConfig) async {
+    String type,
+    String name,
+    Map<String, dynamic> rawConfig,
+  ) async {
     final key = '$type\x00${name.toLowerCase()}';
     final cached = _tagIdCache[key];
     if (cached != null) return cached;
@@ -593,9 +1085,8 @@ class ComixAdapter implements GenericAdapter {
     Map<String, dynamic> rawConfig,
   ) async {
     final response = await _dio.getUri(
-      Uri.parse(
-        '${_baseUrl(rawConfig)}/api/v1/tags/search',
-      ).replace(queryParameters: {'type': type, 'q': name}),
+      Uri.parse('${_baseUrl(rawConfig)}/api/v1/tags/search')
+          .replace(queryParameters: {'type': type, 'q': name}),
     );
     final data = response.data is String
         ? jsonDecode(response.data as String) as Map<String, dynamic>
@@ -627,12 +1118,16 @@ class ComixAdapter implements GenericAdapter {
     int? limit,
   }) async {
     if (isMangafire) {
-      return _mangafireChapters(contentId, rawConfig, language: language);
+      return _mangafireChapters(
+        contentId,
+        rawConfig,
+        language: language,
+        scanGroup: scanGroup,
+        page: page,
+      );
     }
     final base = _baseUrl(rawConfig);
-    final slug = contentId.startsWith('title/')
-        ? contentId.substring('title/'.length)
-        : contentId;
+    final slug = _resolveCanonicalSlug(contentId);
     final mangaId = slug.split('-').first;
     if (mangaId.isEmpty) {
       throw const FormatException('Refresh manga details');
@@ -649,21 +1144,24 @@ class ComixAdapter implements GenericAdapter {
       mangaId: mangaId,
     );
 
+    final effectiveSlug = _resolveCanonicalSlug(slug);
     final chapters = _selectChapters(dtos, rawConfig)
         .map(
           (c) => Chapter(
             id: '${c.id}',
             title: c.displayName(),
-            url: c.chapterPath(slug),
+            url: c.chapterPath(effectiveSlug),
             uploadDate: c.uploadDate(),
             scanGroup: c.scanlator(),
-            language: language,
+            language: (language != null && language.isNotEmpty)
+                ? language
+                : (c.language?.isNotEmpty == true ? c.language : 'en'),
             pages: null,
           ),
         )
         .toList();
     for (final c in dtos) {
-      _chapterPathCache[c.id] = c.chapterPath(slug);
+      _chapterPathCache[c.id] = c.chapterPath(effectiveSlug);
       if (_chapterPathCache.length > 500) {
         _chapterPathCache.remove(_chapterPathCache.keys.first);
       }
@@ -680,12 +1178,17 @@ class ComixAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig, {
     String? language,
+    String? scanGroup,
+    int? page,
   }) async {
     final base = _baseUrl(rawConfig);
     var slug = contentId.startsWith('manga/')
         ? contentId.substring('manga/'.length)
         : contentId;
-    final pageUrl = '$base/manga/$slug';
+    slug = slug.startsWith('title/') ? slug.substring('title/'.length) : slug;
+    final pageUrl = '$base/title/$slug';
+    final isVolume = scanGroup == 'Volume';
+    final targetPage = isVolume ? null : (page != null && page > 1 ? page : 1);
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
       options: Options(responseType: ResponseType.plain),
@@ -694,12 +1197,18 @@ class ComixAdapter implements GenericAdapter {
       pageUrl: pageUrl,
       html: docResponse.data as String,
       userAgent: _userAgent(),
+      initializationScript: _mangafireContentFilterInit(),
       buildScript: (pass, _) => buildApiCaptureScript(
-        payloadKey: '__mfChaptersPayload',
+        payloadKey: isVolume
+            ? '__mfVolumesPayload'
+            : (targetPage != null && targetPage > 1
+                ? '__mfChaptersPayload_p$targetPage'
+                : '__mfChaptersPayload'),
         passPayloadName: pass,
         captureTestJs:
-            'parsed && Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].number === "number"',
-        apiPathMarker: '/api/titles/',
+            'parsed && Array.isArray(parsed.items) && (parsed.items.length === 0 || typeof parsed.items[0].number === "number")',
+        apiPathMarker: isVolume ? '/volumes' : '/chapters',
+        targetPage: targetPage,
       ),
       extendDeadlineOnApiTraffic: true,
     );
@@ -708,24 +1217,33 @@ class ComixAdapter implements GenericAdapter {
         .map((e) => ComixChapter.fromJson(e as Map<String, dynamic>))
         .toList();
     final lang = (language ?? 'en').toLowerCase();
-    final chapters = items
-        .where((c) =>
-            c.language == null ||
-            c.language!.isEmpty ||
-            c.language!.toLowerCase() == lang)
+    final filtered = items
+        .where(
+          (c) =>
+              c.language == null ||
+              c.language!.isEmpty ||
+              c.language!.toLowerCase() == lang,
+        )
+        .toList();
+    filtered.sort((a, b) => b.number.compareTo(a.number));
+    final itemGroup = isVolume ? 'Volume' : 'Chapter';
+    final urlSegment = isVolume ? 'volume' : 'chapter';
+    final idPrefix = isVolume ? 'vol-' : '';
+    final chapters = filtered
         .map(
           (c) => Chapter(
-            id: '${c.id}',
-            title: c.displayName(),
-            url: 'manga/$slug/${c.id}',
+            id: '$idPrefix${c.id}:$slug',
+            title: c.displayName(group: itemGroup),
+            url: 'title/$slug/$urlSegment/${c.id}',
             uploadDate: c.uploadDate(),
-            scanGroup: c.scanlator(),
-            language: lang,
+            scanGroup: itemGroup,
+            language: (language != null && language.isNotEmpty)
+                ? language
+                : (c.language?.isNotEmpty == true ? c.language : 'en'),
             pages: null,
           ),
         )
-        .toList()
-      ..sort((a, b) => b.title.compareTo(a.title));
+        .toList();
     for (final c in items) {
       _chapterPathCache[c.id] = slug;
       if (_chapterPathCache.length > 500) {
@@ -773,6 +1291,21 @@ class ComixAdapter implements GenericAdapter {
     );
     final html = response.data as String;
     final document = html_parser.parse(html);
+    try {
+      final detail = _extractInitialQueries(document).entries
+          .where((e) => e.key.contains('"detail"'))
+          .map((e) => e.value)
+          .firstOrNull;
+      if (detail is Map<String, dynamic>) {
+        final manga = ComixManga.fromJson(detail);
+        _cacheCanonicalSlug(
+          manga.hid.isNotEmpty ? manga.hid : mangaId,
+          manga.url ?? manga.detailPath,
+        );
+      }
+    } catch (_) {
+      // Best-effort canonical slug extraction from SSR queries.
+    }
     final mainScript = document.querySelector(
       'script[type=module][src*="/dist/main-"]',
     );
@@ -873,9 +1406,7 @@ class ComixAdapter implements GenericAdapter {
       );
       if (pages != null) {
         return ChapterData(
-          images: buildPages(
-            ChapterPagesResponse.fromJson(pages),
-          ),
+          images: buildPages(ChapterPagesResponse.fromJson(pages)),
         );
       }
     }
@@ -888,11 +1419,28 @@ class ComixAdapter implements GenericAdapter {
       Uri.parse('$base/$path'),
       options: Options(responseType: ResponseType.plain),
     );
+    final document = html_parser.parse(response.data as String);
+    final mainScript = document.querySelector(
+      'script[type=module][src*="/dist/main-"]',
+    );
+    var mainScriptUrl = '';
+    if (mainScript != null) {
+      final src = mainScript.attributes['src'] ?? '';
+      mainScriptUrl = src.startsWith('http')
+          ? src
+          : '$base${src.startsWith('/') ? src : '/$src'}';
+      mainScript.remove();
+    }
     final payload = await _engine.runInWebView(
       pageUrl: '$base/$path',
-      html: response.data as String,
+      html: document.outerHtml,
       userAgent: _userAgent(),
-      buildScript: (pass, _) => buildPageListScript(passPayloadName: pass),
+      buildScript: (pass, reject) => buildPageListScript(
+        passPayloadName: pass,
+        rejectName: reject,
+        chapterIdJson: jsonEncode(numericId),
+        mainScriptUrlJson: jsonEncode(mainScriptUrl),
+      ),
     );
     return ChapterData(
       images: buildPages(
@@ -903,19 +1451,28 @@ class ComixAdapter implements GenericAdapter {
     );
   }
 
-  /// Mangafire reader: boot `/chapter/{id}`, capture the chapter-images
-  /// API response (`/api/chapters/{id}` per live config). Page shape is
-  /// best-effort: comix-style `{result:{pages:{baseUrl,items}}}` first,
-  /// then generic `{items:[{url}]}` absolutized against the response
-  /// `baseUrl`/`base_url` when present. UNVERIFIED live — reader proof
-  /// pending on device.
+  /// Mangafire reader: boot `/title/{titleId}/chapter/{numericId}`, capture the
+  /// chapter-images API response. Supports `data.pages` DTO, comix-style
+  /// `{result:{pages:{baseUrl,items}}}`, and generic `{items:[{url}]}`.
   Future<ChapterData?> _mangafireChapterImages(
     String chapterId,
     Map<String, dynamic> rawConfig,
   ) async {
     final base = _baseUrl(rawConfig);
-    final numericId = int.tryParse(chapterId.split(':').first) ?? -1;
-    final pageUrl = '$base/chapter/$numericId';
+    final isVolume =
+        chapterId.startsWith('vol-') || chapterId.startsWith('vol:');
+    final cleanId = isVolume ? chapterId.substring(4) : chapterId;
+    final parts = cleanId.split(':');
+    if (parts.length < 2 || parts[1].trim().isEmpty) {
+      throw const FormatException(
+        'Legacy numeric chapter ID without title context',
+      );
+    }
+    final numericId = int.tryParse(parts[0]) ?? -1;
+    final titleId = parts[1];
+    final routeType = isVolume ? 'volume' : 'chapter';
+    final apiMarker = isVolume ? '/api/volumes/' : '/api/chapters/';
+    final pageUrl = '$base/title/$titleId/$routeType/$numericId';
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
       options: Options(responseType: ResponseType.plain),
@@ -924,36 +1481,52 @@ class ComixAdapter implements GenericAdapter {
       pageUrl: pageUrl,
       html: docResponse.data as String,
       userAgent: _userAgent(),
+      initializationScript: _mangafireContentFilterInit(),
       buildScript: (pass, _) => buildApiCaptureScript(
         payloadKey: '__mfPagesPayload',
         passPayloadName: pass,
-        captureTestJs:
-            'parsed && ((parsed.result && parsed.result.pages) || (Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].url === "string"))',
-        apiPathMarker: '/api/chapters/',
+        captureTestJs: 'parsed && ((parsed.data && parsed.data.pages) || (parsed.result && parsed.result.pages) || (Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].url === "string"))',
+        apiPathMarker: apiMarker,
       ),
     );
     final decoded = jsonDecode(payload) as Map<String, dynamic>;
-    try {
-      return ChapterData(
-        images: buildPages(ChapterPagesResponse.fromJson(decoded)),
-      );
-    } catch (_) {
-      // Generic fallback: {items:[{url}], baseUrl?}.
-      final items = decoded['items'] as List? ?? const [];
-      final root = decoded['result'] is Map<String, dynamic>
-          ? decoded['result'] as Map<String, dynamic>
-          : decoded;
-      final baseUrl = '${root['baseUrl'] ?? root['base_url'] ?? base}';
-      final urls = items
-          .map((e) => '${(e as Map)['url'] ?? ''}')
+    final data = decoded['data'];
+    if (data is Map<String, dynamic> && data.containsKey('pages')) {
+      final pages = data['pages'] as List?;
+      if (pages == null || pages.isEmpty) {
+        throw const FormatException('Empty or invalid reader pages');
+      }
+      final urls = pages
+          .map((e) => (e is Map ? e['url'] : e)?.toString() ?? '')
           .where((u) => u.isNotEmpty)
-          .map((u) => u.startsWith('http') ? u : '$baseUrl/$u')
           .toList();
       if (urls.isEmpty) {
-        throw const FormatException('Could not capture chapter images');
+        throw const FormatException('Empty or invalid reader pages');
       }
       return ChapterData(images: urls);
     }
+
+    if (decoded['result'] is Map<String, dynamic>) {
+      final pagesDto = ChapterPagesResponse.fromJson(decoded);
+      if (pagesDto.items.isNotEmpty) {
+        return ChapterData(images: buildPages(pagesDto));
+      }
+    }
+
+    final items = decoded['items'] as List? ?? const [];
+    final root = decoded['result'] is Map<String, dynamic>
+        ? decoded['result'] as Map<String, dynamic>
+        : decoded;
+    final baseUrl = '${root['baseUrl'] ?? root['base_url'] ?? base}';
+    final urls = items
+        .map((e) => '${(e as Map)['url'] ?? ''}')
+        .where((u) => u.isNotEmpty)
+        .map((u) => u.startsWith('http') ? u : '$baseUrl/$u')
+        .toList();
+    if (urls.isEmpty) {
+      throw const FormatException('Could not capture chapter images');
+    }
+    return ChapterData(images: urls);
   }
 
   /// Builds reader image URLs with V3 / legacy-scramble markers
@@ -975,9 +1548,11 @@ class ComixAdapter implements GenericAdapter {
         if (uri.queryParameters.containsKey('v3')) {
           out.add(full);
         } else {
-          out.add(uri.replace(
-            queryParameters: {...uri.queryParameters, 'v3': ''},
-          ).toString());
+          out.add(
+            uri
+                .replace(queryParameters: {...uri.queryParameters, 'v3': ''})
+                .toString(),
+          );
         }
       } else if (isLegacyScramble) {
         out.add('$full#scrambled');
@@ -1008,8 +1583,7 @@ class ComixAdapter implements GenericAdapter {
         options: Options(responseType: ResponseType.plain),
       );
       final document = html_parser.parse(response.data as String);
-      final related = _extractInitialQueries(document)
-          .entries
+      final related = _extractInitialQueries(document).entries
           .where((e) => e.key.contains('"recommended"'))
           .map((e) => e.value)
           .firstOrNull;
@@ -1017,14 +1591,15 @@ class ComixAdapter implements GenericAdapter {
       final items = (related as Map<String, dynamic>)['items'] as List? ?? [];
       if (items.isNotEmpty) {
         return items
-            .map((e) => _basicContent(
-                  ComixManga.fromJson(e as Map<String, dynamic>),
-                  rawConfig,
-                ))
+            .map(
+              (e) => _basicContent(
+                ComixManga.fromJson(e as Map<String, dynamic>),
+                rawConfig,
+              ),
+            )
             .toList();
       }
-      return SearchResponse.fromJson(related)
-          .items
+      return SearchResponse.fromJson(related).items
           .map((m) => _basicContent(m, rawConfig))
           .toList();
     } catch (_) {
@@ -1036,8 +1611,7 @@ class ComixAdapter implements GenericAdapter {
   Future<List<Comment>> fetchComments(
     String contentId,
     Map<String, dynamic> rawConfig,
-  ) async =>
-      const [];
+  ) async => const [];
 
   // ----------------------------------------------------------------- signed
 

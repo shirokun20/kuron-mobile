@@ -71,16 +71,23 @@ void main() {
     expect(url.path, '/browse');
     expect(url.queryParameters['keyword'], 'one piece');
     expect(url.queryParameters['page'], '2');
+    expect(url.queryParameters['sort'], 'relevance:desc');
+    expect(url.queryParameters.containsKey('rawParam'), isFalse);
+    expect(url.queryParameters.keys.any((k) => k.startsWith('order[')), isFalse);
     expect(result.totalPages, 3);
     expect(arguments['bootstrapScript'], contains(arguments['captureScript']));
   });
 
-  test('detail uses title route and exposes chapter languages', () async {
+  test('detail uses title route, exposes chapter languages and real genre ids', () async {
     payload = {
       'data': {
         'hid': '81o3q',
         'title': 'Example',
         'languages': ['en', 'id'],
+        'genres': [
+          {'id': 26, 'title': 'Romance'},
+          {'id': 1, 'title': 'Action'},
+        ],
       },
     };
     final result = await adapter.fetchDetail('title/81o3q', config);
@@ -90,6 +97,37 @@ void main() {
           .where((tag) => tag.type == '__mangafire_chapter_language')
           .map((tag) => tag.name),
       ['en', 'id'],
+    );
+    final romanceTag =
+        result.content.tags.firstWhere((tag) => tag.name == 'Romance');
+    expect(romanceTag.id, 26);
+    final actionTag =
+        result.content.tags.firstWhere((tag) => tag.name == 'Action');
+    expect(actionTag.id, 1);
+    expect(
+      result.content.tags
+          .where((tag) => tag.type == '__mangafire_chapter_group')
+          .map((tag) => tag.name),
+      ['Chapter'],
+    );
+  });
+
+  test('detail exposes volume group when hasVolumes is true', () async {
+    payload = {
+      'data': {
+        'hid': '81o3q',
+        'title': 'Example',
+        'languages': ['en'],
+        'hasVolumes': true,
+        'genres': [],
+      },
+    };
+    final result = await adapter.fetchDetail('title/81o3q', config);
+    expect(
+      result.content.tags
+          .where((tag) => tag.type == '__mangafire_chapter_group')
+          .map((tag) => tag.name),
+      ['Chapter', 'Volume'],
     );
   });
 
@@ -108,6 +146,83 @@ void main() {
     expect(chapters.first.id, '100:81o3q');
     expect(chapters.first.url, 'title/81o3q/chapter/100');
     expect(chapters.first.scanGroup, 'Chapter');
+    expect(chapters.first.language, 'id');
+  });
+
+  test(
+      'chapters default to english when language is null and preserve language on Chapter',
+      () async {
+    payload = {
+      'items': [
+        {'id': 10, 'number': 1, 'language': 'en'},
+        {'id': 11, 'number': 2, 'language': 'en'},
+        {'id': 20, 'number': 1, 'language': 'es-la'},
+      ],
+    };
+    final chapters = await adapter.fetchChapters('81o3q', config);
+    expect(chapters.length, 2);
+    expect(chapters.map((c) => c.title), ['Chapter 2', 'Chapter 1']);
+    expect(chapters.every((c) => c.language == 'en'), isTrue);
+  });
+
+  test('chapters supports volume scanGroup and maps Volume entities', () async {
+    payload = {
+      'items': [
+        {'id': 59147, 'number': 1, 'chapterCount': 6, 'language': 'en'},
+        {'id': 59148, 'number': 2, 'chapterCount': 6, 'language': 'en'},
+      ],
+    };
+    final volumes = await adapter.fetchChapters(
+      '81o3q',
+      config,
+      scanGroup: 'Volume',
+    );
+    expect(volumes.length, 2);
+    expect(volumes.first.id, 'vol-59148:81o3q');
+    expect(volumes.first.title, 'Volume 2');
+    expect(volumes.first.url, 'title/81o3q/volume/59148');
+    expect(volumes.first.scanGroup, 'Volume');
+    expect(arguments['captureScript'], contains('/volumes'));
+  });
+
+  test('chapters load more targets targetPage in capture script', () async {
+    payload = {
+      'items': [
+        {'id': 30, 'number': 21, 'language': 'en'},
+      ],
+    };
+    final chapters = await adapter.fetchChapters(
+      '81o3q',
+      config,
+      page: 2,
+    );
+    expect(chapters.length, 1);
+    expect(
+      arguments['captureScript'],
+      allOf(
+        contains('const targetPage = 2;'),
+        contains('onPageChange(targetPage)'),
+        contains('parsed.meta.page === targetPage'),
+      ),
+    );
+  });
+
+  test('reader supports volume URLs and api markers', () async {
+    payload = {
+      'data': {
+        'id': 59147,
+        'pages': [
+          {'url': 'https://cdn.example/vol1_p1.jpg'},
+        ],
+      },
+    };
+    final result = await adapter.fetchChapterImages('vol-59147:81o3q', config);
+    expect(
+      arguments['pageUrl'],
+      'https://mangafire.to/title/81o3q/volume/59147',
+    );
+    expect(arguments['captureScript'], contains('/api/volumes/'));
+    expect(result!.images, ['https://cdn.example/vol1_p1.jpg']);
   });
 
   test('reader works without chapter cache and preserves plain CDN URLs',

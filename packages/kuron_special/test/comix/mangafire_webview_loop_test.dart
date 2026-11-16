@@ -57,8 +57,42 @@ void main() {
     expect(script, contains('/api/v1/manga'));
   });
 
+  test('keyworded browse must not blindly capture items from JSON.parse', () {
+    final script = buildBrowseScript(
+      passPayloadName: 'passC',
+      expectedKeywordJson: '"the honor student"',
+      apiPathMarker: '/api/titles',
+    );
+    // JSON.parse proxy must not race unrelated SPA payloads; only URL-gated
+    // fetch/XHR hooks may capture when a keyword is expected.
+    expect(
+      script,
+      isNot(contains(
+        'else if (parsed && (Array.isArray(parsed.items) || (parsed.result && Array.isArray(parsed.result.items)))) {\n                capture(parsed, true);',
+      )),
+    );
+    expect(script, contains('rely on fetch/XHR hooks'));
+  });
+
   test('Tier-2 scrape of mangafire shell is null (Tier-3 required)', () {
     expect(_mangafireShell.contains('id="initial-data"'), isFalse);
+  });
+
+  test('browse capture keyword matching is case-insensitive', () {
+    final script = buildBrowseScript(
+      passPayloadName: 'passC',
+      expectedKeywordJson: '"The Honor Student"',
+      apiPathMarker: '/api/titles',
+    );
+    expect(script, contains("const kw = expectedKeyword.toLowerCase();"));
+    expect(script, contains("const rawLower = raw.toLowerCase();"));
+    expect(script, contains("const decodedLower = decoded.toLowerCase();"));
+    expect(script, contains("decodedLower.includes(kw)"));
+    expect(script, contains("rawLower.includes(kw.replace(/ /g, '+'))"));
+    expect(
+      script,
+      contains("rawLower.includes(encodeURIComponent(kw).toLowerCase())"),
+    );
   });
 }
 

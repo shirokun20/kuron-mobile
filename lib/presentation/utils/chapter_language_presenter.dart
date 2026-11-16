@@ -94,7 +94,9 @@ class ChapterLanguagePresenter {
     final effectiveSelection =
         lanes.any((lane) => lane.key == normalizedSelection)
             ? normalizedSelection
-            : (lanes.isEmpty ? null : lanes.first.key);
+            : (lanes.any((lane) => lane.key == 'en')
+                ? 'en'
+                : (lanes.isEmpty ? null : lanes.first.key));
 
     return ChapterLanguagePresentation(
       lanes: lanes,

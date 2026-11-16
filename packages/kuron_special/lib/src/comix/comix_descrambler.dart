@@ -172,15 +172,7 @@ class ComixDescrambler {
     }
     return (bytes: bytes, jpeg: false);
   }
-}
-
-/// Dio response interceptor implementing Descrambler.kt `interceptor`.
-class ComixDescramblerInterceptor extends Interceptor {
-  ComixDescramblerInterceptor({Logger? logger}) : _logger = logger ?? Logger();
-
-  final Logger _logger;
-
-  String? _header(Map<String, List<String>> headers, String name) {
+  static String? _header(Map<String, List<String>> headers, String name) {
     for (final e in headers.entries) {
       if (e.key.toLowerCase() == name && e.value.isNotEmpty) {
         return e.value.first;
@@ -189,84 +181,90 @@ class ComixDescramblerInterceptor extends Interceptor {
     return null;
   }
 
+  /// Checks if [headers] indicate scrambling/encoding. If yes, decodes [bytes]
+  /// and returns the descrambled bytes. Returns null if no descrambling needed.
+  static Uint8List? maybeDescramble({
+    required Uint8List bytes,
+    required Map<String, List<String>> headers,
+  }) {
+    final encSeed = int.tryParse(_header(headers, 'x-enc-seed') ?? '');
+    final encLen = int.tryParse(_header(headers, 'x-enc-len') ?? '');
+    final encAlgo = _header(headers, 'x-enc-algo');
+    final grid = _header(headers, 'x-scramble-grid');
+    final gridAlgo = _header(headers, 'x-scramble-algo');
+    final scrambleSeed =
+        int.tryParse(_header(headers, 'x-scramble-seed') ?? '');
+    final scrambleHash = ComixDescrambler.decodeScrambleHash(
+      _header(headers, 'x-scramble-hash'),
+    );
+
+    final xorSeed = encSeed;
+    final xorLen = encLen;
+    final gridSeed = scrambleSeed;
+    final needsXor = xorSeed != null && xorSeed != 0 && xorLen != null;
+    final shouldDescrambleGrid = grid == '5x5' &&
+        (gridAlgo == null ||
+            gridAlgo == '1' ||
+            gridAlgo == '2' ||
+            gridAlgo == '3') &&
+        gridSeed != null &&
+        gridSeed != 0;
+
+    if (!needsXor && !shouldDescrambleGrid) {
+      return null;
+    }
+
+    final decodedBytes = needsXor
+        ? ComixDescrambler.decodeEncodedBytes(
+            bytes, xorSeed, xorLen, encAlgo)
+        : bytes;
+
+    if (shouldDescrambleGrid) {
+      return ComixDescrambler.descrambleGrid(
+        decodedBytes,
+        _i32(gridSeed ^ scrambleHash),
+        gridAlgo,
+      );
+    }
+
+    final decoded = ComixDescrambler.decodeXorOnly(decodedBytes);
+    return decoded.bytes;
+  }
+}
+
+/// Dio response interceptor implementing Descrambler.kt `interceptor`.
+class ComixDescramblerInterceptor extends Interceptor {
+  ComixDescramblerInterceptor({Logger? logger}) : _logger = logger ?? Logger();
+
+  final Logger _logger;
+
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
+    if (response.data is! List<int>) {
+      handler.next(response);
+      return;
+    }
+
     try {
-      final headers = response.headers.map;
-      final encSeed = int.tryParse(_header(headers, 'x-enc-seed') ?? '');
-      final encLen = int.tryParse(_header(headers, 'x-enc-len') ?? '');
-      final encAlgo = _header(headers, 'x-enc-algo');
-      final grid = _header(headers, 'x-scramble-grid');
-      final gridAlgo = _header(headers, 'x-scramble-algo');
-      final scrambleSeed =
-          int.tryParse(_header(headers, 'x-scramble-seed') ?? '');
-      final scrambleHash = ComixDescrambler.decodeScrambleHash(
-        _header(headers, 'x-scramble-hash'),
+      final original = response.data is Uint8List
+          ? response.data as Uint8List
+          : Uint8List.fromList(response.data as List<int>);
+      final out = ComixDescrambler.maybeDescramble(
+        bytes: original,
+        headers: response.headers.map,
       );
 
-      final xorSeed = encSeed;
-      final xorLen = encLen;
-      final gridSeed = scrambleSeed;
-      final needsXor = xorSeed != null && xorSeed != 0 && xorLen != null;
-      final shouldDescrambleGrid = grid == '5x5' &&
-          (gridAlgo == null ||
-              gridAlgo == '1' ||
-              gridAlgo == '2' ||
-              gridAlgo == '3') &&
-          gridSeed != null &&
-          gridSeed != 0;
-
-      if (!needsXor && !shouldDescrambleGrid) {
+      if (out == null) {
         handler.next(response);
         return;
       }
 
-      final original = response.data is Uint8List
-          ? response.data as Uint8List
-          : Uint8List.fromList(
-              List<int>.from(response.data as List<int>),
-            );
-      final bytes = needsXor
-          ? ComixDescrambler.decodeEncodedBytes(
-              original, xorSeed, xorLen, encAlgo)
-          : original;
-
-      if (shouldDescrambleGrid) {
-        final out = ComixDescrambler.descrambleGrid(
-          bytes,
-          _i32(gridSeed ^ scrambleHash),
-          gridAlgo,
-        );
-        if (out == null) {
-          handler.reject(
-            DioException(
-              requestOptions: response.requestOptions,
-              response: response,
-              error: 'Failed to decode image',
-              type: DioExceptionType.badResponse,
-            ),
-          );
-          return;
-        }
-        response.headers.removeAll('Content-Length');
-        response.headers.removeAll('Content-Type');
-        response.headers.set('Content-Type', 'image/jpeg');
-        handler.resolve(response..data = out);
-        return;
-      }
-
-      final decoded = ComixDescrambler.decodeXorOnly(bytes);
-      if (decoded.jpeg) {
-        response.headers.removeAll('Content-Encoding');
-        response.headers.set('Content-Type', 'image/jpeg');
-        response.headers.set('Content-Length', decoded.bytes.length.toString());
-        handler.resolve(response..data = decoded.bytes);
-      } else {
-        response.headers.removeAll('Content-Encoding');
-        response.headers.removeAll('Content-Length');
-        response.headers.removeAll('Content-Type');
-        handler.resolve(response..data = decoded.bytes);
-      }
+      response.headers.removeAll('Content-Encoding');
+      response.headers.removeAll('Content-Length');
+      response.headers.removeAll('Content-Type');
+      response.headers.set('Content-Type', 'image/jpeg');
+      response.headers.set('Content-Length', out.length.toString());
+      handler.resolve(response..data = out);
     } catch (e) {
       _logger.w('comix: descrambler passthrough on error: $e');
       handler.next(response);

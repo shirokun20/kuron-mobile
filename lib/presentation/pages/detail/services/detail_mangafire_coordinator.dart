@@ -57,13 +57,14 @@ class DetailMangaFireCoordinator extends ChangeNotifier {
       return selected;
     }
 
+    if (availableKeys.contains('en')) {
+      return 'en';
+    }
+
     final contentLanguage =
         ChapterLanguagePresenter.normalize(content.language);
     if (availableKeys.contains(contentLanguage)) {
       return contentLanguage;
-    }
-    if (availableKeys.contains('en')) {
-      return 'en';
     }
     return availableKeys.first;
   }

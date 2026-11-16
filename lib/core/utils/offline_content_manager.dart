@@ -14,6 +14,7 @@ import '../../domain/entities/download_status.dart';
 import '../../domain/repositories/user_data_repository.dart';
 import '../constants/app_constants.dart';
 import 'directory_utils.dart';
+import 'storage_settings.dart';
 import 'download_storage_utils.dart';
 import 'reader_image_repair_utils.dart';
 import 'capped_map.dart';
@@ -231,9 +232,6 @@ class OfflineContentManager {
     // final effectiveSourceId = sourceId ?? AppStorage.defaultSourceId; // Removed unused variable
 
     try {
-      // Try the smart detection first
-      final downloadsPath = await _getDownloadsDirectory();
-
       // List of source IDs to check: either specific one or all known ones
       final sourcesToCheck = sourceId != null
           ? [sourceId]
@@ -250,39 +248,44 @@ class OfflineContentManager {
         safeSegment = DownloadStorageUtils.safePathSegment(contentId);
       } catch (_) {}
 
-      for (final sId in distinctSources) {
-        // NEW: Source-based paths (nhasix/{source}/{contentId}/)
-        paths.add(path.join(downloadsPath, 'nhasix', sId, contentId));
-        if (safeSegment != null && safeSegment != contentId) {
-          paths.add(path.join(downloadsPath, 'nhasix', sId, safeSegment));
-        }
+      // Try the smart detection first if custom storage root is configured
+      if (await StorageSettings.hasCustomRoot()) {
+        final downloadsPath = await _getDownloadsDirectory();
 
-        // NEW: Source-based ELEGANT/SAFE paths
-        if (safeContentId != contentId) {
-          paths.add(path.join(downloadsPath, 'nhasix', sId, safeContentId));
-        }
+        for (final sId in distinctSources) {
+          // NEW: Source-based paths (nhasix/{source}/{contentId}/)
+          paths.add(path.join(downloadsPath, 'nhasix', sId, contentId));
+          if (safeSegment != null && safeSegment != contentId) {
+            paths.add(path.join(downloadsPath, 'nhasix', sId, safeSegment));
+          }
 
-        // LEGACY CHECK: Truncated "Safe" ID (Interim format)
-        // We need to re-generate the old truncated hash format to check for it
-        if (contentId.length > 50) {
-          final bytes = utf8.encode(contentId);
-          final digest = sha1.convert(bytes);
-          final hash = digest.toString().substring(0, 8);
-          final truncatedId = '${contentId.substring(0, 40)}_$hash';
+          // NEW: Source-based ELEGANT/SAFE paths
+          if (safeContentId != contentId) {
+            paths.add(path.join(downloadsPath, 'nhasix', sId, safeContentId));
+          }
 
-          if (truncatedId != safeContentId) {
-            paths.add(path.join(downloadsPath, 'nhasix', sId, truncatedId));
+          // LEGACY CHECK: Truncated "Safe" ID (Interim format)
+          // We need to re-generate the old truncated hash format to check for it
+          if (contentId.length > 50) {
+            final bytes = utf8.encode(contentId);
+            final digest = sha1.convert(bytes);
+            final hash = digest.toString().substring(0, 8);
+            final truncatedId = '${contentId.substring(0, 40)}_$hash';
+
+            if (truncatedId != safeContentId) {
+              paths.add(path.join(downloadsPath, 'nhasix', sId, truncatedId));
+            }
           }
         }
-      }
 
-      // LEGACY: Direct paths (nhasix/{contentId}/)
-      paths.add(path.join(downloadsPath, 'nhasix', contentId));
-      if (safeSegment != null && safeSegment != contentId) {
-        paths.add(path.join(downloadsPath, 'nhasix', safeSegment));
-      }
-      if (safeContentId != contentId) {
-        paths.add(path.join(downloadsPath, 'nhasix', safeContentId));
+        // LEGACY: Direct paths (nhasix/{contentId}/)
+        paths.add(path.join(downloadsPath, 'nhasix', contentId));
+        if (safeSegment != null && safeSegment != contentId) {
+          paths.add(path.join(downloadsPath, 'nhasix', safeSegment));
+        }
+        if (safeContentId != contentId) {
+          paths.add(path.join(downloadsPath, 'nhasix', safeContentId));
+        }
       }
 
       // Try app documents directory
