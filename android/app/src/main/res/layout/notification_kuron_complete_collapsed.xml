@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@android:color/transparent"
+    android:gravity="center_vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <!-- Mini Avatar Badge -->
+    <ImageView
+        android:id="@+id/notif_complete_mini_avatar"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/kuron_notif_avatar_bg"
+        android:padding="3dp"
+        android:src="@drawable/kuro_happy"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="10dp"
+        android:contentDescription="@null" />
+
+    <!-- Text info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/notif_complete_collapsed_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Download Complete"
+            android:textColor="@color/notif_text_primary"
+            android:textSize="12.5sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/notif_complete_collapsed_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="🐾 Kuron: All packed! Tap to read offline • 100%"
+            android:textColor="@color/notif_text_secondary"
+            android:textSize="11sp"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

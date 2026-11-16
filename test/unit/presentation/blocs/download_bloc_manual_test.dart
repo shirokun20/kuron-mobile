@@ -94,6 +94,8 @@ class MockNotificationService extends Fake implements NotificationService {
     void Function(String contentId)? onPdfRetry,
     void Function(String contentId)? onOpenDownload,
     void Function(String? contentId)? onNavigateToDownloads,
+    VoidCallback? onPauseAll,
+    VoidCallback? onCancelAll,
   }) {
     // No-op for test
   }

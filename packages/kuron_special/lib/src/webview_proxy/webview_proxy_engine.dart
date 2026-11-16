@@ -394,13 +394,54 @@ String buildChapterListScript({
             const environment = await importBundle(
                 new URL(environmentFile, mainScriptUrl).href
             );
-            const mangaApi = Object.values(environment).find(value =>
-                value &&
-                typeof value === 'object' &&
-                (typeof value.chapters === 'function' || typeof value['\$Q'] === 'function')
-            );
-            if (!mangaApi) throw new Error('Could not find manga API');
-            const fetchChapters = (mangaApi.chapters || mangaApi['\$Q']).bind(mangaApi);
+            let mangaApi = null;
+            let fetchChapters = null;
+
+            // Prefer known manga API exports (e.g. export 'f' or 'mangaApi')
+            for (const key of ['f', 'mangaApi']) {
+                const candidate = environment[key];
+                if (candidate && typeof candidate === 'object') {
+                    const fn = candidate.chapters || candidate['\$g'] || candidate['\$Q'];
+                    if (typeof fn === 'function') {
+                        mangaApi = candidate;
+                        fetchChapters = fn.bind(candidate);
+                        break;
+                    }
+                }
+            }
+
+            if (!fetchChapters) {
+                for (const value of Object.values(environment)) {
+                    if (!value || typeof value !== 'object') continue;
+                    if (typeof value.chapters === 'function') {
+                        mangaApi = value;
+                        fetchChapters = value.chapters.bind(value);
+                        break;
+                    }
+                    if (typeof value['\$g'] === 'function' && typeof value['dN'] === 'function') {
+                        mangaApi = value;
+                        fetchChapters = value['\$g'].bind(value);
+                        break;
+                    }
+                    if (typeof value['\$g'] === 'function' || typeof value['\$Q'] === 'function') {
+                        mangaApi = value;
+                        fetchChapters = (value['\$g'] || value['\$Q']).bind(value);
+                        break;
+                    }
+                    for (const [key, fn] of Object.entries(value)) {
+                        if (typeof fn === 'function') {
+                            const fnStr = fn.toString();
+                            if (fnStr.includes('\$g') || fnStr.includes('chapters') || fnStr.includes('/chapters')) {
+                                mangaApi = value;
+                                fetchChapters = fn.bind(value);
+                                break;
+                            }
+                        }
+                    }
+                    if (fetchChapters) break;
+                }
+            }
+            if (!fetchChapters) throw new Error('Could not find manga API');
 
             const items = [];
             let page = 1;
@@ -410,25 +451,25 @@ String buildChapterListScript({
                     limit: 100,
                     order: { number: 'desc' }
                 });
-                const rawItems = response?.items ?? response?.K6;
+                const rawItems = response?.items ?? response?.K6 ?? response?.vp;
                 if (!Array.isArray(rawItems) || rawItems.length === 0) break;
                 const pageItems = rawItems.map(item => ({
                     ...item,
-                    id: item.id ?? item.Od,
-                    number: item.number ?? item.Iv ?? item._G,
-                    volume: item.volume ?? item._G,
-                    title: item.title ?? item.ux ?? '',
-                    name: item.name ?? item.title ?? item.ux ?? '',
-                    date: item.date ?? item.createdAtFormatted ?? item.Fa ?? item.uploadDate ?? item.xl,
-                    url: item.url ?? item.ek ?? item.href ?? ''
+                    id: item.id ?? item.QV ?? item.Od,
+                    number: item.number ?? item.Ug ?? item.Iv ?? item._G,
+                    volume: item.volume ?? item.kC ?? item._G,
+                    title: item.title ?? item.RR ?? item.name ?? item.ux ?? '',
+                    name: item.name ?? item.RR ?? item.title ?? item.ux ?? '',
+                    date: item.date ?? item.sE ?? item.createdAtFormatted ?? item.Fa ?? item.uploadDate ?? item.xl,
+                    url: item.url ?? item.Az ?? item.ek ?? item.href ?? ''
                 }));
 
                 items.push(...pageItems);
                 if (pageItems.some(item => item.id === latestChapterId)) break;
 
-                const meta = response.meta || response.pagination || {};
-                const lastPage = meta.lastPage || meta.last_page || page;
-                if (!(meta.hasNext || page < lastPage)) break;
+                const meta = response.meta || response.pagination || response.JF || {};
+                const lastPage = meta.lastPage || meta.last_page || meta.c_ || page;
+                if (!(meta.hasNext || meta.gE || page < lastPage)) break;
                 page++;
             }
             window.$passPayloadName(JSON.stringify(items));
@@ -452,7 +493,7 @@ String buildPageListScript({
     const payloadKey = '__comixPagePayload';
     const capture = parsed => {
         try {
-            if (parsed && (parsed.result?.pages || parsed.data?.pages || parsed.pages || Array.isArray(parsed.items) || Array.isArray(parsed.pi))) {
+            if (parsed && (parsed.result?.pages || parsed.data?.pages || parsed.pages || parsed.Yw || Array.isArray(parsed.items) || Array.isArray(parsed.pi))) {
                 window[payloadKey] = JSON.stringify(parsed);
                 window.$passPayloadName(window[payloadKey]);
                 return true;
@@ -512,9 +553,19 @@ String buildPageListScript({
             const envPath = new URL(environmentFile, mainUrl).href;
             const envModule = await import(/* @vite-ignore */ envPath);
 
-            const chapterApi = envModule.chapterApi || envModule.\$n || envModule.n;
-            if (!chapterApi) return;
-            const fetchPages = chapterApi.read || chapterApi.pages || chapterApi.N4;
+            let chapterApi = envModule.chapterApi || envModule.\$n || envModule.n;
+            let fetchPages = chapterApi?.read || chapterApi?.pages || chapterApi?.N4 || chapterApi?.pQ;
+            if (typeof fetchPages !== 'function') {
+                for (const value of Object.values(envModule)) {
+                    if (!value || typeof value !== 'object') continue;
+                    const fn = value.read || value.pages || value.N4 || value.pQ;
+                    if (typeof fn === 'function') {
+                        chapterApi = value;
+                        fetchPages = fn;
+                        break;
+                    }
+                }
+            }
             if (typeof fetchPages !== 'function') return;
 
             const result = await fetchPages(chapterId);
@@ -587,7 +638,8 @@ class WebViewProxyEngine {
       initializationScript: effectiveInit,
     );
 
-    final mergedAllowedHosts = extraAllowedHosts != null && extraAllowedHosts.isNotEmpty
+    final mergedAllowedHosts =
+        extraAllowedHosts != null && extraAllowedHosts.isNotEmpty
         ? {...allowedHosts, ...extraAllowedHosts}.toList()
         : allowedHosts;
 

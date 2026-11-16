@@ -12,6 +12,7 @@ class DownloadSettings {
     this.maxRetryAttempts = 3,
     this.downloadQuality = 'high',
     this.pauseOnOnlineReaderOnly = true,
+    this.useKuronMascotNotification = true,
   });
 
   final int maxConcurrentDownloads;
@@ -21,4 +22,5 @@ class DownloadSettings {
   final int maxRetryAttempts;
   final String downloadQuality;
   final bool pauseOnOnlineReaderOnly;
+  final bool useKuronMascotNotification;
 }

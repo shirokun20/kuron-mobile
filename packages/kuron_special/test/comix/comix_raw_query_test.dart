@@ -352,10 +352,18 @@ void main() {
     expect(script, contains('env|apicore'));
     expect(script, contains(r"$Q"));
     expect(script, contains('fetchChapters'));
-    // Minified K6 item normalization (id <- Od, number <- Iv, url <- ek, etc.).
+    // Minified K6 and vp item normalization (id <- Od/QV, number <- Iv/Ug, url <- ek/Az, etc.).
     expect(script, contains('response?.K6'));
+    expect(script, contains('response?.vp'));
+    expect(script, contains(r"$g"));
     expect(script, contains('item.Od'));
+    expect(script, contains('item.QV'));
     expect(script, contains('item.Iv'));
+    expect(script, contains('item.Ug'));
+    expect(script, contains('item.kC'));
+    expect(script, contains('item.RR'));
+    expect(script, contains('item.sE'));
+    expect(script, contains('item.Az'));
     expect(script, contains('item.ek'));
     expect(script, contains('item._G'));
     expect(script, contains('item.ux'));

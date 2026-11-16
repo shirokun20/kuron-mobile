@@ -566,7 +566,7 @@ class ChapterPagesResponse {
       final items = piList
           .whereType<Map<String, dynamic>>()
           .map((e) => ChapterPageDto(
-                (e['ek'] ?? e['url'] ?? '').toString(),
+                (e['ek'] ?? e['url'] ?? e['Az'] ?? '').toString(),
                 s: (e['s'] as num?)?.toInt() ?? 0,
               ))
           .where((e) => e.url.isNotEmpty)
@@ -593,8 +593,11 @@ class ChapterPagesResponse {
       pages = json;
     }
 
-    final rawItems =
-        (pages['items'] ?? pages['pages'] ?? json['items']) as List?;
+    final rawItems = (pages['items'] ??
+            pages['pages'] ??
+            pages['Yw'] ??
+            json['items'] ??
+            json['Yw']) as List?;
     return ChapterPagesResponse(
       pages['baseUrl'] as String? ?? pages['base_url'] as String? ?? '',
       ((rawItems) ?? [])
@@ -612,7 +615,7 @@ class ChapterPageDto {
   final int s;
 
   factory ChapterPageDto.fromJson(Map<String, dynamic> json) => ChapterPageDto(
-        (json['url'] ?? json['ek'] ?? '').toString(),
+        (json['url'] ?? json['ek'] ?? json['Az'] ?? '').toString(),
         s: (json['s'] as num?)?.toInt() ?? 0,
       );
 }

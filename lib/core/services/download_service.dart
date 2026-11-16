@@ -824,25 +824,12 @@ class DownloadService {
       final downloadPath = await getDownloadPath(contentId);
       if (downloadPath == null) return 0;
 
-      final imagesDir = Directory(path.join(downloadPath, 'images'));
-
-      _logger.d('Checking directories for content $contentId:');
-      _logger.d('Content dir: $downloadPath');
-      _logger.d(
-        'Images dir: ${imagesDir.path} (exists: ${await imagesDir.exists()})',
+      final imagesDir = Directory(
+        path.join(downloadPath, app_constants.AppStorage.imagesSubfolder),
       );
 
-      // Use the same logic as _createDownloadDirectory - images dir is primary
       if (!await imagesDir.exists()) {
-        _logger.w('Images directory does not exist: ${imagesDir.path}');
         return 0;
-      }
-
-      // List all files in the directory for debugging
-      final allEntities = await imagesDir.list().toList();
-      _logger.d('All entities in ${imagesDir.path}:');
-      for (final entity in allEntities) {
-        _logger.d('  - ${entity.path} (is File: ${entity is File})');
       }
 
       final files = await imagesDir
@@ -858,9 +845,6 @@ class DownloadService {
           )
           .length;
 
-      _logger.i(
-        'Found $files downloaded image files for content $contentId in ${imagesDir.path}',
-      );
       return files;
     } catch (e) {
       _logger.e('Error counting downloaded files for $contentId: $e');
@@ -885,15 +869,9 @@ class DownloadService {
 
       final metadataPath = path.join(downloadPath, 'metadata.json');
 
-      _logger.d('Verifying download status for $contentId:');
-      _logger.d('Actual file count: $actualCount');
-      _logger.d('Metadata path: $metadataPath');
-
       if (await File(metadataPath).exists()) {
         final metadataContent = await File(metadataPath).readAsString();
         final metadata = json.decode(metadataContent) as Map<String, dynamic>;
-
-        _logger.d('Metadata content: $metadata');
 
         // Get expected count based on range or total
         // Use snake_case keys as saved in _saveDownloadMetadata
@@ -904,16 +882,10 @@ class DownloadService {
           final startPage = metadata['start_page'] ?? 1;
           final endPage = metadata['end_page'] ?? metadata['total_pages'];
           expectedCount = endPage - startPage + 1;
-          _logger.d(
-            'Range download: $startPage-$endPage, expected: $expectedCount',
-          );
         } else {
           // Use snake_case key as saved in metadata
           final totalPagesFromMeta = metadata['total_pages'] ?? 0;
           expectedCount = totalPagesFromMeta;
-          _logger.d(
-            'Full download: total_pages=${metadata['total_pages']}, expected: $expectedCount',
-          );
         }
 
         final result = {

@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/notif_complete_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@android:color/transparent"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <!-- Row 1: Mascot Avatar + Complete Info Column -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:baselineAligned="false">
+
+        <!-- Mascot Avatar with Framed Squircle Background -->
+        <ImageView
+            android:id="@+id/kuro_complete_avatar"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:background="@drawable/kuron_notif_avatar_bg"
+            android:padding="3dp"
+            android:src="@drawable/kuro_happy"
+            android:scaleType="fitCenter"
+            android:layout_marginEnd="12dp"
+            android:contentDescription="@null" />
+
+        <!-- Info Column -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <!-- Speech Bubble Pill -->
+            <TextView
+                android:id="@+id/kuro_complete_speech"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/kuron_notif_speech_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="4dp"
+                android:paddingBottom="4dp"
+                android:text="🐾 Kuron: Delivery arrived! Ready to read~ 🎉"
+                android:textColor="@color/notif_text_primary"
+                android:textSize="11.5sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="4dp" />
+
+            <!-- Manga & Chapter Title -->
+            <TextView
+                android:id="@+id/notif_complete_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="The Honor Student's Secret Job - Ch. 12"
+                android:textColor="@color/notif_text_primary"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <!-- Status Subtext: Complete indicator -->
+            <TextView
+                android:id="@+id/notif_complete_meta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:text="All pages packed! • 100% Complete • Ready offline"
+                android:textColor="@color/notif_text_secondary"
+                android:textSize="11sp"
+                android:singleLine="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Row 2: Action Buttons Row -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="10dp"
+        android:gravity="center_vertical">
+
+        <Button
+            android:id="@+id/btn_complete_dismiss"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:stateListAnimator="@null"
+            android:background="@drawable/kuron_notif_btn_bg"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:text="Close"
+            android:textColor="@color/notif_btn_text"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textAllCaps="false"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btn_complete_read"
+            android:layout_width="0dp"
+            android:layout_height="34dp"
+            android:layout_weight="1"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:stateListAnimator="@null"
+            android:background="@drawable/kuron_notif_btn_primary_bg"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
+            android:text="Read Now"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:textAllCaps="false" />
+    </LinearLayout>
+</LinearLayout>

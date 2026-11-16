@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/notif_collapsed_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@android:color/transparent"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <!-- Mini Avatar with framed squircle -->
+    <ImageView
+        android:id="@+id/notif_mini_avatar"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:background="@drawable/kuron_notif_avatar_bg"
+        android:padding="3dp"
+        android:src="@drawable/kuro_tsundere"
+        android:scaleType="fitCenter"
+        android:layout_marginEnd="10dp"
+        android:contentDescription="@null" />
+
+    <!-- Info & Progress Column -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/notif_collapsed_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="The Honor Student's Secret Job - Ch. 12"
+            android:textColor="@color/notif_text_primary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <ProgressBar
+            android:id="@+id/notif_collapsed_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="5dp"
+            android:layout_marginTop="3dp"
+            android:layout_marginBottom="2dp"
+            android:max="100"
+            android:progress="42"
+            android:progressDrawable="@drawable/kuron_notif_progress" />
+
+        <TextView
+            android:id="@+id/notif_collapsed_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="42% • Kuron is sprinting • 12s left"
+            android:textColor="@color/notif_text_secondary"
+            android:textSize="9.5sp"
+            android:singleLine="true" />
+    </LinearLayout>
+</LinearLayout>

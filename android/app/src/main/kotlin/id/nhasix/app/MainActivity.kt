@@ -10,12 +10,38 @@ import androidx.annotation.NonNull
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import id.nhasix.app.download.KuronNotificationBuilder
 import id.nhasix.app.widget.KuroStreakGlanceWidget
 import id.nhasix.app.widget.StreakWidgetWorker
 
 class MainActivity: FlutterFragmentActivity() {
     private val CHANNEL = "app_disguise"
     private val NAVIGATION_CHANNEL = "app.navigation"
+    private val KURON_NOTIFICATION_CHANNEL = "id.nhasix.app/kuron_notification"
+
+    companion object {
+        @Volatile
+        private var kuronNotificationChannel: MethodChannel? = null
+
+        @JvmStatic
+        fun sendNotificationAction(action: String, contentId: String?, notificationId: Int) {
+            val channel = kuronNotificationChannel
+            if (channel == null) {
+                Log.w("KuronNotif", "No Flutter channel yet; dropping action=$action")
+                return
+            }
+            val args = mapOf(
+                "action" to action,
+                "contentId" to contentId,
+                "notificationId" to notificationId,
+            )
+            try {
+                channel.invokeMethod("onNotificationAction", args)
+            } catch (e: Exception) {
+                Log.e("KuronNotif", "Failed to forward notification action", e)
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,6 +127,76 @@ class MainActivity: FlutterFragmentActivity() {
             Log.d("AppDisguise", "MethodChannel handler setup completed successfully")
         } catch (e: Exception) {
             Log.e("AppDisguise", "Error setting up MethodChannel (AppDisguise)", e)
+        }
+
+        // Setup Kuron Download Notification Channel
+        try {
+            val kuronChannel =
+                MethodChannel(flutterEngine.dartExecutor.binaryMessenger, KURON_NOTIFICATION_CHANNEL)
+            kuronNotificationChannel = kuronChannel
+            kuronChannel.setMethodCallHandler { call, result ->
+                try {
+                    when (call.method) {
+                        "updateSingleDownload", "showNotification", "updateProgress" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            val isBatch = call.argument<Boolean>("isBatch") ?: false
+                            KuronNotificationBuilder.showOrUpdateNotification(
+                                this, id, data, isBatch,
+                            )
+                            result.success(null)
+                        }
+                        "updateBatchDownload" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.showOrUpdateNotification(
+                                this, id, data, true,
+                            )
+                            result.success(null)
+                        }
+                        "showCompleteNotification", "showDownloadCompleted" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.showCompleteNotification(
+                                this, id, data,
+                            )
+                            result.success(null)
+                        }
+                        "cancel", "cancelNotification" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            val id = ((rawMap["id"] as? Number)?.toInt()
+                                ?: (rawMap["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.cancelNotification(this, id)
+                            result.success(null)
+                        }
+                        else -> result.notImplemented()
+                    }
+                } catch (e: Exception) {
+                    Log.e("KuronNotif", "Error processing ${call.method}", e)
+                    result.error("KURON_NOTIF_ERROR", e.message, null)
+                }
+            }
+            Log.d("KuronNotif", "Kuron notification channel ready")
+        } catch (e: Exception) {
+            Log.e("KuronNotif", "Error setting up Kuron notification channel", e)
         }
     }
     

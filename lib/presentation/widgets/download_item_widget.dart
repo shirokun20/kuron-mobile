@@ -6,7 +6,6 @@ import '../../core/constants/text_style_const.dart';
 import '../../core/config/remote_config_service.dart';
 import '../../domain/entities/entities.dart';
 import '../../l10n/app_localizations.dart';
-import '../../core/services/download_service.dart';
 import '../../core/services/pdf_conversion_service.dart';
 import '../../core/utils/download_storage_utils.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
@@ -168,7 +167,12 @@ class DownloadItemWidget extends StatelessWidget {
                       color: colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: 4),
-                    _buildVerifiedPagesText(download),
+                    Text(
+                      _buildPagesText(context, download),
+                      style: TextStyleConst.bodySmall.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
                     const SizedBox(width: 16),
                   ],
 
@@ -616,81 +620,6 @@ class DownloadItemWidget extends StatelessWidget {
       return AppLocalizations.of(context)?.downloadPagesFormat(
               download.downloadedPages, download.totalPages) ??
           '${download.downloadedPages}/${download.totalPages}';
-    }
-  }
-
-  // Build verified pages text using actual file count
-  Widget _buildVerifiedPagesText(DownloadStatus download) {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _verifyDownloadStatus(download.contentId),
-      builder: (context, snapshot) {
-        final colorScheme = Theme.of(context).colorScheme;
-
-        if (!snapshot.hasData) {
-          return Text(
-            _buildPagesText(context, download),
-            style: TextStyleConst.bodySmall.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          );
-        }
-
-        final data = snapshot.data!;
-        final actualCount = (data['actualCount'] as num?)?.toInt() ?? 0;
-        final expectedCount = data['expectedCount'] as int?;
-        final isRangeDownload = data['isRangeDownload'] == true;
-
-        // If expectedCount is null or 0, fall back to database values
-        if (expectedCount == null || expectedCount == 0) {
-          return Text(
-            _buildPagesText(context, download),
-            style: TextStyleConst.bodySmall.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.7),
-            ),
-          );
-        }
-
-        String text;
-        if (isRangeDownload) {
-          final rangeStart = data['rangeStart'] as int?;
-          final rangeEnd = data['rangeEnd'] as int?;
-          final totalPages = data['totalPages'] as int?;
-          text = AppLocalizations.of(context)?.downloadPagesRangeFormat(
-                  actualCount,
-                  expectedCount,
-                  rangeStart ?? 1,
-                  rangeEnd ?? totalPages ?? expectedCount,
-                  totalPages ?? expectedCount) ??
-              '$actualCount/$expectedCount (Pages ${rangeStart ?? 1}-${rangeEnd ?? expectedCount} of ${totalPages ?? expectedCount})';
-        } else {
-          text = AppLocalizations.of(context)
-                  ?.downloadPagesFormat(actualCount, expectedCount) ??
-              '$actualCount/$expectedCount';
-        }
-
-        return Text(
-          text,
-          style: TextStyleConst.bodySmall.copyWith(
-            color: colorScheme.onSurface.withValues(alpha: 0.7),
-          ),
-        );
-      },
-    );
-  }
-
-  // Verify download status by checking actual files
-  Future<Map<String, dynamic>> _verifyDownloadStatus(String contentId) async {
-    try {
-      final downloadService = GetIt.instance<DownloadService>();
-      return await downloadService.verifyDownloadStatus(contentId);
-    } catch (e) {
-      // Return null expectedCount to trigger fallback to database values
-      return {
-        'actualCount': 0,
-        'expectedCount':
-            null, // This will trigger fallback in _buildVerifiedPagesText
-        'isRangeDownload': false,
-      };
     }
   }
 

@@ -693,11 +693,14 @@ class GenericHttpSource implements ContentSource {
       }
     }
 
-    if (_id == 'comix') {
-      // Comix image CDNs (e.g. 8pl.*.site) reject requests containing a Referer header with HTTP 403.
-      // Explicitly remove Referer (and cross-host Origin) matching Comix.kt getImageRequest.
+    if (_id == 'comix' || _id == 'mangafire') {
+      // Comix/MangaFire image CDNs reject requests containing a Referer header
+      // with HTTP 403. Remove Referer and cross-host Origin to match
+      // ComixImageHeaderInterceptor behavior used by reader/download clients.
       headers.remove('Referer');
       headers.remove('Origin');
+      headers.remove('referer');
+      headers.remove('origin');
     }
 
     if (_id == 'schale-network' || _id == 'hdoujin') {

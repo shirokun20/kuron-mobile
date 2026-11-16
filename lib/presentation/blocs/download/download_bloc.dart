@@ -183,6 +183,21 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       return contentId;
     }
 
+    final lowerSourceId = sourceId.toLowerCase();
+    final isMangaFireFamily =
+        lowerSourceId == 'mangafire' || lowerSourceId == 'comix';
+    if (isMangaFireFamily) {
+      // MangaFire chapter IDs: "{chapterId}:{slug}" or "vol-{chapterId}:{slug}".
+      // Detail endpoints expect the manga slug.
+      final colonIndex = contentId.lastIndexOf(':');
+      if (colonIndex >= 0 && colonIndex < contentId.length - 1) {
+        final slug = contentId.substring(colonIndex + 1);
+        if (slug.isNotEmpty) {
+          return slug;
+        }
+      }
+    }
+
     final slashIndex = contentId.lastIndexOf('/');
     if (slashIndex <= 0 || slashIndex >= contentId.length - 1) {
       return contentId;
@@ -2013,11 +2028,15 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       _notificationService.cancelDownloadGroup();
       final dl = active.first;
       final progress = dl.progressPercentage.round();
+      final speedText = _formatSpeedForNotif(dl.speed);
       _notificationService.updateDownloadProgress(
         contentId: dl.contentId,
         progress: progress,
         title: dl.title ?? dl.contentId,
         isPaused: false,
+        pagesPacked: dl.downloadedPages,
+        totalPages: dl.totalPages,
+        speedText: speedText,
       );
       return;
     }
@@ -2032,10 +2051,22 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
     final pct = total > 0 ? (done / total * 100).round() : 0;
     final speed = active.fold<double>(0, (s, d) => s + d.speed);
     final speedText = _formatSpeedForNotif(speed);
+    final activeChapter = active.first;
+    final queued = cs.downloads.where((d) => d.state == DownloadState.queued).toList();
+    final upNextText = queued.isNotEmpty
+        ? 'Up next: ${queued.take(2).map((q) => q.title ?? q.contentId).join(' • ')}'
+        : (active.length > 1
+            ? 'Up next: ${active.skip(1).take(2).map((a) => a.title ?? a.contentId).join(' • ')}'
+            : '');
+
     _notificationService.updateDownloadGroupProgress(
       activeCount: active.length,
       totalProgress: pct,
       speedText: speedText,
+      activeTitle: '[Active 1/${active.length}] ${activeChapter.title ?? activeChapter.contentId}',
+      queuePages: done,
+      queueTotalPages: total,
+      upNextText: upNextText,
     );
   }
 

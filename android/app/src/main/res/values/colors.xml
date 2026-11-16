@@ -1,4 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FFFFFF</color>
+
+    <!-- Kuron Mobile Download Notification Tokens — Light Theme (Warm Cream Paper) -->
+    <color name="notif_bg">#EFE6DC</color>
+    <color name="notif_card_bg">#FCF7F0</color>
+    <color name="notif_card_border">#D6C8BC</color>
+    <color name="notif_surface_bg">#F5EDE4</color>
+    <color name="notif_avatar_bg">#EDE3D7</color>
+    <color name="notif_avatar_border">#CEBEB0</color>
+    <color name="notif_text_primary">#2E2722</color>
+    <color name="notif_text_secondary">#7A6E66</color>
+    <color name="notif_coral">#C76A62</color>
+    <color name="notif_track">#E8E7E3</color>
+    <color name="notif_btn_bg">#F5EDE4</color>
+    <color name="notif_btn_stroke">#D6C8BC</color>
+    <color name="notif_btn_text">#2E2722</color>
 </resources>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Kuron Cat Head Silhouette for Android Status Bar Notification SmallIcon -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,4c-4.42,0 -8,3.58 -8,8c0,2.05 0.77,3.92 2.05,5.34L4.5,20.5l3.5,-1.2c1.24,0.45 2.59,0.7 4,0.7s2.76,-0.25 4,-0.7l3.5,1.2l-1.55,-3.16C19.23,15.92 20,14.05 20,12c0,-4.42 -3.58,-8 -8,-8zM6.5,6L9,9.5L5.5,9.5L6.5,6zM17.5,6l1,3.5L15,9.5L17.5,6z" />
+</vector>

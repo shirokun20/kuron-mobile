@@ -65,6 +65,8 @@ projects/*
 # Project documentation and assets
 /docs/technical/*
 /docs/assets/*
+/docs/superpowers/*
+/docs/superpowers/
 /informations/documentation/all/*
 .kiro/
 .claude/

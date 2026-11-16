@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Kuron Mobile Download Notification Tokens — Dark Theme (Warm Night with Mascot Contrast) -->
+    <color name="notif_bg">#1A1614</color>
+    <color name="notif_card_bg">#251F1C</color>
+    <color name="notif_card_border">#483A32</color>
+    <color name="notif_surface_bg">#2D2522</color>
+    <color name="notif_avatar_bg">#362C28</color>
+    <color name="notif_avatar_border">#5C4940</color>
+    <color name="notif_text_primary">#F4ECE6</color>
+    <color name="notif_text_secondary">#ABA096</color>
+    <color name="notif_coral">#F1958E</color>
+    <color name="notif_track">#251F1C</color>
+    <color name="notif_btn_bg">#352D28</color>
+    <color name="notif_btn_stroke">#4D3E36</color>
+    <color name="notif_btn_text">#F4ECE6</color>
+</resources>

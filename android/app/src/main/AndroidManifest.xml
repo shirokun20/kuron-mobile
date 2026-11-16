@@ -142,6 +142,10 @@
                 android:resource="@xml/kuro_streak_widget_small_info" />
         </receiver>
 
+        <receiver
+            android:name=".download.NotificationActionReceiver"
+            android:exported="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -159,7 +163,7 @@
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"
-            android:exported="false" /> // Tools:node="merge" handled automatically by merge logic usually but explicit is safer here if not merging.
+            android:exported="false" />
             
     </application>
     <!-- Required to query activities that can process text, see:

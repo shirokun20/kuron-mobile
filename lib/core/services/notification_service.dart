@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:logger/logger.dart';
 
+import 'notifications/kuron_mascot_notification_handler.dart';
 import 'notifications/notification_action_handler.dart';
 import 'notifications/notification_constants.dart';
 import 'notifications/notification_details_builder.dart';
@@ -46,6 +48,9 @@ class NotificationService {
     this.onPdfRetry,
     this.onOpenDownload,
     this.onNavigateToDownloads,
+    this.onPauseAll,
+    this.onCancelAll,
+    this._useKuronMascotNotification = true,
   }) : _logger = logger ?? Logger() {
     _actionHandler = NotificationActionHandler(
       logger: _logger,
@@ -60,6 +65,17 @@ class NotificationService {
 
     _permissionHandler = NotificationPermissionHandler(logger: _logger);
     _idManager = NotificationIdManager();
+
+    if (Platform.isAndroid) {
+      _mascotHandler = KuronMascotNotificationHandler(
+        onDownloadPause: (id) => onDownloadPause?.call(id),
+        onDownloadResume: (id) => onDownloadResume?.call(id),
+        onDownloadCancel: (id) => onDownloadCancel?.call(id),
+        onDownloadPriority: (id) => onDownloadPause?.call(id),
+        onPauseAll: () => onPauseAll?.call(),
+        onCancelAll: () => onCancelAll?.call(),
+      );
+    }
   }
 
   final Logger _logger;
@@ -73,16 +89,26 @@ class NotificationService {
   void Function(String contentId)? onPdfRetry;
   void Function(String contentId)? onOpenDownload;
   void Function(String? contentId)? onNavigateToDownloads;
+  VoidCallback? onPauseAll;
+  VoidCallback? onCancelAll;
 
   String Function(String key, {Map<String, dynamic>? args})? _localize;
 
   bool _permissionGranted = false;
   bool _initialized = false;
+  bool _useKuronMascotNotification;
   Completer<void>? _initCompleter;
 
   late final NotificationActionHandler _actionHandler;
   late final NotificationPermissionHandler _permissionHandler;
   late final NotificationIdManager _idManager;
+  KuronMascotNotificationHandler? _mascotHandler;
+
+  bool get useKuronMascotNotification => _useKuronMascotNotification;
+
+  void setUseKuronMascotNotification(bool value) {
+    _useKuronMascotNotification = value;
+  }
 
   // ============================================================
   // PERMISSION MANAGEMENT
@@ -586,6 +612,12 @@ class NotificationService {
     required int progress,
     required String title,
     bool isPaused = false,
+    int? pagesPacked,
+    int? totalPages,
+    double? mbDownloaded,
+    double? totalMb,
+    int? etaSeconds,
+    String? speedText,
   }) async {
     if (!isEnabled) {
       _logger.d(
@@ -594,6 +626,32 @@ class NotificationService {
     }
 
     try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        final notificationId = _getNotificationId(contentId);
+        final speedSuffix = (speedText != null && speedText.isNotEmpty) ? ' • $speedText' : '';
+        final speech = isPaused
+            ? '🐾 Kuron: Napping right now... zzz'
+            : (progress >= 100
+                ? '🐾 Kuron: Delivery complete! All packed~'
+                : '🐾 Kuron: $progress% packed$speedSuffix~');
+        await _mascotHandler!.updateSingleDownload(
+          notificationId: notificationId,
+          title: title,
+          progress: progress,
+          pagesPacked: pagesPacked,
+          totalPages: totalPages,
+          mbDownloaded: mbDownloaded,
+          totalMb: totalMb,
+          etaSeconds: etaSeconds,
+          speechText: speech,
+          status: isPaused ? 'paused' : 'downloading',
+        );
+        if (progress % 10 == 0) {
+          _logger.d('Download progress updated (mascot): $contentId - $progress%');
+        }
+        return;
+      }
+
       final notificationId = _getNotificationId(contentId);
       final statusText = isPaused
           ? _getLocalized('downloadPaused', fallback: 'Paused')
@@ -676,6 +734,19 @@ class NotificationService {
 
       final notificationId = _getNotificationId(contentId);
 
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showDownloadCompleted(
+          notificationId: notificationId,
+          title: title,
+          contentId: contentId,
+          speechText: '🐾 Kuron: Delivery arrived! Ready to read~ 🎉',
+          metaText: 'All pages packed! • 100% Complete • Ready offline',
+        );
+        _logger.i(
+            'Kuron mascot download completed notification shown for: $contentId');
+        return;
+      }
+
       await _notificationsPlugin.show(
           id: notificationId,
           title:
@@ -752,6 +823,9 @@ class NotificationService {
     try {
       final notificationId = _getNotificationId(contentId);
       await _notificationsPlugin.cancel(id: notificationId);
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.cancel(notificationId);
+      }
 
       _logger.d('Download notification cancelled for: $contentId');
     } catch (e) {
@@ -763,6 +837,9 @@ class NotificationService {
   Future<void> cancelAllDownloadNotifications() async {
     try {
       await _notificationsPlugin.cancelAll();
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.cancel(_downloadGroupId);
+      }
       _logger.d('All download notifications cancelled');
     } catch (e) {
       _logger.e('Failed to cancel all download notifications: $e');
@@ -778,9 +855,33 @@ class NotificationService {
     required int activeCount,
     required int totalProgress,
     String? speedText,
+    String? activeTitle,
+    int? queuePages,
+    int? queueTotalPages,
+    int? etaSeconds,
+    String? upNextText,
   }) async {
     if (!isEnabled) return;
     try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        final title = activeTitle ??
+            (activeCount == 1 ? 'Downloading 1 item' : 'Downloading $activeCount items');
+        final speedSuffix = (speedText != null && speedText.isNotEmpty) ? ' • $speedText' : '';
+        final speech = '🐾 Kuron: $activeCount chapters loaded$speedSuffix~';
+        await _mascotHandler!.updateBatchDownload(
+          notificationId: _downloadGroupId,
+          activeTitle: title,
+          activeProgress: totalProgress,
+          totalChapters: activeCount,
+          queuePages: queuePages,
+          queueTotalPages: queueTotalPages,
+          etaSeconds: etaSeconds,
+          speechText: speech,
+          upNextText: upNextText,
+        );
+        return;
+      }
+
       final title = activeCount == 1
           ? 'Downloading 1 item'
           : 'Downloading $activeCount items';
@@ -805,6 +906,21 @@ class NotificationService {
   Future<void> showDownloadGroupCompleted(int count) async {
     if (!isEnabled) return;
     try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        final title =
+            count == 1 ? '1 download completed' : '$count downloads completed';
+        await _mascotHandler!.showDownloadCompleted(
+          notificationId: _downloadGroupId,
+          title: title,
+          speechText: count == 1
+              ? '🐾 Kuron: Delivery arrived! Ready to read~ 🎉'
+              : '🐾 Kuron: All $count downloads packed and ready! 🎉',
+          metaText: 'Everything safely delivered offline • Ready to read',
+        );
+        _logger.i('Kuron mascot download group completed notification shown for $count items');
+        return;
+      }
+
       final title = 'Downloads Complete';
       final body =
           count == 1 ? '1 download completed' : '$count downloads completed';
@@ -824,6 +940,9 @@ class NotificationService {
   Future<void> cancelDownloadGroup() async {
     try {
       await _notificationsPlugin.cancel(id: _downloadGroupId);
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.cancel(_downloadGroupId);
+      }
     } catch (e) {
       _logger.e('Failed to cancel download group notification: $e');
     }
@@ -954,6 +1073,9 @@ class NotificationService {
     required void Function(String contentId) onPdfRetry,
     required void Function(String contentId) onOpenDownload,
     required void Function(String? contentId) onNavigateToDownloads,
+    VoidCallback? onPauseAll,
+    VoidCallback? onCancelAll,
+    bool useKuronMascotNotification = true,
   }) {
     return NotificationService(
       logger: logger,
@@ -964,6 +1086,9 @@ class NotificationService {
       onPdfRetry: onPdfRetry,
       onOpenDownload: onOpenDownload,
       onNavigateToDownloads: onNavigateToDownloads,
+      onPauseAll: onPauseAll,
+      onCancelAll: onCancelAll,
+      useKuronMascotNotification: useKuronMascotNotification,
     );
   }
 
@@ -976,6 +1101,8 @@ class NotificationService {
     void Function(String contentId)? onPdfRetry,
     void Function(String contentId)? onOpenDownload,
     void Function(String? contentId)? onNavigateToDownloads,
+    VoidCallback? onPauseAll,
+    VoidCallback? onCancelAll,
   }) {
     if (onDownloadPause != null) this.onDownloadPause = onDownloadPause;
     if (onDownloadResume != null) this.onDownloadResume = onDownloadResume;
@@ -986,6 +1113,8 @@ class NotificationService {
     if (onNavigateToDownloads != null) {
       this.onNavigateToDownloads = onNavigateToDownloads;
     }
+    if (onPauseAll != null) this.onPauseAll = onPauseAll;
+    if (onCancelAll != null) this.onCancelAll = onCancelAll;
 
     _actionHandler.setCallbacks(
       onDownloadPause: onDownloadPause,
