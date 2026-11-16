@@ -16,6 +16,7 @@ class DownloadProgressUpdate {
     this.downloadSpeed,
     this.estimatedTimeRemaining,
     this.terminalState,
+    this.failedPages = const [],
   });
 
   final String contentId;
@@ -24,6 +25,9 @@ class DownloadProgressUpdate {
   final double? downloadSpeed; // bytes per second
   final Duration? estimatedTimeRemaining;
   final DownloadState? terminalState;
+  /// 1-based page numbers the native worker could not download.
+  /// Non-empty on terminal COMPLETED means partial success.
+  final List<int> failedPages;
 
   double get progressPercentage =>
       totalPages > 0 ? (downloadedPages / totalPages) * 100 : 0;
@@ -32,7 +36,8 @@ class DownloadProgressUpdate {
   String toString() {
     return 'DownloadProgressUpdate(contentId: $contentId, '
         'progress: ${progressPercentage.toStringAsFixed(1)}%, '
-        'pages: $downloadedPages/$totalPages)';
+        'pages: $downloadedPages/$totalPages'
+        '${failedPages.isEmpty ? '' : ', failed: $failedPages'})';
   }
 }
 
@@ -97,18 +102,26 @@ class DownloadManager {
 
             _logger.i('🎯 COMPLETION EVENT received for $contentId');
 
+            final failedPages = _parseFailedPages(data['failedPages'] as String?);
+            if (failedPages.isNotEmpty) {
+              _logger.w(
+                  '⚠️ Partial download for $contentId: $safeDownloaded/$safeTotal, failed pages: $failedPages');
+            }
+
             _logger.d('Emitting final progress: $safeDownloaded/$safeTotal');
             emitProgress(DownloadProgressUpdate(
               contentId: contentId,
               downloadedPages: safeDownloaded,
               totalPages: safeTotal,
               downloadSpeed: speed,
+              failedPages: failedPages,
             ));
 
             // Prevents race condition where notification disappears before 100% shown
             Future.delayed(const Duration(milliseconds: 100), () {
               _logger.i('✅ Emitting COMPLETION for $contentId');
-              emitCompletion(contentId, DownloadState.completed);
+              emitCompletion(contentId, DownloadState.completed,
+                  failedPages: failedPages);
             });
           } else if (status == 'FAILED') {
             _logger.e('❌ FAILED EVENT received for $contentId');
@@ -220,7 +233,8 @@ class DownloadManager {
     }
   }
 
-  void emitCompletion(String contentId, DownloadState state) {
+  void emitCompletion(String contentId, DownloadState state,
+      {List<int> failedPages = const []}) {
     if (!_progressController.isClosed) {
       final int terminalCode = switch (state) {
         DownloadState.completed => -1,
@@ -236,6 +250,7 @@ class DownloadManager {
         downloadSpeed: 0.0,
         estimatedTimeRemaining: Duration.zero,
         terminalState: state,
+        failedPages: failedPages,
       );
       _progressController.add(completionUpdate);
       _logger.d(
@@ -244,6 +259,17 @@ class DownloadManager {
       _logger
           .w('DownloadManager: Cannot emit completion - controller is closed');
     }
+  }
+
+  /// Parses the worker's comma-separated 1-based failed page numbers.
+  static List<int> _parseFailedPages(String? csv) {
+    if (csv == null || csv.trim().isEmpty) return const [];
+    final pages = <int>[];
+    for (final part in csv.split(',')) {
+      final n = int.tryParse(part.trim());
+      if (n != null && n > 0) pages.add(n);
+    }
+    return pages;
   }
 
   bool get isActive => !_progressController.isClosed;

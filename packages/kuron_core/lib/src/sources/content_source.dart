@@ -123,6 +123,14 @@ abstract class ContentSource {
     Map<String, String>? cookies,
   });
 
+  /// Whether this source's image CDN rejects requests carrying
+  /// Referer/Origin (answers 403 — live-proven on comix `rxn.*` hosts).
+  /// Download clients must not inject dynamic referer/origin for such
+  /// sources; mirrors `ComixImageHeaderInterceptor` on the reader path.
+  /// NOTE: mangafire is the opposite case — its CDN REQUIRES a Referer.
+  /// Defaults to false (referer allowed).
+  bool get omitImageReferer => false;
+
   // Brand color for this source, used in UI decorations.
   ///
   // This color is used for:

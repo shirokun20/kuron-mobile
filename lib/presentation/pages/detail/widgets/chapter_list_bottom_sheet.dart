@@ -286,6 +286,7 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                           pageCount: 0,
                           imageUrls: const [],
                           sourceId: widget.content.sourceId,
+                          url: chapter.url,
                           relatedContent: const [],
                           tags: widget.content.tags,
                           artists: widget.content.artists,

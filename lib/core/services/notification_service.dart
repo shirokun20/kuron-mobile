@@ -71,7 +71,9 @@ class NotificationService {
         onDownloadPause: (id) => onDownloadPause?.call(id),
         onDownloadResume: (id) => onDownloadResume?.call(id),
         onDownloadCancel: (id) => onDownloadCancel?.call(id),
-        onDownloadPriority: (id) => onDownloadPause?.call(id),
+        onDownloadPriority: (id) => onDownloadResume?.call(id),
+        onDownloadOpen: (id) => onOpenDownload?.call(id),
+        onViewQueue: () => onNavigateToDownloads?.call(null),
         onPauseAll: () => onPauseAll?.call(),
         onCancelAll: () => onCancelAll?.call(),
       );
@@ -638,6 +640,7 @@ class NotificationService {
           notificationId: notificationId,
           title: title,
           progress: progress,
+          contentId: contentId,
           pagesPacked: pagesPacked,
           totalPages: totalPages,
           mbDownloaded: mbDownloaded,
@@ -1124,6 +1127,17 @@ class NotificationService {
       onPdfRetry: onPdfRetry,
       onOpenDownload: onOpenDownload,
       onNavigateToDownloads: onNavigateToDownloads,
+    );
+
+    _mascotHandler?.setCallbacks(
+      onDownloadPause: onDownloadPause,
+      onDownloadResume: onDownloadResume,
+      onDownloadCancel: onDownloadCancel,
+      onDownloadPriority: onDownloadResume,
+      onDownloadOpen: onOpenDownload,
+      onViewQueue: () => onNavigateToDownloads?.call(null),
+      onPauseAll: onPauseAll,
+      onCancelAll: onCancelAll,
     );
 
     _logger.i('NotificationService: Callbacks updated');

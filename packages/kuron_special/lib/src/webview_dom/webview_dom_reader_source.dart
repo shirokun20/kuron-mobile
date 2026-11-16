@@ -203,6 +203,9 @@ class WebViewDomReaderSource implements ContentSource {
   bool isValidContentId(String contentId) => _inner.isValidContentId(contentId);
 
   @override
+  bool get omitImageReferer => _inner.omitImageReferer;
+
+  @override
   Map<String, String> getImageDownloadHeaders({
     required String imageUrl,
     Map<String, String>? cookies,

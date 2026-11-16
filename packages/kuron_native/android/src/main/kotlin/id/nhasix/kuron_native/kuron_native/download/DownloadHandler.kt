@@ -145,13 +145,14 @@ class DownloadHandler(
                                 }
 
                                 if (shouldEmit) {
-                                    val data = mapOf(
-                                        "contentId" to contentId,
-                                        "downloadedPages" to downloaded,
-                                        "totalPages" to total,
-                                        "status" to state,
-                                        "downloadSpeed" to downloadSpeed
-                                    )
+                                val data = mapOf(
+                                    "contentId" to contentId,
+                                    "downloadedPages" to downloaded,
+                                    "totalPages" to total,
+                                    "status" to state,
+                                    "downloadSpeed" to downloadSpeed,
+                                    "failedPages" to (src.getString("failedPages") ?: "")
+                                )
                                     
                                     if (eventSink != null) {
                                         eventSink?.success(data)

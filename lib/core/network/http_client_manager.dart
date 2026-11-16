@@ -86,6 +86,15 @@ class HttpClientManager {
             return;
           }
 
+          // Request cancellation is expected when widgets dispose or navigation happens
+          if (error.type == DioExceptionType.cancel) {
+            if (kDebugMode) {
+              _logger?.d('HTTP Request Cancelled: ($target)');
+            }
+            handler.next(error);
+            return;
+          }
+
           final message = (error.message?.trim().isNotEmpty ?? false)
               ? error.message
               : error.error?.toString() ?? 'Unknown Dio error';

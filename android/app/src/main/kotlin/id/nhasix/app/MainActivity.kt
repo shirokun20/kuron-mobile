@@ -22,19 +22,22 @@ class MainActivity: FlutterFragmentActivity() {
     companion object {
         @Volatile
         private var kuronNotificationChannel: MethodChannel? = null
+        @Volatile
+        private var pendingNotificationAction: Map<String, Any?>? = null
 
         @JvmStatic
         fun sendNotificationAction(action: String, contentId: String?, notificationId: Int) {
             val channel = kuronNotificationChannel
-            if (channel == null) {
-                Log.w("KuronNotif", "No Flutter channel yet; dropping action=$action")
-                return
-            }
             val args = mapOf(
                 "action" to action,
                 "contentId" to contentId,
                 "notificationId" to notificationId,
             )
+            if (channel == null) {
+                Log.w("KuronNotif", "No Flutter channel yet; caching pending action=$action contentId=$contentId")
+                pendingNotificationAction = args
+                return
+            }
             try {
                 channel.invokeMethod("onNotificationAction", args)
             } catch (e: Exception) {
@@ -76,8 +79,12 @@ class MainActivity: FlutterFragmentActivity() {
     private fun handleNotificationIntent(intent: Intent?) {
         val route = intent?.getStringExtra("route")
         val contentId = intent?.getStringExtra("contentId")
+            ?: intent?.getStringExtra(KuronNotificationBuilder.EXTRA_CONTENT_ID)
         
-        if (route != null) {
+        if (contentId != null) {
+            Log.d("Navigation", "Notification tapped with contentId: $contentId")
+            sendNotificationAction(KuronNotificationBuilder.ACTION_OPEN, contentId, 0)
+        } else if (route != null) {
             Log.d("Navigation", "Notification tapped - route: $route, contentId: $contentId")
             // Flutter will handle this via MethodChannel callback
         }
@@ -134,6 +141,11 @@ class MainActivity: FlutterFragmentActivity() {
             val kuronChannel =
                 MethodChannel(flutterEngine.dartExecutor.binaryMessenger, KURON_NOTIFICATION_CHANNEL)
             kuronNotificationChannel = kuronChannel
+            pendingNotificationAction?.let { pending ->
+                Log.i("KuronNotif", "Flushing pending notification action: $pending")
+                kuronChannel.invokeMethod("onNotificationAction", pending)
+                pendingNotificationAction = null
+            }
             kuronChannel.setMethodCallHandler { call, result ->
                 try {
                     when (call.method) {

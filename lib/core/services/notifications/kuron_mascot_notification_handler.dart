@@ -8,6 +8,8 @@ class KuronMascotNotificationHandler {
     this.onDownloadResume,
     this.onDownloadCancel,
     this.onDownloadPriority,
+    this.onDownloadOpen,
+    this.onViewQueue,
     this.onPauseAll,
     this.onCancelAll,
   }) {
@@ -17,12 +19,34 @@ class KuronMascotNotificationHandler {
   static const MethodChannel _channel =
       MethodChannel('id.nhasix.app/kuron_notification');
 
-  final void Function(String contentId)? onDownloadPause;
-  final void Function(String contentId)? onDownloadResume;
-  final void Function(String contentId)? onDownloadCancel;
-  final void Function(String contentId)? onDownloadPriority;
-  final VoidCallback? onPauseAll;
-  final VoidCallback? onCancelAll;
+  void Function(String contentId)? onDownloadPause;
+  void Function(String contentId)? onDownloadResume;
+  void Function(String contentId)? onDownloadCancel;
+  void Function(String contentId)? onDownloadPriority;
+  void Function(String contentId)? onDownloadOpen;
+  VoidCallback? onViewQueue;
+  VoidCallback? onPauseAll;
+  VoidCallback? onCancelAll;
+
+  void setCallbacks({
+    void Function(String contentId)? onDownloadPause,
+    void Function(String contentId)? onDownloadResume,
+    void Function(String contentId)? onDownloadCancel,
+    void Function(String contentId)? onDownloadPriority,
+    void Function(String contentId)? onDownloadOpen,
+    VoidCallback? onViewQueue,
+    VoidCallback? onPauseAll,
+    VoidCallback? onCancelAll,
+  }) {
+    if (onDownloadPause != null) this.onDownloadPause = onDownloadPause;
+    if (onDownloadResume != null) this.onDownloadResume = onDownloadResume;
+    if (onDownloadCancel != null) this.onDownloadCancel = onDownloadCancel;
+    if (onDownloadPriority != null) this.onDownloadPriority = onDownloadPriority;
+    if (onDownloadOpen != null) this.onDownloadOpen = onDownloadOpen;
+    if (onViewQueue != null) this.onViewQueue = onViewQueue;
+    if (onPauseAll != null) this.onPauseAll = onPauseAll;
+    if (onCancelAll != null) this.onCancelAll = onCancelAll;
+  }
 
   DateTime? _lastUpdateTime;
   Timer? _debounceTimer;
@@ -50,6 +74,12 @@ class KuronMascotNotificationHandler {
         break;
       case 'priority':
         if (contentId != null) onDownloadPriority?.call(contentId);
+        break;
+      case 'open':
+        if (contentId != null) onDownloadOpen?.call(contentId);
+        break;
+      case 'view_queue':
+        onViewQueue?.call();
         break;
       case 'pause_all':
         onPauseAll?.call();
@@ -109,6 +139,7 @@ class KuronMascotNotificationHandler {
     required int notificationId,
     required String title,
     required int progress,
+    String? contentId,
     int? pagesPacked,
     int? totalPages,
     double? mbDownloaded,
@@ -142,6 +173,7 @@ class KuronMascotNotificationHandler {
       'notificationId': notificationId,
       'title': title,
       'progress': progress,
+      'contentId': contentId,
       'speech': speech,
       'speechText': speech,
       'meta': metaStr,

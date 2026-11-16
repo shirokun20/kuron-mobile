@@ -303,6 +303,66 @@ void main() {
     );
 
     blocTest<DownloadBloc, DownloadBlocState>(
+      'marks download as failed with retry when completion arrives partial',
+      build: () {
+        final imagesDir = Directory(
+          '${completionGuardTempDir.path}/images',
+        )..createSync(recursive: true);
+        for (var i = 1; i <= 5; i++) {
+          if (i == 3) continue; // page 3 never landed
+          File('${imagesDir.path}/page_${i.toString().padLeft(3, '0')}.jpg')
+              .writeAsBytesSync([i]);
+        }
+        return downloadBloc;
+      },
+      seed: () => DownloadLoaded(
+        downloads: [
+          DownloadStatus(
+            contentId: testContentId,
+            state: DownloadState.downloading,
+            downloadedPages: 4,
+            totalPages: 5,
+            title: 'Test Manga',
+            sourceId: 'src',
+            downloadPath: completionGuardTempDir.path,
+          ),
+        ],
+        settings: const DownloadSettings(
+          autoRetry: false,
+          enableNotifications: false,
+        ),
+        lastUpdated: DateTime.now(),
+      ),
+      act: (bloc) => bloc.add(
+        const DownloadCompletedEvent(testContentId, failedPages: [3]),
+      ),
+      wait: const Duration(milliseconds: 30),
+      verify: (_) {
+        verify(
+          () => mockRepo.saveDownloadStatus(
+            any(
+              that: predicate<DownloadStatus>(
+                (d) =>
+                    d.contentId == testContentId &&
+                    d.state == DownloadState.failed &&
+                    (d.error?.contains('Partial download') ?? false) &&
+                    (d.error?.contains('4/5') ?? false),
+              ),
+            ),
+          ),
+        ).called(1);
+
+        verifyNever(
+          () => mockNotificationService.showDownloadCompleted(
+            contentId: any(named: 'contentId'),
+            title: any(named: 'title'),
+            downloadPath: any(named: 'downloadPath'),
+          ),
+        );
+      },
+    );
+
+    blocTest<DownloadBloc, DownloadBlocState>(
       'emits completed state and saves to DB when DownloadCompletedEvent is added',
       build: () => downloadBloc,
       seed: () => DownloadLoaded(

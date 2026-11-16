@@ -205,11 +205,16 @@ class DownloadWorker(
                 ))
             }
             
-            // Return success with complete data for EventChannel emission
+            // Return success with complete data for EventChannel emission.
+            // Partial success (some pages failed) is still success here:
+            // failed page numbers ride along so Flutter can mark the
+            // download partial-failed with a working retry instead of a
+            // silent "completed" missing pages.
             Result.success(workDataOf(
                 "content_id" to contentId,
                 "downloadedCount" to result.downloadedFiles.size,
-                "totalCount" to imageUrls.size
+                "totalCount" to imageUrls.size,
+                "failedPages" to result.failedPages.joinToString(",") { it.first.toString() }
             ))
         } catch (e: Exception) {
             if (e is CancellationException) throw e
@@ -674,7 +679,12 @@ class DownloadWorker(
             }
         }
 
-        if (imageUri != null) {
+        // Only synthesize Referer variants when the caller supplied one:
+        // some CDNs (comix/mangafire `rxn.*`) answer 403 to ANY Referer,
+        // so retrying with a synthesized self-host Referer would turn a
+        // transient failure into a certain one. Referer-less sources keep
+        // the single clean attempt.
+        if (!currentReferer.isNullOrBlank() && imageUri != null) {
             // Some CDNs allow self-host parent as referer.
             val origin = "${imageUri.scheme}://${imageUri.host}"
             refererCandidates.add("$origin/")

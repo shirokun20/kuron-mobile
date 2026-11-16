@@ -143,9 +143,11 @@ object KuronNotificationBuilder {
         )
         val notificationId = int(data, "notificationId", 0)
         val contentId = data["contentId"] as? String
+        // Nap button toggles: paused state offers resume, otherwise pause.
+        val pauseOrResume = if (status == "paused") ACTION_RESUME else ACTION_PAUSE
         views.setOnClickPendingIntent(
             R.id.btn_pause,
-            actionIntent(context, ACTION_PAUSE, notificationId, contentId),
+            actionIntent(context, pauseOrResume, notificationId, contentId),
         )
         views.setOnClickPendingIntent(
             R.id.btn_cancel,

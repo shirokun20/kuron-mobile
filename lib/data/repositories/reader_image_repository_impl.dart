@@ -186,7 +186,13 @@ class ReaderImageRepositoryImpl implements ReaderImageRepository {
       return FailedPage(
           reason: 'download produced no file for $url', originalUrl: url);
     } catch (e) {
-      _logger.w('[ReaderImage] network fail $url: $e');
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        if (kDebugMode) {
+          _logger.d('[ReaderImage] network cancelled $url');
+        }
+      } else {
+        _logger.w('[ReaderImage] network fail $url: $e');
+      }
       return FailedPage(reason: e, originalUrl: url);
     }
   }

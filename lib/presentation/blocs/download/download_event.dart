@@ -241,12 +241,15 @@ class DownloadSettingsUpdateEvent extends DownloadEvent {
 
 // Event to mark a download as completed
 class DownloadCompletedEvent extends DownloadEvent {
-  const DownloadCompletedEvent(this.contentId);
+  const DownloadCompletedEvent(this.contentId, {this.failedPages = const []});
 
   final String contentId;
+  /// 1-based page numbers the native worker could not download.
+  /// Non-empty means partial success — handled as failed-with-retry.
+  final List<int> failedPages;
 
   @override
-  List<Object?> get props => [contentId];
+  List<Object?> get props => [contentId, failedPages];
 }
 
 // Event triggered when native layer reports terminal failure

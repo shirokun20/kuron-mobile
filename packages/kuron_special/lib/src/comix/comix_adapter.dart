@@ -1277,7 +1277,7 @@ class ComixAdapter implements GenericAdapter {
     final chapters = _selectChapters(dtos, rawConfig)
         .map(
           (c) => Chapter(
-            id: '${c.id}',
+            id: '${c.id}:$effectiveSlug',
             title: c.displayName(),
             url: c.chapterPath(effectiveSlug),
             uploadDate: c.uploadDate(),

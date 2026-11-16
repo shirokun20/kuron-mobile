@@ -10,7 +10,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import '../../cubits/network/network_cubit.dart';
 import 'package:path/path.dart' as path;
 import 'package:intl/intl.dart';
-import 'package:open_file/open_file.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/config/remote_config_service.dart';
@@ -32,6 +31,9 @@ import '../../../core/services/pdf_conversion_service.dart';
 import '../../../core/services/pdf_conversion_queue_manager.dart';
 import '../../../core/utils/download_storage_utils.dart';
 import '../../../core/utils/storage_settings.dart';
+import '../../../core/routing/app_router.dart';
+import '../../../core/routing/app_route.dart';
+import '../../../core/routing/reader_route_extra.dart';
 import '../../widgets/content_list_widget.dart';
 
 import 'package:nhasixapp/core/services/workers/background_download_utils.dart';
@@ -426,7 +428,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
           if (update.totalPages == -1) {
             _logger.d(
                 'DownloadBloc: Received completion event for ${update.contentId}');
-            add(DownloadCompletedEvent(update.contentId));
+            add(DownloadCompletedEvent(
+              update.contentId,
+              failedPages: update.failedPages,
+            ));
           } else if (update.totalPages == -2) {
             _logger.w(
                 'DownloadBloc: Received native failed event for ${update.contentId}');
@@ -546,9 +551,8 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         _openDownloadedContent(contentId);
       },
       onNavigateToDownloads: (contentId) {
-        _logger.i(
-            'NotificationAction: Navigate to downloads requested for $contentId');
-        add(const DownloadRefreshEvent());
+        _logger.i('NotificationAction: Navigate to downloads');
+        AppRouter.router.push(AppRoute.downloads);
       },
     );
     _logger.i('DownloadBloc: Notification callbacks configured');
@@ -746,13 +750,19 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       }
       */
 
-      // Exception: For chapter-based content (Crotpedia), images may be fetched lazily during download
-      // We check for slug-based IDs which indicate chapter content that will have images fetched during _onStart
-      final isSlugBasedContent = !RegExp(r'^\d+$').hasMatch(event.content.id);
+      // Exception: For chapter-based content, images may be fetched lazily during download.
+      // Slug-based IDs, composite chapter IDs (with ':'), sources with dynamic chapters (comix, mangafire),
+      // or items with a valid content URL indicate content whose images will be fetched during _onStart.
+      final isLazyChapterContent =
+          !RegExp(r'^\d+$').hasMatch(event.content.id) ||
+              event.content.id.contains(':') ||
+              event.content.sourceId == 'comix' ||
+              event.content.sourceId == 'mangafire' ||
+              (event.content.url != null && event.content.url!.isNotEmpty);
 
       if (event.content.imageUrls.isEmpty &&
           event.content.pageCount == 0 &&
-          !isSlugBasedContent) {
+          !isLazyChapterContent) {
         _logger.w(
             'DownloadBloc: Content ${event.content.id} has no downloadable images');
 
@@ -764,9 +774,9 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         return;
       }
 
-      if (isSlugBasedContent && event.content.imageUrls.isEmpty) {
+      if (isLazyChapterContent && event.content.imageUrls.isEmpty) {
         _logger.i(
-            'DownloadBloc: Slug-based content ${event.content.id} - images will be fetched during download');
+            'DownloadBloc: Chapter/slug content ${event.content.id} - images will be fetched during download');
       }
       final existingDownload = currentState.downloads
           .where((d) => d.contentId == event.content.id)
@@ -1280,6 +1290,12 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         // headers. For bypass sources this carries the runtime Cookie header
         // (cf_clearance) and WebView UA that static config can never hold —
         // cf_clearance is UA-bound, so the native worker MUST send both.
+        // Source referer policy: comix/mangafire deliberately STRIP
+        // Referer/Origin (CDN answers 403 to any Referer — live-proven).
+        // The source contract flag is authoritative: dynamic injection
+        // below must not re-add what the source omits.
+        var sourceStripsReferer = false;
+        var sourceStripsOrigin = false;
         {
           final sampleUrl = content.imageUrls.isNotEmpty
               ? content.imageUrls.first
@@ -1295,7 +1311,21 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
               _logger.i(
                   '🌐 Source headers merged for ${content.sourceId}: ${sourceHeaders.keys.join(", ")}');
             }
-          }
+            sourceStripsReferer = source.omitImageReferer;
+            sourceStripsOrigin = source.omitImageReferer;
+            if (source.omitImageReferer && networkHeaders != null) {
+              // Config `network.headers` may carry its own Referer/Origin
+              // (map overlay can't delete keys). The source contract wins:
+              // drop every case-variant so the worker sends none — the
+              // reader path already behaves this way via interceptor.
+              const stripped = {'referer', 'origin'};
+              networkHeaders.removeWhere(
+                (k, _) => stripped.contains(k.toLowerCase()),
+              );
+              _logger.i(
+                  '🌐 Source ${content.sourceId} strips Referer/Origin — removed from download headers');
+            }
+        }
         }
 
         if (networkHeaders != null && networkHeaders.isNotEmpty) {
@@ -1325,19 +1355,26 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
                   entry.value.trim().isNotEmpty,
             );
 
-            if (!hasExplicitReferer) {
+            final injectedReferer =
+                !hasExplicitReferer && !sourceStripsReferer;
+            final injectedOrigin = !hasExplicitOrigin && !sourceStripsOrigin;
+            if (injectedReferer) {
               networkHeaders['Referer'] = normalizedReferer;
               networkHeaders['referer'] = normalizedReferer;
             }
-            if (!hasExplicitOrigin) {
+            if (injectedOrigin) {
               networkHeaders['Origin'] = origin;
               networkHeaders['origin'] = origin;
             }
 
-            if (!hasExplicitReferer || !hasExplicitOrigin) {
+            if (injectedReferer || injectedOrigin) {
               _logger.i(
                 '🌐 Applied dynamic referer/origin for ${content.sourceId}: '
                 '$normalizedReferer',
+              );
+            } else if (sourceStripsReferer || sourceStripsOrigin) {
+              _logger.d(
+                '🌐 Skipped dynamic referer/origin for ${content.sourceId} (source strips them)',
               );
             } else {
               _logger.d(
@@ -2232,6 +2269,53 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         return;
       }
 
+      // Partial success: the worker finished but some pages never landed
+      // (e.g. one CDN host unreachable). Mark failed-with-retry instead of
+      // a silent "completed" missing pages — retry resumes only the gaps
+      // because the worker skips already-downloaded files.
+      final expectedPages = currentDownload.pagesToDownload > 0
+          ? currentDownload.pagesToDownload
+          : downloadedImagesCount;
+      final workerFailedPages = event.failedPages;
+      final isPartial = workerFailedPages.isNotEmpty ||
+          (hasPathHint &&
+              downloadedImagesCount > 0 &&
+              downloadedImagesCount < expectedPages);
+      if (isPartial) {
+        final detail = workerFailedPages.isNotEmpty
+            ? 'failed pages: ${workerFailedPages.join(", ")}'
+            : 'missing ${expectedPages - downloadedImagesCount} page(s)';
+        final message =
+            'Partial download: $downloadedImagesCount/$expectedPages pages ($detail)';
+        _logger.w('DownloadBloc: $message for ${event.contentId}');
+        await _notificationService
+            .cancelDownloadNotification(event.contentId)
+            .catchError((e) {
+          _logger.w('DownloadBloc: Failed to cancel partial notification: $e');
+        });
+        await _handleDownloadFailure(
+          event.contentId,
+          message,
+          null,
+          emit,
+        );
+        if (currentState is DownloadLoaded &&
+            currentState.settings.enableNotifications) {
+          await _notificationService
+              .showDownloadError(
+            contentId: event.contentId,
+            title: currentDownload.title ?? event.contentId,
+            error: message,
+          )
+              .catchError((e) {
+            _logger.w(
+                'DownloadBloc: Failed to show partial error notification: $e');
+          });
+        }
+        add(const DownloadRefreshEvent());
+        return;
+      }
+
       try {
         await _offlineContentManager
             .reconcileChapterMetadataForCompletedDownload(
@@ -2926,65 +3010,51 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
             }
           }
 
-          bool opened = false;
-
+          // Route to in-app Reader (offline) instead of file manager.
           try {
-            final result = await OpenFile.open(downloadPath);
-            if (result.type == ResultType.done) {
-              _logger.i('DownloadBloc: Successfully opened download directory');
-              opened = true;
-            } else {
-              _logger.w(
-                  'DownloadBloc: Failed to open directory: ${result.message}');
+            final offlineContent =
+                await _offlineContentManager.createOfflineContent(contentId);
+            final encodedId = Uri.encodeComponent(contentId);
+            if (offlineContent != null &&
+                offlineContent.imageUrls.isNotEmpty) {
+              AppRouter.router.push(
+                '/reader/$encodedId?fromOffline=true',
+                extra: buildReaderRouteExtra(
+                  content: offlineContent,
+                  fromOffline: true,
+                ),
+              );
+              return;
             }
           } catch (e) {
-            _logger.w('DownloadBloc: Error opening directory: $e');
+            _logger.w('DownloadBloc: Offline content load failed: $e');
           }
 
-          if (!opened) {
-            try {
-              final imagesDir = Directory(path.join(downloadPath, 'images'));
-              if (await imagesDir.exists()) {
-                final result = await OpenFile.open(imagesDir.path);
-                if (result.type == ResultType.done) {
-                  _logger
-                      .i('DownloadBloc: Successfully opened images directory');
-                  opened = true;
-                } else {
-                  _logger.w(
-                      'DownloadBloc: Failed to open images directory: ${result.message}');
-                }
-              }
-            } catch (e) {
-              _logger.w('DownloadBloc: Error opening images directory: $e');
-            }
-          }
-
-          if (!opened) {
-            try {
-              final imagePaths =
-                  await DownloadStorageUtils.getDownloadedImagePaths(contentId);
-              if (imagePaths.isNotEmpty) {
-                final firstImage = imagePaths.first;
-                final result = await OpenFile.open(firstImage);
-                if (result.type == ResultType.done) {
-                  _logger.i(
-                      'DownloadBloc: Successfully opened first image: $firstImage');
-                  opened = true;
-                } else {
-                  _logger.w(
-                      'DownloadBloc: Failed to open first image: ${result.message}');
-                }
-              }
-            } catch (e) {
-              _logger.w('DownloadBloc: Error opening first image: $e');
-            }
-          }
-
-          if (!opened) {
-            _logger.e(
-                'DownloadBloc: All strategies failed to open downloaded content for $contentId');
-          }
+          // Fallback: minimal Content stub so ReaderCubit loads from offline.
+          final stub = Content(
+            id: contentId,
+            title: download.title ?? contentId,
+            coverUrl: download.coverUrl ?? '',
+            pageCount: download.totalPages,
+            imageUrls: const [],
+            sourceId: (download.sourceId != null &&
+                    download.sourceId!.isNotEmpty)
+                ? download.sourceId!
+                : 'nhentai',
+            uploadDate: DateTime.now(),
+            tags: const [],
+            artists: const [],
+            characters: const [],
+            groups: const [],
+            parodies: const [],
+            language: '',
+            favorites: 0,
+          );
+          final encodedId = Uri.encodeComponent(contentId);
+          AppRouter.router.push(
+            '/reader/$encodedId?fromOffline=true',
+            extra: buildReaderRouteExtra(content: stub, fromOffline: true),
+          );
         } else {
           _logger
               .w('DownloadBloc: Download directory not found: $downloadPath');

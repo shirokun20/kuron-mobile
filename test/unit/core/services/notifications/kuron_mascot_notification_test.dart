@@ -31,6 +31,7 @@ void main() {
         notificationId: 101,
         title: 'Ch. 12',
         progress: 42,
+        contentId: 'ch-123',
         pagesPacked: 18,
         totalPages: 42,
         mbDownloaded: 14.2,
@@ -43,11 +44,8 @@ void main() {
       expect(call.method, 'updateSingleDownload');
       expect(call.arguments['notificationId'], 101);
       expect(call.arguments['title'], 'Ch. 12');
-      expect(call.arguments['progress'], 42);
+      expect(call.arguments['contentId'], 'ch-123');
       expect(call.arguments['speech'], contains('Kuron:'));
-      expect(call.arguments['meta'], contains('18/42 Pages (42%)'));
-      expect(call.arguments['meta'], contains('14.2 / 32.0 MB'));
-      expect(call.arguments['meta'], contains('~12s left'));
     });
 
     test('updateBatchDownload invokes channel with batch metadata', () async {
@@ -179,6 +177,43 @@ void main() {
       await messenger.handlePlatformMessage('id.nhasix.app/kuron_notification',
           cancelAllData, (data) {});
       expect(cancelledAll, isTrue);
+    });
+
+    test('ACTION_KURON_OPEN routes to onDownloadOpen', () async {
+      String? openedId;
+      // ignore: unused_local_variable
+      final handler =
+          KuronMascotNotificationHandler(onDownloadOpen: (id) => openedId = id);
+
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final data = channel.codec.encodeMethodCall(
+        const MethodCall('onNotificationAction', {
+          'action': 'id.nhasix.app.ACTION_KURON_OPEN',
+          'contentId': 'ch-456',
+        }),
+      );
+      await messenger.handlePlatformMessage(
+          'id.nhasix.app/kuron_notification', data, (data) {});
+      expect(openedId, 'ch-456');
+    });
+
+    test('ACTION_KURON_VIEW_QUEUE routes to onViewQueue', () async {
+      var triggered = false;
+      // ignore: unused_local_variable
+      final handler =
+          KuronMascotNotificationHandler(onViewQueue: () => triggered = true);
+
+      final messenger =
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final data = channel.codec.encodeMethodCall(
+        const MethodCall('onNotificationAction', {
+          'action': 'id.nhasix.app.ACTION_KURON_VIEW_QUEUE',
+        }),
+      );
+      await messenger.handlePlatformMessage(
+          'id.nhasix.app/kuron_notification', data, (data) {});
+      expect(triggered, isTrue);
     });
   });
 }

@@ -644,6 +644,10 @@ class GenericHttpSource implements ContentSource {
   // ── Download headers ───────────────────────────────────────────────────────
 
   @override
+  bool get omitImageReferer => _id == 'comix';
+
+
+  @override
   Map<String, String> getImageDownloadHeaders({
     required String imageUrl,
     Map<String, String>? cookies,
@@ -693,10 +697,12 @@ class GenericHttpSource implements ContentSource {
       }
     }
 
-    if (_id == 'comix' || _id == 'mangafire') {
-      // Comix/MangaFire image CDNs reject requests containing a Referer header
-      // with HTTP 403. Remove Referer and cross-host Origin to match
-      // ComixImageHeaderInterceptor behavior used by reader/download clients.
+    if (_id == 'comix') {
+      // Comix image CDNs (`rxn.*`) reject requests containing a Referer
+      // header with HTTP 403 (live-proven). Remove Referer and cross-host
+      // Origin to match ComixImageHeaderInterceptor behavior used by
+      // reader/download clients. NOTE: mangafire is deliberately NOT listed
+      // here — its CDN (`mfcdn1.xyz`) REQUIRES a mangafire.to Referer.
       headers.remove('Referer');
       headers.remove('Origin');
       headers.remove('referer');

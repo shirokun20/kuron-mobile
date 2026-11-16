@@ -958,6 +958,10 @@ class LocalImagePreloader {
           await File(partial).delete();
         }
       } catch (_) {}
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        _d('🐛 [stream] Image stream cancelled for $networkUrl');
+        return null;
+      }
       _logger.e('🐛 [stream] Error streaming image $networkUrl: $e');
       return null;
     }
