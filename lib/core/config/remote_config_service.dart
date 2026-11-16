@@ -7,6 +7,7 @@ import 'package:kuron_core/kuron_core.dart' show ValidationReport;
 import 'package:kuron_generic/kuron_generic.dart'
     show DynamicSearchFormContract, SourceConfigParser;
 import 'package:logger/logger.dart';
+import 'package:flutter/foundation.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -722,48 +723,59 @@ class RemoteConfigService {
   // Current compatibility fix:
   // - `network.rateLimit.requestsPerSecond` -> `requestsPerMinute`
   // - fills missing `minDelayMs` with derived/default value
-  Map<String, dynamic> _normalizeSourceConfigForCompatibility(
+  @visibleForTesting
+  static Map<String, dynamic> normalizeSourceConfigForCompatibility(
     Map<String, dynamic> raw,
   ) {
     final normalized = jsonDecode(jsonEncode(raw)) as Map<String, dynamic>;
 
     final network = normalized['network'];
-    if (network is! Map) {
-      return normalized;
-    }
+    if (network is Map) {
+      final networkMap = network.cast<String, dynamic>();
+      final rateLimit = networkMap['rateLimit'];
+      if (rateLimit is Map) {
+        final rateMap = rateLimit.cast<String, dynamic>();
+        final requestsPerSecondRaw = rateMap['requestsPerSecond'];
+        int? requestsPerSecond;
+        if (requestsPerSecondRaw is num) {
+          requestsPerSecond = requestsPerSecondRaw.toInt();
+        }
 
-    final networkMap = network.cast<String, dynamic>();
-    final rateLimit = networkMap['rateLimit'];
-    if (rateLimit is! Map) {
-      return normalized;
-    }
+        if (rateMap['requestsPerMinute'] == null) {
+          if (requestsPerSecond != null && requestsPerSecond > 0) {
+            rateMap['requestsPerMinute'] = requestsPerSecond * 60;
+          } else {
+            rateMap['requestsPerMinute'] = 30;
+          }
+        }
 
-    final rateMap = rateLimit.cast<String, dynamic>();
+        if (rateMap['minDelayMs'] == null) {
+          if (requestsPerSecond != null && requestsPerSecond > 0) {
+            rateMap['minDelayMs'] = (1000 / requestsPerSecond).ceil();
+          } else {
+            rateMap['minDelayMs'] = 1500;
+          }
+        }
 
-    final requestsPerSecondRaw = rateMap['requestsPerSecond'];
-    int? requestsPerSecond;
-    if (requestsPerSecondRaw is num) {
-      requestsPerSecond = requestsPerSecondRaw.toInt();
-    }
-
-    if (rateMap['requestsPerMinute'] == null) {
-      if (requestsPerSecond != null && requestsPerSecond > 0) {
-        rateMap['requestsPerMinute'] = requestsPerSecond * 60;
-      } else {
-        rateMap['requestsPerMinute'] = 30;
+        networkMap['rateLimit'] = rateMap;
+        normalized['network'] = networkMap;
       }
     }
 
-    if (rateMap['minDelayMs'] == null) {
-      if (requestsPerSecond != null && requestsPerSecond > 0) {
-        rateMap['minDelayMs'] = (1000 / requestsPerSecond).ceil();
-      } else {
-        rateMap['minDelayMs'] = 1500;
+    final searchConfig = normalized['searchConfig'];
+    if (searchConfig is Map) {
+      final searchConfigMap = searchConfig.cast<String, dynamic>();
+      if (searchConfigMap['endpoint'] == null) {
+        searchConfigMap['endpoint'] = '';
+        normalized['searchConfig'] = searchConfigMap;
       }
     }
 
-    networkMap['rateLimit'] = rateMap;
-    normalized['network'] = networkMap;
     return normalized;
   }
+
+  Map<String, dynamic> _normalizeSourceConfigForCompatibility(
+    Map<String, dynamic> raw,
+  ) =>
+      normalizeSourceConfigForCompatibility(raw);
 }

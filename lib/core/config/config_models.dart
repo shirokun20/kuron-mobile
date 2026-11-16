@@ -98,7 +98,7 @@ enum SortWidgetType {
 sealed class SearchConfig with _$SearchConfig {
   const factory SearchConfig({
     @Default(SearchMode.queryString) SearchMode searchMode,
-    required String endpoint,
+    @Default('') String endpoint,
     SortingConfig? sortingConfig,
     String? queryParam,
     FilterSupportConfig? filterSupport,

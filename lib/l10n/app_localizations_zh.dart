@@ -5646,40 +5646,37 @@ class AppLocalizationsZh extends AppLocalizations {
   String get aiProvidersSubtitle => '提供商、语言、风格、翻译缓存';
 
   @override
-  String get aiModelTitle => 'AI Model';
+  String get aiModelTitle => 'AI 模型';
 
   @override
-  String get aiModelSubtitle => 'On-device bubble detection model';
+  String get aiModelSubtitle => '设备端气泡检测模型';
 
   @override
-  String get aiModelNotDownloaded => 'Not downloaded';
+  String get aiModelNotDownloaded => '未下载';
 
   @override
-  String get aiModelReady => 'Ready';
+  String get aiModelReady => '就绪';
 
   @override
-  String get aiModelDeleteConfirm =>
-      'Delete the downloaded model? Bubble detection will fall back to full-image translate.';
+  String get aiModelDeleteConfirm => '删除已下载的模型？气泡检测将回退至全图翻译。';
 
   @override
-  String get aiModelErrorOffline => 'No network connection. Retry when online.';
+  String get aiModelErrorOffline => '无网络连接。请在联网后重试。';
 
   @override
-  String get aiModelErrorStorageFull =>
-      'Storage full. Free up space and retry.';
+  String get aiModelErrorStorageFull => '存储空间已满。请清理空间后重试。';
 
   @override
-  String get aiModelErrorCorrupt =>
-      'Download corrupted (checksum mismatch). Tap Retry.';
+  String get aiModelErrorCorrupt => '下载文件损坏（校验和不匹配）。点击重试。';
 
   @override
   String aiModelErrorGeneric(String code) {
-    return 'Download failed ($code). Tap Retry.';
+    return '下载失败（$code）。点击重试。';
   }
 
   @override
   String aiModelVersion(String version) {
-    return 'Version $version';
+    return '版本 $version';
   }
 
   @override

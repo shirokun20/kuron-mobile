@@ -3779,6 +3779,26 @@
   "aiCapturedViewport": "屏幕截取成功。",
   "aiSettings": "AI 设置",
   "aiProvidersSubtitle": "提供商、语言、风格、翻译缓存",
+  "aiModelTitle": "AI 模型",
+  "aiModelSubtitle": "设备端气泡检测模型",
+  "aiModelNotDownloaded": "未下载",
+  "aiModelReady": "就绪",
+  "aiModelDeleteConfirm": "删除已下载的模型？气泡检测将回退至全图翻译。",
+  "aiModelErrorOffline": "无网络连接。请在联网后重试。",
+  "aiModelErrorStorageFull": "存储空间已满。请清理空间后重试。",
+  "aiModelErrorCorrupt": "下载文件损坏（校验和不匹配）。点击重试。",
+  "aiModelErrorGeneric": "下载失败（{code}）。点击重试。",
+  "@aiModelErrorGeneric": {
+    "placeholders": {
+      "code": {"type": "String"}
+    }
+  },
+  "aiModelVersion": "版本 {version}",
+  "@aiModelVersion": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
   "aiManageProviders": "AI 提供商",
   "aiOpen": "打开",
   "aiTargetLanguage": "目标语言",

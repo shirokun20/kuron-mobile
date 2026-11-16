@@ -255,7 +255,8 @@ class ComixAdapter implements GenericAdapter {
       });
     }
 
-    final searchConfig = rawConfig['searchConfig'] as Map<String, dynamic>?;
+    final searchConfig = ((rawConfig['adapterConfig'] ??
+            rawConfig['searchConfig']) as Map<String, dynamic>?);
     final sortValues = searchConfig?['sortValues'] as Map<String, dynamic>?;
     final defaultParams =
         searchConfig?['defaultParams'] as Map<String, dynamic>?;
@@ -489,7 +490,8 @@ class ComixAdapter implements GenericAdapter {
     final genreMap = rawConfig != null
         ? _resolveGenreMapping(rawConfig)
         : _mangafireGenreNameToId;
-    final searchConfig = rawConfig?['searchConfig'] as Map<String, dynamic>?;
+    final searchConfig = ((rawConfig?['adapterConfig'] ??
+            rawConfig?['searchConfig']) as Map<String, dynamic>?);
     final sortValues = searchConfig?['sortValues'] as Map<String, dynamic>?;
     final defaultParams =
         searchConfig?['defaultParams'] as Map<String, dynamic>?;
@@ -656,7 +658,8 @@ class ComixAdapter implements GenericAdapter {
           params[k] = [v.toString()];
         }
       });
-    } else if (!params.containsKey('content_rating')) {
+    }
+    if (!params.containsKey('content_rating')) {
       params['content_rating'] = ['none'];
     }
 
