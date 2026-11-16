@@ -48,10 +48,10 @@ void main() {
     expect(url.queryParameters['title'],
         '[bug][komikcast] getChapterImages: error-log');
     final body = url.queryParameters['body']!;
-    expect(body, contains('`500`'));
+    expect(body, contains('`HTTP 500`'));
     // urlPath field carries the path-only form; the raw message text itself
     // stays verbatim (opt-in log, manual export).
-    expect(body, contains('- urlPath: `/reader/x`'));
+    expect(body, contains('- URL path: `/reader/x`'));
   });
 
   test('error suggested repo follows sourceId presence', () {

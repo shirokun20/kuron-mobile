@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'anomaly_detail_screen.dart';
@@ -56,22 +57,24 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
   }
 
   Future<void> _deleteRecord(AnomalyRecord record) async {
+    final loc = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Anomali'),
-        content: Text('Hapus anomali "${record.sourceId} - ${record.feature}"?'),
+        title: Text(loc?.anomalyDeleteTitle ?? 'Hapus Anomali'),
+        content: Text(
+            '${loc?.delete ?? 'Hapus'} "${record.sourceId} - ${record.feature}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(loc?.cancel ?? 'Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Hapus'),
+            child: Text(loc?.delete ?? 'Hapus'),
           ),
         ],
       ),

@@ -1,7 +1,7 @@
 part of 'theme_cubit.dart';
 
 // State for theme management
-class ThemeState {
+class ThemeState extends BaseCubitState {
   const ThemeState({
     required this.themeData,
     required this.themeMode,
@@ -13,6 +13,9 @@ class ThemeState {
   final ThemeMode themeMode;
   final String currentTheme;
   final DateTime lastUpdated;
+
+  @override
+  List<Object?> get props => [themeMode, currentTheme, lastUpdated, themeData];
 
   // Initial state with default dark theme
   factory ThemeState.initial() {
@@ -77,17 +80,4 @@ class ThemeState {
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ThemeState &&
-          runtimeType == other.runtimeType &&
-          themeMode == other.themeMode &&
-          currentTheme == other.currentTheme &&
-          lastUpdated == other.lastUpdated;
-
-  @override
-  int get hashCode =>
-      themeMode.hashCode ^ currentTheme.hashCode ^ lastUpdated.hashCode;
 }

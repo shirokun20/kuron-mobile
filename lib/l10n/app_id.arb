@@ -3403,5 +3403,15 @@
   "streakDaySat": "Sb",
   "streakDaySun": "Mn",
   "pauseOnOnlineReaderOnlyTitle": "Jeda Unduhan Saat Membaca Online Saja",
-  "pauseOnOnlineReaderOnlyDescription": "Biarkan unduhan latar belakang tetap berjalan saat membaca chapter offline atau tersimpan"
+  "pauseOnOnlineReaderOnlyDescription": "Biarkan unduhan latar belakang tetap berjalan saat membaca chapter offline atau tersimpan",
+  "errorLogClearAllTitle": "Hapus Semua Log Error",
+  "errorLogClearAllConfirm": "Apakah Anda yakin ingin menghapus seluruh log error respons?",
+  "errorLogClearAllButton": "Hapus Semua",
+  "errorLogExportTitle": "Export Log Error",
+  "errorLogCopied": "Log berhasil disalin ke clipboard",
+  "reportToGitHub": "Lapor ke GitHub",
+  "openingGitHubReport": "Membuka form laporan GitHub...",
+  "anomalyDeleteTitle": "Hapus Record Anomali",
+  "anomalyDeleteConfirm": "Apakah Anda yakin ingin menghapus record anomali ini?",
+  "copy": "Salin"
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'error_log_contract.dart';
@@ -91,22 +92,24 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
   }
 
   Future<void> _clearAll() async {
+    final loc = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Semua Log Error'),
-        content: const Text('Apakah Anda yakin ingin menghapus seluruh log error respons?'),
+        title: Text(loc?.errorLogClearAllTitle ?? 'Hapus Semua Log Error'),
+        content: Text(loc?.errorLogClearAllConfirm ??
+            'Apakah Anda yakin ingin menghapus seluruh log error respons?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(loc?.cancel ?? 'Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Hapus Semua'),
+            child: Text(loc?.errorLogClearAllButton ?? 'Hapus Semua'),
           ),
         ],
       ),
@@ -136,10 +139,11 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
         return;
       }
 
+      final loc = AppLocalizations.of(context);
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Export Log Error'),
+          title: Text(loc?.errorLogExportTitle ?? 'Export Log Error'),
           content: SingleChildScrollView(
             child: SelectableText(
               text.isEmpty ? '(Log kosong)' : text,
@@ -149,7 +153,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Tutup'),
+              child: Text(loc?.close ?? 'Tutup'),
             ),
             FilledButton.icon(
               onPressed: text.isEmpty
@@ -158,11 +162,13 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                       Clipboard.setData(ClipboardData(text: text));
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Log berhasil disalin ke clipboard')),
+                        SnackBar(
+                            content: Text(loc?.errorLogCopied ??
+                                'Log berhasil disalin ke clipboard')),
                       );
                     },
               icon: const Icon(Icons.copy),
-              label: const Text('Salin'),
+              label: Text(loc?.copy ?? 'Salin'),
             ),
           ],
         ),
@@ -422,13 +428,16 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                     if (widget.onReport != null) {
                       widget.onReport!(context, entry);
                     } else {
+                      final loc = AppLocalizations.of(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Membuka laporan GitHub...')),
+                        SnackBar(
+                            content: Text(loc?.openingGitHubReport ??
+                                'Membuka laporan GitHub...')),
                       );
                     }
                   },
                   icon: const Icon(Icons.send, size: 14),
-                  label: const Text('Lapor'),
+                  label: Text(AppLocalizations.of(context)?.reportToGitHub ?? 'Lapor'),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

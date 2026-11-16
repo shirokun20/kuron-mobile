@@ -56,6 +56,7 @@ void main() {
     await StorageSettings.clearCustomRoot();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('custom_storage_root', tempRoot.path);
+    StorageSettings.setCustomRootForTesting(tempRoot.path);
 
     if (getIt.isRegistered<RemoteConfigService>()) {
       await getIt.unregister<RemoteConfigService>();
@@ -93,6 +94,7 @@ void main() {
 
   tearDown(() async {
     await StorageSettings.clearCustomRoot();
+    StorageSettings.resetCacheForTesting();
     if (getIt.isRegistered<RemoteConfigService>()) {
       await getIt.unregister<RemoteConfigService>();
     }

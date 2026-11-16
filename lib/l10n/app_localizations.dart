@@ -10646,6 +10646,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep background downloads running when reading offline or saved chapters'**
   String get pauseOnOnlineReaderOnlyDescription;
+
+  /// No description provided for @errorLogClearAllTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All Error Logs'**
+  String get errorLogClearAllTitle;
+
+  /// No description provided for @errorLogClearAllConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete all response error logs?'**
+  String get errorLogClearAllConfirm;
+
+  /// No description provided for @errorLogClearAllButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear All'**
+  String get errorLogClearAllButton;
+
+  /// No description provided for @errorLogExportTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Export Error Logs'**
+  String get errorLogExportTitle;
+
+  /// No description provided for @errorLogCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get errorLogCopied;
+
+  /// No description provided for @reportToGitHub.
+  ///
+  /// In en, this message translates to:
+  /// **'Report to GitHub'**
+  String get reportToGitHub;
+
+  /// No description provided for @openingGitHubReport.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening GitHub issue form...'**
+  String get openingGitHubReport;
+
+  /// No description provided for @anomalyDeleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete Anomaly Record'**
+  String get anomalyDeleteTitle;
+
+  /// No description provided for @anomalyDeleteConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete this anomaly record?'**
+  String get anomalyDeleteConfirm;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
 }
 
 class _AppLocalizationsDelegate

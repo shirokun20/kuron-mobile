@@ -4459,5 +4459,15 @@
   "streakDaySat": "Sa",
   "streakDaySun": "Su",
   "pauseOnOnlineReaderOnlyTitle": "Pause Downloads While Reading Online Only",
-  "pauseOnOnlineReaderOnlyDescription": "Keep background downloads running when reading offline or saved chapters"
+  "pauseOnOnlineReaderOnlyDescription": "Keep background downloads running when reading offline or saved chapters",
+  "errorLogClearAllTitle": "Clear All Error Logs",
+  "errorLogClearAllConfirm": "Are you sure you want to delete all response error logs?",
+  "errorLogClearAllButton": "Clear All",
+  "errorLogExportTitle": "Export Error Logs",
+  "errorLogCopied": "Logs copied to clipboard",
+  "reportToGitHub": "Report to GitHub",
+  "openingGitHubReport": "Opening GitHub issue form...",
+  "anomalyDeleteTitle": "Delete Anomaly Record",
+  "anomalyDeleteConfirm": "Are you sure you want to delete this anomaly record?",
+  "copy": "Copy"
 }

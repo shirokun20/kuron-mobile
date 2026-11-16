@@ -6248,4 +6248,36 @@ class AppLocalizationsId extends AppLocalizations {
   @override
   String get pauseOnOnlineReaderOnlyDescription =>
       'Biarkan unduhan latar belakang tetap berjalan saat membaca chapter offline atau tersimpan';
+
+  @override
+  String get errorLogClearAllTitle => 'Hapus Semua Log Error';
+
+  @override
+  String get errorLogClearAllConfirm =>
+      'Apakah Anda yakin ingin menghapus seluruh log error respons?';
+
+  @override
+  String get errorLogClearAllButton => 'Hapus Semua';
+
+  @override
+  String get errorLogExportTitle => 'Export Log Error';
+
+  @override
+  String get errorLogCopied => 'Log berhasil disalin ke clipboard';
+
+  @override
+  String get reportToGitHub => 'Lapor ke GitHub';
+
+  @override
+  String get openingGitHubReport => 'Membuka form laporan GitHub...';
+
+  @override
+  String get anomalyDeleteTitle => 'Hapus Record Anomali';
+
+  @override
+  String get anomalyDeleteConfirm =>
+      'Apakah Anda yakin ingin menghapus record anomali ini?';
+
+  @override
+  String get copy => 'Salin';
 }

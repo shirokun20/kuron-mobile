@@ -143,6 +143,21 @@ class StorageSettings {
     LocalImagePreloader.invalidateDirectoryCache();
   }
 
+  /// Resets the memory cache for testing or runtime reloads.
+  @visibleForTesting
+  static void resetCacheForTesting() {
+    _cachedCustomRoot = null;
+    _isLoaded = false;
+  }
+
+  /// Sets the custom root in memory directly for testing.
+  @visibleForTesting
+  static void setCustomRootForTesting(String? path) {
+    _cachedCustomRoot = path;
+    _isLoaded = true;
+    LocalImagePreloader.invalidateDirectoryCache();
+  }
+
   /// Show in-app directory picker (when MANAGE_EXTERNAL_STORAGE is granted).
   /// Lets user browse filesystem and pick any writable folder.
   static Future<String?> _showDirectoryPicker(BuildContext context) async {

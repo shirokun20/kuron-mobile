@@ -3999,5 +3999,15 @@
   "streakDaySat": "六",
   "streakDaySun": "日",
   "pauseOnOnlineReaderOnlyTitle": "仅在在线阅读时暂停下载",
-  "pauseOnOnlineReaderOnlyDescription": "在离线或已保存章节阅读时保持后台下载继续运行"
+  "pauseOnOnlineReaderOnlyDescription": "在离线或已保存章节阅读时保持后台下载继续运行",
+  "errorLogClearAllTitle": "清除所有错误日志",
+  "errorLogClearAllConfirm": "确定要删除所有响应错误日志吗？",
+  "errorLogClearAllButton": "全部清除",
+  "errorLogExportTitle": "导出错误日志",
+  "errorLogCopied": "日志已复制到剪贴板",
+  "reportToGitHub": "报告至 GitHub",
+  "openingGitHubReport": "正在打开 GitHub 议题表单...",
+  "anomalyDeleteTitle": "删除异常记录",
+  "anomalyDeleteConfirm": "确定要删除此异常记录吗？",
+  "copy": "复制"
 }

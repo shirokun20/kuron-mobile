@@ -6221,4 +6221,36 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get pauseOnOnlineReaderOnlyDescription =>
       'Keep background downloads running when reading offline or saved chapters';
+
+  @override
+  String get errorLogClearAllTitle => 'Clear All Error Logs';
+
+  @override
+  String get errorLogClearAllConfirm =>
+      'Are you sure you want to delete all response error logs?';
+
+  @override
+  String get errorLogClearAllButton => 'Clear All';
+
+  @override
+  String get errorLogExportTitle => 'Export Error Logs';
+
+  @override
+  String get errorLogCopied => 'Logs copied to clipboard';
+
+  @override
+  String get reportToGitHub => 'Report to GitHub';
+
+  @override
+  String get openingGitHubReport => 'Opening GitHub issue form...';
+
+  @override
+  String get anomalyDeleteTitle => 'Delete Anomaly Record';
+
+  @override
+  String get anomalyDeleteConfirm =>
+      'Are you sure you want to delete this anomaly record?';
+
+  @override
+  String get copy => 'Copy';
 }

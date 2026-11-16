@@ -6051,4 +6051,34 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get pauseOnOnlineReaderOnlyDescription => '在离线或已保存章节阅读时保持后台下载继续运行';
+
+  @override
+  String get errorLogClearAllTitle => '清除所有错误日志';
+
+  @override
+  String get errorLogClearAllConfirm => '确定要删除所有响应错误日志吗？';
+
+  @override
+  String get errorLogClearAllButton => '全部清除';
+
+  @override
+  String get errorLogExportTitle => '导出错误日志';
+
+  @override
+  String get errorLogCopied => '日志已复制到剪贴板';
+
+  @override
+  String get reportToGitHub => '报告至 GitHub';
+
+  @override
+  String get openingGitHubReport => '正在打开 GitHub 议题表单...';
+
+  @override
+  String get anomalyDeleteTitle => '删除异常记录';
+
+  @override
+  String get anomalyDeleteConfirm => '确定要删除此异常记录吗？';
+
+  @override
+  String get copy => '复制';
 }

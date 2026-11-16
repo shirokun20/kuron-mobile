@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'anomaly_store_contract.dart';
@@ -20,22 +21,24 @@ class AnomalyDetailScreen extends StatelessWidget {
   final VoidCallback? onDelete;
 
   Future<void> _handleDelete(BuildContext context) async {
+    final loc = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Record Anomali'),
-        content: const Text('Apakah Anda yakin ingin menghapus record anomali ini?'),
+        title: Text(loc?.anomalyDeleteTitle ?? 'Hapus Record Anomali'),
+        content: Text(loc?.anomalyDeleteConfirm ??
+            'Apakah Anda yakin ingin menghapus record anomali ini?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+            child: Text(loc?.cancel ?? 'Batal'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(
               backgroundColor: Theme.of(ctx).colorScheme.error,
             ),
-            child: const Text('Hapus'),
+            child: Text(loc?.delete ?? 'Hapus'),
           ),
         ],
       ),
@@ -221,15 +224,17 @@ class AnomalyDetailScreen extends StatelessWidget {
                 if (onReport != null) {
                   onReport!(context, record);
                 } else {
+                  final loc = AppLocalizations.of(context);
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka form laporan GitHub...'),
+                    SnackBar(
+                      content: Text(loc?.openingGitHubReport ??
+                          'Membuka form laporan GitHub...'),
                     ),
                   );
                 }
               },
               icon: const Icon(Icons.send),
-              label: const Text('Lapor ke GitHub'),
+              label: Text(AppLocalizations.of(context)?.reportToGitHub ?? 'Lapor ke GitHub'),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(

@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:logger/logger.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:nhasixapp/presentation/cubits/base/base_cubit.dart';
 import '../../../core/constants/colors_const.dart' show AppColors, KuronColors;
 import '../../../core/constants/design_tokens.dart';
 import '../settings/settings_cubit.dart';
@@ -12,11 +11,13 @@ part 'theme_state.dart';
 
 // Cubit for managing app theme changes
 // Listens to SettingsCubit and provides reactive ThemeData
-class ThemeCubit extends Cubit<ThemeState> {
+class ThemeCubit extends BaseCubit<ThemeState> {
   ThemeCubit({
-    required this._settingsCubit,
-    required this._logger,
-  })  : super(ThemeState.initial()) {
+    required SettingsCubit settingsCubit,
+    required super.logger,
+    // ignore: prefer_initializing_formals
+  })  : _settingsCubit = settingsCubit,
+        super(initialState: ThemeState.initial()) {
     // Listen to settings changes
     _settingsSubscription = _settingsCubit.stream.listen(_onSettingsChanged);
 
@@ -25,7 +26,6 @@ class ThemeCubit extends Cubit<ThemeState> {
   }
 
   final SettingsCubit _settingsCubit;
-  final Logger _logger;
   late final StreamSubscription _settingsSubscription;
 
   // Update theme when settings change
@@ -46,7 +46,7 @@ class ThemeCubit extends Cubit<ThemeState> {
         lastUpdated: DateTime.now(),
       ));
 
-      _logger.i('Theme updated to: ${preferences.theme}');
+      logInfo('Theme updated to: ${preferences.theme}');
     }
   }
 

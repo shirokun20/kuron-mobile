@@ -344,9 +344,9 @@ class _DetailScreenState extends State<DetailScreen> {
     );
   }
 
-  // Light shimmer for the loading body below the header. Uses a shrinkWrap
-  // ListView so it never needs a bounded height (sits in a SliverToBoxAdapter)
-  // and thus cannot overflow like SingleChildScrollView would.
+  // Light shimmer for the loading body below the header. Uses a Column so it
+  // never needs a bounded height (sits in a SliverToBoxAdapter) without the
+  // extra layout cost of a shrinkWrap ListView.
   Widget _detailLoadingBodyShimmer() {
     final colorScheme = Theme.of(context).colorScheme;
     Widget box(double h, double w) => Container(
@@ -357,9 +357,8 @@ class _DetailScreenState extends State<DetailScreen> {
             borderRadius: BorderRadius.circular(6),
           ),
         );
-    return ListView(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         box(24, double.infinity),
         const SizedBox(height: 12),
