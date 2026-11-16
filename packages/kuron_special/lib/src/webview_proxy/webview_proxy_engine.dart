@@ -562,6 +562,7 @@ class WebViewProxyEngine {
     required String html,
     required String userAgent,
     String? initializationScript,
+    List<String>? extraAllowedHosts,
     required String Function(String passPayloadName, String rejectName)
     buildScript,
     bool extendDeadlineOnApiTraffic = false,
@@ -586,6 +587,10 @@ class WebViewProxyEngine {
       initializationScript: effectiveInit,
     );
 
+    final mergedAllowedHosts = extraAllowedHosts != null && extraAllowedHosts.isNotEmpty
+        ? {...allowedHosts, ...extraAllowedHosts}.toList()
+        : allowedHosts;
+
     late final String raw;
     try {
       raw = await _native
@@ -593,7 +598,7 @@ class WebViewProxyEngine {
             pageUrl: pageUrl,
             html: html,
             userAgent: userAgent,
-            allowedHosts: allowedHosts,
+            allowedHosts: mergedAllowedHosts,
             bridgeName: bridgeName,
             errorBridgeName: errorBridgeName,
             bootstrapScript: bootstrap,

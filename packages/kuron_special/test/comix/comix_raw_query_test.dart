@@ -432,4 +432,89 @@ void main() {
     expect(script, contains('parsed.pages'));
     expect(script, contains('Array.isArray(parsed.items)'));
   });
+
+  test('rawConfig drives dynamic genreMapping, searchConfig, and webView initialization', () async {
+    payload = {
+      'items': [
+        {
+          'hid': 'dyn1',
+          'title': 'Dynamic Title',
+          'status': 'releasing',
+        }
+      ],
+      'meta': {'page': 1, 'lastPage': 1},
+    };
+
+    final client = _RecordingClient('<html><body>mock</body></html>');
+    final dynamicConfig = <String, dynamic>{
+      'source': 'mangafire',
+      'baseUrl': 'https://mangafire.to',
+      'network': {
+        'detailTimeoutSeconds': 180,
+        'allowedHosts': ['custom.domain.com'],
+        'initializationScript': 'console.log("custom-script");',
+      },
+      'genreMapping': {
+        'custom sci fi': '999',
+      },
+      'searchConfig': {
+        'queryParam': 'keyword',
+        'sortParam': 'sort',
+        'keywordSort': 'custom_keyword_sort:asc',
+        'sortValues': {
+          'newest': 'custom_date:desc',
+        },
+        'defaultParams': {
+          'content_rating': 'none',
+          'custom_filter': 'enabled',
+        },
+      },
+    };
+
+    final adapter = ComixAdapter(
+      dio: Dio()..httpClientAdapter = client,
+      engine: WebViewProxyEngine(
+        sourceHost: 'mangafire.to',
+        allowedHosts: mangafireAllowedHosts,
+        logger: Logger(level: Level.off),
+      ),
+      logger: Logger(level: Level.off),
+      originKind: 'mangafire',
+      configuredDetailTimeoutSeconds:
+          (dynamicConfig['network'] as Map)['detailTimeoutSeconds'] as int,
+    );
+
+    expect(adapter.detailTimeout, const Duration(seconds: 180));
+
+    // Test 1: Tag query uses dynamic genreMapping
+    await adapter.search(
+      const SearchFilter(query: 'tag:custom sci fi'),
+      dynamicConfig,
+    );
+    var url = Uri.parse(arguments['pageUrl'] as String);
+    expect(url.queryParameters['genres_in'], '999');
+    expect(url.queryParameters['custom_filter'], 'enabled');
+    expect(
+      arguments['bootstrapScript'],
+      contains('console.log("custom-script");'),
+    );
+    expect(arguments['allowedHosts'], contains('custom.domain.com'));
+
+    // Test 2: Sort mapping uses dynamic searchConfig
+    await adapter.search(
+      const SearchFilter(sort: SortOption.newest),
+      dynamicConfig,
+    );
+    url = Uri.parse(arguments['pageUrl'] as String);
+    expect(url.queryParameters['sort'], 'custom_date:desc');
+
+    // Test 3: Keyword search uses dynamic keywordSort
+    await adapter.search(
+      const SearchFilter(query: 'test query'),
+      dynamicConfig,
+    );
+    url = Uri.parse(arguments['pageUrl'] as String);
+    expect(url.queryParameters['sort'], 'custom_keyword_sort:asc');
+    expect(url.queryParameters['keyword'], 'test query');
+  });
 }

@@ -57,6 +57,7 @@ class ComixSourceFactory implements SourceFactory {
   ContentSource create(Map<String, dynamic> config) {
     final baseUrl = (config['baseUrl'] as String?) ?? 'https://comix.to';
     final host = Uri.tryParse(baseUrl)?.host ?? 'comix.to';
+    final timeoutSeconds = (config['network'] as Map<String, dynamic>?)?['detailTimeoutSeconds'] as int?;
     final dio = _buildComixDio(
       base: _dio,
       baseUrlHost: host,
@@ -70,6 +71,7 @@ class ComixSourceFactory implements SourceFactory {
         dio: dio,
         engine: _engine,
         logger: _logger,
+        configuredDetailTimeoutSeconds: timeoutSeconds,
       ),
     );
   }
@@ -96,6 +98,7 @@ class MangafireSourceFactory implements SourceFactory {
   ContentSource create(Map<String, dynamic> config) {
     final baseUrl = (config['baseUrl'] as String?) ?? 'https://mangafire.to';
     final host = Uri.tryParse(baseUrl)?.host ?? 'mangafire.to';
+    final timeoutSeconds = (config['network'] as Map<String, dynamic>?)?['detailTimeoutSeconds'] as int?;
     final dio = _buildComixDio(
       base: _dio,
       baseUrlHost: host,
@@ -112,6 +115,7 @@ class MangafireSourceFactory implements SourceFactory {
         defaultBaseUrl: baseUrl,
         defaultSourceId: 'mangafire',
         originKind: 'mangafire',
+        configuredDetailTimeoutSeconds: timeoutSeconds,
       ),
     );
   }

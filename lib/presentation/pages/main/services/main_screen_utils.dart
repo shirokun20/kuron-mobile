@@ -28,6 +28,29 @@ class MainScreenUtils {
     return kept.isEmpty ? null : 'raw:${kept.join('&')}';
   }
 
+  static String formatDisplayQuery(String query) {
+    if (!query.startsWith('raw:')) return query;
+    final raw = query.substring(4);
+    final decodedParts = <String>[];
+    for (final pair in raw.split('&')) {
+      if (pair.isEmpty) continue;
+      final eqIdx = pair.indexOf('=');
+      if (eqIdx > 0) {
+        final key =
+            Uri.decodeComponent(pair.substring(0, eqIdx)).replaceAll('[]', '');
+        final val = Uri.decodeQueryComponent(pair.substring(eqIdx + 1));
+        if (key == 'query' || key == 'q' || key == 'keyword') {
+          decodedParts.add(val);
+        } else {
+          decodedParts.add('$key: $val');
+        }
+      } else {
+        decodedParts.add(Uri.decodeQueryComponent(pair));
+      }
+    }
+    return decodedParts.isEmpty ? query : decodedParts.join(', ');
+  }
+
   static String getSearchFilterSummary(
     BuildContext context,
     SearchFilter filter,
@@ -36,7 +59,7 @@ class MainScreenUtils {
     final parts = <String>[];
 
     if (filter.query != null && filter.query!.isNotEmpty) {
-      parts.add('${l10n.queryLabel}: "${filter.query}"');
+      parts.add('${l10n.queryLabel}: "${formatDisplayQuery(filter.query!)}"');
     }
 
     void appendFilterGroup(
