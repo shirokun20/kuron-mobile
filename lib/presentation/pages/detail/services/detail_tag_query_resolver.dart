@@ -71,6 +71,22 @@ class DetailTagQueryResolver {
       }
     }
 
+    // Comix genre listing via the adapter's genres_in[] path is
+    // unreachable (direct API 403s, Tier-3 WebView times out on genre
+    // URLs). Fall back to a plain keyword search — exactly like typing
+    // the tag into the search box, which is proven to work.
+    if (actualSourceId == 'comix' && query.startsWith('tag:')) {
+      final keyword = query
+          .substring('tag:'.length)
+          .trim()
+          .replaceAll(RegExp(r'[-_]+'), ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+      if (keyword.isNotEmpty) {
+        query = keyword;
+      }
+    }
+
     return (query: query, explicitMappingFailed: false);
   }
 

@@ -33,7 +33,8 @@ class ComixAdapter implements GenericAdapter {
     this.defaultSourceId = 'comix',
     this.originKind = 'comix',
     this.configuredDetailTimeoutSeconds,
-  });
+    Dio? directDio,
+  }) : _directDio = directDio ?? _newDirectDio();
 
   /// Mangafire boots a full SPA per detail fetch; comix usually answers
   /// from Tier-1/2 in seconds. Both stay under the 120s WebView deadline.
@@ -43,6 +44,21 @@ class ComixAdapter implements GenericAdapter {
             (isMangafire ? 150 : 45),
       );
 
+
+  /// Isolated Dio for Tier-1b direct API calls: plain dart:io transport
+  /// with NO cookie store or browser-mimicking interceptors. The shared
+  /// [_dio] runs on Cronet, whose own cookie jar can shadow or duplicate
+  /// the hand-set `Cookie` header with stale values — the server then
+  /// rejects the session as invalid. Injectable for tests.
+  static Dio _newDirectDio() => Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 30),
+        ),
+      );
+
+  final Dio _directDio;
   final int? configuredDetailTimeoutSeconds;
   final Dio _dio;
   final WebViewProxyEngine _engine;
@@ -736,11 +752,21 @@ class ComixAdapter implements GenericAdapter {
         isMangafire: isMangafire,
       ),
       extraAllowedHosts: _resolveAllowedHosts(rawConfig),
-      buildScript: (pass, _) => buildBrowseScript(
-        passPayloadName: pass,
-        expectedKeywordJson: jsonEncode(filterMarker),
-        apiPathMarker: apiEndpoint ?? '/api/titles',
-      ),
+      buildScript: (pass, _) {
+        final pageNum =
+            int.tryParse(url.queryParameters['page'] ?? '') ?? 1;
+        // Pin the sort lane so the first /api/titles response can't come
+        // from a different shell section (home/trending vs browse).
+        final sortField =
+            (url.queryParameters['sort'] ?? '').split(':').first.trim();
+        return buildBrowseScript(
+          passPayloadName: pass,
+          expectedKeywordJson: jsonEncode(filterMarker),
+          apiPathMarker: apiEndpoint ?? '/api/titles',
+          targetPage: pageNum,
+          urlFragment: sortField,
+        );
+      },
     );
     final decoded = jsonDecode(payload);
     final map = decoded is Map<String, dynamic> ? decoded : {'result': decoded};
@@ -780,6 +806,85 @@ class ComixAdapter implements GenericAdapter {
       }
     }
 
+    // Tier 1b — direct unsigned API call. Browser-proven: /api/v1/manga
+    // needs no signature (only clearance cookies + browser headers, which
+    // Dio already carries). Much cheaper than the Tier-3 WebView and
+    // immune to its boot/challenge timeouts; Tier-2/3 stay as fallback.
+    String cookies = '';
+    try {
+      final base = _baseUrl(rawConfig);
+      final queryParams = <String, dynamic>{};
+      for (final e in _nativeMangaParams(url).entries) {
+        queryParams[e.key] = e.value.length == 1 ? e.value.single : e.value;
+      }
+      // NOTE (diagnostic): `_` cache-buster omitted on purpose. The
+      // browser sends a site-generated token there (`vou.fY...`), ours
+      // was millis — if the server validates it, that alone explains
+      // `invalid_token`. If the error persists without `_`, the token
+      // lives elsewhere (login session vs guest).
+      final directUri =
+          Uri.parse('$base/api/v1/manga').replace(queryParameters: queryParams);
+      // Same session the proxied WebView holds — without it the API
+      // answers 403 `missing_token` even with browser headers.
+      cookies = await _engine.readCookies(base);
+      // Diagnostic only: cookie NAMES (never values) to verify the
+      // session token is actually present in the WebView store.
+      final cookieNames = cookies
+          .split(';')
+          .map((c) => c.trim().split('=').first.trim())
+          .where((n) => n.isNotEmpty)
+          .toList();
+      _logger.d('comix: Tier-1b cookies for $base: $cookieNames');
+      // UA parity: cf_clearance is bound to the UA it was minted with
+      // (Chrome, via WebView/Turnstile). The Dio default `Kuron/...`
+      // bot UA mismatches it → 403 even with valid cookies.
+      const browserUa =
+          'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 '
+          '(KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36';
+      final directResponse = await _directDio.getUri(
+        directUri,
+        options: Options(headers: {
+          // Browser parity: the site's own fetch sends these; without the
+          // page Referer + XHR marker the API answers 403 (live-proven).
+          'User-Agent': browserUa,
+          'Referer': url.toString(),
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json',
+          if (cookies.isNotEmpty) 'Cookie': cookies,
+        }),
+      );
+      final directData = directResponse.data is String
+          ? jsonDecode(directResponse.data as String)
+          : directResponse.data;
+      if (directData is Map<String, dynamic>) {
+        final response = SearchResponse.fromJson(directData);
+        if (response.items.isNotEmpty) {
+          return (
+            items: response.items
+                .map((m) => _basicContent(m, rawConfig))
+                .toList(),
+            hasNext: response.hasNext,
+            totalItems: response.totalItems,
+            totalPages: response.totalPages,
+          );
+        }
+        _logger.d('comix: Tier-1b direct API returned 0 items '
+            '(hasCookie=${cookies.isNotEmpty}, total=${response.totalItems})');
+      }
+    } catch (e) {
+      // Fall through to Tier-2/3. Log the failure body (truncated, no
+      // cookies) so the next logcat shows whether it is still
+      // `missing_token`, a CF challenge, or something new.
+      var detail = '$e';
+      if (e is DioException) {
+        final body = e.response?.data?.toString() ?? '';
+        final snippet =
+            body.length > 300 ? '${body.substring(0, 300)}...' : body;
+        detail = 'HTTP ${e.response?.statusCode} body=$snippet';
+      }
+      _logger.d('comix: Tier-1b direct API failed, falling through '
+          '(hasCookie=${cookies.isNotEmpty}, error=$detail)');
+    }
     // Tier 2 — HTML scrape.
     final docResponse = await _dio.getUri(
       url,
@@ -970,6 +1075,13 @@ class ComixAdapter implements GenericAdapter {
   Content _basicContent(ComixManga manga, Map<String, dynamic> rawConfig) {
     final base = _baseUrl(rawConfig);
     final sourceId = _sourceId(rawConfig);
+    // List/search payloads often omit the flag (`null`) or send it empty
+    // (`""`, live-proven on comix `/api/v1/manga`). Default to English —
+    // the catalog language — instead of 'unknown', which hides the flag
+    // badge on cards.
+    final language = (manga.originalLanguage?.isNotEmpty == true)
+        ? manga.originalLanguage!
+        : 'en';
     return Content(
       id: manga.hid,
       sourceId: sourceId,
@@ -980,7 +1092,7 @@ class ComixAdapter implements GenericAdapter {
       characters: const [],
       parodies: const [],
       groups: const [],
-      language: manga.originalLanguage ?? 'unknown',
+      language: language,
       pageCount: 0,
       imageUrls: const [],
       uploadDate: DateTime.fromMillisecondsSinceEpoch(0),

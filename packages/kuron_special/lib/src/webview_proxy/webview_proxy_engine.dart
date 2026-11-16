@@ -97,12 +97,20 @@ String buildBrowseScript({
   required String passPayloadName,
   required String expectedKeywordJson,
   String apiPathMarker = '/api/v1/manga',
+  int? targetPage,
+  String urlFragment = '',
 }) =>
     '''
 (function () {
     const payloadKey = '__comixBrowsePayload';
     const expectedKeyword = $expectedKeywordJson;
     const apiPathMarker = '$apiPathMarker';
+    const targetPageNum = ${targetPage ?? 'null'};
+    const urlFragment = ${jsonEncode(urlFragment)};
+    // When the caller pins a page/sort lane (mangafire home & page 2),
+    // blind JSON.parse capture is disabled: only URL-verified fetch/XHR
+    // responses may capture, so shell/trending lanes can't win the race.
+    const allowBlindCapture = targetPageNum == null && !urlFragment;
     const capture = (parsed, allowEmpty = false) => {
         try {
             if (parsed && Array.isArray(parsed.items)) {
@@ -134,16 +142,30 @@ String buildBrowseScript({
     if (window.__comixBrowseCaptureInstalled) return null;
     window.__comixBrowseCaptureInstalled = true;
 
-    const captureText = text => {
+    const captureText = (text, url) => {
         try {
-            if (text) capture(JSON.parse(text), true);
+            if (text && (!url || shouldCaptureUrl(url))) capture(JSON.parse(text), true);
         } catch (e) {}
+    };
+
+    const pageMatches = rawUrl => {
+        if (targetPageNum == null) return true;
+        try {
+            const u = new URL(rawUrl || '', window.location.origin);
+            const p = u.searchParams.get('page');
+            if (targetPageNum === 1) return p === null || p === '1';
+            return p === String(targetPageNum);
+        } catch (e) {
+            return false;
+        }
     };
 
     const shouldCaptureUrl = rawUrl => {
         try {
             const url = new URL(rawUrl || '', window.location.origin);
             if (!url.pathname.includes(apiPathMarker)) return false;
+            if (!pageMatches(rawUrl)) return false;
+            if (urlFragment && !String(rawUrl || '').includes(urlFragment)) return false;
             if (!expectedKeyword) return true;
             const raw = String(rawUrl || '');
             const decoded = decodeURIComponent(raw.replace(/\\+/g, ' '));
@@ -157,7 +179,6 @@ String buildBrowseScript({
             return false;
         }
     };
-
     const originalFetch = window.fetch;
     if (typeof originalFetch === 'function') {
         window.fetch = function () {
@@ -199,10 +220,11 @@ String buildBrowseScript({
     const proxiedParse = new Proxy(originalParse, {
         apply(target, thisArg, args) {
             const parsed = Reflect.apply(target, thisArg, args);
-            if (!expectedKeyword) {
+            if (!expectedKeyword && allowBlindCapture) {
                 capture(parsed);
             }
-            // When expectedKeyword is set, rely on fetch/XHR hooks that can
+            // When expectedKeyword is set — or the caller pinned a
+            // page/sort lane — rely on fetch/XHR hooks that can
             // verify the request URL. Blindly capturing any items-shaped JSON
             // here races with unrelated SPA payloads (home/trending shell data)
             // and can return wrong results before the actual search API responds.
@@ -606,6 +628,18 @@ class WebViewProxyEngine {
 
   void resetCipher() => _cipher = null;
 
+  /// Reads the native WebView cookie jar for [url] (same store the
+  /// proxied pages run in). Lets direct Dio calls ride the captured
+  /// session instead of hitting `missing_token` 403s. Returns '' when
+  /// unavailable (desktop, no WebView ran yet) — callers must fall back.
+  Future<String> readCookies(String url) async {
+    try {
+      final cookies = await _native.getCookies(url: url);
+      return cookies ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
   /// Runs [buildScript] in a per-request WebView loading [pageUrl]+[html].
   /// Returns the captured payload; caches cipher material when valid.
   Future<String> runInWebView({

@@ -282,6 +282,13 @@ class KuronNative {
     return KuronNativePlatform.instance.setCookies(url: url, cookies: cookies);
   }
 
+  /// Reads cookies from the native WebView cookie store for [url].
+  /// Returns the raw `name=value; ...` header value, or null/empty when
+  /// the store has none (e.g. desktop, no WebView ran yet).
+  Future<String?> getCookies({required String url}) {
+    return KuronNativePlatform.instance.getCookies(url: url);
+  }
+
   /// Per-request headless WebView for the WebView proxy engine.
   Future<String> runProxyWebView({
     required String pageUrl,

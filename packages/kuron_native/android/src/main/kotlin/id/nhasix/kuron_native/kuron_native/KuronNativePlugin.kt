@@ -206,7 +206,19 @@ class KuronNativePlugin :
             result.error("SET_COOKIES_FAILED", e.message, null)
         }
     }
-
+    /// Reads the native WebView cookie store for [url] so direct Dio calls
+  /// can ride the same session the proxied WebView already holds.
+  private fun handleGetCookies(call: MethodCall, result: Result) {
+        val url = call.argument<String>("url") ?: run {
+            result.error("INVALID_ARGS", "url is required", null); return
+        }
+        try {
+            val cookieManager = android.webkit.CookieManager.getInstance()
+            result.success(cookieManager.getCookie(url) ?: "")
+        } catch (e: Exception) {
+            result.error("GET_COOKIES_FAILED", e.message, null)
+        }
+    }
     companion object {
         const val TAG = "KuronNativePlugin"
 
@@ -359,8 +371,8 @@ class KuronNativePlugin :
             "setCookies" -> {
                 handleSetCookies(call, result)
             }
-            "clearCookies" -> {
-                handleClearCookies(result)
+            "getCookies" -> {
+                handleGetCookies(call, result)
             }
             "clearAnimatedWebPCache" -> {
                 AnimatedWebPView.clearCaches()

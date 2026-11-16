@@ -283,6 +283,17 @@ abstract class KuronNativePlatform extends PlatformInterface {
     );
   }
 
+  // Read cookies from the native WebView cookie store for [url].
+  // Returns the raw `name=value; ...` header value, or null/empty when
+  // the store has none. Used to give direct Dio calls the same session
+  // the proxied WebView already holds (e.g. comix `/api/v1/manga`
+  // answers 403 `missing_token` without it).
+  Future<String?> getCookies({required String url}) {
+    throw UnimplementedError(
+      'getCookies() has not been implemented.',
+    );
+  }
+
   // Get current DNS over HTTPS provider.
   // Returns: -1 (disabled), 1 (Cloudflare), 2 (Google), 3 (AdGuard), 4 (Quad9)
   Future<int> getDohProvider() {

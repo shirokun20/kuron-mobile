@@ -31,7 +31,41 @@ void main() {
       expect(result.explicitMappingFailed, isTrue);
       expect(result.query, isEmpty);
     });
+    test('comix tag tap becomes plain keyword (genre path unreachable)', () {
+      final result = resolver.resolve(
+        sourceId: 'comix',
+        tagName: 'Romance',
+        tagType: 'tag',
+        tagId: '1',
+        rawConfig: const {
+          'scraper': {
+            'urlPatterns': {
+              'tagSearch': {'url': '/tag/{tag}'},
+            },
+          },
+        },
+      );
 
+      expect(result.explicitMappingFailed, isFalse);
+      expect(result.query, 'romance');
+    });
+
+    test('comix multi-word tag becomes spaced keyword, not slug', () {
+      final result = resolver.resolve(
+        sourceId: 'comix',
+        tagName: 'School Life',
+        tagType: 'tag',
+        rawConfig: const {
+          'scraper': {
+            'urlPatterns': {
+              'tagSearch': {'url': '/tag/{tag}'},
+            },
+          },
+        },
+      );
+
+      expect(result.query, 'school life');
+    });
     test('builds E-Hentai namespace query with quoted values', () {
       final result = resolver.resolve(
         sourceId: 'ehentai',

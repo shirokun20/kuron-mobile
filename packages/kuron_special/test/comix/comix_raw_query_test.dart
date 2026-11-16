@@ -47,6 +47,44 @@ const _comixBrowseHtml = '''
 "meta":{"page":1,"lastPage":1}}}}}</script></body></html>
 ''';
 
+const _comixShellHtml = '<html><head></head><body></body></html>';
+
+/// Routes comix requests: tag-search and titles APIs get live-shaped JSON,
+/// everything else gets a data-less shell (Tier-2 scrape finds nothing).
+class _ComixApiClient implements HttpClientAdapter {
+  final List<Uri> requested = [];
+  final Map<Uri, Map<String, dynamic>> requestHeaders = {};
+  static const tagJson =
+      '{"result":[{"id":23,"label":"Romance","slug":"romance"}]}';
+  static const titlesJson =
+      '{"status":"ok","result":{"items":[{"hid":"n93ny","title":"The Crown I Will Claim",'
+      '"type":"manhwa","status":"releasing","originalLanguage":"",'
+      '"poster":{"medium":"/images/covers/49/3a/x@280.jpg","large":"/images/covers/49/3a/x.jpg"}}],'
+      '"meta":{"total":1,"perPage":28,"page":1,"lastPage":1,"hasNext":false}}}';
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requested.add(options.uri);
+    requestHeaders[options.uri] = Map<String, dynamic>.from(options.headers);
+    final path = options.uri.path;
+    if (path.contains('tags/search')) {
+      return ResponseBody.fromString(tagJson, 200);
+    }
+    if (path == '/api/v1/manga') {
+      return ResponseBody.fromString(titlesJson, 200,
+          headers: {Headers.contentTypeHeader: ['application/json']});
+    }
+    return ResponseBody.fromString(_comixShellHtml, 200);
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const mfConfig = {'source': 'mangafire', 'baseUrl': 'https://mangafire.to'};
@@ -83,8 +121,9 @@ void main() {
         originKind: 'mangafire',
       );
 
-  ComixAdapter comixAdapter(_RecordingClient client) => ComixAdapter(
+  ComixAdapter comixAdapter(HttpClientAdapter client) => ComixAdapter(
         dio: Dio()..httpClientAdapter = client,
+        directDio: Dio()..httpClientAdapter = client,
         engine: WebViewProxyEngine(
           sourceHost: 'comix.to',
           allowedHosts: comixAllowedHosts,
@@ -322,6 +361,31 @@ void main() {
     expect(browseUrl.toString(), isNot(contains('raw')));
   });
 
+  test('comix empty originalLanguage defaults to en with absolute cover', () async {
+    // Live `/api/v1/manga` sends `"originalLanguage": ""` for some items
+    // and relative poster paths — cards must still show the EN flag and a
+    // resolvable cover instead of 'unknown'/empty.
+    const html = '''
+<html><head></head><body><script id="initial-data">{"queries":{"browse":{
+"result":{"items":[{"hid":"g1ml3","title":"The Second Time, Like a Pro",
+"type":"manhwa","status":"releasing","originalLanguage":"",
+"poster":{"medium":"/images/covers/3d/06/xxx@280.jpg",
+"large":"/images/covers/3d/06/xxx.jpg"}}],
+"meta":{"page":1,"lastPage":1}}}}}</script></body></html>
+''';
+    final client = _RecordingClient(html);
+    final result = await comixAdapter(
+      client,
+    ).search(const SearchFilter(query: 'raw:keyword=the'), comixConfig);
+    expect(result.items, hasLength(1));
+    final item = result.items.first;
+    expect(item.language, 'en');
+    expect(
+      item.coverUrl,
+      'https://comix.to/images/covers/3d/06/xxx.jpg',
+    );
+  });
+
   test('comix raw keyword from DynamicFormSearchUI uses clean q params', () async {
     final client = _RecordingClient(_comixBrowseHtml);
     final result = await comixAdapter(client).search(
@@ -524,5 +588,58 @@ void main() {
     url = Uri.parse(arguments['pageUrl'] as String);
     expect(url.queryParameters['sort'], 'custom_keyword_sort:asc');
     expect(url.queryParameters['keyword'], 'test query');
+  });
+
+  test('comix genre tap hits direct titles API without WebView', () async {
+    final client = _ComixApiClient();
+    // Any WebView boot is a failure: the direct API must serve this.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'getCookies') {
+        return 'session=abc123; cf_clearance=xyz';
+      }
+      throw StateError(
+          'Tier-3 WebView must not run when the direct API works');
+    });
+    try {
+      // Mirrors the live path: the repository maps `tag:X` to includeTags
+      // with an empty query, so the adapter takes the else-branch and the
+      // screen sort (rating here) is applied as order[score].
+      final result = await comixAdapter(client).search(
+        const SearchFilter(
+          query: '',
+          sort: SortOption.rating,
+          includeTags: [FilterItem(id: 0, name: 'romance', type: 'tag')],
+        ),
+        comixConfig,
+      );
+      expect(result.items, hasLength(1));
+      final item = result.items.single;
+      expect(item.title, 'The Crown I Will Claim');
+      expect(item.language, 'en');
+      expect(item.coverUrl,
+          'https://comix.to/images/covers/49/3a/x.jpg');
+      final apiCall = client.requested
+          .singleWhere((u) => u.path == '/api/v1/manga');
+      expect(apiCall.queryParametersAll['genres_in[]'], ['23']);
+      expect(
+        apiCall.queryParameters['order[score]'],
+        'desc',
+      );
+      final sentHeaders = client.requestHeaders[apiCall]!;
+      expect(sentHeaders['Cookie'], 'session=abc123; cf_clearance=xyz');
+      expect(sentHeaders['X-Requested-With'], 'XMLHttpRequest');
+      expect(
+        (sentHeaders['User-Agent'] as String).contains('Chrome/'),
+        isTrue,
+      );
+    } finally {
+      // Restore the suite-wide mock for subsequent tests.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        arguments = Map<String, dynamic>.from(call.arguments as Map);
+        return jsonEncode({'payload': jsonEncode(payload), 'material': null});
+      });
+    }
   });
 }

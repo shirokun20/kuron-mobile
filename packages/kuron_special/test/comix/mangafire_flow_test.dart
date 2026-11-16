@@ -78,6 +78,34 @@ void main() {
     expect(arguments['bootstrapScript'], contains(arguments['captureScript']));
   });
 
+  test('home page 2 pins page/sort lane and defaults language to en',
+      () async {
+    payload = {
+      'items': [
+        {'hid': '5x8p9', 'title': 'No Flag Title', 'type': 'manga'}
+      ],
+      'meta': {'page': 2, 'lastPage': 332, 'total': 9960, 'hasNext': true},
+    };
+    final result = await adapter.search(
+      const SearchFilter(query: '', page: 2),
+      config,
+    );
+    final url = Uri.parse(arguments['pageUrl'] as String);
+    expect(url.path, '/browse');
+    expect(url.queryParameters['page'], '2');
+    expect(
+      url.queryParameters['sort'],
+      contains('chapter_updated_at'),
+    );
+    final capture = arguments['captureScript'] as String;
+    expect(capture, contains('const targetPageNum = 2;'));
+    expect(capture, contains('chapter_updated_at'));
+    // No language flag on the item → default English (shows EN badge).
+    expect(result.items.single.language, 'en');
+    expect(result.hasNextPage, isTrue);
+    expect(result.totalPages, 332);
+  });
+
   test('detail uses title route, exposes chapter languages and real genre ids', () async {
     payload = {
       'data': {

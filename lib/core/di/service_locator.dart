@@ -214,13 +214,20 @@ Future<void> _setupExternalDependencies() async {
 void _setupCore() {
   // Logger - Using Singleton (not LazySingleton) to ensure it's immediately available
   final logger = Logger(
-    printer: PrettyPrinter(
-      methodCount: 2,
-      errorMethodCount: 8,
-      lineLength: 120,
-      colors: true,
-      printEmojis: true,
-      dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
+    // Hybrid output: single-line for routine traffic (debug/info/warning),
+    // full boxes only for errors. Kills logcat flooding from hot paths
+    // (per-image HTTP logs, prefetch, path resolution) while keeping
+    // rich error context with stack traces.
+    printer: HybridPrinter(
+      SimplePrinter(),
+      error: PrettyPrinter(
+        methodCount: 2,
+        errorMethodCount: 8,
+        lineLength: 120,
+        colors: true,
+        printEmojis: true,
+        dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
+      ),
     ),
   );
   getIt.registerSingleton<Logger>(logger);

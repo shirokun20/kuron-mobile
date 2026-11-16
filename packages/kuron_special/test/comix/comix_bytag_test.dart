@@ -91,6 +91,7 @@ ComixAdapter _adapter(_CapturingAdapter capturing) {
   final dio = Dio()..httpClientAdapter = capturing;
   return ComixAdapter(
     dio: dio,
+    directDio: Dio()..httpClientAdapter = capturing,
     engine: WebViewProxyEngine(
       sourceHost: 'comix.to',
       allowedHosts: comixAllowedHosts,

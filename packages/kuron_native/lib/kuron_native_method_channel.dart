@@ -423,6 +423,14 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<String?> getCookies({required String url}) async {
+    return await methodChannel.invokeMethod<String>(
+      'getCookies',
+      {'url': url},
+    );
+  }
+
+  @override
   Future<String> runProxyWebView({
     required String pageUrl,
     required String html,
