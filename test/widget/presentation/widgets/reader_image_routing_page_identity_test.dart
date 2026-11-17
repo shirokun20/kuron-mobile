@@ -39,6 +39,7 @@ class _ControlledPipeline extends ReaderImagePipeline {
     required String imageUrl,
     required String contentId,
     required int pageNumber,
+    void Function(double)? onConvertProgress,
   }) {
     final completer = preCheckCompleters.putIfAbsent(
       pageNumber,
