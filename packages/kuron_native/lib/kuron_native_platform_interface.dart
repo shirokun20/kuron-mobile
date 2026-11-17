@@ -197,10 +197,13 @@ abstract class KuronNativePlatform extends PlatformInterface {
 
   // Convert local AVIF file into WebP via native FFmpeg.
   // Returns output path on success or null on failure.
+  // [onProgress] receives 0.0–1.0 conversion progress when the native side
+  // can determine the input duration; null/absent means indeterminate.
   Future<String?> convertAvifToWebP({
     required String inputPath,
     int quality = 45,
     String? outputPath,
+    void Function(double progress)? onProgress,
   }) {
     throw UnimplementedError('convertAvifToWebP() has not been implemented.');
   }

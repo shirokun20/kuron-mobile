@@ -450,9 +450,17 @@ class ReaderImagePipeline {
       try {
         await entity.delete();
       } catch (e) {
-        _logger.w(
-          '[ReaderPipeline] Failed deleting stale local page ${entity.path}: $e',
-        );
+        // PathNotFound is expected when a concurrent conversion of the same
+        // page already removed the file — not worth a warning.
+        if (e is PathNotFoundException) {
+          _logger.t(
+            '[ReaderPipeline] Stale local page already gone: ${entity.path}',
+          );
+        } else {
+          _logger.w(
+            '[ReaderPipeline] Failed deleting stale local page ${entity.path}: $e',
+          );
+        }
       }
     }
   }
@@ -494,6 +502,7 @@ class ReaderImagePipeline {
     required String contentId,
     required int pageNumber,
     bool checkInvalidPayload = false,
+    void Function(double progress)? onConvertProgress,
   }) async {
     try {
       final file = File(filePath);
@@ -554,9 +563,13 @@ class ReaderImagePipeline {
           currentImagePath: filePath,
           extension: 'webp',
         );
+        // Dedupe lives in the method channel (shared in-flight future per
+        // output path): every waiter registers its own progress callback
+        // and the channel fans native events out to all of them.
         final convertedPath = await KuronNative.instance.convertAvifToWebP(
           inputPath: filePath,
           outputPath: outputPath,
+          onProgress: onConvertProgress,
         );
 
         if (convertedPath != null) {
@@ -638,6 +651,7 @@ class ReaderImagePipeline {
     required String imageUrl,
     required String contentId,
     required int pageNumber,
+    void Function(double progress)? onConvertProgress,
   }) async {
     try {
       final legacyFile = await DefaultCacheManager().getFileFromCache(imageUrl);
@@ -646,6 +660,7 @@ class ReaderImagePipeline {
           filePath: legacyFile.file.path,
           contentId: contentId,
           pageNumber: pageNumber,
+          onConvertProgress: onConvertProgress,
         );
       }
 
@@ -658,6 +673,7 @@ class ReaderImagePipeline {
             filePath: localPath,
             contentId: contentId,
             pageNumber: pageNumber,
+            onConvertProgress: onConvertProgress,
           );
         }
       }

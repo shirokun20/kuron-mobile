@@ -126,6 +126,7 @@ class MockKuronNativePlatform
     required String inputPath,
     int quality = 45,
     String? outputPath,
+    void Function(double progress)? onProgress,
   }) async =>
       outputPath ?? '/tmp/mock.webp';
 

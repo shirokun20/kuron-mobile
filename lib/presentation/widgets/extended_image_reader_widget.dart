@@ -403,6 +403,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     _awaitingNativeCheckGen = value ? _pageGen : null;
   }
 
+  // 0.0–1.0 AVIF→WebP conversion progress for the current page (null when
+  // no conversion is running or the native side cannot determine progress).
+  double? _conversionProgress;
+
   PageImageTripleKey get _currentTripleKey =>
       (widget.contentId, widget.pageNumber, widget.imageUrl);
 
@@ -507,6 +511,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       imageUrl: widget.imageUrl,
       contentId: widget.contentId,
       pageNumber: widget.pageNumber,
+      onConvertProgress: (progress) => _onConvertProgress(progress, gen: gen),
     )
         .then((result) {
       if (!mounted || _pageGen != gen) return;
@@ -543,6 +548,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (!mounted || _pageGen != gen) return;
 
     if (result.wasConverted && result.convertedPath != null) {
+      // Both builders (local file + resolved network file) render
+      // `_staticConvertedFilePath ?? original`. The original is deleted by
+      // format-conflict cleanup, so the converted WebP must be exposed here
+      // for heavy pages too — otherwise the native view keeps loading the
+      // deleted original forever ("Cache file not found" + no http fallback).
+      _staticConvertedFilePath = result.convertedPath;
       if (result.isHeavy) {
         _markHeavyNativeAnimatedImage(
           key: _currentTripleKey,
@@ -553,7 +564,6 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         _isConfirmedAnimatedWebP = true;
         _cachedFilePath = result.convertedPath;
       } else {
-        _staticConvertedFilePath = result.convertedPath;
         _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
             result.convertedPath!, _maxCachedFilePathByUrl);
       }
@@ -577,6 +587,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       _shouldBypassLocalDecode = true;
     }
     _awaitingNativeCheck = false;
+    _conversionProgress = null;
 
     setState(() {});
     if (result.isHeavy) {
@@ -606,6 +617,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         contentId: widget.contentId,
         pageNumber: widget.pageNumber,
         checkInvalidPayload: true,
+        onConvertProgress: (progress) =>
+            _onConvertProgress(progress, gen: gen),
       );
       if (!mounted || _pageGen != gen) return;
       _applyProcessedResult(result, gen: gen);
@@ -616,6 +629,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         setState(() => _awaitingNativeCheck = false);
       }
     }
+  }
+
+  /// Progress tick from the native ffmpeg run. Gen-guarded like every other
+  /// async page update: a tick arriving after a page change is dropped.
+  void _onConvertProgress(double progress, {required int gen}) {
+    if (!mounted || _pageGen != gen) return;
+    final clamped = progress.clamp(0.0, 1.0);
+    if (_conversionProgress == clamped) return;
+    setState(() => _conversionProgress = clamped);
   }
 
   // Fire [widget.onHeavyImageDetected] at most once per content ID.
@@ -780,7 +802,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       _nativeImageSize = null;
       _nativeImageByteSize = null;
       _awaitingNativeCheckGen = null;
-      _shouldBypassLocalDecode = false;
+      _conversionProgress = null;
       _avifDecodeRetried = false;
 
       _cancelToken?.cancel();
@@ -945,7 +967,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       }
 
       if (_awaitingNativeCheck) {
-        return _buildLoadingIndicator(context);
+        return _buildLoadingIndicator(context,
+            progressOverride: _conversionProgress);
       }
 
       // Tall static AVIF on disk (often a `.jpg` holding AVIF): Flutter cannot
@@ -1201,7 +1224,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           // If an AVIF→WebP conversion is in-flight, show loading instead
           // of letting Flutter try to decode the AVIF (which fails).
           if (_awaitingNativeCheck) {
-            return _buildLoadingIndicator(context);
+            return _buildLoadingIndicator(context,
+                progressOverride: _conversionProgress);
           }
           // Tall static AVIF served as `.jpg`/`.png` fails Flutter's decode
           // too. Flag it before the first decode attempt, then convert.
@@ -1325,6 +1349,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         filePath: path,
         contentId: widget.contentId,
         pageNumber: widget.pageNumber,
+        onConvertProgress: (progress) =>
+            _onConvertProgress(progress, gen: gen),
       )
           .then((result) {
         if (!mounted || _pageGen != gen) return;
@@ -1354,7 +1380,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     // is in flight. Prevents "getPixels failed: invalid input" when Android's
     // ImageDecoder encounters an avis animated-AVIF sequence.
     if (_awaitingNativeCheck) {
-      return _buildLoadingIndicator(context);
+      return _buildLoadingIndicator(context,
+          progressOverride: _conversionProgress);
     }
 
     final decodeWidth = _targetDecodeWidth(
@@ -1481,13 +1508,23 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   filePath: cacheFile.path,
                   contentId: widget.contentId,
                   pageNumber: widget.pageNumber,
+                  onConvertProgress: (progress) =>
+                      _onConvertProgress(progress, gen: gen),
                 )
                     .then((result) {
                   if (!mounted || _pageGen != gen) return;
                   if (result.isHeavy || result.isConfirmedAnimatedWebP) {
+                    // Prefer the converted WebP: the original cache file is
+                    // deleted by format-conflict cleanup after conversion.
+                    final renderPath =
+                        result.convertedPath ?? cacheFile.path;
+                    if (result.wasConverted &&
+                        result.convertedPath != null) {
+                      _staticConvertedFilePath = result.convertedPath;
+                    }
                     _markHeavyNativeAnimatedImage(
                       key: capturedKey,
-                      cachedFilePath: cacheFile.path,
+                      cachedFilePath: renderPath,
                       confirmedAnimatedWebP: true,
                     );
                     clearMemoryImageCache(url);
@@ -1496,7 +1533,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                     setState(() {
                       _isHeavyImage = true;
                       _isConfirmedAnimatedWebP = true;
-                      _cachedFilePath = cacheFile.path;
+                      _cachedFilePath = renderPath;
+                      _conversionProgress = null;
                       if (result.nativeImageSize != null) {
                         _nativeImageSize = result.nativeImageSize;
                       }
@@ -1961,7 +1999,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   Widget _buildLoadingIndicator(BuildContext context,
       {ExtendedImageState? state,
       int? loadedBytesOverride,
-      int? totalBytesOverride}) {
+      int? totalBytesOverride,
+      double? progressOverride}) {
     final l10n = AppLocalizations.of(context)!;
     final bool isContinuousScroll =
         widget.readingMode == ReadingMode.continuousScroll;
@@ -1971,22 +2010,29 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     int loadedBytes = loadedBytesOverride ?? 0;
     int? totalBytes = totalBytesOverride;
     try {
-      if (state != null) {
-        final dynamic progressEvent = (state as dynamic).loadingProgress;
-        final loadedRaw = progressEvent?.cumulativeBytesLoaded;
-        final totalRaw = progressEvent?.expectedTotalBytes;
+      final normalizedOverride = progressOverride?.clamp(0.0, 1.0);
+      if (normalizedOverride != null) {
+        // Native ffmpeg conversion progress (0.0–1.0): beats byte math.
+        progressValue = normalizedOverride;
+        progressPercent = (normalizedOverride * 100).floor();
+      } else {
+        if (state != null) {
+          final dynamic progressEvent = (state as dynamic).loadingProgress;
+          final loadedRaw = progressEvent?.cumulativeBytesLoaded;
+          final totalRaw = progressEvent?.expectedTotalBytes;
 
-        if (loadedRaw is num) {
-          loadedBytes = loadedRaw.toInt();
+          if (loadedRaw is num) {
+            loadedBytes = loadedRaw.toInt();
+          }
+          if (totalRaw is num) {
+            totalBytes = totalRaw.toInt();
+          }
         }
-        if (totalRaw is num) {
-          totalBytes = totalRaw.toInt();
-        }
-      }
 
-      if (totalBytes != null && totalBytes > 0) {
-        progressValue = (loadedBytes / totalBytes).clamp(0.0, 1.0);
-        progressPercent = (progressValue * 100).floor();
+        if (totalBytes != null && totalBytes > 0) {
+          progressValue = (loadedBytes / totalBytes).clamp(0.0, 1.0);
+          progressPercent = (progressValue * 100).floor();
+        }
       }
     } catch (_) {}
 
@@ -1995,13 +2041,15 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final int resolvedTotalBytes = totalBytes ?? 0;
     final bool isConvertingBadAvif = _awaitingNativeCheck;
     // Satu caption (headline % + detail byte digabung): 1 fokal teks.
-    final String captionText = isConvertingBadAvif
-        ? l10n.processingBadAvifToWebp
-        : hasKnownTotal
-            ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)} • $progressPercent%'
-            : hasRealByteCount
-                ? l10n.downloaded(_formatByteSize(loadedBytes))
-                : l10n.downloadingImageData;
+    final String captionText = isConvertingBadAvif && progressPercent != null
+        ? '${l10n.processingBadAvifToWebp} • $progressPercent%'
+        : isConvertingBadAvif
+            ? l10n.processingBadAvifToWebp
+            : hasKnownTotal
+                ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)} • $progressPercent%'
+                : hasRealByteCount
+                    ? l10n.downloaded(_formatByteSize(loadedBytes))
+                    : l10n.downloadingImageData;
     final double? indicatorValue = progressValue;
     final bool showIndeterminateFromRealBytes =
         hasRealByteCount && !hasKnownTotal;

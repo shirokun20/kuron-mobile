@@ -2,8 +2,11 @@ package id.nhasix.kuron_native.kuron_native
 
 import android.util.Log
 import com.antonkarpenko.ffmpegkit.FFmpegKit
+import com.antonkarpenko.ffmpegkit.FFprobeKit
 import com.antonkarpenko.ffmpegkit.ReturnCode
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class AvifConverter {
     companion object {
@@ -12,7 +15,12 @@ class AvifConverter {
         private var ffmpegRuntimeBroken = false
     }
 
-    fun convert(inputPath: String, quality: Int, outputPath: String): String? {
+    fun convert(
+        inputPath: String,
+        quality: Int,
+        outputPath: String,
+        onProgress: ((Float) -> Unit)? = null,
+    ): String? {
         val inputFile = File(inputPath)
         if (!inputFile.exists() || !inputFile.isFile || inputFile.length() <= 0L) {
             Log.w(TAG, "Invalid AVIF input: $inputPath")
@@ -23,10 +31,37 @@ class AvifConverter {
         outputFile.parentFile?.mkdirs()
 
         if (outputFile.exists() && outputFile.isFile && outputFile.length() > 0L) {
-            return outputFile.absolutePath
+            // A killed/interrupted run leaves a truncated WebP behind; serving
+            // it renders intact top rows + garbage stripes below, forever.
+            // Only reuse when the RIFF size matches the actual file length.
+            if (isCompleteWebP(outputFile)) {
+                return outputFile.absolutePath
+            }
+            Log.w(TAG, "Cached WebP incomplete, reconverting: $outputPath")
+            outputFile.delete()
+        }
+        val clampedQuality = quality.coerceIn(0, 100)
+        // back to the synchronous path with no progress events.
+        val durationMs = if (onProgress != null) probeDurationMs(inputPath) else null
+        if (onProgress != null && durationMs != null && durationMs > 0) {
+            if (executeAsyncCommand(
+                    buildCommand(
+                        inputPath = inputPath,
+                        quality = clampedQuality,
+                        outputPath = outputPath,
+                        includeAnimatedStreamMap = true,
+                    ),
+                    outputFile = outputFile,
+                    durationMs = durationMs,
+                    onProgress = onProgress,
+                )
+            ) {
+                onProgress(1f)
+                return outputFile.absolutePath
+            }
+            outputFile.delete()
         }
 
-        val clampedQuality = quality.coerceIn(0, 100)
         val primaryCommand = buildCommand(
             inputPath = inputPath,
             quality = clampedQuality,
@@ -51,6 +86,70 @@ class AvifConverter {
             outputFile.absolutePath
         } else {
             null
+        }
+    }
+
+    private fun probeDurationMs(inputPath: String): Long? {
+        return try {
+            val session = FFprobeKit.getMediaInformation(inputPath)
+            if (!ReturnCode.isSuccess(session.returnCode)) return null
+            val seconds =
+                session.mediaInformation?.duration?.toString()?.toDoubleOrNull()
+                    ?: return null
+            if (seconds > 0) (seconds * 1000).toLong() else null
+        } catch (t: Throwable) {
+            Log.w(TAG, "Probe failed for progress: ${t.message}")
+            null
+        }
+    }
+
+    private fun executeAsyncCommand(
+        command: String,
+        outputFile: File,
+        durationMs: Long,
+        onProgress: (Float) -> Unit,
+    ): Boolean {
+        if (ffmpegRuntimeBroken) {
+            Log.w(TAG, "Skip FFmpeg execution because runtime is marked broken")
+            return false
+        }
+
+        return try {
+            val latch = CountDownLatch(1)
+            var succeeded = false
+            FFmpegKit.executeAsync(
+                command,
+                { session ->
+                    succeeded = ReturnCode.isSuccess(session.returnCode) &&
+                        outputFile.exists() &&
+                        outputFile.length() > 0L
+                    if (!succeeded) {
+                        Log.w(
+                            TAG,
+                            "FFmpeg async command failed " +
+                                "(rc=${session.returnCode}): $command",
+                        )
+                    }
+                    latch.countDown()
+                },
+                { /* log lines already stream to logcat; nothing to do */ },
+                { statistics ->
+                    val timeMs = statistics.time
+                    if (timeMs > 0) {
+                        onProgress(
+                            (timeMs.toFloat() / durationMs).coerceIn(0f, 1f),
+                        )
+                    }
+                },
+            )
+            latch.await(10, TimeUnit.MINUTES)
+            succeeded
+        } catch (t: Throwable) {
+            // FFmpegKit can throw java.lang.Error in release builds when JNI init fails.
+            // Treat it as a conversion miss so reader can continue with existing fallback.
+            ffmpegRuntimeBroken = true
+            Log.e(TAG, "FFmpeg runtime unavailable: ${t.message}", t)
+            false
         }
     }
 
@@ -89,11 +188,43 @@ class AvifConverter {
             // Treat it as a conversion miss so reader can continue with existing fallback.
             ffmpegRuntimeBroken = true
             Log.e(TAG, "FFmpeg runtime unavailable: ${t.message}", t)
-            return false
+            false
         }
     }
 
     private fun quotePath(path: String): String {
         return "\"${path.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+    }
+
+    /// A finished WebP is a RIFF container: bytes 4..7 hold (fileSize - 8)
+    /// little-endian. Anything else means truncation — reconvert, never serve.
+    private fun isCompleteWebP(file: File): Boolean {
+        return try {
+            if (file.length() < 12) return false
+            java.io.RandomAccessFile(file, "r").use { raf ->
+                val header = ByteArray(12)
+                raf.readFully(header)
+                if (!(header[0] == 0x52.toByte() &&
+                        header[1] == 0x49.toByte() &&
+                        header[2] == 0x46.toByte() &&
+                        header[3] == 0x46.toByte() &&
+                        header[8] == 0x57.toByte() &&
+                        header[9] == 0x45.toByte() &&
+                        header[10] == 0x42.toByte() &&
+                        header[11] == 0x50.toByte())
+                ) {
+                    return false
+                }
+                val riffSize =
+                    (header[4].toInt() and 0xFF) or
+                        ((header[5].toInt() and 0xFF) shl 8) or
+                        ((header[6].toInt() and 0xFF) shl 16) or
+                        ((header[7].toInt() and 0xFF) shl 24)
+                riffSize + 8L == file.length()
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "WebP completeness check failed: ${t.message}")
+            false
+        }
     }
 }

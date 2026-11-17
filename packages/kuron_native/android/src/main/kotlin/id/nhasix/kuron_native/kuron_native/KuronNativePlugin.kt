@@ -1126,6 +1126,17 @@ class KuronNativePlugin :
                     inputPath = inputPath,
                     quality = quality,
                     outputPath = outputPath,
+                    onProgress = { progress ->
+                        mainThread {
+                            channel.invokeMethod(
+                                "onAvifConvertProgress",
+                                mapOf(
+                                    "outputPath" to outputPath,
+                                    "progress" to progress.toDouble(),
+                                ),
+                            )
+                        }
+                    },
                 )
                 mainThread {
                     result.success(mapOf("outputPath" to convertedPath))

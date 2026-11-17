@@ -20,6 +20,16 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   final Map<String, Function(int receivedBytes, int? totalBytes)>
       _onWebPThumbnailProgress =
       <String, Function(int receivedBytes, int? totalBytes)>{};
+  // Progress callbacks for AVIF→WebP conversion, keyed by output path.
+  // A list (not single) because the reader dedupes concurrent conversions
+  // of the same file: every waiter gets progress events.
+  final Map<String, List<void Function(double progress)>>
+      _onAvifConvertProgress =
+      <String, List<void Function(double progress)>>{};
+  // In-flight native conversions keyed by output path. Concurrent callers
+  // share one run (see convertAvifToWebP).
+  final Map<String, Future<String?>> _inflightAvifConverts =
+      <String, Future<String?>>{};
   static int _nextWebPThumbnailRequestId = 0;
 
   // Constructor
@@ -78,6 +88,26 @@ class MethodChannelKuronNative extends KuronNativePlatform {
       } catch (e) {
         // Silently ignore or log if needed
         // print('Error handling onWebPThumbnailProgress: $e');
+      }
+    } else if (call.method == 'onAvifConvertProgress') {
+      try {
+        final args = call.arguments as Map;
+        final outputPath = args['outputPath'] as String?;
+        if (outputPath == null) return;
+
+        final callbacks = _onAvifConvertProgress[outputPath];
+        if (callbacks == null || callbacks.isEmpty) return;
+
+        final raw = args['progress'];
+        final progress = raw is num ? raw.toDouble().clamp(0.0, 1.0) : null;
+        if (progress == null) return;
+
+        for (final callback in List.of(callbacks)) {
+          callback(progress);
+        }
+      } catch (e) {
+        // Silently ignore or log if needed
+        // print('Error handling onAvifConvertProgress: $e');
       }
     }
   }
@@ -274,13 +304,70 @@ class MethodChannelKuronNative extends KuronNativePlatform {
     required String inputPath,
     int quality = 45,
     String? outputPath,
-  }) async {
-    final result = await methodChannel.invokeMapMethod<String, dynamic>(
-      'convertAvifToWebP',
-      {'inputPath': inputPath, 'quality': quality, 'outputPath': outputPath},
+    void Function(double progress)? onProgress,
+  }) {
+    // Key callbacks by the requested output path — the same key the native
+    // side echoes back with each progress event. Null outputPath means the
+    // native side picks the path, so no progress routing is possible.
+    final progressKey = outputPath;
+    // Concurrent conversions of the same file share one native run (ffmpeg
+    // costs ~30s per animated AVIF): every waiter registers its own
+    // progress callback and awaits the same in-flight future.
+    if (onProgress != null && progressKey != null) {
+      (_onAvifConvertProgress[progressKey] ??= []).add(onProgress);
+    }
+    Future<String?> outcome;
+    try {
+      final existing =
+          progressKey != null ? _inflightAvifConverts[progressKey] : null;
+      if (existing != null) {
+        outcome = existing;
+      } else {
+        final started = methodChannel.invokeMapMethod<String, dynamic>(
+          'convertAvifToWebP',
+          {
+            'inputPath': inputPath,
+            'quality': quality,
+            'outputPath': outputPath,
+          },
+        );
+        final shared = started.then((result) {
+          final path = result?['outputPath'];
+          return path is String && path.isNotEmpty ? path : null;
+        });
+        if (progressKey != null) {
+          _inflightAvifConverts[progressKey] = shared;
+        }
+        outcome = shared;
+      }
+    } catch (_) {
+      _dropAvifConvertState(progressKey, onProgress, null);
+      rethrow;
+    }
+    // Drop our callback (and the in-flight entry, if still ours) only after
+    // the shared run settles — a `finally` here would run before any event.
+    return outcome.whenComplete(
+      () => _dropAvifConvertState(progressKey, onProgress, outcome),
     );
-    final path = result?['outputPath'];
-    return path is String && path.isNotEmpty ? path : null;
+  }
+
+  void _dropAvifConvertState(
+    String? progressKey,
+    void Function(double progress)? onProgress,
+    Future<String?>? owned,
+  ) {
+    if (progressKey == null) return;
+    if (owned != null &&
+        identical(_inflightAvifConverts[progressKey], owned)) {
+      _inflightAvifConverts.remove(progressKey);
+    }
+    if (onProgress != null) {
+      final callbacks = _onAvifConvertProgress[progressKey];
+      callbacks?.remove(onProgress);
+      if (callbacks != null && callbacks.isEmpty) {
+        _onAvifConvertProgress.remove(progressKey);
+      }
+    }
   }
 
   @override

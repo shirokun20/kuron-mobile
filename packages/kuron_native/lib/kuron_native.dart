@@ -327,11 +327,13 @@ class KuronNative {
     required String inputPath,
     int quality = 45,
     String? outputPath,
+    void Function(double progress)? onProgress,
   }) {
     return KuronNativePlatform.instance.convertAvifToWebP(
       inputPath: inputPath,
       quality: quality,
       outputPath: outputPath,
+      onProgress: onProgress,
     );
   }
 
