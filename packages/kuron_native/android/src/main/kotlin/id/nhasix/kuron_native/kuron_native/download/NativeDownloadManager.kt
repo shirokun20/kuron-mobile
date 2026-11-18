@@ -90,8 +90,9 @@ class NativeDownloadManager(private val context: Context) {
         // CRITICAL: Explicitly cancel any old work with this tag (including anonymous work from previous versions)
         // enqueueUniqueWork only handles work with the same UNIQUE NAME, not just the same tag.
         WorkManager.getInstance(context).cancelAllWorkByTag("content_$contentId")
-        WorkManager.getInstance(context).pruneWork() // Clean up cancelled/finished work
-        
+
+        // NOTE: do not call pruneWork() here. Pruning on every enqueue races
+        // with other in-flight download scopes and can evict their WorkInfo.
         // Use enqueueUniqueWork with REPLACE policy to ensure new download starts fresh
         WorkManager.getInstance(context).enqueueUniqueWork(
             "content_$contentId",

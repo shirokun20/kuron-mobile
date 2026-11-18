@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
+import okhttp3.Call
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -85,14 +86,46 @@ class DownloadWorker(
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
-            .connectionPool(ConnectionPool(1, 5, TimeUnit.SECONDS)) // 2.1: limit idle connections
-        
+            // Idle connections capped at the configured parallel count so
+            // concurrent image downloads can reuse connections instead of
+            // thrashing the pool (previously hardcoded to 1).
+            .connectionPool(ConnectionPool(configuredMaxParallel(), 5, TimeUnit.SECONDS))
+
         if (cookies != null && cookies.isNotEmpty()) {
             Log.d(TAG, "Creating HTTP client with ${cookies.size} cookies for authentication")
             builder.cookieJar(createCookieJar(cookies))
         }
         
         builder.build()
+    }
+
+    // Single source of truth for the configured concurrency: shared by the
+    // connection pool above and the download semaphore below.
+    private fun configuredMaxParallel(): Int =
+        inputData.getInt(KEY_MAX_PARALLEL_IMAGES, DEFAULT_MAX_PARALLEL).coerceIn(1, 6)
+
+    // Calls currently in flight, keyed by destination path. Cancelling aborts a
+    // blocking OkHttp read promptly when the worker is stopped or an image
+    // times out. Keying per file keeps a single timed-out image from killing
+    // the other healthy, concurrently downloading pages.
+    private val activeCalls = java.util.concurrent.ConcurrentHashMap<String, Call>()
+
+    private fun cancelActiveCalls() {
+        activeCalls.values.forEach { call ->
+            try {
+                call.cancel()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to cancel active call", e)
+            }
+        }
+    }
+
+    private fun cancelCallFor(destFile: File) {
+        try {
+            activeCalls[destFile.absolutePath]?.cancel()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to cancel active call for ${destFile.name}", e)
+        }
     }
 
     // Track total bytes for speed calculation (AtomicLong for parallel safety)
@@ -275,8 +308,7 @@ class DownloadWorker(
         }
 
         // Feature C: Read parallel config from inputData
-        val maxParallel = inputData.getInt(KEY_MAX_PARALLEL_IMAGES, DEFAULT_MAX_PARALLEL)
-            .coerceIn(1, 6)
+        val maxParallel = configuredMaxParallel()
         val imageTimeoutMs = inputData.getLong(KEY_IMAGE_TIMEOUT_MS, DEFAULT_IMAGE_TIMEOUT_MS)
             .coerceAtLeast(10_000L)
 
@@ -300,7 +332,10 @@ class DownloadWorker(
         coroutineScope {
             val jobs = imageUrls.mapIndexed { index, url ->
                 async(Dispatchers.IO) {
-                    if (isStopped) return@async
+                    if (isStopped) {
+                        cancelActiveCalls()
+                        return@async
+                    }
 
                     val pageNumber = startPage + index
 
@@ -310,7 +345,12 @@ class DownloadWorker(
                     }
 
                     semaphore.withPermit {
-                        if (isStopped) return@withPermit
+                        if (isStopped) {
+                            // Abort any in-flight blocking read so a stopped
+                            // worker does not linger on the network.
+                            cancelActiveCalls()
+                            return@withPermit
+                        }
 
                         val extension = resolveFileExtension(url)
                         val fileName = "page_${pageNumber.toString().padStart(3, '0')}$extension"
@@ -341,7 +381,10 @@ class DownloadWorker(
                             }
 
                             if (downloadResult == null) {
-                                // Timeout — skip this image, record as failed
+                                // Timeout — abort only this image's blocking read so
+                                // it cannot publish a stale/truncated file after we
+                                // clean up. Other slots keep downloading.
+                                cancelCallFor(destFile)
                                 Log.w(TAG, "⏱️ Timeout downloading page $pageNumber (${shortUrl(url)}) — skipping")
                                 destFile.delete() // Clean up any partial file
                                 failedPageNumbers[pageNumber] = url
@@ -727,37 +770,66 @@ class DownloadWorker(
         headers.forEach { (name, value) -> requestBuilder.header(name, value) }
         val request = requestBuilder.build()
 
-        okHttpClient.newCall(request).execute().use { response: Response ->
-            Log.d(
-                TAG,
-                "HTTP ${response.code} for ${shortUrl(url)} -> ${destFile.name} contentType=${response.body?.contentType()}"
-            )
-            if (!response.isSuccessful) {
+        val call = okHttpClient.newCall(request)
+        activeCalls[destFile.absolutePath] = call
+        try {
+            call.execute().use { response: Response ->
+                Log.d(
+                    TAG,
+                    "HTTP ${response.code} for ${shortUrl(url)} -> ${destFile.name} contentType=${response.body?.contentType()}"
+                )
+                if (!response.isSuccessful) {
+                    return response.code
+                }
+
+                val tempFile = File(destFile.parentFile, "${destFile.name}.part")
+                try {
+                    response.body?.byteStream()?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            val buffer = ByteArray(8 * 1024)
+                            while (true) {
+                                if (isStopped || call.isCanceled()) {
+                                    call.cancel()
+                                    throw CancellationException("Work cancelled")
+                                }
+                                val bytesRead = input.read(buffer)
+                                if (bytesRead < 0) break
+                                if (bytesRead > 0) output.write(buffer, 0, bytesRead)
+                            }
+                        }
+                    } ?: run {
+                        tempFile.delete()
+                        Log.w(TAG, "Successful response had empty body for ${shortUrl(url)}")
+                        return INVALID_IMAGE_RESPONSE_CODE
+                    }
+                } catch (e: CancellationException) {
+                    // Never publish a truncated .part as the final image: drop
+                    // the temp file and rethrow so the worker is cancelled,
+                    // not recorded as a failed page.
+                    tempFile.delete()
+                    throw e
+                } catch (e: IOException) {
+                    // An external call.cancel() surfaces here as an IOException
+                    // from the blocked read — same cleanup, then let the
+                    // existing retry/failed-page logic handle it.
+                    tempFile.delete()
+                    throw e
+                }
+
+                if (!isValidDownloadedImageFile(tempFile)) {
+                    Log.w(
+                        TAG,
+                        "Rejecting invalid image payload for ${shortUrl(url)} -> ${destFile.name} size=${tempFile.length()}"
+                    )
+                    tempFile.delete()
+                    return INVALID_IMAGE_RESPONSE_CODE
+                }
+
+                replaceDownloadedFile(tempFile, destFile)
                 return response.code
             }
-
-            val tempFile = File(destFile.parentFile, "${destFile.name}.part")
-            response.body?.byteStream()?.use { input ->
-                tempFile.outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            } ?: run {
-                tempFile.delete()
-                Log.w(TAG, "Successful response had empty body for ${shortUrl(url)}")
-                return INVALID_IMAGE_RESPONSE_CODE
-            }
-
-            if (!isValidDownloadedImageFile(tempFile)) {
-                Log.w(
-                    TAG,
-                    "Rejecting invalid image payload for ${shortUrl(url)} -> ${destFile.name} size=${tempFile.length()}"
-                )
-                tempFile.delete()
-                return INVALID_IMAGE_RESPONSE_CODE
-            }
-
-            replaceDownloadedFile(tempFile, destFile)
-            return response.code
+        } finally {
+            activeCalls.remove(destFile.absolutePath, call)
         }
     }
 

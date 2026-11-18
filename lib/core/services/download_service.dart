@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:path/path.dart' as path;
 import 'package:logger/logger.dart';
+import 'package:kuron_special/kuron_special.dart';
 
 import 'package:kuron_core/kuron_core.dart'; // NEW: For ContentSourceRegistry
 
@@ -130,104 +131,131 @@ class DownloadService {
         downloadedFiles.addAll(existingFiles);
       }
 
-      // Download each image in the specified range
-      for (int pageNum = actualStartPage; pageNum <= actualEndPage; pageNum++) {
-        final i = pageNum - 1; // Convert to 0-based index for imageUrls array
+      // Download each image with bounded concurrency (max 3 workers).
+      // A lightweight shared-cursor queue keeps every slot busy: a slow image
+      // only holds its own worker, never the rest of the batch. All shared
+      // state is claimed/mutated in synchronous (await-free) sections so no
+      // two workers can claim the same page or race on the counters.
+      var nextPageNum = actualStartPage;
 
-        // Check for cancellation
-        if (cancelToken?.isCancelled == true) {
-          throw DioException(
-            requestOptions: RequestOptions(path: ''),
-            type: DioExceptionType.cancel,
-          );
-        }
-
-        // Check for pause state - wait until resumed or cancelled
-        while (DownloadManager().isPaused(content.id)) {
-          await Future.delayed(const Duration(seconds: 1));
-          // Check if cancelled while paused
-          if (DownloadManager().isCancelled(content.id) ||
-              cancelToken?.isCancelled == true) {
+      Future<void> worker() async {
+        while (true) {
+          // Check for cancellation before scheduling each page.
+          if (cancelToken?.isCancelled == true) {
             throw DioException(
               requestOptions: RequestOptions(path: ''),
               type: DioExceptionType.cancel,
             );
           }
-        }
 
-        final imageUrl = content.imageUrls[i];
+          // Claim the next page index atomically (no await between read/write).
+          if (nextPageNum > actualEndPage) {
+            return;
+          }
+          final pageNum = nextPageNum;
+          nextPageNum++;
 
-        // Apply image quality setting
-        final optimizedImageUrl = _getOptimizedImageUrl(imageUrl, imageQuality);
+          final i = pageNum - 1; // Convert to 0-based index for imageUrls array
 
-        final fileName = 'page_${pageNum.toString().padLeft(3, '0')}.jpg';
-        final filePath = path.join(downloadDir.path, fileName);
-
-        // ✅ FIXED: Skip if file already exists (for proper resume)
-        if (await File(filePath).exists()) {
-          _logger.d('Skipping existing file: $fileName');
-
-          // Add to downloaded files list if not already present
-          if (!downloadedFiles.contains(filePath)) {
-            downloadedFiles.add(filePath);
+          // Check for pause state - wait until resumed or cancelled
+          while (DownloadManager().isPaused(content.id)) {
+            await Future.delayed(const Duration(seconds: 1));
+            // Check if cancelled while paused
+            if (DownloadManager().isCancelled(content.id) ||
+                cancelToken?.isCancelled == true) {
+              throw DioException(
+                requestOptions: RequestOptions(path: ''),
+                type: DioExceptionType.cancel,
+              );
+            }
           }
 
-          // ✅ FIX: Count existing files in the loop (no double-counting)
-          downloadedCount++;
-          final rawProgress = downloadedCount / totalImages;
-          final progressPercentage = (rawProgress * 90).toInt(); // Cap at 90%
+          final imageUrl = content.imageUrls[i];
 
-          onProgress(
-            DownloadProgress(
+          // Apply image quality setting
+          final optimizedImageUrl = _getOptimizedImageUrl(
+            imageUrl,
+            imageQuality,
+          );
+
+          final fileName = 'page_${pageNum.toString().padLeft(3, '0')}.jpg';
+          final filePath = path.join(downloadDir.path, fileName);
+
+          // ✅ FIXED: Skip if file already exists (for proper resume)
+          if (await File(filePath).exists()) {
+            _logger.d('Skipping existing file: $fileName');
+
+            // Shared-state mutation: synchronous section only.
+            if (!downloadedFiles.contains(filePath)) {
+              downloadedFiles.add(filePath);
+            }
+
+            // ✅ FIX: Count existing files in the loop (no double-counting)
+            downloadedCount++;
+            final rawProgress = downloadedCount / totalImages;
+            final progressPercentage = (rawProgress * 90).toInt(); // Cap at 90%
+
+            onProgress(
+              DownloadProgress(
+                contentId: content.id,
+                downloadedPages: progressPercentage,
+                totalPages: 100,
+                currentFileName: '$fileName (cached)',
+              ),
+            );
+
+            continue;
+          }
+
+          try {
+            // Download single image with optimized URL
+            await _downloadSingleImage(
+              sourceId: content.sourceId, // NEW: Pass source ID
+              imageUrl: optimizedImageUrl,
+              filePath: filePath,
+              cancelToken: cancelToken,
+              timeoutDuration: timeoutDuration,
+              cookies: cookies, // NEW: Pass cookies for authentication
+            );
+
+            // Shared-state mutation: synchronous section only.
+            downloadedFiles.add(filePath);
+            downloadedCount++;
+
+            // ✅ FIXED: Phase 1 - File Downloads (0-90%)
+            // Progress is capped at 90% during file downloads
+            // Reserve 90-100% for verification, metadata, and completion phases
+            final rawProgress = downloadedCount / totalImages;
+            final progressPercentage = (rawProgress * 90).toInt(); // Cap at 90%
+
+            final progress = DownloadProgress(
               contentId: content.id,
               downloadedPages: progressPercentage,
               totalPages: 100,
-              currentFileName: '$fileName (cached)',
-            ),
-          );
+              currentFileName: fileName,
+            );
 
-          continue;
-        }
+            onProgress(progress);
 
-        try {
-          // Download single image with optimized URL
-          await _downloadSingleImage(
-            sourceId: content.sourceId, // NEW: Pass source ID
-            imageUrl: optimizedImageUrl,
-            filePath: filePath,
-            cancelToken: cancelToken,
-            timeoutDuration: timeoutDuration,
-            cookies: cookies, // NEW: Pass cookies for authentication
-          );
-
-          downloadedFiles.add(filePath);
-          downloadedCount++;
-
-          // ✅ FIXED: Phase 1 - File Downloads (0-90%)
-          // Progress is capped at 90% during file downloads
-          // Reserve 90-100% for verification, metadata, and completion phases
-          final rawProgress = downloadedCount / totalImages;
-          final progressPercentage = (rawProgress * 90).toInt(); // Cap at 90%
-
-          final progress = DownloadProgress(
-            contentId: content.id,
-            downloadedPages: progressPercentage,
-            totalPages: 100,
-            currentFileName: fileName,
-          );
-
-          onProgress(progress);
-
-          _logger.d(
-            'Download progress: $progressPercentage% ($downloadedCount/$totalImages files)',
-          );
-        } catch (e, stackTrace) {
-          _logger.e('Failed to download page $pageNum: $e and $stackTrace');
-          // Continue with next image instead of failing completely,
-          // but we will catch the discrepancy at the end.
-          continue;
+            _logger.d(
+              'Download progress: $progressPercentage% ($downloadedCount/$totalImages files)',
+            );
+          } catch (e, stackTrace) {
+            // Cancel must abort the whole batch, never be swallowed by
+            // `continue`; ordinary failures stay best-effort (verification
+            // at the end catches any missing file).
+            if (e is DioException && e.type == DioExceptionType.cancel) {
+              rethrow;
+            }
+            _logger.e('Failed to download page $pageNum: $e and $stackTrace');
+            continue;
+          }
         }
       }
+
+      final workerCount = pagesToDownload < 3 ? pagesToDownload : 3;
+      final workers = List.generate(workerCount, (_) => worker());
+      await Future.wait(workers, eagerError: true);
 
       // ✅ Phase 2: File Verification (90-95%)
       // CRITICAL: Strict file-by-file existence check
@@ -355,7 +383,9 @@ class DownloadService {
     }
   }
 
-  // Download single image file
+  // Download single image file by streaming straight to disk via a `.part`
+  // temp file, then atomically publishing it (mirrors the proven preloader
+  // streaming pattern). Peak RAM stays bounded regardless of image size.
   Future<void> _downloadSingleImage({
     required String sourceId, // NEW: Source ID for header lookup
     required String imageUrl,
@@ -378,29 +408,71 @@ class DownloadService {
       dio.httpClientAdapter = NativeAdapter();
     }
 
-    // Build headers with cookies if provided
+    // Build headers with cookies if provided (source-based UA/Cookie/Referer;
+    // the UA fallback already lives inside _getHeadersForSource).
     final headers = _getHeadersForSource(sourceId, imageUrl, cookies: cookies);
 
-    final response = await dio.get<List<int>>(
-      imageUrl,
-      options: Options(
-        responseType: ResponseType.bytes,
-        headers: headers, // Use headers with cookies
-      ),
-      cancelToken: cancelToken,
-    );
+    final tmpPath = '$filePath.part';
+    final cleanUrl = imageUrl.contains('#')
+        ? imageUrl.split('#').first
+        : imageUrl;
 
-    if (response.data != null) {
-      final file = File(filePath);
-      await file.writeAsBytes(response.data!);
-    } else {
-      throw Exception(
-        _getLocalized(
-          'noDataReceived',
-          args: {'url': imageUrl},
-          fallback: 'No data received for image: $imageUrl',
-        ),
+    try {
+      final response = await dio.download(
+        cleanUrl,
+        tmpPath,
+        cancelToken: cancelToken,
+        options: Options(headers: headers),
       );
+
+      // Reject an empty/stream error before publishing anything.
+      final partialFile = File(tmpPath);
+      if (!await partialFile.exists() || await partialFile.length() == 0) {
+        _logger.w('Empty download: $imageUrl');
+        await partialFile.delete();
+        throw Exception(
+          _getLocalized(
+            'noDataReceived',
+            args: {'url': imageUrl},
+            fallback: 'No data received for image: $imageUrl',
+          ),
+        );
+      }
+
+      // Comix descramble is best-effort; never fail the download if it errors.
+      try {
+        final rawBytes = await partialFile.readAsBytes();
+        final descrambled = ComixDescrambler.maybeDescramble(
+          bytes: rawBytes,
+          headers: response.headers.map,
+        );
+        if (descrambled != null) {
+          await partialFile.writeAsBytes(descrambled, flush: true);
+        }
+      } catch (e) {
+        _logger.w('Comix descramble failed on streaming file: $e');
+      }
+
+      // Atomic publish: replace any pre-existing target before rename.
+      final targetFile = File(filePath);
+      if (await targetFile.exists()) {
+        await targetFile.delete();
+      }
+      await partialFile.rename(filePath);
+    } catch (e) {
+      // Best-effort cleanup of the partial file on any error.
+      try {
+        final partial = File(tmpPath);
+        if (await partial.exists()) {
+          await partial.delete();
+        }
+      } catch (_) {}
+
+      // Cancel must propagate so callers abort the whole batch.
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        _logger.w('Image stream cancelled: $imageUrl');
+      }
+      rethrow;
     }
   }
 
@@ -414,6 +486,7 @@ class DownloadService {
     String imageUrl, {
     Duration sendTimeout = const Duration(seconds: 30),
     Duration receiveTimeout = const Duration(seconds: 60),
+    CancelToken? cancelToken,
   }) async {
     try {
       final headers = _getHeadersForSource(sourceId, imageUrl);
@@ -425,6 +498,7 @@ class DownloadService {
           sendTimeout: sendTimeout,
           receiveTimeout: receiveTimeout,
         ),
+        cancelToken: cancelToken,
       );
       return response.data == null ? null : Uint8List.fromList(response.data!);
     } catch (e) {
