@@ -293,6 +293,19 @@ class KuronNativePlugin :
             "convertAvifToWebP" -> {
                 handleConvertAvifToWebP(call, result)
             }
+            "cancelAvifConvert" -> {
+                // Direct call on the handler thread: conversionExecutor is
+                // single-threaded and may be blocked in latch.await for
+                // minutes, so routing cancel through it would never run.
+                avifConverter.cancelConvert(
+                    call.argument<String>("outputPath").orEmpty(),
+                )
+                result.success(null)
+            }
+            "cancelAllAvifConverts" -> {
+                avifConverter.cancelAllConverts()
+                result.success(null)
+            }
             "showLoginWebView" -> {
                 handleShowLoginWebView(call, result)
             }
@@ -1120,7 +1133,17 @@ class KuronNativePlugin :
             ?.takeIf { it.isNotBlank() }
             ?: buildDefaultAvifWebPOutputPath(inputPath)
 
+        // Epoch captured at submit: a task still queued when the reader exits
+        // (cancelAllConverts bumped the epoch) reports a miss without running
+        // ffmpeg for nobody.
+        val submitEpoch = avifConverter.convertEpoch
         conversionExecutor.execute {
+            if (submitEpoch != avifConverter.convertEpoch) {
+                mainThread {
+                    result.success(mapOf("outputPath" to null))
+                }
+                return@execute
+            }
             try {
                 val convertedPath = avifConverter.convert(
                     inputPath = inputPath,

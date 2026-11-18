@@ -131,6 +131,9 @@ class MockKuronNativePlatform
       outputPath ?? '/tmp/mock.webp';
 
   @override
+  Future<void> cancelAllAvifConverts() async {}
+
+  @override
   Future<Map<String, dynamic>?> showLoginWebView({
     required String url,
     List<String>? successUrlFilters,

@@ -351,6 +351,15 @@ class MethodChannelKuronNative extends KuronNativePlatform {
     );
   }
 
+  @override
+  Future<void> cancelAllAvifConverts() async {
+    // Drop local progress routing: no page is listening anymore. The shared
+    // in-flight entries stay so a late re-request joins the dying run and
+    // gets a clean null instead of starting a second native ffmpeg run.
+    _onAvifConvertProgress.clear();
+    await methodChannel.invokeMethod<void>('cancelAllAvifConverts');
+  }
+
   void _dropAvifConvertState(
     String? progressKey,
     void Function(double progress)? onProgress,

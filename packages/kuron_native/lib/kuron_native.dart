@@ -337,6 +337,12 @@ class KuronNative {
     );
   }
 
+  // Cancel every in-flight AVIF→WebP conversion. Call when leaving the
+  // reader so orphan ffmpeg jobs stop burning CPU/battery for nobody.
+  Future<void> cancelAllAvifConverts() {
+    return KuronNativePlatform.instance.cancelAllAvifConverts();
+  }
+
   // Set DNS over HTTPS provider.
   // Provider values: -1 (disabled), 1 (Cloudflare), 2 (Google), 3 (AdGuard), 4 (Quad9)
   Future<bool> setDohProvider(int provider) {

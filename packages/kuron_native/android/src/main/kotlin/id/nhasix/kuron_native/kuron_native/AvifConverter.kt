@@ -2,9 +2,11 @@ package id.nhasix.kuron_native.kuron_native
 
 import android.util.Log
 import com.antonkarpenko.ffmpegkit.FFmpegKit
+import com.antonkarpenko.ffmpegkit.FFmpegSession
 import com.antonkarpenko.ffmpegkit.FFprobeKit
 import com.antonkarpenko.ffmpegkit.ReturnCode
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -14,6 +16,16 @@ class AvifConverter {
         @Volatile
         private var ffmpegRuntimeBroken = false
     }
+
+    // In-flight async sessions by output path. Written on the conversion
+    // thread, cancelled from the platform thread — hence concurrent maps.
+    private val activeSessions = ConcurrentHashMap<String, FFmpegSession>()
+    private val cancelRequested = ConcurrentHashMap.newKeySet<String>()
+    // Bumped by cancelAllConverts. Tasks queued on conversionExecutor capture
+    // the epoch at submit; a stale task exits before doing any ffmpeg work.
+    @Volatile
+    var convertEpoch = 0L
+        private set
 
     fun convert(
         inputPath: String,
@@ -60,6 +72,12 @@ class AvifConverter {
                 return outputFile.absolutePath
             }
             outputFile.delete()
+            if (cancelRequested.remove(outputPath)) {
+                // Reader went away mid-conversion: report a miss instead of
+                // burning another ~30s in the synchronous fallback for nobody.
+                Log.i(TAG, "Conversion cancelled, skipping fallback: $outputPath")
+                return null
+            }
         }
 
         val primaryCommand = buildCommand(
@@ -88,6 +106,27 @@ class AvifConverter {
             null
         }
     }
+    // Best-effort cancel of one in-flight conversion. Safe to call from any
+    // thread (the platform thread never blocks behind conversionExecutor).
+    // The flag is only set when a session is actually running, so a late
+    // cancel can never poison the *next* convert of the same path.
+    fun cancelConvert(outputPath: String) {
+        val session = activeSessions.remove(outputPath) ?: return
+        cancelRequested.add(outputPath)
+        Log.i(TAG, "Cancelling in-flight conversion: $outputPath")
+        FFmpegKit.cancel(session.sessionId)
+    }
+
+    fun cancelAllConverts() {
+        // Snapshot: cancelConvert mutates the map.
+        convertEpoch++
+        val paths = activeSessions.keys.toList()
+        if (paths.isNotEmpty()) {
+            Log.i(TAG, "Cancelling ${paths.size} in-flight conversion(s)")
+        }
+        paths.forEach(::cancelConvert)
+    }
+
 
     private fun probeDurationMs(inputPath: String): Long? {
         return try {
@@ -117,17 +156,19 @@ class AvifConverter {
         return try {
             val latch = CountDownLatch(1)
             var succeeded = false
-            FFmpegKit.executeAsync(
+            val sessionKey = outputFile.absolutePath
+            val session = FFmpegKit.executeAsync(
                 command,
-                { session ->
-                    succeeded = ReturnCode.isSuccess(session.returnCode) &&
+                { completed ->
+                    activeSessions.remove(sessionKey)
+                    succeeded = ReturnCode.isSuccess(completed.returnCode) &&
                         outputFile.exists() &&
                         outputFile.length() > 0L
                     if (!succeeded) {
                         Log.w(
                             TAG,
                             "FFmpeg async command failed " +
-                                "(rc=${session.returnCode}): $command",
+                                "(rc=${completed.returnCode}): $command",
                         )
                     }
                     latch.countDown()
@@ -142,7 +183,9 @@ class AvifConverter {
                     }
                 },
             )
+            activeSessions[sessionKey] = session
             latch.await(10, TimeUnit.MINUTES)
+            activeSessions.remove(sessionKey)
             succeeded
         } catch (t: Throwable) {
             // FFmpegKit can throw java.lang.Error in release builds when JNI init fails.

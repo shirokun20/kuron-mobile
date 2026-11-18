@@ -842,10 +842,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     // Clear pending decode queue so orphan precacheImage tasks stop
     _decodeQueue.clear();
     _isDecodeTickScheduled = false;
-
     // Flush static cache maps to prevent unbounded growth across sessions
     ExtendedImageReaderWidget.clearNativeAnimatedCache();
 
+    // Kill orphan AVIF→WebP ffmpeg jobs: without this they grind for minutes
+    // (each ~30s on the single conversion thread) after the reader is gone,
+    // heating the phone while the user downloads elsewhere.
+    unawaited(KuronNative.instance.cancelAllAvifConverts());
     // 🚀 REMOVED: Old scroll listener (now using NotificationListener)
     // _scrollController.removeListener(_onScrollChanged);
     _pageController.dispose();

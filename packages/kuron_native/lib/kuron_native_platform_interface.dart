@@ -208,6 +208,13 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('convertAvifToWebP() has not been implemented.');
   }
 
+  // Cancel every in-flight AVIF→WebP conversion (e.g. reader closed).
+  // Best-effort: no-op when nothing is running. Pending convert calls
+  // settle with null so their waiters clean up normally.
+  Future<void> cancelAllAvifConverts() {
+    throw UnimplementedError('cancelAllAvifConverts() has not been implemented.');
+  }
+
   /// Open a native WebView Activity for login/verification
   ///
   /// [url] The initial URL to load.

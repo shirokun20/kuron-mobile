@@ -125,6 +125,11 @@ class MockKuronNativePlatform
   }
 
   @override
+  Future<void> cancelAllAvifConverts() async {
+    return;
+  }
+
+  @override
   Future<Map<String, dynamic>?> showLoginWebView({
     required String url,
     List<String>? successUrlFilters,
