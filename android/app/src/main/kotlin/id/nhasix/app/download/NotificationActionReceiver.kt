@@ -42,8 +42,10 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     if (contentId != null) putExtra("contentId", contentId)
                 }
+                // MainActivity.onCreate / onNewIntent -> handleNotificationIntent
+                // already dispatches ACTION_OPEN once; calling sendNotificationAction
+                // here too caused 2x ReaderScreen pushes.
                 context.startActivity(launchIntent)
-                MainActivity.sendNotificationAction(action, contentId, notificationId)
             }
             else -> Log.w(TAG, "Unknown notification action: $action")
         }
