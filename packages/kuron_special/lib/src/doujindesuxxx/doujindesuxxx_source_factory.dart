@@ -9,15 +9,13 @@ import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
 import 'package:logger/logger.dart';
 
-// Risk notice: Client-side secret embedded in mobile applications can still be
-// reverse-engineered or observed in network traces. Sourcing via compile-time define
-// allows rotating/omitting it from repo history without breaking existing builds.
-const String _legacyAppSecret = 'dfdf72051dbfdc7d76889ebd31324e74';
+// Client header `x-app-secret` is loaded at runtime from extension config
+// (`network.headers.x-app-secret`) or optionally overridden via compile-time
+// `--dart-define=DOUJINDESU_APP_SECRET=...`.
 const String _envAppSecret = String.fromEnvironment('DOUJINDESU_APP_SECRET');
-final String _appSecret =
-    _envAppSecret.isNotEmpty ? _envAppSecret : _legacyAppSecret;
 const String _salt =
     'doujindesu-scrapers-cannot-read-this-super-secret-salt-2026-v2';
+
 class DoujinDesuXxxSourceFactory implements SourceFactory {
   final Dio _dio;
   final Logger _logger;
@@ -38,6 +36,14 @@ class DoujinDesuXxxSourceFactory implements SourceFactory {
         dio.interceptors.add(i);
       } catch (_) {}
     }
+    final network = config['network'];
+    final headers = network is Map ? network['headers'] : null;
+    final configSecret = headers is Map
+        ? headers['x-app-secret']?.toString()
+        : null;
+    final appSecret = _envAppSecret.isNotEmpty
+        ? _envAppSecret
+        : (configSecret ?? '');
     return GenericHttpSource(
       rawConfig: config,
       dio: dio,
@@ -45,6 +51,7 @@ class DoujinDesuXxxSourceFactory implements SourceFactory {
       adapterOverride: DoujinDesuXxxAdapter(
         dio: dio,
         sourceId: sourceId,
+        appSecret: appSecret,
       ),
     );
   }
@@ -111,12 +118,16 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     required this._dio,
     required this._sourceId,
     String base = 'https://doujin.desu.xxx',
-  })  : _base = base,
-        _headers = {
-          'x-app-secret': _appSecret,
-          'Referer': '$base/',
-          'Origin': base,
-        };
+    String? appSecret,
+  }) : _base = base,
+       _headers = {
+         if (appSecret != null && appSecret.isNotEmpty)
+           'x-app-secret': appSecret
+         else if (_envAppSecret.isNotEmpty)
+           'x-app-secret': _envAppSecret,
+         'Referer': '$base/',
+         'Origin': base,
+       };
 
   dynamic _decode(Response<dynamic> res) {
     var data = res.data;
@@ -152,7 +163,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     );
     return (
       _decode(res),
-      int.tryParse(res.headers.value('x-total-count') ?? '')
+      int.tryParse(res.headers.value('x-total-count') ?? ''),
     );
   }
 
@@ -160,8 +171,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
 
   Future<Map<int, String>> _loadGenreSlugs({CancelToken? cancelToken}) async {
     if (_genreSlugs != null) return _genreSlugs!;
-    final data = await _get('/api/genres?limit=1000',
-        cancelToken: cancelToken);
+    final data = await _get('/api/genres?limit=1000', cancelToken: cancelToken);
     final map = <int, String>{};
     if (data is List) {
       for (final g in data.whereType<Map>()) {
@@ -218,7 +228,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
       'parody',
       'series',
       'publisher',
-      'magazine'
+      'magazine',
     };
     return types.contains(query.substring(0, i).toLowerCase())
         ? query.substring(i + 1).trim()
@@ -260,7 +270,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
           'tag_id',
           'tagId',
           'genre',
-          'tag'
+          'tag',
         ]) {
           final v = params[key]?.trim() ?? '';
           if (v.isNotEmpty) {
@@ -297,7 +307,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
       var slug = slugifyTerm(taxonomySlug);
       // Configs that pass the genre id (not the slug) still resolve here.
       if (int.tryParse(slug) != null) {
-        slug = (await _loadGenreSlugs(cancelToken: cancelToken))[int.parse(slug)] ??
+        slug =
+            (await _loadGenreSlugs(cancelToken: cancelToken))[int.parse(
+              slug,
+            )] ??
             '';
       }
       if (slug.isEmpty) {
@@ -308,9 +321,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
           ? (rawSort.toLowerCase().startsWith('popular') ? 'popular' : 'latest')
           : taxonomySort(filter.sort);
       final data = await _get(
-          '/api/taxonomy/$taxonomyNamespace/'
-          '${Uri.encodeComponent(slug)}?page=$page&sort=$sort&limit=$_taxonomyPageSize',
-          cancelToken: cancelToken);
+        '/api/taxonomy/$taxonomyNamespace/'
+        '${Uri.encodeComponent(slug)}?page=$page&sort=$sort&limit=$_taxonomyPageSize',
+        cancelToken: cancelToken,
+      );
       final map = data is Map
           ? data.cast<String, dynamic>()
           : const <String, dynamic>{};
@@ -320,15 +334,17 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
           .map((m) => _content(m.cast<String, dynamic>()))
           .toList();
       final pagination = map['pagination'];
-      final total =
-          pagination is Map ? int.tryParse('${pagination['total']}') : null;
+      final total = pagination is Map
+          ? int.tryParse('${pagination['total']}')
+          : null;
       final totalPages = pagination is Map
           ? int.tryParse('${pagination['totalPages']}')
           : null;
       return AdapterSearchResult(
         items: items,
         hasNextPage: totalPages != null ? page < totalPages : items.isNotEmpty,
-        totalPages: totalPages ??
+        totalPages:
+            totalPages ??
             (total != null ? (total / _taxonomyPageSize).ceil() : 1),
         totalItems: total ?? items.length,
       );
@@ -341,8 +357,8 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     final query = genreSlug.isNotEmpty
         ? 'genre=${Uri.encodeQueryComponent(genreSlug)}'
         : textQuery.isNotEmpty
-            ? 'search=${Uri.encodeQueryComponent(textQuery)}'
-            : '';
+        ? 'search=${Uri.encodeQueryComponent(textQuery)}'
+        : '';
     final path =
         '/api/manga?limit=$pageSize&offset=$offset${query.isEmpty ? '' : '&$query'}';
     final (data, total) = await _getWithTotal(path, cancelToken: cancelToken);
@@ -402,13 +418,15 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
         if (genreMap is! Map) continue;
         final name = genreMap['name']?.toString() ?? '';
         if (name.isEmpty || name == 'N/A') continue;
-        tags.add(Tag(
-          id: int.tryParse('${g['genre_id']}') ?? 0,
-          name: name,
-          type: 'genre',
-          count: 0,
-          slug: genreMap['slug']?.toString() ?? '',
-        ));
+        tags.add(
+          Tag(
+            id: int.tryParse('${g['genre_id']}') ?? 0,
+            name: name,
+            type: 'genre',
+            count: 0,
+            slug: genreMap['slug']?.toString() ?? '',
+          ),
+        );
       }
     }
     // Detail responses carry `term_list` ("Name:type:slug", pipe-separated);
@@ -454,7 +472,8 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
           if (type == 'genre' &&
               !tags.any((t) => t.name.toLowerCase() == name.toLowerCase())) {
             tags.add(
-                Tag(id: 0, name: name, type: 'genre', count: 0, slug: slug));
+              Tag(id: 0, name: name, type: 'genre', count: 0, slug: slug),
+            );
           }
       }
     }
@@ -494,8 +513,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     Map<String, dynamic> rawConfig, {
     CancelToken? cancelToken,
   }) async {
-    final data = await _get('/api/manga/$contentId',
-        cancelToken: cancelToken);
+    final data = await _get('/api/manga/$contentId', cancelToken: cancelToken);
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
@@ -513,8 +531,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     int? limit,
     CancelToken? cancelToken,
   }) async {
-    final data = await _get('/api/manga/$contentId',
-        cancelToken: cancelToken);
+    final data = await _get('/api/manga/$contentId', cancelToken: cancelToken);
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
@@ -538,12 +555,15 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     Map<String, dynamic> rawConfig, {
     CancelToken? cancelToken,
   }) async {
-    final data = await _get('/api/chapters/$chapterId',
-        cancelToken: cancelToken);
+    final data = await _get(
+      '/api/chapters/$chapterId',
+      cancelToken: cancelToken,
+    );
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
-    final urls = (map['content_urls'] as List?)
+    final urls =
+        (map['content_urls'] as List?)
             ?.whereType<String>()
             .where((e) => e.isNotEmpty)
             .toList() ??
@@ -560,14 +580,12 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig, {
     CancelToken? cancelToken,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
     Map<String, dynamic> rawConfig, {
     CancelToken? cancelToken,
-  }) async =>
-      const [];
+  }) async => const [];
 }
