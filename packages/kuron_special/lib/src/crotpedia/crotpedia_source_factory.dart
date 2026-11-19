@@ -92,6 +92,7 @@ class _CrotpediaDioInterceptor with DioMixin implements Dio {
     return _sessionAdapter.requestWithBypass<T>(
       path,
       options: passthroughOptions,
+      cancelToken: cancelToken,
     );
   }
 

@@ -52,21 +52,28 @@ class EHentaiScraperAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const <Chapter>[];
 
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final resolvedQuery = _resolveSearchQuery(filter, rawConfig);
     final normalizedFilter = filter.copyWith(query: resolvedQuery);
-    final searchContext = await _buildSearchContext(filter, rawConfig);
+    final searchContext = await _buildSearchContext(
+      filter,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
 
     var delegated = await _delegate.search(
       searchContext.filter,
       searchContext.config,
+      cancelToken: cancelToken,
     );
 
     var enrichmentFilter = searchContext.filter;
@@ -77,7 +84,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
     // as a safety fallback so UI does not get stuck on ContentEmpty.
     final isQueryPage = resolvedQuery.isNotEmpty && filter.page > 1;
     if (delegated.items.isEmpty && isQueryPage) {
-      final fallback = await _delegate.search(normalizedFilter, rawConfig);
+      final fallback = await _delegate.search(normalizedFilter, rawConfig,
+          cancelToken: cancelToken);
       if (fallback.items.isNotEmpty) {
         delegated = fallback;
         enrichmentFilter = normalizedFilter;
@@ -94,6 +102,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
       filter: enrichmentFilter,
       rawConfig: enrichmentConfig,
       resolvedQuery: resolvedQuery,
+      cancelToken: cancelToken,
     );
     if (combinedData.isEmpty) {
       return delegated;
@@ -135,8 +144,9 @@ class EHentaiScraperAdapter implements GenericAdapter {
 
   Future<_SearchContext> _buildSearchContext(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final resolvedQuery = _resolveSearchQuery(filter, rawConfig);
     final isHomeMode = resolvedQuery.isEmpty && filter.includeTags.isEmpty;
     final isQueryMode = resolvedQuery.isNotEmpty;
@@ -152,6 +162,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
       targetPage: filter.page,
       query: resolvedQuery,
       rawConfig: rawConfig,
+      cancelToken: cancelToken,
     );
     if (pageUrl == null || pageUrl.isEmpty) {
       return _SearchContext(filter: filter, config: rawConfig);
@@ -188,6 +199,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
     required int targetPage,
     required String query,
     required Map<String, dynamic> rawConfig,
+    CancelToken? cancelToken,
   }) async {
     final normalizedQuery = query.trim();
     // `next=` tokens in search URLs can be short-lived. Reusing cached token
@@ -208,6 +220,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
     final firstPage = await _fetchFirstSeedPage(
       seedPaths: seedPaths,
       rawConfig: rawConfig,
+      cancelToken: cancelToken,
     );
     if (firstPage == null) {
       return null;
@@ -240,13 +253,15 @@ class EHentaiScraperAdapter implements GenericAdapter {
         await _throttle(rawConfig);
         final response = await _dio.get<String>(
           currentUrl,
+          cancelToken: cancelToken,
           options: Options(responseType: ResponseType.plain),
         );
         currentHtml = response.data ?? '';
         if (currentHtml.isEmpty) {
           return null;
         }
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         return null;
       }
     }
@@ -278,6 +293,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
   Future<_ListSeedPage?> _fetchFirstSeedPage({
     required List<String> seedPaths,
     required Map<String, dynamic> rawConfig,
+    CancelToken? cancelToken,
   }) async {
     for (final seedPath in seedPaths) {
       final seedUrl = _urlBuilder.resolve(seedPath, const {});
@@ -285,6 +301,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
         await _throttle(rawConfig);
         final response = await _dio.get<String>(
           seedUrl,
+          cancelToken: cancelToken,
           options: Options(responseType: ResponseType.plain),
         );
         final html = response.data ?? '';
@@ -292,7 +309,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
           continue;
         }
         return _ListSeedPage(url: seedUrl, html: html);
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         continue;
       }
     }
@@ -419,8 +437,9 @@ class EHentaiScraperAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     var normalizedContent = _emptyContent(contentId, rawConfig);
     const fallbackImages = <String>[];
 
@@ -449,6 +468,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
         detailPattern: detailPattern,
         contentId: contentId,
         rawConfig: rawConfig,
+        cancelToken: cancelToken,
       );
       final detailHtml = _normalizeHtml(detailHtmlRaw);
       if (detailHtml.isEmpty) {
@@ -490,6 +510,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
         imageUrls: fallbackImages, // Empty - will be loaded by reader screen
       );
     } catch (e, stackTrace) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e(
         '$_sourceId fetchDetail failed for $contentId',
         error: e,
@@ -505,24 +526,29 @@ class EHentaiScraperAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) {
-    return _delegate.fetchRelated(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) {
+    return _delegate.fetchRelated(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) {
-    return _delegate.fetchComments(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) {
+    return _delegate.fetchComments(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraperMap = (rawConfig['scraper'] as Map?)?.cast<String, dynamic>();
     final urlPatterns =
         (scraperMap?['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -557,10 +583,12 @@ class EHentaiScraperAdapter implements GenericAdapter {
         await _throttle(rawConfig);
         final directResponse = await _dio.get<dynamic>(
           detailUrl,
+          cancelToken: cancelToken,
           options: Options(responseType: ResponseType.plain),
         );
         detailHtml = directResponse.data?.toString() ?? '';
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         // Fall through to resilient URL probing below.
       }
 
@@ -571,6 +599,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
           detailPattern: detailPattern,
           contentId: galleryIdentity,
           rawConfig: rawConfig,
+          cancelToken: cancelToken,
         );
       }
     } else {
@@ -584,10 +613,12 @@ class EHentaiScraperAdapter implements GenericAdapter {
         await _throttle(rawConfig);
         final response = await _dio.get<dynamic>(
           pageUri.toString(),
+          cancelToken: cancelToken,
           options: Options(responseType: ResponseType.plain),
         );
         detailHtml = response.data?.toString() ?? '';
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         detailHtml = '';
       }
     }
@@ -845,7 +876,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
         if (page != null && page > maxPage) {
           maxPage = page;
         }
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         continue;
       }
     }
@@ -885,6 +917,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
     required String detailPattern,
     required String contentId,
     required Map<String, dynamic> rawConfig,
+    CancelToken? cancelToken,
   }) async {
     final candidates = <String>{detailUrl};
 
@@ -920,13 +953,15 @@ class EHentaiScraperAdapter implements GenericAdapter {
         await _throttle(rawConfig);
         final response = await _dio.get<dynamic>(
           url,
+          cancelToken: cancelToken,
           options: Options(responseType: ResponseType.plain),
         );
         final html = response.data?.toString() ?? '';
         if (html.isNotEmpty) {
           return html;
         }
-      } catch (_) {
+      } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         // Try next candidate URL variant.
       }
     }
@@ -1020,7 +1055,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
       final minute = int.parse(dateMatch.group(5) ?? '0');
 
       return DateTime(year, month, day, hour, minute);
-    } catch (_) {
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       return null;
     }
   }
@@ -1258,6 +1294,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
     required SearchFilter filter,
     required Map<String, dynamic> rawConfig,
     required String resolvedQuery,
+    CancelToken? cancelToken,
   }) async {
     final scraper = (rawConfig['scraper'] as Map?)?.cast<String, dynamic>();
     final urlPatterns =
@@ -1287,6 +1324,7 @@ class EHentaiScraperAdapter implements GenericAdapter {
       await _throttle(rawConfig);
       final response = await _dio.get<String>(
         url,
+        cancelToken: cancelToken,
         options: Options(responseType: ResponseType.plain),
       );
       final html = response.data ?? '';
@@ -1349,7 +1387,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
       }
 
       return result;
-    } catch (_) {
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       return const <String, Map<String, dynamic>>{};
     }
   }
@@ -1447,7 +1486,8 @@ class EHentaiScraperAdapter implements GenericAdapter {
 
     try {
       return Uri.decodeComponent(value);
-    } catch (_) {
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       return _decodePercentEncodedSegments(value) ?? value;
     }
   }

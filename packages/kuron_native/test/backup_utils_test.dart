@@ -93,6 +93,9 @@ class MockKuronNativePlatform
       Future.value({'success': true, 'pdfPath': outputPath});
 
   @override
+  Future<void> cancelConvertPdf({String? outputPath}) async {}
+
+  @override
   Future<void> openWebView({
     required String url,
     bool enableJavaScript = true,

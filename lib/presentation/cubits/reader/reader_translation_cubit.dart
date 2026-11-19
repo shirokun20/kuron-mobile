@@ -45,8 +45,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     HeavyRunner? heavyRunner,
     this._glossaryRepository,
     required super.logger,
-  })  : _heavyRunner = heavyRunner ?? Isolate.run,
-        super(initialState: const ReaderTranslationIdle());
+  }) : _heavyRunner = heavyRunner ?? Isolate.run,
+       super(initialState: const ReaderTranslationIdle());
 
   final AiProviderRepository _providerRepository;
   final AiProviderFactory _providerFactory;
@@ -94,6 +94,30 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   List<BubbleBox>? _prefetchedBoxes;
   String _prefetchKey = '';
   bool _prefetchRunning = false;
+  Future<void>? _inFlightPrefetch;
+
+  /// Serializes all ONNX `detectBubbles` calls so OrtSession (not thread-safe)
+  /// never has concurrent callers.
+  Future<void> _detectQueue = Future<void>.value();
+
+  /// Monotonic epoch bumped on `resetPage()`, `cancelTranslation()`, and
+  /// `close()`. Isolate.run cannot be cancelled once started; async steps
+  /// compare against this epoch and discard stale results without emitting.
+  int _epoch = 0;
+
+  bool _isStale(int epoch) => isClosed || epoch != _epoch;
+
+  /// Cancels/abandons any in-flight translation or detection by advancing the
+  /// epoch. In-flight `Isolate.run` work runs to completion and is discarded.
+  void cancelTranslation() {
+    _epoch++;
+  }
+
+  @override
+  Future<void> close() {
+    _epoch++;
+    return super.close();
+  }
 
   /// Rough captured-image size in bytes (kept for the low-RAM prefetch gate).
   int? _imageBytesApprox;
@@ -130,15 +154,15 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   String _currentImageUrl = '';
 
   ReaderTranslationTranslated _translatedState() => ReaderTranslationTranslated(
-        result: _currentResult!,
-        imageWidth: _currentImageWidth,
-        imageHeight: _currentImageHeight,
-        pageIndex: _currentPageIndex,
-        contentId: _currentContentId,
-        imageUrl: _currentImageUrl,
-        failedBubbles: Map.unmodifiable(_failedBubbles),
-        uiVersion: _uiVersion,
-      );
+    result: _currentResult!,
+    imageWidth: _currentImageWidth,
+    imageHeight: _currentImageHeight,
+    pageIndex: _currentPageIndex,
+    contentId: _currentContentId,
+    imageUrl: _currentImageUrl,
+    failedBubbles: Map.unmodifiable(_failedBubbles),
+    uiVersion: _uiVersion,
+  );
 
   bool get drawMode => _drawMode;
 
@@ -187,8 +211,11 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     required int imageWidth,
     required int imageHeight,
   }) {
-    final newSignature =
-        _buildCaptureSignature(imageBytes, imageWidth, imageHeight);
+    final newSignature = _buildCaptureSignature(
+      imageBytes,
+      imageWidth,
+      imageHeight,
+    );
     final captureChanged = _capturedPageSignature != newSignature;
 
     _pageBytes = imageBytes;
@@ -216,7 +243,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       _prefetchedBoxes = null;
       _prefetchKey = '';
       logInfo(
-          'capturePage: new capture ${imageWidth}x$imageHeight bytes=${imageBytes.length} -> clear stale boxes');
+        'capturePage: new capture ${imageWidth}x$imageHeight bytes=${imageBytes.length} -> clear stale boxes',
+      );
       if (_drawMode) {
         _bumpUi();
       }
@@ -224,12 +252,16 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   }
 
   String _buildCaptureSignature(
-      Uint8List bytes, int imageWidth, int imageHeight) {
+    Uint8List bytes,
+    int imageWidth,
+    int imageHeight,
+  ) {
     final headLen = bytes.length < 24 ? bytes.length : 24;
     final tailLen = bytes.length < 24 ? 0 : 24;
     final head = bytes.sublist(0, headLen);
-    final tail =
-        tailLen == 0 ? const <int>[] : bytes.sublist(bytes.length - tailLen);
+    final tail = tailLen == 0
+        ? const <int>[]
+        : bytes.sublist(bytes.length - tailLen);
     return '$imageWidth:$imageHeight:${bytes.length}:${head.join(',')}:${tail.join(',')}';
   }
 
@@ -239,13 +271,17 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     final bytes = _pageBytes;
     if (bytes == null || _pageWidth <= 0 || _pageHeight <= 0) {
       logWarning(
-          'detectBubblesOnly: page belum di-capture (bytes=${bytes != null}, ${_pageWidth}x$_pageHeight)');
+        'detectBubblesOnly: page belum di-capture (bytes=${bytes != null}, ${_pageWidth}x$_pageHeight)',
+      );
       return const [];
     }
+    final epoch = _epoch;
     emit(const ReaderTranslationDetecting());
     final raw = await _detect(bytes, _pageWidth, _pageHeight);
+    if (_isStale(epoch)) return const [];
     logInfo(
-        'detectBubblesOnly: raw ${raw.length} → post ${postProcessBoxes(raw).length}');
+      'detectBubblesOnly: raw ${raw.length} → post ${postProcessBoxes(raw).length}',
+    );
     final boxes = postProcessBoxes(raw);
     _detectedBoxes = boxes;
     _translationDetectedBoxes = boxes;
@@ -285,10 +321,17 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       _prefetchKey = key;
       return;
     }
+    final epoch = _epoch;
+    final completer = Completer<void>();
+    _inFlightPrefetch = completer.future;
     _prefetchRunning = true;
     try {
       logInfo('prefetchDetection: running (${_pageWidth}x$_pageHeight)...');
       final raw = await _detect(bytes, _pageWidth, _pageHeight);
+      if (_isStale(epoch) || _capturedPageSignature != key) {
+        logInfo('prefetchDetection: stale after detect — discard');
+        return;
+      }
       final boxes = postProcessBoxes(raw);
       // Cache only non-empty results. An empty prefetch must NOT shadow the
       // translate path: reusing it would skip the re-detect and fall straight
@@ -301,7 +344,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
         _prefetchedBoxes = null;
         _prefetchKey = '';
         logWarning(
-            'prefetchDetection: empty result — nothing cached, translate will re-detect');
+          'prefetchDetection: empty result — nothing cached, translate will re-detect',
+        );
       }
     } catch (e) {
       logWarning('prefetchDetection failed: $e');
@@ -310,6 +354,10 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       _prefetchKey = '';
     } finally {
       _prefetchRunning = false;
+      if (!completer.isCompleted) completer.complete();
+      if (identical(_inFlightPrefetch, completer.future)) {
+        _inFlightPrefetch = null;
+      }
     }
   }
 
@@ -332,8 +380,11 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   void _bumpUi() {
     _uiVersion++;
     if (state is ReaderTranslationTranslated) {
-      emit((state as ReaderTranslationTranslated)
-          .copyWithUi(uiVersion: _uiVersion));
+      emit(
+        (state as ReaderTranslationTranslated).copyWithUi(
+          uiVersion: _uiVersion,
+        ),
+      );
     } else {
       emit(ReaderTranslationIdle(uiVersion: _uiVersion));
     }
@@ -346,10 +397,7 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     if (result == null || index < 0 || index >= result.bubbles.length) return;
     final bubbles = List<BubbleTranslation>.from(result.bubbles);
     final b = bubbles[index];
-    bubbles[index] = b.copyWith(
-      translated: newText,
-      isUserEdited: true,
-    );
+    bubbles[index] = b.copyWith(translated: newText, isUserEdited: true);
     _userEditedKeys.add(_bubbleKey(index, b));
     _currentResult = result.copyWith(bubbles: bubbles);
     emit(_translatedState());
@@ -397,8 +445,7 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       final needle = e.sourceText.trim().toLowerCase();
       if (needle.isEmpty) return false;
       return haystacks.any((h) => h.contains(needle));
-    }).toList()
-      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    }).toList()..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return matched.take(limit).toList();
   }
 
@@ -406,8 +453,9 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   /// `Glossary:\n"src" -> "dst"\n...`. Embedded in the SAME AI request —
   /// never an extra call.
   static String buildGlossaryBlock(List<GlossaryEntry> entries) {
-    final lines =
-        entries.map((e) => '"${e.sourceText}" -> "${e.translatedText}"');
+    final lines = entries.map(
+      (e) => '"${e.sourceText}" -> "${e.translatedText}"',
+    );
     return 'Glossary:\n${lines.join('\n')}';
   }
 
@@ -438,9 +486,15 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
 
   /// Returns the cache key: `SHA256('$contentId:$pageIndex:$urlHash')` (16 hex).
   static String buildCacheKey(
-      String contentId, int pageIndex, String imageUrl) {
-    final digest = sha256.convert(utf8.encode(
-        'v$_cacheSchemaVersion:$contentId:$pageIndex:${imageUrl.hashCode}'));
+    String contentId,
+    int pageIndex,
+    String imageUrl,
+  ) {
+    final digest = sha256.convert(
+      utf8.encode(
+        'v$_cacheSchemaVersion:$contentId:$pageIndex:${imageUrl.hashCode}',
+      ),
+    );
     return digest.toString().substring(0, 16);
   }
 
@@ -457,6 +511,7 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
 
   /// Reset per-page state when the reader navigates to a new page.
   void resetPage() {
+    _epoch++;
     _currentResult = null;
     _overlayVisible = false;
     _manualBubbles.clear();
@@ -529,8 +584,10 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   /// NMS (IoU 0.45) + false-positive filter — same post-processing as the
   /// example app. ONNX raw output has duplicate/oversized boxes; without
   /// this the blue bubbles look wrong (double boxes, giant false positives).
-  List<BubbleBox> postProcessBoxes(List<BubbleBox> boxes,
-      {bool dropTextInBalloon = true}) {
+  List<BubbleBox> postProcessBoxes(
+    List<BubbleBox> boxes, {
+    bool dropTextInBalloon = true,
+  }) {
     if (boxes.isEmpty) return [];
     final sorted = List<BubbleBox>.from(boxes)
       ..sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -541,7 +598,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       // balloon, tak ada yang dibuang (query aman).
       final balloons = sorted.where((b) => b.kind == 'balloon').toList();
       sorted.removeWhere(
-          (b) => b.kind == 'text' && balloons.any((bb) => _contains(bb, b)));
+        (b) => b.kind == 'text' && balloons.any((bb) => _contains(bb, b)),
+      );
     }
     // Frame (panel border) bukan bubble — buang dari hasil deteksi.
     sorted.removeWhere((b) => b.kind == 'frame');
@@ -568,8 +626,9 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     final y2 = (a.y + a.h) < (b.y + b.h)
         ? (a.y + a.h).toDouble()
         : (b.y + b.h).toDouble();
-    final inter =
-        (x2 - x1) < 0 ? 0.0 : (x2 - x1) * ((y2 - y1) < 0 ? 0.0 : (y2 - y1));
+    final inter = (x2 - x1) < 0
+        ? 0.0
+        : (x2 - x1) * ((y2 - y1) < 0 ? 0.0 : (y2 - y1));
     if (inter <= 0) return 0;
     final areaA = a.w * a.h;
     final areaB = b.w * b.h;
@@ -626,15 +685,19 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     _pageWidth = imageWidth;
     _pageHeight = imageHeight;
     logInfo(
-        'translatePage input: mode=$readingMode page=$pageIndex size=${imageWidth}x$imageHeight cropYTop=$cropYTop urls=$imageUrlCount');
+      'translatePage input: mode=$readingMode page=$pageIndex size=${imageWidth}x$imageHeight cropYTop=$cropYTop urls=$imageUrlCount',
+    );
     // Continue-scroll is always allowed now: the widget sends a WYSIWYG
     // snapshot of the ACTUAL visible viewport, so there is always a well-defined
     // active region to translate (unlike the old offset-math path, where a
     // multi-image chapter had no reliable "active page").
     if (isBusy) return;
+    final epoch = _epoch;
 
     final targetLang = await _preferencesRepository.getTargetLanguage();
+    if (_isStale(epoch)) return;
     final style = await _preferencesRepository.getTranslationStyle();
+    if (_isStale(epoch)) return;
     _currentStyle = style;
     setReadingDirection(readingMode);
 
@@ -643,8 +706,10 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     // show the old translation and silently ignore the user's drawn bubbles.
     // Any manual bubble present → bypass the cache and run the full pipeline.
     final cacheKey = buildCacheKey(contentId, pageIndex, '$imageUrl#$cropYTop');
-    final cached =
-        _manualBubbles.isEmpty ? await _cacheRepository.get(cacheKey) : null;
+    final cached = _manualBubbles.isEmpty
+        ? await _cacheRepository.get(cacheKey)
+        : null;
+    if (_isStale(epoch)) return;
     if (cached != null) {
       _currentImageWidth = imageWidth;
       _currentImageHeight = imageHeight;
@@ -669,19 +734,24 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     // Text-only free models (deepseek-v4-flash-free) can't read the page
     // image — prefer any vision-capable provider, else guide to Settings.
     final providers = await _providerRepository.getProviders();
-    final active = providers.where((p) => p.isDefault).firstOrNull ??
+    if (_isStale(epoch)) return;
+    final active =
+        providers.where((p) => p.isDefault).firstOrNull ??
         (providers.isEmpty ? null : providers.first);
     if (active == null) {
       emit(const ReaderTranslationNoProvider());
       return;
     }
     if (!active.isVisionCapable) {
-      final visionProvider =
-          providers.where((p) => p.isVisionCapable).firstOrNull;
+      final visionProvider = providers
+          .where((p) => p.isVisionCapable)
+          .firstOrNull;
       if (visionProvider != null) {
         await _providerRepository.setDefault(visionProvider.id);
+        if (_isStale(epoch)) return;
         logInfo(
-            'Active provider ${active.model} text-only — switched to ${visionProvider.model}');
+          'Active provider ${active.model} text-only — switched to ${visionProvider.model}',
+        );
       } else {
         emit(ReaderTranslationNoProvider(modelName: active.model));
         return;
@@ -699,43 +769,59 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
           ]
         : const <String>[];
     final glossaryContext = await _glossaryContextFor(previousOriginals);
+    if (_isStale(epoch)) return;
 
     // Mosaic quality tier (default high = legacy behavior).
     final mosaicQuality = await _preferencesRepository.getMosaicQuality();
-    logInfo('translatePage: provider=${active.displayName}, '
-        'mosaic=${mosaicQuality.name}, glossary=${glossaryContext == null ? 'off' : 'on'}');
+    if (_isStale(epoch)) return;
+    logInfo(
+      'translatePage: provider=${active.displayName}, '
+      'mosaic=${mosaicQuality.name}, glossary=${glossaryContext == null ? 'off' : 'on'}',
+    );
 
     try {
-      // 1. Webtoon strip → chunk via ImageSplitter (1280px). Decoding + crop
-      // + encode per chunk is CPU-bound, so run it in a background isolate —
-      // otherwise the Detecting spinner cannot render until chunking finishes.
+      // 1. Webtoon strip → chunk at capped width (≤540px) so full-strip
+      //    RGBA bitmap (51.8MB at 1080×12000) is never held during chunking.
       if (WebtoonDetector.isWebtoon(
-          Size(imageWidth.toDouble(), imageHeight.toDouble()))) {
-        final chunks = await _heavyRunner(
-          () => _splitWebtoonIsolate(imageBytes, imageWidth, imageHeight),
+        Size(imageWidth.toDouble(), imageHeight.toDouble()),
+      )) {
+        final chunks = await _splitWebtoonCapped(
+          imageBytes,
+          imageWidth,
+          imageHeight,
+          epoch: epoch,
         );
+        if (_isStale(epoch)) return;
         final allBoxes = <BubbleBox>[];
         var offsetY = 0;
         for (final chunk in chunks) {
-          emit(const ReaderTranslationDetecting());
+          if (_isStale(epoch)) return;
           final boxes = await _detect(chunk.bytes, chunk.width, chunk.height);
+          if (_isStale(epoch)) return;
+          final scaleX = chunk.width > 0 ? imageWidth / chunk.width : 1.0;
+          final scaleY = chunk.scaledTotalHeight > 0
+              ? imageHeight / chunk.scaledTotalHeight
+              : 1.0;
           for (final b in boxes) {
-            allBoxes.add(BubbleBox(
-              x: b.x,
-              y: b.y + offsetY,
-              w: b.w,
-              h: b.h,
-              confidence: b.confidence,
-              shape: b.shape,
-              kind: b.kind,
-            ));
+            allBoxes.add(
+              BubbleBox(
+                x: (b.x * scaleX).round(),
+                y: ((b.y + offsetY) * scaleY).round(),
+                w: (b.w * scaleX).round(),
+                h: (b.h * scaleY).round(),
+                confidence: b.confidence,
+                shape: b.shape,
+                kind: b.kind,
+              ),
+            );
           }
           offsetY += chunk.height;
         }
         _detectedBoxes = postProcessBoxes(allBoxes);
         _translationDetectedBoxes = _detectedBoxes;
         logInfo(
-            'translatePage webtoon: rawBoxes=${allBoxes.length} → postProcess=${_detectedBoxes.length}');
+          'translatePage webtoon: rawBoxes=${allBoxes.length} → postProcess=${_detectedBoxes.length}',
+        );
         // Use POST-PROCESSED boxes (same as draw mode), NOT the raw detections:
         // raw output carries duplicate/oversized boxes that became duplicate
         // mosaic chips — the model then merged the duplicate-text chips into
@@ -751,11 +837,21 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
           providers: providers,
           glossaryContext: glossaryContext,
           mosaicQuality: mosaicQuality,
+          epoch: epoch,
         );
-        _finish(result, cacheKey, contentId, pageIndex, imageWidth, imageHeight,
-            imageUrl);
+        if (_isStale(epoch)) return;
+        _finish(
+          result,
+          cacheKey,
+          contentId,
+          pageIndex,
+          imageWidth,
+          imageHeight,
+          imageUrl,
+        );
         logInfo(
-            'translatePage done: ${result.bubbles.length} bubbles, usedFallback=${result.usedFallback}');
+          'translatePage done: ${result.bubbles.length} bubbles, usedFallback=${result.usedFallback}',
+        );
         return;
       }
 
@@ -767,48 +863,47 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       if (_manualBubbles.isEmpty && _detectedBoxes.isEmpty) {
         // T2 prefetch reuse: background detection already ran for this exact
         // captured image → skip the 2.6s ONNX wait (spec 2.4).
-        // While a prefetch is MID-RUN, the ONNX session is busy: re-running
-        // `_detect` here competes for the same Kotlin executor AND the same
-        // OrtSession (not thread-safe). Wait for it to finish, then fall
-        // through to the reuse check below — no double inference.
-        if (_prefetchRunning) {
-          logInfo('translatePage: prefetch in-flight — waiting for it...');
+        // If a prefetch is in-flight, await its Future directly (no poll-wait
+        // loop) — _enqueueDetect already serializes OrtSession access.
+        final inFlight = _inFlightPrefetch;
+        if (inFlight != null) {
+          logInfo('translatePage: awaiting in-flight prefetch...');
           final keyAtStart = _capturedPageSignature;
-          // Bounded wait: 5s covers the ~2.6s ONNX run; past that, proceed
-          // with our own detect rather than hang forever.
-          for (var i = 0; i < 50 && _prefetchRunning; i++) {
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-          }
-          if (keyAtStart != _capturedPageSignature) {
-            // Page changed while waiting — abort this translate entirely
-            // (the caller will re-invoke for the new page).
+          await inFlight;
+          if (_isStale(epoch) || keyAtStart != _capturedPageSignature) {
             logInfo('translatePage: page changed during prefetch wait — abort');
             return;
           }
-          logInfo('translatePage: prefetch finished (waited)');
+          logInfo('translatePage: prefetch finished');
         }
-        final prefetchedMatches = _prefetchedBoxes != null &&
+        final prefetchedMatches =
+            _prefetchedBoxes != null &&
             _prefetchKey.isNotEmpty &&
             _prefetchKey == _capturedPageSignature;
         if (prefetchedMatches) {
           _detectedBoxes = List.of(_prefetchedBoxes!);
           _translationDetectedBoxes = _detectedBoxes;
           logInfo(
-              'translatePage: reuse prefetch — ${_detectedBoxes.length} boxes (no re-detect)');
+            'translatePage: reuse prefetch — ${_detectedBoxes.length} boxes (no re-detect)',
+          );
         } else {
           if (_prefetchedBoxes != null && _prefetchKey.isNotEmpty) {
             logInfo(
-                'translatePage: prefetch STALE (sig differs: captures $_capturedPageSignature prefetch $_prefetchKey) — re-detect');
+              'translatePage: prefetch STALE (sig differs: captures $_capturedPageSignature prefetch $_prefetchKey) — re-detect',
+            );
           }
           emit(const ReaderTranslationDetecting());
           final rawBoxes = await _detect(imageBytes, imageWidth, imageHeight);
+          if (_isStale(epoch)) return;
           _detectedBoxes = postProcessBoxes(rawBoxes);
           _translationDetectedBoxes = _detectedBoxes;
           logInfo(
-              'translatePage: detect ${rawBoxes.length} → ${_detectedBoxes.length} boxes');
+            'translatePage: detect ${rawBoxes.length} → ${_detectedBoxes.length} boxes',
+          );
           for (final b in _detectedBoxes) {
             logInfo(
-                '  box kind=${b.kind} conf=${b.confidence.toStringAsFixed(2)} ${b.x},${b.y},${b.w}x${b.h} shape=${b.shape?.length}');
+              '  box kind=${b.kind} conf=${b.confidence.toStringAsFixed(2)} ${b.x},${b.y},${b.w}x${b.h} shape=${b.shape?.length}',
+            );
           }
         }
       }
@@ -818,7 +913,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       // merging/swapping the per-bubble translations.
       final boxes = _translationBoxes();
       logInfo(
-          'translatePage: mosaic input=${boxes.length} box (manual=${_manualBubbles.length}, detected=${_detectedBoxes.length})');
+        'translatePage: mosaic input=${boxes.length} box (manual=${_manualBubbles.length}, detected=${_detectedBoxes.length})',
+      );
 
       // 3. Mosaic (≥1 bubble) or full-image fallback (0 bubbles)
       final result = await _translateWithBubbles(
@@ -831,42 +927,71 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
         providers: providers,
         glossaryContext: glossaryContext,
         mosaicQuality: mosaicQuality,
+        epoch: epoch,
       );
+      if (_isStale(epoch)) return;
       // Diagnostic: AI merging/skipping chips (or fallback full-image when
       // boxes is empty) is the usual cause of "translations look merged".
       if (boxes.isNotEmpty && result.bubbles.length != boxes.length) {
         logWarning(
-            'translatePage: AI mengembalikan ${result.bubbles.length}/${boxes.length} bubble — ada chip di-SKIP atau digabung oleh model');
+          'translatePage: AI mengembalikan ${result.bubbles.length}/${boxes.length} bubble — ada chip di-SKIP atau digabung oleh model',
+        );
       }
-      _finish(result, cacheKey, contentId, pageIndex, imageWidth, imageHeight,
-          imageUrl);
+      _finish(
+        result,
+        cacheKey,
+        contentId,
+        pageIndex,
+        imageWidth,
+        imageHeight,
+        imageUrl,
+      );
+    } on _TranslationCancelled {
+      logInfo('translatePage cancelled (epoch=$_epoch != $epoch)');
     } on AiTranslationException catch (e) {
-      if (isClosed) return;
+      if (_isStale(epoch)) return;
       if (e.isRateLimited) {
         emit(ReaderTranslationRateLimited(cooldownSeconds: 60));
       } else {
         emit(ReaderTranslationError(message: e.message));
       }
     } catch (e) {
-      if (isClosed) return;
+      if (_isStale(epoch)) return;
       logWarning('translatePage failed: $e');
       emit(ReaderTranslationError(message: e.toString()));
     }
   }
 
+  Future<T> _enqueueDetect<T>(Future<T> Function() task) {
+    final completer = Completer<T>();
+    _detectQueue = _detectQueue.then((_) async {
+      try {
+        completer.complete(await task());
+      } catch (e, st) {
+        completer.completeError(e, st);
+      }
+    });
+    return completer.future;
+  }
+
   Future<List<BubbleBox>> _detect(
-      Uint8List bytes, int width, int height) async {
-    try {
-      final result = await KuronNative.instance.detectBubbles(
-        imageBytes: bytes,
-        imageWidth: width,
-        imageHeight: height,
-      );
-      return result ?? [];
-    } catch (e) {
-      logWarning('ONNX detectBubbles failed: $e');
-      return [];
-    }
+    Uint8List bytes,
+    int width,
+    int height,
+  ) async {
+    return _enqueueDetect(() async {
+      try {
+        final result = await KuronNative.instance.detectBubbles(
+          imageBytes: bytes,
+          imageWidth: width,
+          imageHeight: height,
+        );
+        return result ?? [];
+      } catch (e) {
+        logWarning('ONNX detectBubbles failed: $e');
+        return [];
+      }
+    });
   }
 
   Future<PageTranslation> _translateWithBubbles({
@@ -879,8 +1004,10 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     required List<AiProviderConfig> providers,
     String? glossaryContext,
     MosaicQuality mosaicQuality = MosaicQuality.high,
+    required int epoch,
   }) async {
-    var provider = providers.where((p) => p.isDefault).firstOrNull ??
+    var provider =
+        providers.where((p) => p.isDefault).firstOrNull ??
         (providers.isEmpty ? null : providers.first);
     if (provider == null) {
       emit(const ReaderTranslationNoProvider());
@@ -899,21 +1026,29 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     // Multi-key / multi-provider round robin on 429
     final usedIds = <String>{};
     while (true) {
+      if (_isStale(epoch)) throw const _TranslationCancelled();
       final impl = _providerFactory.create(current);
-      logInfo('_translateWithBubbles: attempt via ${current.displayName} '
-          '(${current.model}, ${boxes.length} bubbles)');
+      logInfo(
+        '_translateWithBubbles: attempt via ${current.displayName} '
+        '(${current.model}, ${boxes.length} bubbles)',
+      );
       try {
         final PageTranslation result;
         if (boxes.isEmpty) {
           logWarning(
-              'translatePage: FALLBACK full-image (0 bubble) — posisi ditentukan model, bukan bubble detector');
+            'translatePage: FALLBACK full-image (0 bubble) — posisi ditentukan model, bukan bubble detector',
+          );
           emit(const ReaderTranslationBuildingMosaic());
           final fallback = _fallbackHandler;
           final pageBytes = imageBytes;
           // Full-page compress (decode + resize + JPEG85) is CPU-bound — run
           // on a background isolate so the loading frame renders immediately.
-          final compressed =
-              await _heavyRunner(() => fallback.compressPage(pageBytes));
+          // Isolate.run cannot be cancelled once started; epoch gate discards
+          // the result if the page/cubit changed.
+          final compressed = await _heavyRunner(
+            () => fallback.compressPage(pageBytes),
+          );
+          if (_isStale(epoch)) throw const _TranslationCancelled();
           result = await impl.translatePage(
             image: compressed,
             imageWidth: imageWidth,
@@ -924,17 +1059,26 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
             skipSfx: skipSfx,
             readingDirection: readingDirectionLabel,
           );
+          if (_isStale(epoch)) throw const _TranslationCancelled();
         } else {
           emit(const ReaderTranslationBuildingMosaic());
           // Mosaic build (decode page, crop each bubble, 2× scale, composite,
           // JPEG85 + downscale loop) is CPU-bound — run on a background
           // isolate so the spinner appears right away instead of after the
           // bubble cuts finish. Only sendable locals are captured.
+          // Isolate.run cannot be cancelled once started; epoch gate discards
+          // the result if the page/cubit changed.
           final mosaicBuilder = _mosaicBuilder;
           final pageBytes = imageBytes;
           final likeBoxes = boxes.map(_toLike).toList();
-          final mosaic = await _heavyRunner(() => mosaicBuilder
-              .buildMosaic(pageBytes, likeBoxes, quality: mosaicQuality));
+          final mosaic = await _heavyRunner(
+            () => mosaicBuilder.buildMosaic(
+              pageBytes,
+              likeBoxes,
+              quality: mosaicQuality,
+            ),
+          );
+          if (_isStale(epoch)) throw const _TranslationCancelled();
           emit(ReaderTranslationTranslating(total: boxes.length));
           result = await impl.translatePage(
             image: mosaic,
@@ -947,37 +1091,51 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
             readingDirection: readingDirectionLabel,
             glossaryContext: glossaryContext,
           );
+          if (_isStale(epoch)) throw const _TranslationCancelled();
         }
         // 9.1 per-bubble partial progress: report parsed bubbles as they land
         if (result.bubbles.isNotEmpty) {
-          emit(ReaderTranslationTranslatingBubble(
-            current: result.bubbles.length,
-            total: boxes.isEmpty ? result.bubbles.length : boxes.length,
-          ));
+          emit(
+            ReaderTranslationTranslatingBubble(
+              current: result.bubbles.length,
+              total: boxes.isEmpty ? result.bubbles.length : boxes.length,
+            ),
+          );
         }
         return result;
       } on AiTranslationException catch (e) {
+        if (_isStale(epoch)) throw const _TranslationCancelled();
         if (!e.isRateLimited) {
-          logWarning('_translateWithBubbles: ${current.displayName} failed: '
-              '${e.message}');
+          logWarning(
+            '_translateWithBubbles: ${current.displayName} failed: '
+            '${e.message}',
+          );
           rethrow;
         }
-        logWarning('_translateWithBubbles: ${current.displayName} '
-            'rate-limited — trying fallback');
+        logWarning(
+          '_translateWithBubbles: ${current.displayName} '
+          'rate-limited — trying fallback',
+        );
         usedIds.add(current.id);
         final next = _fallbackProvider(current, providers, usedIds);
         if (next == null) {
-          emit(ReaderTranslationRateLimited(
-            cooldownSeconds: 60,
-            fallbackName: null,
-          ));
-          throw const AiTranslationException('All providers rate limited',
-              isRateLimited: true);
+          emit(
+            ReaderTranslationRateLimited(
+              cooldownSeconds: 60,
+              fallbackName: null,
+            ),
+          );
+          throw const AiTranslationException(
+            'All providers rate limited',
+            isRateLimited: true,
+          );
         }
-        emit(ReaderTranslationRateLimited(
-          cooldownSeconds: 60,
-          fallbackName: next.displayName,
-        ));
+        emit(
+          ReaderTranslationRateLimited(
+            cooldownSeconds: 60,
+            fallbackName: next.displayName,
+          ),
+        );
         current = next;
       }
     }
@@ -986,41 +1144,57 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   /// Flags flat/wide text boxes (cypy "bubble flat"): ratio ≥ 2.4, at least
   /// 45% of image width, at most 22% of image height — text sitting directly
   /// on busy artwork. Such bubbles render a white patch behind the text.
-  PageTranslation _flagFlatBubbles(PageTranslation result) {
-    final imageBytes = _pageBytes;
-    if (imageBytes == null || imageBytes.isEmpty) return result;
-    img.Image? page;
-    try {
-      page = img.decodeImage(imageBytes);
-    } catch (_) {
-      return result;
-    }
-    if (page == null) return result;
-    final w = page.width.toDouble();
-    final h = page.height.toDouble();
-    return result.copyWith(bubbles: [
-      for (final b in result.bubbles)
-        b.copyWith(
-          needsWhitePatch: b.rect.width / b.rect.height >= 2.4 &&
-              b.rect.width >= w * 0.45 &&
-              b.rect.height <= h * 0.22,
-        ),
-    ]);
+  ///
+  /// Uses known [imageWidth]/[imageHeight] directly without re-decoding the
+  /// full page bitmap (saves ~52MB on 1080×12000 webtoon strips).
+  PageTranslation _flagFlatBubbles(
+    PageTranslation result, {
+    required int imageWidth,
+    required int imageHeight,
+  }) {
+    if (imageWidth <= 0 || imageHeight <= 0) return result;
+    final w = imageWidth.toDouble();
+    final h = imageHeight.toDouble();
+    return result.copyWith(
+      bubbles: [
+        for (final b in result.bubbles)
+          b.copyWith(
+            needsWhitePatch:
+                b.rect.width / b.rect.height >= 2.4 &&
+                b.rect.width >= w * 0.45 &&
+                b.rect.height <= h * 0.22,
+          ),
+      ],
+    );
   }
 
-  void _finish(PageTranslation result, String cacheKey, String contentId,
-      int pageIndex, int imageWidth, int imageHeight, String imageUrl) {
+  void _finish(
+    PageTranslation result,
+    String cacheKey,
+    String contentId,
+    int pageIndex,
+    int imageWidth,
+    int imageHeight,
+    String imageUrl,
+  ) {
     result = _attachShapes(result);
-    result = _flagFlatBubbles(result);
+    result = _flagFlatBubbles(
+      result,
+      imageWidth: imageWidth,
+      imageHeight: imageHeight,
+    );
     // Track per-bubble failures (empty translation = AI skipped)
     _failedBubbles.clear();
-    final fontFamily =
-        _currentStyle != null ? _styleFontMap[_currentStyle] : null;
+    final fontFamily = _currentStyle != null
+        ? _styleFontMap[_currentStyle]
+        : null;
     if (fontFamily != null) {
       result = result.copyWith(
         bubbles: result.bubbles
-            .map((b) =>
-                b.fontFamily == null ? b.copyWith(fontFamily: fontFamily) : b)
+            .map(
+              (b) =>
+                  b.fontFamily == null ? b.copyWith(fontFamily: fontFamily) : b,
+            )
             .toList(),
       );
     }
@@ -1039,17 +1213,21 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     if (result.bubbles.isNotEmpty) {
       final first = result.bubbles.first.rect;
       logInfo(
-          'translatePage output: firstBubble=(${first.left.toStringAsFixed(1)},${first.top.toStringAsFixed(1)}) ${first.width.toStringAsFixed(1)}x${first.height.toStringAsFixed(1)} image=${imageWidth}x$imageHeight');
+        'translatePage output: firstBubble=(${first.left.toStringAsFixed(1)},${first.top.toStringAsFixed(1)}) ${first.width.toStringAsFixed(1)}x${first.height.toStringAsFixed(1)} image=${imageWidth}x$imageHeight',
+      );
     } else {
       logInfo(
-          'translatePage output: no bubbles image=${imageWidth}x$imageHeight');
+        'translatePage output: no bubbles image=${imageWidth}x$imageHeight',
+      );
     }
-    unawaited(_cacheRepository.put(
-      cacheKey,
-      result,
-      contentId: contentId,
-      pageIndex: pageIndex,
-    ));
+    unawaited(
+      _cacheRepository.put(
+        cacheKey,
+        result,
+        contentId: contentId,
+        pageIndex: pageIndex,
+      ),
+    );
     if (isClosed) return;
     emit(_translatedState());
   }
@@ -1092,7 +1270,8 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       bubbles.add(b.copyWith(shape: s));
     }
     logInfo(
-        '_attachShapes: ${result.bubbles.length} bubble, shape-attached=$attached, detected=${_detectedBoxes.length}');
+      '_attachShapes: ${result.bubbles.length} bubble, shape-attached=$attached, detected=${_detectedBoxes.length}',
+    );
     return result.copyWith(bubbles: bubbles);
   }
 
@@ -1107,7 +1286,11 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
       final shape = m.shape;
       if (shape == null || shape.length < 3) continue;
       final mRect = Rect.fromLTWH(
-          m.x.toDouble(), m.y.toDouble(), m.w.toDouble(), m.h.toDouble());
+        m.x.toDouble(),
+        m.y.toDouble(),
+        m.w.toDouble(),
+        m.h.toDouble(),
+      );
       final inter = rect.intersect(mRect);
       if (inter.isEmpty) continue;
       final smaller = rArea < m.w * m.h ? rArea : m.w * m.h;
@@ -1128,7 +1311,11 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     if (rArea <= 0) return false;
     for (final m in _manualBubbles) {
       final mRect = Rect.fromLTWH(
-          m.x.toDouble(), m.y.toDouble(), m.w.toDouble(), m.h.toDouble());
+        m.x.toDouble(),
+        m.y.toDouble(),
+        m.w.toDouble(),
+        m.h.toDouble(),
+      );
       final inter = rect.intersect(mRect);
       if (inter.isEmpty) continue;
       final smaller = rArea < m.w * m.h ? rArea : m.w * m.h;
@@ -1170,10 +1357,12 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     Set<String> usedIds,
   ) {
     final sameType = providers
-        .where((p) =>
-            p.type == current.type &&
-            p.id != current.id &&
-            !usedIds.contains(p.id))
+        .where(
+          (p) =>
+              p.type == current.type &&
+              p.id != current.id &&
+              !usedIds.contains(p.id),
+        )
         .toList();
     if (sameType.isNotEmpty) return sameType.first;
     final others = providers
@@ -1182,14 +1371,72 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     return others.isEmpty ? null : others.first;
   }
 
+  static const int _webtoonDetectMaxWidth = 540;
+
+  /// Decodes and chunks a tall webtoon strip at a capped width (≤540px) so
+  /// a 1080×12000 full-strip RGBA bitmap (~52MB) is never held in memory.
+  /// Prefers `instantiateImageCodec(targetWidth:)` (Skia subsampled decode)
+  /// and disposes the native image before chunking; falls back to isolate
+  /// resize if codec decoding fails.
+  Future<List<_ImageChunk>> _splitWebtoonCapped(
+    Uint8List imageBytes,
+    int imageWidth,
+    int imageHeight, {
+    required int epoch,
+  }) async {
+    final targetWidth = imageWidth > _webtoonDetectMaxWidth
+        ? _webtoonDetectMaxWidth
+        : imageWidth;
+    if (targetWidth > 0 && imageWidth > _webtoonDetectMaxWidth) {
+      try {
+        final codec = await instantiateImageCodec(
+          imageBytes,
+          targetWidth: targetWidth,
+        );
+        final frame = await codec.getNextFrame();
+        final scaledW = frame.image.width;
+        final scaledH = frame.image.height;
+        final byteData = await frame.image.toByteData(
+          format: ImageByteFormat.rawRgba,
+        );
+        frame.image.dispose();
+        codec.dispose();
+        if (_isStale(epoch)) return const [];
+        if (byteData != null) {
+          final rgba = byteData.buffer.asUint8List();
+          // Isolate.run cannot be cancelled once started; epoch gate discards
+          // the result if the page/cubit changed.
+          return await _heavyRunner(
+            () => _chunkRgbaIsolate(rgba, scaledW, scaledH),
+          );
+        }
+      } catch (e) {
+        logWarning('webtoon subsampled decode failed, fallback to isolate: $e');
+      }
+    }
+    // Isolate.run cannot be cancelled once started; epoch gate discards
+    // the result if the page/cubit changed.
+    return _heavyRunner(
+      () => _splitWebtoonIsolate(
+        imageBytes,
+        imageWidth,
+        imageHeight,
+        maxDetectWidth: _webtoonDetectMaxWidth,
+      ),
+    );
+  }
+
   /// Re-translate a single failed bubble (spec 3.2). Builds a 1-chip mosaic
   /// for that bubble, calls the AI provider, and merges the result back.
   Future<void> retryBubble(int index) async {
     final result = _currentResult;
     if (result == null || index < 0 || index >= result.bubbles.length) return;
+    final epoch = _epoch;
     final bubble = result.bubbles[index];
     final providers = await _providerRepository.getProviders();
-    var provider = providers.where((p) => p.isDefault).firstOrNull ??
+    if (_isStale(epoch)) return;
+    var provider =
+        providers.where((p) => p.isDefault).firstOrNull ??
         (providers.isEmpty ? null : providers.first);
     if (provider == null) return;
     if (!provider.isVisionCapable) {
@@ -1199,7 +1446,9 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     }
     final impl = _providerFactory.create(provider);
     final targetLang = await _preferencesRepository.getTargetLanguage();
+    if (_isStale(epoch)) return;
     final style = await _preferencesRepository.getTranslationStyle();
+    if (_isStale(epoch)) return;
 
     // Build single-bubble mosaic
     final singleBox = BubbleBoxLike(
@@ -1211,11 +1460,19 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     final pageBytes = _pageBytes;
     if (pageBytes == null) return;
     final mosaicQuality = await _preferencesRepository.getMosaicQuality();
+    if (_isStale(epoch)) return;
     // The retried bubble's own original text is known — match glossary
     // against it so the retry reuses the user's saved terminology.
     final glossaryContext = await _glossaryContextFor([bubble.original]);
-    final mosaic = await _heavyRunner(() => _mosaicBuilder
-        .buildMosaic(pageBytes, [singleBox], quality: mosaicQuality));
+    if (_isStale(epoch)) return;
+    // Isolate.run cannot be cancelled once started; epoch gate discards
+    // the result if the page/cubit changed.
+    final mosaic = await _heavyRunner(
+      () => _mosaicBuilder.buildMosaic(pageBytes, [
+        singleBox,
+      ], quality: mosaicQuality),
+    );
+    if (_isStale(epoch)) return;
     try {
       final retryResult = await impl.translatePage(
         image: mosaic,
@@ -1228,26 +1485,31 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
         readingDirection: readingDirectionLabel,
         glossaryContext: glossaryContext,
       );
+      if (_isStale(epoch)) return;
       if (retryResult.bubbles.isNotEmpty) {
         final updated = List<BubbleTranslation>.from(_currentResult!.bubbles);
         updated[index] = retryResult.bubbles.first;
         _currentResult = _currentResult!.copyWith(bubbles: updated);
       }
     } catch (e) {
+      if (_isStale(epoch)) return;
       logWarning('retryBubble[$index] failed: $e');
     }
+    if (_isStale(epoch)) return;
     // Clear failed entry regardless of outcome
     final newFailed = Map<int, String>.from(_translatedState().failedBubbles);
     newFailed.remove(index);
-    emit(ReaderTranslationTranslated(
-      result: _currentResult!,
-      imageWidth: _currentImageWidth,
-      imageHeight: _currentImageHeight,
-      pageIndex: _currentPageIndex,
-      contentId: _currentContentId,
-      imageUrl: _currentImageUrl,
-      failedBubbles: newFailed,
-    ));
+    emit(
+      ReaderTranslationTranslated(
+        result: _currentResult!,
+        imageWidth: _currentImageWidth,
+        imageHeight: _currentImageHeight,
+        pageIndex: _currentPageIndex,
+        contentId: _currentContentId,
+        imageUrl: _currentImageUrl,
+        failedBubbles: newFailed,
+      ),
+    );
   }
 
   BubbleBoxLike _toLike(BubbleBox b) => BubbleBoxLike(b.x, b.y, b.w, b.h);
@@ -1269,10 +1531,18 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
     final kept = <BubbleBox>[];
     for (final d in detected) {
       final dRect = Rect.fromLTWH(
-          d.x.toDouble(), d.y.toDouble(), d.w.toDouble(), d.h.toDouble());
+        d.x.toDouble(),
+        d.y.toDouble(),
+        d.w.toDouble(),
+        d.h.toDouble(),
+      );
       final coveredByManual = manual.any((m) {
         final mRect = Rect.fromLTWH(
-            m.x.toDouble(), m.y.toDouble(), m.w.toDouble(), m.h.toDouble());
+          m.x.toDouble(),
+          m.y.toDouble(),
+          m.w.toDouble(),
+          m.h.toDouble(),
+        );
         final inter = dRect.intersect(mRect);
         final interArea = inter.isEmpty ? 0.0 : inter.width * inter.height;
         final dArea = dRect.width * dRect.height;
@@ -1296,29 +1566,80 @@ class ReaderTranslationCubit extends BaseCubit<ReaderTranslationState> {
   }
 }
 
+class _TranslationCancelled implements Exception {
+  const _TranslationCancelled();
+}
+
 class _ImageChunk {
-  const _ImageChunk(this.bytes, this.width, this.height);
+  const _ImageChunk(
+    this.bytes,
+    this.width,
+    this.height,
+    this.scaledTotalHeight,
+  );
 
   final Uint8List bytes;
   final int width;
   final int height;
+  final int scaledTotalHeight;
 }
 
-/// Webtoon: slice into ≤1280px chunks. Runs inside a background isolate from
-/// [ReaderTranslationCubit.translatePage] — decode + per-chunk crop/encode is
-/// CPU-bound and would otherwise jank the UI and delay the loading state.
-/// Pure Dart (`package:image`); undecodable input returns bytes unchanged.
-List<_ImageChunk> _splitWebtoonIsolate(Uint8List bytes, int width, int height) {
-  final decoded = img.decodeImage(bytes);
-  if (decoded == null) {
-    return [_ImageChunk(bytes, width, height)];
-  }
+/// Slices a pre-scaled RGBA buffer into ≤1280px JPEG chunks inside a
+/// background isolate. Full-strip native image is already disposed before
+/// entering this isolate, keeping peak RAM < 20MB on 1080×12000 strips.
+List<_ImageChunk> _chunkRgbaIsolate(Uint8List rgba, int width, int height) {
+  final image = img.Image.fromBytes(
+    width: width,
+    height: height,
+    bytes: rgba.buffer,
+    numChannels: 4,
+    order: img.ChannelOrder.rgba,
+  );
   const maxHeight = 1280;
   final chunks = <_ImageChunk>[];
   for (var y = 0; y < height; y += maxHeight) {
     final h = (height - y).clamp(0, maxHeight);
-    final crop = img.copyCrop(decoded, x: 0, y: y, width: width, height: h);
-    chunks.add(_ImageChunk(img.encodeJpg(crop, quality: 90), width, h));
+    final crop = img.copyCrop(image, x: 0, y: y, width: width, height: h);
+    chunks.add(_ImageChunk(img.encodeJpg(crop, quality: 90), width, h, height));
+  }
+  return chunks;
+}
+
+/// Webtoon fallback: slice into ≤1280px chunks at capped width. Runs inside a
+/// background isolate from [ReaderTranslationCubit.translatePage] — decode +
+/// per-chunk crop/encode is CPU-bound and would otherwise jank the UI and delay
+/// the loading state. Pure Dart (`package:image`); undecodable input returns
+/// bytes unchanged.
+List<_ImageChunk> _splitWebtoonIsolate(
+  Uint8List bytes,
+  int width,
+  int height, {
+  int maxDetectWidth = 540,
+}) {
+  img.Image? decoded = img.decodeImage(bytes);
+  if (decoded == null) {
+    return [_ImageChunk(bytes, width, height, height)];
+  }
+  img.Image work = decoded;
+  if (decoded.width > maxDetectWidth) {
+    final scaledH = (decoded.height * maxDetectWidth / decoded.width).round();
+    work = img.copyResize(
+      decoded,
+      width: maxDetectWidth,
+      height: scaledH,
+      interpolation: img.Interpolation.linear,
+    );
+    // Free full-strip bitmap before entering chunk loop.
+    decoded = null;
+  }
+  final w = work.width;
+  final totalH = work.height;
+  const maxHeight = 1280;
+  final chunks = <_ImageChunk>[];
+  for (var y = 0; y < totalH; y += maxHeight) {
+    final h = (totalH - y).clamp(0, maxHeight);
+    final crop = img.copyCrop(work, x: 0, y: y, width: w, height: h);
+    chunks.add(_ImageChunk(img.encodeJpg(crop, quality: 90), w, h, totalH));
   }
   return chunks;
 }

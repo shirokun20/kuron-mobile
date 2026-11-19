@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:path/path.dart' as path;
 
@@ -22,6 +23,30 @@ class PdfConversionService {
   final NotificationService _notificationService;
   final NativePdfService _nativePdfService;
   final Logger _logger;
+  // Token of the currently running conversion (if any). Set at the start of
+  // [convertToPdfInBackground] and cleared when it settles, so
+  // [cancelCurrentConversion] can abort the in-flight native worker.
+  CancelToken? _activeToken;
+
+  /// Cancel the currently running conversion, if any.
+  ///
+  /// Cancels [_activeToken] (which routes `cancelConvertPdf` to the native
+  /// side via [NativePdfService]) and issues a best-effort native cancel so
+  /// a stray worker stops even when no Dart token is in scope.
+  Future<void> cancelCurrentConversion() async {
+    final token = _activeToken;
+    if (token != null && !token.isCancelled) {
+      token.cancel('PDF conversion cancelled by user');
+    }
+    try {
+      await _nativePdfService.cancelConvertPdf();
+    } catch (e) {
+      _logger.w(
+        'PdfConversionService: native cancelConvertPdf failed (best-effort)',
+        error: e,
+      );
+    }
+  }
 
   // Localization callback
   String Function(String key, {Map<String, dynamic>? args})? _localize;
@@ -96,7 +121,9 @@ class PdfConversionService {
     int maxPagesPerFile = 50,
     void Function(int progress, String message)?
     onProgress, // NEW: group notification callback
+    CancelToken? cancelToken,
   }) async {
+    _activeToken = cancelToken;
     try {
       _logger.i(
         'PDF_NOTIFICATION: convertToPdfInBackground - STARTED for contentId=$contentId, title=$title, sourceId=$sourceId, images=${imagePaths.length}',
@@ -145,12 +172,20 @@ class PdfConversionService {
         sourceId: sourceId,
         pdfOutputDir: pdfOutputDir,
         onProgress: onProgress,
+        cancelToken: cancelToken,
       );
 
       _logger.i(
         'PdfConversionService: PDF conversion completed successfully for $contentId',
       );
     } catch (e, stackTrace) {
+      if (e is PdfConversionCancelledException ||
+          cancelToken?.isCancelled == true) {
+        _logger.i(
+          '🚫 PdfConversionService: PDF conversion cancelled for $contentId (no error notification)',
+        );
+        return;
+      }
       // Handle unexpected errors during conversion process
       _logger.e(
         'PdfConversionService: Unexpected error during PDF conversion for $contentId',
@@ -178,6 +213,10 @@ class PdfConversionService {
       _logger.i(
         'PDF_NOTIFICATION: convertToPdfInBackground - showPdfConversionError completed',
       );
+    } finally {
+      if (identical(_activeToken, cancelToken)) {
+        _activeToken = null;
+      }
     }
   }
 
@@ -192,7 +231,14 @@ class PdfConversionService {
     String? sourceId,
     required Directory pdfOutputDir,
     void Function(int progress, String message)? onProgress,
+    CancelToken? cancelToken,
   }) async {
+    if (cancelToken?.isCancelled == true) {
+      _logger.i(
+        '🚫 PdfConversionService: PDF conversion cancelled before native start for $contentId',
+      );
+      return;
+    }
     _logger.i('Starting NATIVE PDF generation...');
 
     // Create output path (use simple sanitization here)
@@ -211,6 +257,7 @@ class PdfConversionService {
         imagePaths: imagePaths,
         outputPath: pdfPath,
         title: title,
+        cancelToken: cancelToken,
         onProgress: (progress, message) async {
           final now = DateTime.now();
           // Update if:
@@ -254,6 +301,13 @@ class PdfConversionService {
         throw Exception('Native PDF generation returned unsuccessful result');
       }
     } catch (e, stackTrace) {
+      if (e is PdfConversionCancelledException ||
+          cancelToken?.isCancelled == true) {
+        _logger.i(
+          '🚫 PdfConversionService: PDF conversion cancelled for $contentId (no error notification)',
+        );
+        return;
+      }
       _logger.e(
         'Native PDF generation error',
         error: e,

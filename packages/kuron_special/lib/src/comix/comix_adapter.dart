@@ -160,14 +160,23 @@ class ComixAdapter implements GenericAdapter {
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final base = _baseUrl(rawConfig);
-    final params = await _searchParams(filter, rawConfig);
+    final params = await _searchParams(
+      filter,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
     final url = isMangafire
         ? _mangafireListUri(base, filter, rawConfig)
         : _browseUri(base, params);
-    final page = await _mangaListFromBrowse(url, rawConfig);
+    final page = await _mangaListFromBrowse(
+      url,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
     return AdapterSearchResult(
       items: page.items,
       hasNextPage: page.hasNext,
@@ -214,8 +223,9 @@ class ComixAdapter implements GenericAdapter {
 
   Future<Map<String, List<String>>> _searchParams(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final params = <String, List<String>>{};
     final radios = filter.radioGroupSelections;
 
@@ -301,6 +311,7 @@ class ComixAdapter implements GenericAdapter {
           _resolveKind(typed.type),
           typed.name,
           rawConfig,
+          cancelToken: cancelToken,
         );
         if (ids.isNotEmpty) {
           params[_idsParam(typed.type)] = ids;
@@ -388,6 +399,7 @@ class ComixAdapter implements GenericAdapter {
         _resolveKind(tag.type),
         tag.name,
         rawConfig,
+        cancelToken: cancelToken,
       );
       if (ids.isNotEmpty) {
         (params[_idsParam(tag.type)] ??= []).addAll(ids);
@@ -399,6 +411,7 @@ class ComixAdapter implements GenericAdapter {
         _resolveKind(tag.type),
         tag.name,
         rawConfig,
+        cancelToken: cancelToken,
       );
       if (ids.isNotEmpty) {
         (params['genres_ex[]'] ??= []).addAll(ids);
@@ -722,9 +735,11 @@ class ComixAdapter implements GenericAdapter {
   Future<
     ({List<Content> items, bool hasNext, int? totalItems, int? totalPages})
   >
-  _mangafireListFromWebView(Uri url, Map<String, dynamic> rawConfig) async {
+  _mangafireListFromWebView(Uri url, Map<String, dynamic> rawConfig,
+      {CancelToken? cancelToken}) async {
     final docResponse = await _dio.getUri(
       url,
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final filterMarker = url.queryParameters['genres_in'] ??
@@ -782,15 +797,18 @@ class ComixAdapter implements GenericAdapter {
   Future<
     ({List<Content> items, bool hasNext, int? totalItems, int? totalPages})
   >
-  _mangaListFromBrowse(Uri url, Map<String, dynamic> rawConfig) async {
+  _mangaListFromBrowse(Uri url, Map<String, dynamic> rawConfig,
+      {CancelToken? cancelToken}) async {
     if (isMangafire) {
-      return _mangafireListFromWebView(url, rawConfig);
+      return _mangafireListFromWebView(url, rawConfig,
+          cancelToken: cancelToken);
     }
     // Tier 1 — native signed API.
     final signed = await getSigned<Map<String, dynamic>>(
       '/api/v1/manga',
       _nativeMangaParams(url),
       rawConfig,
+      cancelToken: cancelToken,
     );
     if (signed != null) {
       final response = SearchResponse.fromJson(signed);
@@ -888,6 +906,7 @@ class ComixAdapter implements GenericAdapter {
     // Tier 2 — HTML scrape.
     final docResponse = await _dio.getUri(
       url,
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final document = html_parser.parse(docResponse.data as String);
@@ -1132,10 +1151,12 @@ class ComixAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     if (isMangafire) {
-      return _mangafireDetail(contentId, rawConfig);
+      return _mangafireDetail(contentId, rawConfig,
+          cancelToken: cancelToken);
     }
     final base = _baseUrl(rawConfig);
     final slug = contentId.startsWith('title/')
@@ -1143,6 +1164,7 @@ class ComixAdapter implements GenericAdapter {
         : contentId;
     final response = await _dio.getUri(
       Uri.parse('$base/title/$slug'),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final document = html_parser.parse(response.data as String);
@@ -1188,8 +1210,9 @@ class ComixAdapter implements GenericAdapter {
   /// `mangafire-config.json` detail selectors.
   Future<AdapterDetailResult> _mangafireDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final base = _baseUrl(rawConfig);
     var slug = contentId.startsWith('manga/')
         ? contentId.substring('manga/'.length)
@@ -1198,6 +1221,7 @@ class ComixAdapter implements GenericAdapter {
     final pageUrl = '$base/title/$slug';
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final apiEndpoint =
@@ -1303,17 +1327,22 @@ class ComixAdapter implements GenericAdapter {
   Future<List<String>> resolveTagIds(
     String type,
     String name,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final key = '$type\x00${name.toLowerCase()}';
     final cached = _tagIdCache[key];
     if (cached != null) return cached;
     try {
       var ids = const <String>[];
       if (type == 'tag') {
-        ids = await _searchTagIds('genre', name, rawConfig);
+        ids = await _searchTagIds('genre', name, rawConfig,
+            cancelToken: cancelToken);
       }
-      ids = ids.isNotEmpty ? ids : await _searchTagIds(type, name, rawConfig);
+      ids = ids.isNotEmpty
+          ? ids
+          : await _searchTagIds(type, name, rawConfig,
+              cancelToken: cancelToken);
       return _cacheTagIds(key, ids);
     } catch (_) {
       return const [];
@@ -1323,11 +1352,13 @@ class ComixAdapter implements GenericAdapter {
   Future<List<String>> _searchTagIds(
     String type,
     String name,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final response = await _dio.getUri(
       Uri.parse('${_baseUrl(rawConfig)}/api/v1/tags/search')
           .replace(queryParameters: {'type': type, 'q': name}),
+      cancelToken: cancelToken,
     );
     final data = response.data is String
         ? jsonDecode(response.data as String) as Map<String, dynamic>
@@ -1357,6 +1388,7 @@ class ComixAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async {
     if (isMangafire) {
       return _mangafireChapters(
@@ -1365,6 +1397,7 @@ class ComixAdapter implements GenericAdapter {
         language: language,
         scanGroup: scanGroup,
         page: page,
+        cancelToken: cancelToken,
       );
     }
     final base = _baseUrl(rawConfig);
@@ -1378,11 +1411,13 @@ class ComixAdapter implements GenericAdapter {
       base: base,
       mangaSlug: slug,
       mangaId: mangaId,
+      cancelToken: cancelToken,
     );
     dtos ??= await _webViewChapterList(
       base: base,
       mangaSlug: slug,
       mangaId: mangaId,
+      cancelToken: cancelToken,
     );
 
     final effectiveSlug = _resolveCanonicalSlug(slug);
@@ -1421,6 +1456,7 @@ class ComixAdapter implements GenericAdapter {
     String? language,
     String? scanGroup,
     int? page,
+    CancelToken? cancelToken,
   }) async {
     final base = _baseUrl(rawConfig);
     var slug = contentId.startsWith('manga/')
@@ -1442,6 +1478,7 @@ class ComixAdapter implements GenericAdapter {
     final targetPage = isVolume ? null : (page != null && page > 1 ? page : 1);
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final payload = await _engine.runInWebView(
@@ -1512,6 +1549,7 @@ class ComixAdapter implements GenericAdapter {
     required String base,
     required String mangaSlug,
     required String mangaId,
+    CancelToken? cancelToken,
   }) async {
     if (!_engine.hasCipher) return null;
     final out = <ComixChapter>[];
@@ -1525,6 +1563,7 @@ class ComixAdapter implements GenericAdapter {
           'page': ['$page'],
         },
         {'baseUrl': base},
+        cancelToken: cancelToken,
       );
       if (json == null) return null;
       final response = ChapterDetailsResponse.fromJson(json);
@@ -1539,9 +1578,11 @@ class ComixAdapter implements GenericAdapter {
     required String base,
     required String mangaSlug,
     required String mangaId,
+    CancelToken? cancelToken,
   }) async {
     final response = await _dio.getUri(
       Uri.parse('$base/title/$mangaSlug'),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final html = response.data as String;
@@ -1646,10 +1687,12 @@ class ComixAdapter implements GenericAdapter {
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     if (isMangafire) {
-      return _mangafireChapterImages(chapterId, rawConfig);
+      return _mangafireChapterImages(chapterId, rawConfig,
+          cancelToken: cancelToken);
     }
     final base = _baseUrl(rawConfig);
     final numericId = int.tryParse(chapterId.split(':').first);
@@ -1658,6 +1701,7 @@ class ComixAdapter implements GenericAdapter {
         '/api/v1/chapters/$numericId',
         const {},
         rawConfig,
+        cancelToken: cancelToken,
       );
       if (pages != null) {
         return ChapterData(
@@ -1672,6 +1716,7 @@ class ComixAdapter implements GenericAdapter {
     }
     final response = await _dio.getUri(
       Uri.parse('$base/$path'),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final document = html_parser.parse(response.data as String);
@@ -1711,8 +1756,9 @@ class ComixAdapter implements GenericAdapter {
   /// `{result:{pages:{baseUrl,items}}}`, and generic `{items:[{url}]}`.
   Future<ChapterData?> _mangafireChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final base = _baseUrl(rawConfig);
     final isVolume =
         chapterId.startsWith('vol-') || chapterId.startsWith('vol:');
@@ -1730,6 +1776,7 @@ class ComixAdapter implements GenericAdapter {
     final pageUrl = '$base/title/$titleId/$routeType/$numericId';
     final docResponse = await _dio.getUri(
       Uri.parse(pageUrl),
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final payload = await _engine.runInWebView(
@@ -1827,8 +1874,9 @@ class ComixAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final relatedFeature =
         (rawConfig['features'] as Map<String, dynamic>?)?['related'] as bool?;
     if (relatedFeature == false || isMangafire) return const [];
@@ -1839,6 +1887,7 @@ class ComixAdapter implements GenericAdapter {
     try {
       final response = await _dio.getUri(
         Uri.parse('$base/title/$slug'),
+        cancelToken: cancelToken,
         options: Options(responseType: ResponseType.plain),
       );
       final document = html_parser.parse(response.data as String);
@@ -1861,7 +1910,8 @@ class ComixAdapter implements GenericAdapter {
       return SearchResponse.fromJson(related).items
           .map((m) => _basicContent(m, rawConfig))
           .toList();
-    } catch (_) {
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       return const [];
     }
   }
@@ -1869,8 +1919,9 @@ class ComixAdapter implements GenericAdapter {
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async => const [];
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async => const [];
 
   // ----------------------------------------------------------------- signed
 
@@ -1879,8 +1930,9 @@ class ComixAdapter implements GenericAdapter {
   Future<T?> getSigned<T>(
     String path,
     Map<String, List<String>> params,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final cipher = _engine.cipher;
     if (cipher == null) return null;
     try {
@@ -1893,7 +1945,7 @@ class ComixAdapter implements GenericAdapter {
           '_': cipher.sign(path, query),
         },
       );
-      final response = await _dio.getUri(uri);
+      final response = await _dio.getUri(uri, cancelToken: cancelToken);
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -1903,6 +1955,7 @@ class ComixAdapter implements GenericAdapter {
       }
       return data as T;
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('comix: signed call failed, cipher reset: $e');
       _engine.resetCipher();
       return null;

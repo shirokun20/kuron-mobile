@@ -49,10 +49,12 @@ class _PaginatedTapWrapperState extends State<_PaginatedTapWrapper> {
       final screenHeight = MediaQuery.of(context).size.height;
       final isTopArea = position.dy < screenHeight * 0.3;
       final isBottomArea = position.dy > screenHeight * 0.7;
-      final prevArea =
-          tapDir == TapDirection.inverted ? isBottomArea : isTopArea;
-      final nextArea =
-          tapDir == TapDirection.inverted ? isTopArea : isBottomArea;
+      final prevArea = tapDir == TapDirection.inverted
+          ? isBottomArea
+          : isTopArea;
+      final nextArea = tapDir == TapDirection.inverted
+          ? isTopArea
+          : isBottomArea;
 
       if (prevArea) {
         cubit.previousPage();
@@ -128,6 +130,7 @@ class _ReaderContentWidget extends StatefulWidget {
     required this.isHeavyPrefetchSource,
     required this.isContinuousScrollDisabled,
     required this.getNextReadingMode,
+    required this.scopeToken,
   });
 
   final ReaderState state;
@@ -147,17 +150,27 @@ class _ReaderContentWidget extends StatefulWidget {
   final Future<bool> Function(int) onRepairBrokenImage;
   final Future<bool> Function(int) onOpenSourcePageForRepair;
   final void Function(ScrollUpdateNotification, ReaderState)
-      onScrollNotification;
+  onScrollNotification;
   final void Function(ReaderState) onShowSettings;
   final VoidCallback onDismissChapterOverlay;
-  final void Function(int, List<String>, List<ImageMetadata>?,
-      {String? sourceId, String? contentId}) prefetchImages;
+  final void Function(
+    int,
+    List<String>,
+    List<ImageMetadata>?, {
+    String? sourceId,
+    String? contentId,
+  })
+  prefetchImages;
   final void Function(int, List<String>, {bool isOffline}) evictDistantPages;
   final double Function(int, double) resolveContinuousItemHeight;
   final bool Function(String?) isHeavyPrefetchSource;
   final bool Function() isContinuousScrollDisabled;
-  final ReadingMode Function(ReadingMode,
-      {required bool disableContinuousScroll}) getNextReadingMode;
+  final ReadingMode Function(
+    ReadingMode, {
+    required bool disableContinuousScroll,
+  })
+  getNextReadingMode;
+  final CancelToken scopeToken;
 
   @override
   State<_ReaderContentWidget> createState() => _ReaderContentWidgetState();
@@ -191,6 +204,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
   /// change; fires 600ms after the last one, when the page has settled.
   Timer? _prefetchIdleTimer;
 
+  /// Posture gate: true once the user has opened translate or draw mode in
+  /// this reader session. Pages read without translation intent pay 0 ONNX runs.
+  bool _hasTranslationIntent = false;
+
   @override
   void initState() {
     super.initState();
@@ -200,6 +217,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     // only blocks the page it is drawn over.
     _translationCubit.onDrawModeChanged = () {
       if (_translationCubit.drawMode) {
+        _hasTranslationIntent = true;
         widget.cubit.hideUI();
       } else {
         widget.cubit.showUI();
@@ -223,9 +241,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         PageRouteBuilder<void>(
           opaque: false,
           barrierDismissible: true,
-          pageBuilder: (_, _, _) => ReaderAiTutorialOverlay(
-            onComplete: _dismissTutorial,
-          ),
+          pageBuilder: (_, _, _) =>
+              ReaderAiTutorialOverlay(onComplete: _dismissTutorial),
         ),
       );
     });
@@ -244,12 +261,17 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
   }
 
   /// T2 prefetch schedule: reset on activity, fire 600ms after the last
-  /// scroll/page-change when the image has settled (spec 2.2). The cubit
-  /// itself skips when busy / memory-pressured (spec 2.3).
+  /// scroll/page-change when the image has settled (spec 2.2).
+  /// Posture gate: skips unless the user has shown translation/draw intent AND
+  /// is on an unmetered connection (Wi-Fi/ethernet) AND not scrolling (idle).
   void _schedulePrefetchDetection() {
     _prefetchIdleTimer?.cancel();
+    if (!_hasTranslationIntent) return;
+    if (!widget.cubit.networkCubit.isSuitableForHeavyOperations) return;
     _prefetchIdleTimer = Timer(const Duration(milliseconds: 600), () {
       if (!mounted) return;
+      if (widget.scrollingNotifier.value) return;
+      if (!widget.cubit.networkCubit.isSuitableForHeavyOperations) return;
       _translationCubit.prefetchDetection();
     });
   }
@@ -257,7 +279,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
   Widget _buildChapterNavigationPage({VoidCallback? onGoToFirstPage}) {
     final hasPrevChapter = widget.cubit.hasPreviousChapter;
     final hasNextChapter = widget.cubit.hasNextChapter;
-    final isChapterMode = widget.state.chapterData != null ||
+    final isChapterMode =
+        widget.state.chapterData != null ||
         widget.state.currentChapter != null ||
         hasPrevChapter ||
         hasNextChapter;
@@ -267,16 +290,20 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       isChapterMode: isChapterMode,
       isOfflineMode: widget.state.isOfflineMode ?? false,
       onBackToDetail: () => context.pop(),
-      onPreviousChapter:
-          hasPrevChapter ? () => widget.cubit.loadPreviousChapter() : null,
-      onNextChapter:
-          hasNextChapter ? () => widget.cubit.loadNextChapter() : null,
+      onPreviousChapter: hasPrevChapter
+          ? () => widget.cubit.loadPreviousChapter()
+          : null,
+      onNextChapter: hasNextChapter
+          ? () => widget.cubit.loadNextChapter()
+          : null,
       onGoToFirstPage: onGoToFirstPage,
     );
   }
 
-  Widget _buildSinglePageReader(
-      {bool showNavigation = false, bool hasVideoStrip = false}) {
+  Widget _buildSinglePageReader({
+    bool showNavigation = false,
+    bool hasVideoStrip = false,
+  }) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
     // The play card goes where the site put the video, which is not always
@@ -287,13 +314,16 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       hasVideoStrip: hasVideoStrip,
       videoIndex: state.chapterData?.videoIndex,
     );
-    final navAt =
-        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
+    final navAt = readerNavSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+    );
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
     widget.logger.d(
-        '📖 SinglePageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems');
+      '📖 SinglePageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems',
+    );
 
     return PageView.builder(
       key: ValueKey('horizontal_page_view_${state.content?.id}'),
@@ -303,8 +333,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       onPageChanged: (index) {
         // The card is an item, not a page: indices after it shift by one.
         final imageIndex = readerPageIndexFor(index, videoAt);
-        final reportPage =
-            (imageIndex + 1).clamp(1, pageCount == 0 ? 1 : pageCount);
+        final reportPage = (imageIndex + 1).clamp(
+          1,
+          pageCount == 0 ? 1 : pageCount,
+        );
         widget.visiblePageNotifier.value = reportPage;
         widget.animatedPauseNotifier.value = reportPage;
         // New page → clear stale translation overlay
@@ -312,15 +344,20 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         _schedulePrefetchDetection();
 
         widget.logger.d(
-            '📖 VerticalPageView changed to index=$index (reporting page $reportPage)');
+          '📖 VerticalPageView changed to index=$index (reporting page $reportPage)',
+        );
 
         final imageUrls = state.content?.imageUrls ?? [];
         if (imageIndex < pageCount) {
           if (state.readingMode != ReadingMode.singlePage &&
               state.readingMode != ReadingMode.verticalPage) {
-            widget.prefetchImages(reportPage, imageUrls, state.imageMetadata,
-                sourceId: state.content?.sourceId,
-                contentId: state.content?.id);
+            widget.prefetchImages(
+              reportPage,
+              imageUrls,
+              state.imageMetadata,
+              sourceId: state.content?.sourceId,
+              contentId: state.content?.id,
+            );
           }
         }
 
@@ -353,8 +390,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     );
   }
 
-  Widget _buildVerticalPageReader(
-      {bool showNavigation = false, bool hasVideoStrip = false}) {
+  Widget _buildVerticalPageReader({
+    bool showNavigation = false,
+    bool hasVideoStrip = false,
+  }) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
     // See _buildSinglePageReader: the card is an item at the video's own
@@ -364,13 +403,16 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       hasVideoStrip: hasVideoStrip,
       videoIndex: state.chapterData?.videoIndex,
     );
-    final navAt =
-        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
+    final navAt = readerNavSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+    );
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
     widget.logger.d(
-        '📖 VerticalPageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems');
+      '📖 VerticalPageReader: pageCount=$pageCount, showNavigation=$showNavigation, totalItems=$totalItems',
+    );
 
     return PageView.builder(
       key: ValueKey('vertical_page_view_${state.content?.id}'),
@@ -379,8 +421,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       clipBehavior: Clip.none,
       onPageChanged: (index) {
         final imageIndex = readerPageIndexFor(index, videoAt);
-        final reportPage =
-            (imageIndex + 1).clamp(1, pageCount == 0 ? 1 : pageCount);
+        final reportPage = (imageIndex + 1).clamp(
+          1,
+          pageCount == 0 ? 1 : pageCount,
+        );
         widget.visiblePageNotifier.value = reportPage;
         widget.animatedPauseNotifier.value = reportPage;
         // New page → clear stale translation overlay
@@ -388,14 +432,23 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         _schedulePrefetchDetection();
 
         widget.logger.d(
-            '📖 Vertical PageView changed to index=$index (reporting page $reportPage)');
+          '📖 Vertical PageView changed to index=$index (reporting page $reportPage)',
+        );
 
         final imageUrls = state.content?.imageUrls ?? [];
         if (imageIndex < pageCount) {
-          widget.prefetchImages(reportPage, imageUrls, state.imageMetadata,
-              sourceId: state.content?.sourceId, contentId: state.content?.id);
-          widget.evictDistantPages(reportPage, imageUrls,
-              isOffline: state.isOfflineMode ?? false);
+          widget.prefetchImages(
+            reportPage,
+            imageUrls,
+            state.imageMetadata,
+            sourceId: state.content?.sourceId,
+            contentId: state.content?.id,
+          );
+          widget.evictDistantPages(
+            reportPage,
+            imageUrls,
+            isOffline: state.isOfflineMode ?? false,
+          );
         }
 
         if (!widget.isProgrammaticAnimation) {
@@ -428,8 +481,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     );
   }
 
-  Widget _buildContinuousReader(
-      {bool showNavigation = false, bool hasVideoStrip = false}) {
+  Widget _buildContinuousReader({
+    bool showNavigation = false,
+    bool hasVideoStrip = false,
+  }) {
     final state = widget.state;
     final pageCount = state.content?.imageUrls.length ?? 0;
     // See _buildSinglePageReader: the card is an item at the video's own
@@ -439,8 +494,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       hasVideoStrip: hasVideoStrip,
       videoIndex: state.chapterData?.videoIndex,
     );
-    final navAt =
-        readerNavSlot(pageCount: pageCount, hasVideoStrip: hasVideoStrip);
+    final navAt = readerNavSlot(
+      pageCount: pageCount,
+      hasVideoStrip: hasVideoStrip,
+    );
     final totalItems =
         pageCount + (showNavigation ? 1 : 0) + (hasVideoStrip ? 1 : 0);
 
@@ -481,7 +538,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         child: ListView.builder(
           key: ValueKey('continuous_list_${state.content?.id}'),
           scrollCacheExtent: ScrollCacheExtent.pixels(
-              isHeavySource ? viewportHeight * 0.25 : viewportHeight * 1.0),
+            isHeavySource ? viewportHeight * 0.25 : viewportHeight * 1.0,
+          ),
           controller: widget.scrollController,
           physics: isHeavySource
               ? const ClampingScrollPhysics()
@@ -494,7 +552,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
               if (chapterData == null) return const SizedBox.shrink();
               return Padding(
                 padding: const EdgeInsets.only(
-                    bottom: ReaderScreen.kReaderContinuousGap),
+                  bottom: ReaderScreen.kReaderContinuousGap,
+                ),
                 child: ReaderVideoStrip(
                   chapterData: chapterData,
                   title: state.content?.title,
@@ -563,20 +622,28 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     // as an item right after the last image — the site's own order — never a
     // replacement for the pager, and with no edge-pinning.
     final chapterData = state.chapterData;
-    final hasVideoStrip = chapterData != null &&
+    final hasVideoStrip =
+        chapterData != null &&
         chapterData.images.isNotEmpty &&
         chapterData.videoUrls.isNotEmpty;
 
     final content = switch (state.readingMode ?? ReadingMode.singlePage) {
       ReadingMode.singlePage => _buildSinglePageReader(
-          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
+        showNavigation: showNav,
+        hasVideoStrip: hasVideoStrip,
+      ),
       ReadingMode.verticalPage => _buildVerticalPageReader(
-          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
+        showNavigation: showNav,
+        hasVideoStrip: hasVideoStrip,
+      ),
       ReadingMode.continuousScroll => _buildContinuousReader(
-          showNavigation: showNav, hasVideoStrip: hasVideoStrip),
+        showNavigation: showNav,
+        hasVideoStrip: hasVideoStrip,
+      ),
     };
 
-    final Widget body = (state.readingMode ?? ReadingMode.singlePage) ==
+    final Widget body =
+        (state.readingMode ?? ReadingMode.singlePage) ==
             ReadingMode.continuousScroll
         ? content
         : _PaginatedTapWrapper(
@@ -620,21 +687,32 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
           final l10n = AppLocalizations.of(context)!;
           if (state is ReaderTranslationError) {
             messenger.showSnackBar(
-                SnackBar(content: Text(l10n.aiTranslateFailed(state.message))));
+              SnackBar(content: Text(l10n.aiTranslateFailed(state.message))),
+            );
           } else if (state is ReaderTranslationNoProvider) {
-            messenger.showSnackBar(SnackBar(
-              content: Text(state.modelName != null
-                  ? l10n.aiModelNotVision(state.modelName!)
-                  : (state.message ?? l10n.aiNeedVisionProvider)),
-            ));
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.modelName != null
+                      ? l10n.aiModelNotVision(state.modelName!)
+                      : (state.message ?? l10n.aiNeedVisionProvider),
+                ),
+              ),
+            );
           } else if (state is ReaderTranslationRateLimited) {
-            messenger.showSnackBar(SnackBar(
-              content: Text(state.fallbackName != null
-                  ? l10n
-                      .aiRateLimited(l10n.aiUsingFallback(state.fallbackName!))
-                  : l10n.aiRateLimited(
-                      l10n.aiWaitCooldown(state.cooldownSeconds))),
-            ));
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.fallbackName != null
+                      ? l10n.aiRateLimited(
+                          l10n.aiUsingFallback(state.fallbackName!),
+                        )
+                      : l10n.aiRateLimited(
+                          l10n.aiWaitCooldown(state.cooldownSeconds),
+                        ),
+                ),
+              ),
+            );
           }
         },
         child: BlocBuilder<ReaderTranslationCubit, ReaderTranslationState>(
@@ -672,31 +750,32 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
                     onToggleKeepScreenOn: widget.cubit.toggleKeepScreenOn,
                     onOpenSettings: () => widget.onShowSettings(state),
                     onTranslate: () => _onTranslatePressed(),
-                    onToggleSkipSfx: () => _translationCubit
-                        .setSkipSfx(!_translationCubit.skipSfx),
+                    onToggleSkipSfx: () => _translationCubit.setSkipSfx(
+                      !_translationCubit.skipSfx,
+                    ),
                   ),
                   // Video chapter (issue #68): pageCount is 0, so the pager
                   // slider has no range — chapter nav lives on the player.
                   bottomBar:
                       state.readingMode != ReadingMode.continuousScroll &&
-                              !isVideoChapter(state.chapterData)
-                          ? _ReaderBottomBar(
-                              state: state,
-                              onPrevPage: widget.cubit.previousPage,
-                              onNextPage: widget.cubit.nextPage,
-                              onJumpToPage: widget.cubit.jumpToPage,
-                              onChangeReadingMode: () {
-                                final newMode = widget.getNextReadingMode(
-                                  state.readingMode ?? ReadingMode.singlePage,
-                                  disableContinuousScroll:
-                                      widget.isContinuousScrollDisabled(),
-                                );
-                                widget.cubit.changeReadingMode(newMode);
-                              },
-                              disableContinuousScroll:
-                                  widget.isContinuousScrollDisabled(),
-                            )
-                          : null,
+                          !isVideoChapter(state.chapterData)
+                      ? _ReaderBottomBar(
+                          state: state,
+                          onPrevPage: widget.cubit.previousPage,
+                          onNextPage: widget.cubit.nextPage,
+                          onJumpToPage: widget.cubit.jumpToPage,
+                          onChangeReadingMode: () {
+                            final newMode = widget.getNextReadingMode(
+                              state.readingMode ?? ReadingMode.singlePage,
+                              disableContinuousScroll: widget
+                                  .isContinuousScrollDisabled(),
+                            );
+                            widget.cubit.changeReadingMode(newMode);
+                          },
+                          disableContinuousScroll: widget
+                              .isContinuousScrollDisabled(),
+                        )
+                      : null,
                 ),
                 if (!drawMode)
                   _ReaderMiniChromeToggle(
@@ -734,14 +813,17 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     if (!mounted) return;
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
-      ..showSnackBar(SnackBar(
-        content: Text(AppLocalizations.of(context)!.aiCapturingViewport),
-        duration: const Duration(seconds: 1),
-      ));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.aiCapturingViewport),
+          duration: const Duration(seconds: 1),
+        ),
+      );
   }
 
   /// Fetches the active page image bytes and triggers the AI pipeline.
   Future<void> _onTranslatePressed() async {
+    _hasTranslationIntent = true;
     final state = widget.state;
     final urls = state.content?.imageUrls ?? [];
     // Continuous scroll → the page under the scroll offset, so the crop
@@ -864,8 +946,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       topInPage -= heights[i];
     }
     final imageHeightInItem =
-        (heights[page] - ReaderScreen.kReaderContinuousGap)
-            .clamp(1.0, heights[page]);
+        (heights[page] - ReaderScreen.kReaderContinuousGap).clamp(
+          1.0,
+          heights[page],
+        );
     topInPage = topInPage.clamp(0.0, imageHeightInItem);
     return (page: page, offsetInItem: topInPage);
   }
@@ -883,7 +967,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     // the caller). When null, re-resolved here from the live scroll position.
     double? offsetInItem,
   }) async {
-    final isContinuous = (widget.state.readingMode ?? ReadingMode.singlePage) ==
+    final isContinuous =
+        (widget.state.readingMode ?? ReadingMode.singlePage) ==
         ReadingMode.continuousScroll;
 
     // Continuous scroll → WYSIWYG: snapshot the ACTUAL visible viewport (the
@@ -900,14 +985,15 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       final cachedSig = viewport == null
           ? -1
           : (viewport.width.round() ^
-              (viewport.height.round() << 16) ^
-              resolvedOffset.round());
+                (viewport.height.round() << 16) ^
+                resolvedOffset.round());
       if (cachedSig == _cachedViewportSign &&
           _cachedViewportBytes != null &&
           resolvedOffset == _cachedViewportOffset &&
           pageIndex == _cachedViewportPage) {
         widget.logger.d(
-            'AI translate: reuse cached viewport snapshot (${viewport!.width.round()}x${viewport.height.round()} @$resolvedOffset p$pageIndex)');
+          'AI translate: reuse cached viewport snapshot (${viewport!.width.round()}x${viewport.height.round()} @$resolvedOffset p$pageIndex)',
+        );
         _translationCubit.capturePage(
           imageBytes: _cachedViewportBytes!,
           imageWidth: viewport.width.round(),
@@ -924,8 +1010,11 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       if (captured == null) {
         widget.logger.w('AI translate: viewport capture gagal');
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text(AppLocalizations.of(context)!.aiGagalCapture)));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.aiGagalCapture),
+            ),
+          );
         }
         return null;
       }
@@ -933,8 +1022,9 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       // Re-encode the PNG snapshot as JPG on a background isolate — decode +
       // encode are CPU-bound and would otherwise jank the UI (draw-mode entry
       // and translate both go through here).
-      final bytesOut =
-          await Isolate.run(() => _encodeViewportJpg(captured.bytes));
+      final bytesOut = await Isolate.run(
+        () => _encodeViewportJpg(captured.bytes),
+      );
       if (bytesOut == null) {
         widget.logger.w('AI translate: snapshot decode gagal');
         return null;
@@ -943,14 +1033,16 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
         captured.width.toDouble(),
         captured.height.toDouble(),
       );
-      widget.logger.d('AI translate: viewport capture ${sizeOut.width.round()}x'
-          '${sizeOut.height.round()} bytes=${bytesOut.length}');
+      widget.logger.d(
+        'AI translate: viewport capture ${sizeOut.width.round()}x'
+        '${sizeOut.height.round()} bytes=${bytesOut.length}',
+      );
       _cachedViewportBytes = bytesOut;
       _cachedViewportSign = viewport == null
           ? -1
           : (viewport.width.round() ^
-              (viewport.height.round() << 16) ^
-              resolvedOffset.round());
+                (viewport.height.round() << 16) ^
+                resolvedOffset.round());
       _cachedViewportOffset = resolvedOffset;
       _cachedViewportPage = pageIndex;
       _translationCubit.capturePage(
@@ -962,10 +1054,12 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..clearSnackBars()
-          ..showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.aiCapturedViewport),
-            duration: const Duration(seconds: 1),
-          ));
+          ..showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)!.aiCapturedViewport),
+              duration: const Duration(seconds: 1),
+            ),
+          );
       }
       return (bytes: bytesOut, size: sizeOut, cropYTop: resolvedOffset.round());
     }
@@ -975,16 +1069,18 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     if (bytes == null) {
       widget.logger.w('AI translate: fetch gagal untuk $url');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.aiGagalFetch)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLocalizations.of(context)!.aiGagalFetch)),
+        );
       }
       return null;
     }
     if (!mounted) return null;
     final size = await _imageSize(bytes);
     if (size == null) {
-      widget.logger
-          .w('AI translate: decode ukuran gagal, bytes=${bytes.length}');
+      widget.logger.w(
+        'AI translate: decode ukuran gagal, bytes=${bytes.length}',
+      );
       return null;
     }
     _translationCubit.capturePage(
@@ -993,8 +1089,10 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
       imageHeight: size.height.round(),
     );
     _schedulePrefetchDetection();
-    widget.logger.d('AI translate: page ${size.width.round()}x'
-        '${size.height.round()} bytes=${bytes.length}');
+    widget.logger.d(
+      'AI translate: page ${size.width.round()}x'
+      '${size.height.round()} bytes=${bytes.length}',
+    );
     return (bytes: bytes, size: size, cropYTop: 0);
   }
 
@@ -1002,7 +1100,7 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
   /// ACTUAL visible viewport (WYSIWYG). Returns raw PNG bytes of exactly what
   /// is on screen. Null when the boundary isn't mounted or capture fails.
   Future<({Uint8List bytes, int width, int height})?>
-      _captureVisibleViewport() async {
+  _captureVisibleViewport() async {
     final renderObject = _viewportKey.currentContext?.findRenderObject();
     if (renderObject is! RenderRepaintBoundary) return null;
     try {
@@ -1042,7 +1140,11 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
     // most sources reject plain requests, silently killing the pipeline.
     final sourceId = widget.state.content?.sourceId;
     if (sourceId == null || sourceId.trim().isEmpty) return null;
-    return getIt<DownloadService>().fetchRemoteImageBytes(sourceId, url);
+    return getIt<DownloadService>().fetchRemoteImageBytes(
+      sourceId,
+      url,
+      cancelToken: widget.scopeToken,
+    );
   }
 
   Future<Size?> _imageSize(Uint8List bytes) async {

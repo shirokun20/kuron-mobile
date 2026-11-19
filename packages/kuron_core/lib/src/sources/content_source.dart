@@ -10,6 +10,11 @@ import '../value_objects/sort_option.dart';
 import '../value_objects/popular_timeframe.dart';
 import 'search_capabilities.dart';
 
+/// Pure-Dart cancellation hook: registers an [onCancel] callback that fires
+/// when the caller cancels. Bridges to Dio `CancelToken` in adapter packages
+/// without leaking `package:dio` into `kuron_core`.
+typedef OnCancelRegister = void Function(void Function() onCancel);
+
 // Abstract interface for content sources.
 ///
 // Each content source (nhentai, crotpedia, etc.) must implement this interface
@@ -62,7 +67,10 @@ abstract class ContentSource {
 
   // Get chapter image URLs and navigation data for a specific chapter ID.
   // Used primarily by manga/manhwa sources. Default implementation returns null.
-  Future<ChapterData?> getChapterImages(String chapterId) async => null;
+  Future<ChapterData?> getChapterImages(
+    String chapterId, {
+    OnCancelRegister? onCancel,
+  }) async => null;
 
   // Get chapters for a specific content lane.
   ///
@@ -75,8 +83,7 @@ abstract class ContentSource {
     int? page,
     int? offset,
     int? limit,
-  }) async =>
-      const [];
+  }) async => const [];
 
   // Build full image URL for this source
   String buildImageUrl({
@@ -210,6 +217,5 @@ abstract class ContentSource {
   // [query] is the partial text typed by the user.
   Future<List<AutocompleteSuggestion>> getAutocompleteSuggestions(
     String query,
-  ) async =>
-      const [];
+  ) async => const [];
 }

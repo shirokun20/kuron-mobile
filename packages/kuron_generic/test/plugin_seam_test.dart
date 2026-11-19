@@ -18,27 +18,42 @@ class _StubAdapter implements GenericAdapter {
 
   @override
   Future<AdapterSearchResult> search(
-          SearchFilter filter, Map<String, dynamic> rawConfig) =>
+    SearchFilter filter,
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) =>
       throw UnimplementedError();
 
   @override
   Future<AdapterDetailResult> fetchDetail(
-          String contentId, Map<String, dynamic> rawConfig) =>
+    String contentId,
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) =>
       throw UnimplementedError();
 
   @override
   Future<List<Content>> fetchRelated(
-          String contentId, Map<String, dynamic> rawConfig) =>
+    String contentId,
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) =>
       throw UnimplementedError();
 
   @override
   Future<List<Comment>> fetchComments(
-          String contentId, Map<String, dynamic> rawConfig) =>
+    String contentId,
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) =>
       throw UnimplementedError();
 
   @override
   Future<ChapterData?> fetchChapterImages(
-          String chapterId, Map<String, dynamic> rawConfig) async =>
+    String chapterId,
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async =>
       data;
 
   @override
@@ -50,6 +65,7 @@ class _StubAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const [];
 }

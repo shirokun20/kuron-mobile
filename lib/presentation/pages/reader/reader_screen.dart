@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'dart:isolate';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/scheduler.dart';
+
 import 'dart:io';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -13,6 +16,7 @@ import 'package:kuron_native/kuron_native.dart';
 import 'package:image/image.dart' as img;
 import 'package:nhasixapp/core/utils/native_theme_helper.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+
 import '../../../core/constants/colors_const.dart' show KuronColors;
 import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/text_style_const.dart';
@@ -23,13 +27,16 @@ import '../../../core/models/image_metadata.dart';
 import '../../../core/routing/reader_route_extra.dart';
 import '../../../core/utils/offline_content_manager.dart';
 import '../../blocs/download/download_bloc.dart';
+
 import 'package:extended_image/extended_image.dart';
+
 import '../../../core/utils/reader_image_repair_utils.dart';
 import '../../../domain/entities/reader_settings_entity.dart';
 
 import 'package:kuron_core/kuron_core.dart';
 
 import 'package:logger/logger.dart';
+
 import '../../../core/services/local_image_preloader.dart';
 import '../../../core/services/memory_budget_coordinator.dart';
 import '../../cubits/reader/reader_cubit.dart';
@@ -240,8 +247,9 @@ class _ReaderScreenState extends State<ReaderScreen>
     MemoryBudgetCoordinator().incrementReaderCount(isOnline: _isReportedOnline);
     _lastReportedPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage - 1);
-    _verticalPageController =
-        PageController(initialPage: widget.initialPage - 1);
+    _verticalPageController = PageController(
+      initialPage: widget.initialPage - 1,
+    );
 
     // 🐛 CRITICAL FIX: Set flag BEFORE ScrollController to prevent false saves
     // When ScrollController is created with initialScrollOffset, it triggers
@@ -249,13 +257,20 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (widget.initialPage > 1) {
       _isProgrammaticAnimation = true;
       _logger.i(
-          '🔒 Locked programmatic animation flag for initial scroll to page ${widget.initialPage}');
+        '🔒 Locked programmatic animation flag for initial scroll to page ${widget.initialPage}',
+      );
     }
 
     // 🚀 OPTIMIZATION: Calculate initial scroll offset for continuous scroll
     // This allows starting from a specific page while keeping all pages available
-    final screenHeight = WidgetsBinding
-            .instance.platformDispatcher.views.first.physicalSize.height /
+    final screenHeight =
+        WidgetsBinding
+            .instance
+            .platformDispatcher
+            .views
+            .first
+            .physicalSize
+            .height /
         WidgetsBinding.instance.platformDispatcher.views.first.devicePixelRatio;
     final estimatedItemHeight = screenHeight * 0.9;
     final initialScrollOffset = (widget.initialPage - 1) * estimatedItemHeight;
@@ -279,7 +294,8 @@ class _ReaderScreenState extends State<ReaderScreen>
           if (mounted) {
             _isProgrammaticAnimation = false;
             _logger.i(
-                '🔓 Unlocked programmatic animation flag - user can scroll freely');
+              '🔓 Unlocked programmatic animation flag - user can scroll freely',
+            );
           }
         });
       }
@@ -310,7 +326,8 @@ class _ReaderScreenState extends State<ReaderScreen>
 
     // Only log once (not on every build)
     _logger.i(
-        '📥 ReaderScreen._initializeFromRouteExtra - Received: ${rawRouteExtra.runtimeType}');
+      '📥 ReaderScreen._initializeFromRouteExtra - Received: ${rawRouteExtra.runtimeType}',
+    );
 
     if (routeExtra != null) {
       _logger.i('  Map keys: ${routeExtra.keys.toList()}');
@@ -326,20 +343,24 @@ class _ReaderScreenState extends State<ReaderScreen>
       );
       if (parsedImageMetadata != null && widget.imageMetadata == null) {
         _preloadedImageMetadata = parsedImageMetadata;
-        Logger()
-            .i('  ✓ imageMetadata: ${_preloadedImageMetadata?.length} items');
+        Logger().i(
+          '  ✓ imageMetadata: ${_preloadedImageMetadata?.length} items',
+        );
       }
 
-      final parsedChapterData =
-          readReaderChapterData(routeExtra['chapterData']);
+      final parsedChapterData = readReaderChapterData(
+        routeExtra['chapterData'],
+      );
       if (parsedChapterData != null && widget.chapterData == null) {
         _preloadedChapterData = parsedChapterData;
         _logger.i(
-            '  ✓ chapterData: prev=${_preloadedChapterData?.prevChapterId}, next=${_preloadedChapterData?.nextChapterId}');
+          '  ✓ chapterData: prev=${_preloadedChapterData?.prevChapterId}, next=${_preloadedChapterData?.nextChapterId}',
+        );
       }
 
-      final parsedParentContent =
-          readReaderContent(routeExtra['parentContent']);
+      final parsedParentContent = readReaderContent(
+        routeExtra['parentContent'],
+      );
       if (parsedParentContent != null && widget.parentContent == null) {
         _preloadedParentContent = parsedParentContent;
         _logger.i('  ✓ parentContent: ${_preloadedParentContent?.title}');
@@ -348,8 +369,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       final parsedAllChapters = readReaderChapters(routeExtra['allChapters']);
       if (parsedAllChapters != null && widget.allChapters == null) {
         _preloadedAllChapters = parsedAllChapters;
-        Logger()
-            .i('  ✓ allChapters: ${_preloadedAllChapters?.length} chapters');
+        Logger().i(
+          '  ✓ allChapters: ${_preloadedAllChapters?.length} chapters',
+        );
         if (_preloadedAllChapters != null &&
             _preloadedAllChapters!.isNotEmpty) {
           _logger.i('    First: ${_preloadedAllChapters!.first.title}');
@@ -357,8 +379,9 @@ class _ReaderScreenState extends State<ReaderScreen>
         }
       }
 
-      final parsedCurrentChapter =
-          readReaderChapter(routeExtra['currentChapter']);
+      final parsedCurrentChapter = readReaderChapter(
+        routeExtra['currentChapter'],
+      );
       if (parsedCurrentChapter != null && widget.currentChapter == null) {
         _preloadedCurrentChapter = parsedCurrentChapter;
         _logger.i('  ✓ currentChapter: ${_preloadedCurrentChapter?.title}');
@@ -400,12 +423,14 @@ class _ReaderScreenState extends State<ReaderScreen>
     _isPreloading = true;
     try {
       final offlineManager = getIt<OfflineContentManager>();
-      final isOfflineAvailable =
-          await offlineManager.isContentAvailableOffline(widget.contentId);
+      final isOfflineAvailable = await offlineManager.isContentAvailableOffline(
+        widget.contentId,
+      );
 
       if (isOfflineAvailable) {
-        _preloadedContent =
-            await offlineManager.createOfflineContent(widget.contentId);
+        _preloadedContent = await offlineManager.createOfflineContent(
+          widget.contentId,
+        );
       }
     } catch (e) {
       // Ignore preload errors, will fallback to normal loading
@@ -416,7 +441,9 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _onScrollNotification(
-      ScrollUpdateNotification notification, ReaderState state) {
+    ScrollUpdateNotification notification,
+    ReaderState state,
+  ) {
     if (state.content == null) return;
 
     final progressKey =
@@ -480,8 +507,11 @@ class _ReaderScreenState extends State<ReaderScreen>
       _debounceSaveHistory(state, totalPages);
     }
 
-    _evictDistantPages(estimatedPage, state.content!.imageUrls,
-        isOffline: state.isOfflineMode ?? false);
+    _evictDistantPages(
+      estimatedPage,
+      state.content!.imageUrls,
+      isOffline: state.isOfflineMode ?? false,
+    );
 
     if (notification.scrollDelta != null && notification.scrollDelta! > 5) {
       _debounceUIToggle(false, state);
@@ -511,8 +541,10 @@ class _ReaderScreenState extends State<ReaderScreen>
     // ~50μs for 200 pages — negligible even at 120 FPS.
     double cumulativeHeight = 0;
     for (int page = 1; page <= totalPages; page++) {
-      cumulativeHeight +=
-          (_cachedImageHeights[page] ?? avgHeight).clamp(1.0, double.infinity);
+      cumulativeHeight += (_cachedImageHeights[page] ?? avgHeight).clamp(
+        1.0,
+        double.infinity,
+      );
       if (viewportCenter < cumulativeHeight) return page;
     }
     return totalPages;
@@ -697,14 +729,16 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   Future<bool> _openSourcePageForRepair(int pageNumber) async {
-    final manualContext =
-        await _readerCubit.prepareManualRepairContext(pageNumber);
+    final manualContext = await _readerCubit.prepareManualRepairContext(
+      pageNumber,
+    );
     if (manualContext == null) {
       if (mounted) {
-        _showRepairSnackBar(
-          pageNumber,
-          (success: false, reason: 'remote_unavailable', statusCode: null),
-        );
+        _showRepairSnackBar(pageNumber, (
+          success: false,
+          reason: 'remote_unavailable',
+          statusCode: null,
+        ));
       }
       return false;
     }
@@ -750,7 +784,7 @@ class _ReaderScreenState extends State<ReaderScreen>
 
     final rawCookies =
         (webViewResult?['cookies'] as List<dynamic>?)?.cast<String>() ??
-            const <String>[];
+        const <String>[];
     final userAgent = webViewResult?['userAgent'] as String?;
     final sessionUrl = webViewResult?['currentUrl'] as String?;
     final resolvedImageUrl = webViewResult?['resolvedImageUrl'] as String?;
@@ -791,14 +825,15 @@ class _ReaderScreenState extends State<ReaderScreen>
     final message = switch (result.reason) {
       'success' => l10n.readerImageRepairSuccess(pageNumber),
       'no_connection' => l10n.noInternetConnection,
-      'http_status' =>
-        l10n.readerImageRepairHttpStatus(pageNumber, result.statusCode ?? 0),
+      'http_status' => l10n.readerImageRepairHttpStatus(
+        pageNumber,
+        result.statusCode ?? 0,
+      ),
       'invalid_image' => l10n.readerImageRepairInvalidImage(pageNumber),
       'provider_unavailable' ||
       'remote_unavailable' ||
       'page_unavailable' ||
-      'content_unavailable' =>
-        l10n.readerImageRepairUnavailable(pageNumber),
+      'content_unavailable' => l10n.readerImageRepairUnavailable(pageNumber),
       _ => l10n.readerImageRepairFailed(pageNumber),
     };
     messenger?.showSnackBar(
@@ -870,7 +905,9 @@ class _ReaderScreenState extends State<ReaderScreen>
       overlays: SystemUiOverlay.values,
     );
 
-    MemoryBudgetCoordinator().decrementReaderCount(wasOnline: _isReportedOnline);
+    MemoryBudgetCoordinator().decrementReaderCount(
+      wasOnline: _isReportedOnline,
+    );
     super.dispose();
   }
 
@@ -893,7 +930,6 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
   }
 
-
   void _toggleImmersiveMode(bool immersive) {
     if (immersive) {
       SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -912,9 +948,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     SchedulerBinding.instance.scheduleFrameCallback((_) {
       _isDecodeTickScheduled = false;
       if (!mounted || _scopeToken.isCancelled || _decodeQueue.isEmpty) return;
-      for (int i = 0;
-          i < _currentMaxDecodePerFrame && _decodeQueue.isNotEmpty;
-          i++) {
+      for (
+        int i = 0;
+        i < _currentMaxDecodePerFrame && _decodeQueue.isNotEmpty;
+        i++
+      ) {
         if (_scopeToken.isCancelled || !mounted) break;
         final task = _decodeQueue.pop();
         if (task == null) break;
@@ -929,9 +967,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     });
   }
 
-  void _prefetchImages(int currentPage, List<String> imageUrls,
-      List<ImageMetadata>? imageMetadata,
-      {String? sourceId, String? contentId}) {
+  void _prefetchImages(
+    int currentPage,
+    List<String> imageUrls,
+    List<ImageMetadata>? imageMetadata, {
+    String? sourceId,
+    String? contentId,
+  }) {
     if (imageUrls.isEmpty) return;
 
     // detect fast scroll by page jump, not timer. If user moved
@@ -948,11 +990,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     final prefetchHeaders = sourceId == null
         ? null
         : getIt<ContentSourceRegistry>()
-            .getSource(sourceId)
-            ?.getImageDownloadHeaders(
-              imageUrl:
-                  imageUrls[(currentPage - 1).clamp(0, imageUrls.length - 1)],
-            );
+              .getSource(sourceId)
+              ?.getImageDownloadHeaders(
+                imageUrl:
+                    imageUrls[(currentPage - 1).clamp(0, imageUrls.length - 1)],
+              );
 
     // Network download + bookkeeping lives in ReaderPrefetchCubit (testable,
     // survives widget rebuild). Widget keeps the BuildContext-bound decode
@@ -976,11 +1018,13 @@ class _ReaderScreenState extends State<ReaderScreen>
     // (network/file) uses internally via cacheWidth param.
     // Throttle: heavy source (ehentai/hentainexus) → 1/frame, normal → 2/frame for N±1
     final isHeavySource = _isHeavyPrefetchSource(sourceId);
-    _currentMaxDecodePerFrame =
-        isHeavySource ? _maxDecodePerFrameHeavy : _maxDecodePerFrame;
-    final decodeWidth = (MediaQuery.of(context).size.width *
-            MediaQuery.of(context).devicePixelRatio)
-        .round();
+    _currentMaxDecodePerFrame = isHeavySource
+        ? _maxDecodePerFrameHeavy
+        : _maxDecodePerFrame;
+    final decodeWidth =
+        (MediaQuery.of(context).size.width *
+                MediaQuery.of(context).devicePixelRatio)
+            .round();
 
     for (final int targetPage in <int>{currentPage + 1, currentPage - 1}) {
       if (targetPage >= 1 && targetPage <= imageUrls.length) {
@@ -1004,8 +1048,10 @@ class _ReaderScreenState extends State<ReaderScreen>
             if (localPath != null) {
               provider = ExtendedFileImageProvider(File(localPath));
             } else {
-              provider =
-                  ExtendedNetworkImageProvider(url, headers: prefetchHeaders);
+              provider = ExtendedNetworkImageProvider(
+                url,
+                headers: prefetchHeaders,
+              );
             }
             // Direct mounted guard for the lint: decodeStale() above already
             // checks mounted, but the analyzer cannot see through the helper.
@@ -1036,8 +1082,11 @@ class _ReaderScreenState extends State<ReaderScreen>
   int _estimatedDecodedBytes = 0;
   Timer? _heavyImageBudgetTimer;
 
-  void _evictDistantPages(int currentPage, List<String> imageUrls,
-      {bool isOffline = false}) {
+  void _evictDistantPages(
+    int currentPage,
+    List<String> imageUrls, {
+    bool isOffline = false,
+  }) {
     if (isOffline || imageUrls.isEmpty) return;
 
     final coordinator = MemoryBudgetCoordinator();
@@ -1086,14 +1135,18 @@ class _ReaderScreenState extends State<ReaderScreen>
   }
 
   void _evictFarthestBytes(
-      int currentPage, List<String> imageUrls, int targetBytes) {
+    int currentPage,
+    List<String> imageUrls,
+    int targetBytes,
+  ) {
     const keepRadius = 4;
     final total = imageUrls.length;
     if (total <= keepRadius * 2 + 1) return;
 
     final sorted = List.generate(total, (i) => i + 1);
     sorted.sort(
-        (a, b) => (b - currentPage).abs().compareTo((a - currentPage).abs()));
+      (a, b) => (b - currentPage).abs().compareTo((a - currentPage).abs()),
+    );
 
     int accumulated = 0;
     for (final page in sorted) {
@@ -1163,20 +1216,22 @@ class _ReaderScreenState extends State<ReaderScreen>
           return;
         }
 
-        final distance =
-            ((currentPageControllerIndex ?? 0) - targetPageIndex).abs();
+        final distance = ((currentPageControllerIndex ?? 0) - targetPageIndex)
+            .abs();
 
         if (distance > 5) {
           // Use immediate jump for large distances to avoid animation interruption
           _logger.d(
-              '🔄 SYNC: Jumping PageController from $currentPageControllerIndex to $targetPageIndex (distance: $distance)');
+            '🔄 SYNC: Jumping PageController from $currentPageControllerIndex to $targetPageIndex (distance: $distance)',
+          );
           _isProgrammaticAnimation = true;
           _pageController.jumpToPage(targetPageIndex);
           _isProgrammaticAnimation = false;
         } else {
           // Use smooth animation for small distances
           _logger.d(
-              '🔄 SYNC: Animating PageController from $currentPageControllerIndex to $targetPageIndex (distance: $distance)');
+            '🔄 SYNC: Animating PageController from $currentPageControllerIndex to $targetPageIndex (distance: $distance)',
+          );
           _isProgrammaticAnimation = true;
           //  skip animation for rapid consecutive taps. User tapping
           // faster than animation duration expects instant response — queuing
@@ -1190,13 +1245,13 @@ class _ReaderScreenState extends State<ReaderScreen>
           } else {
             _pageController
                 .animateToPage(
-              targetPageIndex,
-              duration: DesignTokens.durationPageTurn,
-              curve: Curves.easeOutCubic,
-            )
+                  targetPageIndex,
+                  duration: DesignTokens.durationPageTurn,
+                  curve: Curves.easeOutCubic,
+                )
                 .then((_) {
-              _isProgrammaticAnimation = false;
-            });
+                  _isProgrammaticAnimation = false;
+                });
           }
         }
       }
@@ -1214,24 +1269,26 @@ class _ReaderScreenState extends State<ReaderScreen>
         if (distance > 5) {
           // Use immediate jump for large distances to avoid animation interruption
           _logger.d(
-              '🔄 SYNC: Jumping VerticalPageController from $currentVerticalIndex to $targetPageIndex (distance: $distance)');
+            '🔄 SYNC: Jumping VerticalPageController from $currentVerticalIndex to $targetPageIndex (distance: $distance)',
+          );
           _isProgrammaticAnimation = true;
           _verticalPageController.jumpToPage(targetPageIndex);
           _isProgrammaticAnimation = false;
         } else {
           // Use smooth animation for small distances
           _logger.d(
-              '🔄 SYNC: Animating VerticalPageController from $currentVerticalIndex to $targetPageIndex (distance: $distance)');
+            '🔄 SYNC: Animating VerticalPageController from $currentVerticalIndex to $targetPageIndex (distance: $distance)',
+          );
           _isProgrammaticAnimation = true;
           _verticalPageController
               .animateToPage(
-            targetPageIndex,
-            duration: DesignTokens.durationNormal,
-            curve: Curves.easeInOut,
-          )
+                targetPageIndex,
+                duration: DesignTokens.durationNormal,
+                curve: Curves.easeInOut,
+              )
               .then((_) {
-            _isProgrammaticAnimation = false;
-          });
+                _isProgrammaticAnimation = false;
+              });
         }
       }
     } else if (state.readingMode == ReadingMode.continuousScroll) {
@@ -1275,18 +1332,17 @@ class _ReaderScreenState extends State<ReaderScreen>
             _preloadedAllChapters ?? widget.allChapters;
         final effectiveCurrentChapter =
             _preloadedCurrentChapter ?? widget.currentChapter;
-        return _readerCubit
-          ..loadContent(
-            widget.contentId,
-            initialPage: widget.initialPage,
-            forceStartFromBeginning: widget.forceStartFromBeginning,
-            preloadedContent: effectivePreloadedContent,
-            imageMetadata: effectiveImageMetadata,
-            chapterData: effectiveChapterData,
-            parentContent: effectiveParentContent,
-            allChapters: effectiveAllChapters,
-            currentChapter: effectiveCurrentChapter,
-          );
+        return _readerCubit..loadContent(
+          widget.contentId,
+          initialPage: widget.initialPage,
+          forceStartFromBeginning: widget.forceStartFromBeginning,
+          preloadedContent: effectivePreloadedContent,
+          imageMetadata: effectiveImageMetadata,
+          chapterData: effectiveChapterData,
+          parentContent: effectiveParentContent,
+          allChapters: effectiveAllChapters,
+          currentChapter: effectiveCurrentChapter,
+        );
       },
       child: BlocListener<ReaderCubit, ReaderState>(
         listenWhen: (previous, current) {
@@ -1305,9 +1361,11 @@ class _ReaderScreenState extends State<ReaderScreen>
         },
         listener: (context, state) {
           if (state.isOfflineMode != null) {
-            final isOffline = state.isOfflineMode! ||
-                (state.content?.imageUrls
-                        .any((u) => isLocalReaderImagePath(u)) ??
+            final isOffline =
+                state.isOfflineMode! ||
+                (state.content?.imageUrls.any(
+                      (u) => isLocalReaderImagePath(u),
+                    ) ??
                     false);
             final isOnline = !isOffline;
             if (isOnline != _isReportedOnline) {
@@ -1358,14 +1416,14 @@ class _ReaderScreenState extends State<ReaderScreen>
 
             final onlyCurrentPageChanged =
                 previous.currentPage != current.currentPage &&
-                    previous.runtimeType == current.runtimeType &&
-                    prevContentId == currContentId &&
-                    prevImageCount == currImageCount &&
-                    previous.showUI == current.showUI &&
-                    previous.readingMode == current.readingMode &&
-                    previous.enableZoom == current.enableZoom &&
-                    previous.keepScreenOn == current.keepScreenOn &&
-                    previous.isOfflineMode == current.isOfflineMode;
+                previous.runtimeType == current.runtimeType &&
+                prevContentId == currContentId &&
+                prevImageCount == currImageCount &&
+                previous.showUI == current.showUI &&
+                previous.readingMode == current.readingMode &&
+                previous.enableZoom == current.enableZoom &&
+                previous.keepScreenOn == current.keepScreenOn &&
+                previous.isOfflineMode == current.isOfflineMode;
 
             final isContinuousMode =
                 current.readingMode == ReadingMode.continuousScroll;
@@ -1458,10 +1516,14 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!_pageController.hasClients) return;
       if (direction > 0) {
         _pageController.nextPage(
-            duration: duration, curve: Curves.easeOutCubic);
+          duration: duration,
+          curve: Curves.easeOutCubic,
+        );
       } else {
         _pageController.previousPage(
-            duration: duration, curve: Curves.easeOutCubic);
+          duration: duration,
+          curve: Curves.easeOutCubic,
+        );
       }
       return;
     }
@@ -1469,20 +1531,28 @@ class _ReaderScreenState extends State<ReaderScreen>
       if (!_verticalPageController.hasClients) return;
       if (direction > 0) {
         _verticalPageController.nextPage(
-            duration: duration, curve: Curves.easeOutCubic);
+          duration: duration,
+          curve: Curves.easeOutCubic,
+        );
       } else {
         _verticalPageController.previousPage(
-            duration: duration, curve: Curves.easeOutCubic);
+          duration: duration,
+          curve: Curves.easeOutCubic,
+        );
       }
       return;
     }
     if (!_scrollController.hasClients) return;
     final pos = _scrollController.position;
-    final target = (pos.pixels + direction * pos.viewportDimension * 0.9)
-        .clamp(0.0, pos.maxScrollExtent);
-    _scrollController.animateTo(target,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic);
+    final target = (pos.pixels + direction * pos.viewportDimension * 0.9).clamp(
+      0.0,
+      pos.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   void _keyboardEdge({required bool first}) {
@@ -1502,9 +1572,11 @@ class _ReaderScreenState extends State<ReaderScreen>
     }
     if (_scrollController.hasClients) {
       final pos = _scrollController.position;
-      _scrollController.animateTo(first ? 0.0 : pos.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic);
+      _scrollController.animateTo(
+        first ? 0.0 : pos.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
@@ -1512,7 +1584,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     if (state.status == ReaderStatus.loading) {
       return Center(
         child: KuroLoading(
-          message: AppLocalizations.of(context)?.loadingContent ??
+          message:
+              AppLocalizations.of(context)?.loadingContent ??
               AppLocalizations.of(context)!.loadingContent,
         ),
       );
@@ -1565,6 +1638,7 @@ class _ReaderScreenState extends State<ReaderScreen>
       isHeavyPrefetchSource: _isHeavyPrefetchSource,
       isContinuousScrollDisabled: _isContinuousScrollDisabledForCurrentContent,
       getNextReadingMode: _getNextReadingMode,
+      scopeToken: _scopeToken,
     );
   }
 
@@ -1573,13 +1647,18 @@ class _ReaderScreenState extends State<ReaderScreen>
     final readingModeLabel = disableContinuous
         ? '${_getReadingModeLabel(context, state.readingMode ?? ReadingMode.singlePage)} • ${AppLocalizations.of(context)!.readerContinuousOffHeavyImage}'
         : _getReadingModeLabel(
-            context, state.readingMode ?? ReadingMode.singlePage);
+            context,
+            state.readingMode ?? ReadingMode.singlePage,
+          );
     final tapDirectionDescription = _getTapDirectionDescription(
-        context, state.tapDirection ?? TapDirection.normal);
+      context,
+      state.tapDirection ?? TapDirection.normal,
+    );
     final activeLanguage = _normalizeLanguageForFilter(
-        state.currentChapter?.language ??
-            _preloadedActiveChapterLanguage ??
-            widget.activeChapterLanguage);
+      state.currentChapter?.language ??
+          _preloadedActiveChapterLanguage ??
+          widget.activeChapterLanguage,
+    );
 
     showModalBottomSheet(
       context: context,
@@ -1593,11 +1672,17 @@ class _ReaderScreenState extends State<ReaderScreen>
           readingModeLabel: readingModeLabel,
           tapDirectionDescription: tapDirectionDescription,
           onShowResetConfirmation: () => _showResetConfirmationDialog(
-              context, () => _resetReaderSettings(context, _readerCubit)),
+            context,
+            () => _resetReaderSettings(context, _readerCubit),
+          ),
           onShowChapterSelector: () {
             context.pop();
-            _showChapterSelector(context, _readerCubit, currentState,
-                activeLanguage: activeLanguage);
+            _showChapterSelector(
+              context,
+              _readerCubit,
+              currentState,
+              activeLanguage: activeLanguage,
+            );
           },
           onClearImageCache: () => _clearReaderImageCache(context),
         ),

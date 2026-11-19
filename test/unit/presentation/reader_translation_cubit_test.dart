@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
@@ -21,19 +23,18 @@ void main() {
   setUp(() {
     detectCalls = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('kuron_native'),
-      (MethodCall call) async {
-        if (call.method == 'detectBubbles') {
-          detectCalls++;
-          return [
-            {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
-            {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
-          ];
-        }
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+          MethodCall call,
+        ) async {
+          if (call.method == 'detectBubbles') {
+            detectCalls++;
+            return [
+              {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
+              {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
+            ];
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -59,6 +60,7 @@ void main() {
       logger: Logger(level: Level.off),
     );
   }
+
   test('resetPage clears captured pageBytes and hasPage returns false', () {
     final cubit = makeCubit();
     addTearDown(cubit.close);
@@ -104,8 +106,7 @@ void main() {
     expect(types.last, ReaderTranslationTranslated);
   });
 
-  test(
-      'manual bubble covering a detected box de-duplicates mosaic input '
+  test('manual bubble covering a detected box de-duplicates mosaic input '
       '(no double-translate of the same text)', () async {
     final cubit = makeCubit();
     addTearDown(cubit.close);
@@ -117,12 +118,14 @@ void main() {
     // Run draw-mode Detect first so _detectedBoxes exists (manual-only
     // translate now skips ONNX entirely).
     cubit.capturePage(
-        imageBytes: Uint8List.fromList([1, 2, 3]),
-        imageWidth: 200,
-        imageHeight: 200);
+      imageBytes: Uint8List.fromList([1, 2, 3]),
+      imageWidth: 200,
+      imageHeight: 200,
+    );
     await cubit.detectBubblesOnly();
     cubit.addManualBubble(
-        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
+      BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
+    );
 
     await cubit.translatePage(
       imageBytes: Uint8List.fromList([1, 2, 3]),
@@ -200,66 +203,69 @@ void main() {
     expect(cubit.state, isA<ReaderTranslationTranslated>());
   });
 
-  test('continueScroll single-image webtoon (tall image) runs pipeline',
-      () async {
-    final cubit = makeCubit();
-    addTearDown(cubit.close);
-    // Real decodable image (split path decodes it). Empty/1-byte bytes crash
-    // img.decodeImage → RangeError in the webtoon chunk loop.
-    final image = img.Image(width: 100, height: 400); // AR 4.0 → webtoon
-    await cubit.translatePage(
-      imageBytes: img.encodeJpg(image),
-      imageWidth: 100,
-      imageHeight: 400,
-      contentId: 'c1',
-      pageIndex: 0,
-      imageUrl: 'u1',
-      readingMode: ReadingMode.continuousScroll,
-      imageUrlCount: 1,
-    );
-    await pumpEventQueue();
-    expect(cubit.state, isA<ReaderTranslationTranslated>());
-  });
+  test(
+    'continueScroll single-image webtoon (tall image) runs pipeline',
+    () async {
+      final cubit = makeCubit();
+      addTearDown(cubit.close);
+      // Real decodable image (split path decodes it). Empty/1-byte bytes crash
+      // img.decodeImage → RangeError in the webtoon chunk loop.
+      final image = img.Image(width: 100, height: 400); // AR 4.0 → webtoon
+      await cubit.translatePage(
+        imageBytes: img.encodeJpg(image),
+        imageWidth: 100,
+        imageHeight: 400,
+        contentId: 'c1',
+        pageIndex: 0,
+        imageUrl: 'u1',
+        readingMode: ReadingMode.continuousScroll,
+        imageUrlCount: 1,
+      );
+      await pumpEventQueue();
+      expect(cubit.state, isA<ReaderTranslationTranslated>());
+    },
+  );
 
-  test('flat-bubble heuristic flags wide/short boxes, not normal ones',
-      () async {
-    final cubit = makeCubit();
-    addTearDown(cubit.close);
-    // 400×1000 image. Mock detectBubbles: one flat box (ratio 2.6, w≥45%,
-    // h≤22%) + one normal box (ratio ~1.7).
-    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('kuron_native'),
-      (MethodCall call) async {
-        if (call.method == 'detectBubbles') {
-          return [
-            {'x': 50, 'y': 100, 'w': 300, 'h': 115, 'confidence': 0.9},
-            {'x': 50, 'y': 500, 'w': 200, 'h': 115, 'confidence': 0.8},
-          ];
-        }
-        return null;
-      },
-    );
-    final image = img.Image(width: 400, height: 1000);
-    await cubit.translatePage(
-      imageBytes: img.encodeJpg(image),
-      imageWidth: 400,
-      imageHeight: 1000,
-      contentId: 'c1',
-      pageIndex: 0,
-      imageUrl: 'u1',
-      readingMode: ReadingMode.singlePage,
-      imageUrlCount: 1,
-    );
-    await pumpEventQueue();
+  test(
+    'flat-bubble heuristic flags wide/short boxes, not normal ones',
+    () async {
+      final cubit = makeCubit();
+      addTearDown(cubit.close);
+      // 400×1000 image. Mock detectBubbles: one flat box (ratio 2.6, w≥45%,
+      // h≤22%) + one normal box (ratio ~1.7).
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+            MethodCall call,
+          ) async {
+            if (call.method == 'detectBubbles') {
+              return [
+                {'x': 50, 'y': 100, 'w': 300, 'h': 115, 'confidence': 0.9},
+                {'x': 50, 'y': 500, 'w': 200, 'h': 115, 'confidence': 0.8},
+              ];
+            }
+            return null;
+          });
+      final image = img.Image(width: 400, height: 1000);
+      await cubit.translatePage(
+        imageBytes: img.encodeJpg(image),
+        imageWidth: 400,
+        imageHeight: 1000,
+        contentId: 'c1',
+        pageIndex: 0,
+        imageUrl: 'u1',
+        readingMode: ReadingMode.singlePage,
+        imageUrlCount: 1,
+      );
+      await pumpEventQueue();
 
-    final state = cubit.state as ReaderTranslationTranslated;
-    final bubbles = state.result.bubbles;
-    // flat: 300/115 = 2.61 ≥ 2.4, 300 ≥ 180 (45% of 400), 115 ≤ 220 (22% of 1000)
-    expect(bubbles[0].needsWhitePatch, true);
-    // normal: 200/115 = 1.74 < 2.4
-    expect(bubbles[1].needsWhitePatch, false);
-  });
+      final state = cubit.state as ReaderTranslationTranslated;
+      final bubbles = state.result.bubbles;
+      // flat: 300/115 = 2.61 ≥ 2.4, 300 ≥ 180 (45% of 400), 115 ≤ 220 (22% of 1000)
+      expect(bubbles[0].needsWhitePatch, true);
+      // normal: 200/115 = 1.74 < 2.4
+      expect(bubbles[1].needsWhitePatch, false);
+    },
+  );
 
   test('continueScroll single-image cropped (square) runs pipeline', () async {
     final cubit = makeCubit();
@@ -370,8 +376,11 @@ void main() {
     // Same page + url, different crop y → must NOT hit the same cache entry,
     // else scrolling to a new position shows stale bubbles.
     final at0 = ReaderTranslationCubit.buildCacheKey('c1', 0, 'http://u#0');
-    final at4000 =
-        ReaderTranslationCubit.buildCacheKey('c1', 0, 'http://u#4000');
+    final at4000 = ReaderTranslationCubit.buildCacheKey(
+      'c1',
+      0,
+      'http://u#4000',
+    );
     expect(at0, isNot(at4000));
   });
 
@@ -392,35 +401,33 @@ void main() {
     expect(out.map((b) => b.x).toSet(), {289, 80});
   });
 
-  test('polygon shape re-attached to translated bubble by rect (task 4)',
-      () async {
+  test('polygon shape re-attached to translated bubble by rect (task 4)', () async {
     // detect returns a bubble WITH shape; provider returns bubble rect == box.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('kuron_native'),
-      (MethodCall call) async {
-        if (call.method == 'detectBubbles') {
-          return [
-            {
-              'x': 10,
-              'y': 10,
-              'w': 50,
-              'h': 30,
-              'confidence': 0.9,
-              'kind': 'balloon',
-              'shape': [
-                [10, 10],
-                [60, 10],
-                [55, 25],
-                [60, 40],
-                [10, 40],
-              ],
-            },
-          ];
-        }
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+          MethodCall call,
+        ) async {
+          if (call.method == 'detectBubbles') {
+            return [
+              {
+                'x': 10,
+                'y': 10,
+                'w': 50,
+                'h': 30,
+                'confidence': 0.9,
+                'kind': 'balloon',
+                'shape': [
+                  [10, 10],
+                  [60, 10],
+                  [55, 25],
+                  [60, 40],
+                  [10, 40],
+                ],
+              },
+            ];
+          }
+          return null;
+        });
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(const MethodChannel('kuron_native'), null);
@@ -458,7 +465,8 @@ void main() {
         [0, 30],
       ];
       cubit.addManualBubble(
-          BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0, shape: shape));
+        BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0, shape: shape),
+      );
 
       expect(cubit.manualBubbles, hasLength(1));
       expect(cubit.manualBubbles.first.shape, shape);
@@ -471,20 +479,23 @@ void main() {
       final cubit = makeCubit();
       addTearDown(cubit.close);
       cubit.addManualBubble(
-          BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0));
+        BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0),
+      );
       final v1 = (cubit.state as ReaderTranslationIdle).uiVersion;
 
       cubit.undoLastManual();
       expect((cubit.state as ReaderTranslationIdle).uiVersion, greaterThan(v1));
 
       cubit.addManualBubble(
-          BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0));
+        BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0),
+      );
       final v2 = (cubit.state as ReaderTranslationIdle).uiVersion;
       cubit.removeManualBubble(0);
       expect((cubit.state as ReaderTranslationIdle).uiVersion, greaterThan(v2));
 
       cubit.addManualBubble(
-          BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0));
+        BubbleBox(x: 0, y: 0, w: 50, h: 30, confidence: 1.0),
+      );
       final v3 = (cubit.state as ReaderTranslationIdle).uiVersion;
       cubit.clearManualBubbles();
       expect((cubit.state as ReaderTranslationIdle).uiVersion, greaterThan(v3));
@@ -506,59 +517,64 @@ void main() {
       expect((cubit.state as ReaderTranslationIdle).uiVersion, greaterThan(v1));
     });
 
-    test('containment dedup: small rect inside big manual box dropped',
-        () async {
-      final cubit = makeCubit();
-      addTearDown(cubit.close);
+    test(
+      'containment dedup: small rect inside big manual box dropped',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
 
-      // Run draw-mode Detect first so _detectedBoxes exists (manual-only
-      // translate now skips ONNX entirely).
-      cubit.capturePage(
+        // Run draw-mode Detect first so _detectedBoxes exists (manual-only
+        // translate now skips ONNX entirely).
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([1, 2, 3]),
           imageWidth: 200,
-          imageHeight: 200);
-      await cubit.detectBubblesOnly();
-      // Manual covers the first detected box (10,10 50x30) fully.
-      cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
+          imageHeight: 200,
+        );
+        await cubit.detectBubblesOnly();
+        // Manual covers the first detected box (10,10 50x30) fully.
+        cubit.addManualBubble(
+          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
+        );
 
-      await cubit.translatePage(
-        imageBytes: Uint8List.fromList([1, 2, 3]),
-        imageWidth: 200,
-        imageHeight: 200,
-        contentId: 'c1',
-        pageIndex: 0,
-        imageUrl: 'u1',
-        readingMode: ReadingMode.singlePage,
-        imageUrlCount: 1,
-      );
-      await pumpEventQueue();
+        await cubit.translatePage(
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          imageWidth: 200,
+          imageHeight: 200,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
 
-      expect(cubit.state, isA<ReaderTranslationTranslated>());
-      final translated = cubit.state as ReaderTranslationTranslated;
-      // manual + second detected = 2, NOT 3.
-      expect(translated.result.bubbles.length, 2);
-    });
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+        final translated = cubit.state as ReaderTranslationTranslated;
+        // manual + second detected = 2, NOT 3.
+        expect(translated.result.bubbles.length, 2);
+      },
+    );
 
     test('manual shape re-attached to translated bubble (D2)', () async {
       // Manual ellipse over the FIRST detected box; no shape on detected.
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('kuron_native'),
-        (MethodCall call) async {
-          if (call.method == 'detectBubbles') {
-            return [
-              {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
-              {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
-            ];
-          }
-          return null;
-        },
-      );
+          .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+            MethodCall call,
+          ) async {
+            if (call.method == 'detectBubbles') {
+              return [
+                {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
+                {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
+              ];
+            }
+            return null;
+          });
       addTearDown(() {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(
-                const MethodChannel('kuron_native'), null);
+              const MethodChannel('kuron_native'),
+              null,
+            );
       });
 
       final cubit = makeCubit();
@@ -573,12 +589,14 @@ void main() {
       // Run draw-mode Detect first so the manual bubble is deduped against a
       // real detection (manual-only translate skips ONNX entirely).
       cubit.capturePage(
-          imageBytes: Uint8List.fromList([1, 2, 3]),
-          imageWidth: 200,
-          imageHeight: 200);
+        imageBytes: Uint8List.fromList([1, 2, 3]),
+        imageWidth: 200,
+        imageHeight: 200,
+      );
       await cubit.detectBubblesOnly();
       cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0, shape: shape));
+        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0, shape: shape),
+      );
 
       await cubit.translatePage(
         imageBytes: Uint8List.fromList([1, 2, 3]),
@@ -690,15 +708,13 @@ void main() {
     test('addTailToBubble sets tail on manual bubble', () {
       final cubit = makeCubit();
       cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
-      cubit.addTailToBubble(
-        0,
-        [
-          [60, 25],
-          [80, 10],
-          [80, 40],
-        ],
+        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
       );
+      cubit.addTailToBubble(0, [
+        [60, 25],
+        [80, 10],
+        [80, 40],
+      ]);
       expect(cubit.manualBubbles.first.tail, isNotNull);
       expect(cubit.manualBubbles.first.tail!.length, 3);
     });
@@ -706,14 +722,12 @@ void main() {
     test('removeTail clears tail', () {
       final cubit = makeCubit();
       cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
-      cubit.addTailToBubble(
-        0,
-        [
-          [60, 25],
-          [80, 10],
-        ],
+        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
       );
+      cubit.addTailToBubble(0, [
+        [60, 25],
+        [80, 10],
+      ]);
       cubit.removeTail(0);
       expect(cubit.manualBubbles.first.tail, isNull);
     });
@@ -747,109 +761,116 @@ void main() {
       expect(cubit.state, isA<ReaderTranslationTranslated>());
       // Reuse = NO second detect call; boxes came from the prefetch cache.
       expect(detectCalls, 1);
-      expect((cubit.state as ReaderTranslationTranslated).result.bubbles,
-          hasLength(2));
+      expect(
+        (cubit.state as ReaderTranslationTranslated).result.bubbles,
+        hasLength(2),
+      );
     });
 
-    test('empty prefetch result is NOT reused — translate re-detects',
-        () async {
-      final cubit = makeCubit();
-      addTearDown(cubit.close);
+    test(
+      'empty prefetch result is NOT reused — translate re-detects',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
 
-      // ONNX returns nothing (flaky NNAPI / no bubbles) during prefetch.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('kuron_native'),
-        (MethodCall call) async {
-          if (call.method == 'detectBubbles') {
-            detectCalls++;
-            return <Map<String, dynamic>>[];
-          }
-          return null;
-        },
-      );
+        // ONNX returns nothing (flaky NNAPI / no bubbles) during prefetch.
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+              MethodCall call,
+            ) async {
+              if (call.method == 'detectBubbles') {
+                detectCalls++;
+                return <Map<String, dynamic>>[];
+              }
+              return null;
+            });
 
-      final bytes = Uint8List.fromList([1, 2, 3]);
-      cubit.capturePage(imageBytes: bytes, imageWidth: 100, imageHeight: 100);
-      await cubit.prefetchDetection();
-      await pumpEventQueue();
-      expect(detectCalls, 1);
-      expect(cubit.detectedBoxes, isEmpty); // nothing came back
+        final bytes = Uint8List.fromList([1, 2, 3]);
+        cubit.capturePage(imageBytes: bytes, imageWidth: 100, imageHeight: 100);
+        await cubit.prefetchDetection();
+        await pumpEventQueue();
+        expect(detectCalls, 1);
+        expect(cubit.detectedBoxes, isEmpty); // nothing came back
 
-      // Translate must NOT reuse the empty cache: restore a working ONNX
-      // mock, then verify the pipeline re-detects instead of uploading full.
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        const MethodChannel('kuron_native'),
-        (MethodCall call) async {
-          if (call.method == 'detectBubbles') {
-            detectCalls++;
-            return [
-              {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
-              {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
-            ];
-          }
-          return null;
-        },
-      );
+        // Translate must NOT reuse the empty cache: restore a working ONNX
+        // mock, then verify the pipeline re-detects instead of uploading full.
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+              MethodCall call,
+            ) async {
+              if (call.method == 'detectBubbles') {
+                detectCalls++;
+                return [
+                  {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
+                  {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
+                ];
+              }
+              return null;
+            });
 
-      await cubit.translatePage(
-        imageBytes: bytes,
-        imageWidth: 100,
-        imageHeight: 100,
-        contentId: 'c1',
-        pageIndex: 0,
-        imageUrl: 'u1',
-        readingMode: ReadingMode.singlePage,
-        imageUrlCount: 1,
-      );
-      await pumpEventQueue();
+        await cubit.translatePage(
+          imageBytes: bytes,
+          imageWidth: 100,
+          imageHeight: 100,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
 
-      expect(cubit.state, isA<ReaderTranslationTranslated>());
-      // Empty prefetch must NOT be reused — fresh ONNX ran (2nd call).
-      expect(detectCalls, 2);
-      expect((cubit.state as ReaderTranslationTranslated).result.bubbles,
-          hasLength(2));
-    });
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+        // Empty prefetch must NOT be reused — fresh ONNX ran (2nd call).
+        expect(detectCalls, 2);
+        expect(
+          (cubit.state as ReaderTranslationTranslated).result.bubbles,
+          hasLength(2),
+        );
+      },
+    );
 
-    test('different capture signature invalidates prefetch (re-detect)',
-        () async {
-      final cubit = makeCubit();
-      addTearDown(cubit.close);
+    test(
+      'different capture signature invalidates prefetch (re-detect)',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
 
-      cubit.capturePage(
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([1, 2, 3]),
           imageWidth: 100,
-          imageHeight: 100);
-      await cubit.prefetchDetection();
-      await pumpEventQueue();
-      expect(detectCalls, 1);
+          imageHeight: 100,
+        );
+        await cubit.prefetchDetection();
+        await pumpEventQueue();
+        expect(detectCalls, 1);
 
-      // New capture (different bytes = different signature) → the prefetch
-      // cache is stale; translate runs ONNX again (prefetch never populated
-      // _detectedBoxes — it only warms the cache).
-      cubit.capturePage(
+        // New capture (different bytes = different signature) → the prefetch
+        // cache is stale; translate runs ONNX again (prefetch never populated
+        // _detectedBoxes — it only warms the cache).
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([9, 9, 9]),
           imageWidth: 100,
-          imageHeight: 100);
-      await cubit.translatePage(
-        imageBytes: Uint8List.fromList([9, 9, 9]),
-        imageWidth: 100,
-        imageHeight: 100,
-        contentId: 'c1',
-        pageIndex: 0,
-        imageUrl: 'u1',
-        readingMode: ReadingMode.singlePage,
-        imageUrlCount: 1,
-      );
-      await pumpEventQueue();
+          imageHeight: 100,
+        );
+        await cubit.translatePage(
+          imageBytes: Uint8List.fromList([9, 9, 9]),
+          imageWidth: 100,
+          imageHeight: 100,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
 
-      expect(cubit.state, isA<ReaderTranslationTranslated>());
-      expect(detectCalls, 2); // stale prefetch → fresh ONNX run
-    });
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+        expect(detectCalls, 2); // stale prefetch → fresh ONNX run
+      },
+    );
 
-    test('manual bubbles present bypass cached result (cache too stale)',
-        () async {
+    test('manual bubbles present bypass cached result (cache too stale)', () async {
       final cache = FakeCacheRepository();
       final cubit = makeCubit(cache: cache);
       addTearDown(cubit.close);
@@ -872,7 +893,8 @@ void main() {
       // User draws a manual bubble, translates again — cache must NOT be
       // reused (the cached result has no manual bubbles); full pipeline runs.
       cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
+        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
+      );
       await cubit.translatePage(
         imageBytes: Uint8List.fromList([1, 2, 3]),
         imageWidth: 100,
@@ -894,53 +916,61 @@ void main() {
       expect(bubbles.first.translated, isNotEmpty);
     });
 
-    test('manual bubbles present → translate SKIPS ONNX detect entirely',
-        () async {
-      final cubit = makeCubit();
-      addTearDown(cubit.close);
+    test(
+      'manual bubbles present → translate SKIPS ONNX detect entirely',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
 
-      cubit.capturePage(
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([1, 2, 3]),
           imageWidth: 100,
-          imageHeight: 100);
-      cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
+          imageHeight: 100,
+        );
+        cubit.addManualBubble(
+          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
+        );
 
-      await cubit.translatePage(
-        imageBytes: Uint8List.fromList([1, 2, 3]),
-        imageWidth: 100,
-        imageHeight: 100,
-        contentId: 'c1',
-        pageIndex: 0,
-        imageUrl: 'u1',
-        readingMode: ReadingMode.singlePage,
-        imageUrlCount: 1,
-      );
-      await pumpEventQueue();
+        await cubit.translatePage(
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          imageWidth: 100,
+          imageHeight: 100,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
 
-      expect(cubit.state, isA<ReaderTranslationTranslated>());
-      expect(detectCalls, 0); // user already provided boxes — no re-detect
-      expect((cubit.state as ReaderTranslationTranslated).result.bubbles,
-          hasLength(1));
-    });
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+        expect(detectCalls, 0); // user already provided boxes — no re-detect
+        expect(
+          (cubit.state as ReaderTranslationTranslated).result.bubbles,
+          hasLength(1),
+        );
+      },
+    );
 
     test('detected boxes survive re-capture (draw-mode 🛰 first)', () async {
       final cubit = makeCubit();
       addTearDown(cubit.close);
 
       cubit.capturePage(
-          imageBytes: Uint8List.fromList([1, 2, 3]),
-          imageWidth: 100,
-          imageHeight: 100);
+        imageBytes: Uint8List.fromList([1, 2, 3]),
+        imageWidth: 100,
+        imageHeight: 100,
+      );
       await cubit.detectBubblesOnly();
       expect(detectCalls, 1);
       expect(cubit.detectedBoxes, hasLength(2));
 
       // Translate re-captures (different bytes) → detection must NOT be wiped.
       cubit.capturePage(
-          imageBytes: Uint8List.fromList([4, 5, 6]),
-          imageWidth: 100,
-          imageHeight: 100);
+        imageBytes: Uint8List.fromList([4, 5, 6]),
+        imageWidth: 100,
+        imageHeight: 100,
+      );
       expect(cubit.detectedBoxes, hasLength(2));
 
       await cubit.translatePage(
@@ -961,46 +991,54 @@ void main() {
   });
 
   group('T2-D manual bubbles survive re-capture', () {
-    test('manual bubble kept when capturePage re-captures (signature change)',
-        () async {
-      final cubit = makeCubit();
-      addTearDown(cubit.close);
+    test(
+      'manual bubble kept when capturePage re-captures (signature change)',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
 
-      // User draws manual bubble, then translate triggers a fresh capture —
-      // the manual bubble is user-authoritative and must NOT be wiped.
-      cubit.capturePage(
+        // User draws manual bubble, then translate triggers a fresh capture —
+        // the manual bubble is user-authoritative and must NOT be wiped.
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([1, 2, 3]),
           imageWidth: 100,
-          imageHeight: 100);
-      cubit.addManualBubble(
-          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0));
+          imageHeight: 100,
+        );
+        cubit.addManualBubble(
+          BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0),
+        );
 
-      // Same logical page, different bytes (re-fetch/encode) → signature change.
-      cubit.capturePage(
+        // Same logical page, different bytes (re-fetch/encode) → signature change.
+        cubit.capturePage(
           imageBytes: Uint8List.fromList([4, 5, 6]),
           imageWidth: 100,
-          imageHeight: 100);
+          imageHeight: 100,
+        );
 
-      expect(cubit.manualBubbles, hasLength(1));
-    });
+        expect(cubit.manualBubbles, hasLength(1));
+      },
+    );
 
     test('manual bubble still translated after re-capture', () async {
       final cubit = makeCubit();
       addTearDown(cubit.close);
 
       cubit.capturePage(
-          imageBytes: Uint8List.fromList([1, 2, 3]),
-          imageWidth: 100,
-          imageHeight: 100);
-      cubit.addManualBubble(BubbleBox(
-          x: 10, y: 10, w: 50, h: 30, confidence: 1.0, kind: 'balloon'));
+        imageBytes: Uint8List.fromList([1, 2, 3]),
+        imageWidth: 100,
+        imageHeight: 100,
+      );
+      cubit.addManualBubble(
+        BubbleBox(x: 10, y: 10, w: 50, h: 30, confidence: 1.0, kind: 'balloon'),
+      );
 
       // Translate re-captures the same page (like the real flow) — manual
       // must still reach the mosaic.
       cubit.capturePage(
-          imageBytes: Uint8List.fromList([4, 5, 6]),
-          imageWidth: 100,
-          imageHeight: 100);
+        imageBytes: Uint8List.fromList([4, 5, 6]),
+        imageWidth: 100,
+        imageHeight: 100,
+      );
 
       await cubit.translatePage(
         imageBytes: Uint8List.fromList([4, 5, 6]),
@@ -1038,5 +1076,143 @@ void main() {
       // FakeProvider returns 'T0','T1'... never empty → no failures
       expect(state.failedBubbles, isEmpty);
     });
+  });
+
+  group('Fase 2a: epoch gate, detect serialization, webtoon emit', () {
+    test(
+      'cancel mid-translate via resetPage discards result (no Translated emit)',
+      () async {
+        final slowRunnerCompleter = Completer<void>();
+        final cubit = ReaderTranslationCubit(
+          providerRepository: FakeAiProviderRepository(
+            withVisionProvider: true,
+          ),
+          providerFactory: FakeAiProviderFactory(),
+          preferencesRepository: FakeAiPreferencesRepository(),
+          cacheRepository: FakeCacheRepository(),
+          mosaicBuilder: FakeMosaicBuilder(),
+          fallbackHandler: FallbackImageHandler(),
+          heavyRunner: <T>(FutureOr<T> Function() computation) async {
+            await slowRunnerCompleter.future;
+            return await computation();
+          },
+          logger: Logger(level: Level.off),
+        );
+        addTearDown(cubit.close);
+
+        final states = <ReaderTranslationState>[];
+        cubit.stream.listen(states.add);
+
+        final translateFuture = cubit.translatePage(
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          imageWidth: 100,
+          imageHeight: 100,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+
+        // Let translate reach _heavyRunner (mosaic build)
+        await pumpEventQueue();
+        expect(cubit.state, isA<ReaderTranslationBuildingMosaic>());
+
+        // User navigates away / cancels mid-translate
+        cubit.resetPage();
+        expect(cubit.state, isA<ReaderTranslationIdle>());
+
+        // Non-cancellable isolate finishes later
+        slowRunnerCompleter.complete();
+        await translateFuture;
+        await pumpEventQueue();
+
+        // Result discarded: no Translated or Error emitted after Idle
+        expect(cubit.state, isA<ReaderTranslationIdle>());
+        expect(states.whereType<ReaderTranslationTranslated>(), isEmpty);
+        expect(states.whereType<ReaderTranslationError>(), isEmpty);
+      },
+    );
+
+    test(
+      'in-flight prefetch awaited by translatePage without extra ONNX call',
+      () async {
+        final detectCompleter = Completer<List<Map<String, dynamic>>>();
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+              MethodCall call,
+            ) async {
+              if (call.method == 'detectBubbles') {
+                detectCalls++;
+                return detectCompleter.future;
+              }
+              return null;
+            });
+
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
+
+        cubit.capturePage(
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          imageWidth: 100,
+          imageHeight: 100,
+        );
+
+        final prefetchFuture = cubit.prefetchDetection();
+        await pumpEventQueue();
+        expect(detectCalls, 1);
+
+        final translateFuture = cubit.translatePage(
+          imageBytes: Uint8List.fromList([1, 2, 3]),
+          imageWidth: 100,
+          imageHeight: 100,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.singlePage,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
+
+        // Still only 1 ONNX call (no concurrent collision)
+        expect(detectCalls, 1);
+
+        detectCompleter.complete([
+          {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
+        ]);
+        await Future.wait([prefetchFuture, translateFuture]);
+        await pumpEventQueue();
+
+        expect(detectCalls, 1);
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+      },
+    );
+
+    test(
+      'webtoon emits ReaderTranslationDetecting once, not per chunk',
+      () async {
+        final cubit = makeCubit();
+        addTearDown(cubit.close);
+        final states = <ReaderTranslationState>[];
+        cubit.stream.listen(states.add);
+
+        // 100×2600 → >2 chunks of 1280px
+        final image = img.Image(width: 100, height: 2600);
+        await cubit.translatePage(
+          imageBytes: img.encodeJpg(image),
+          imageWidth: 100,
+          imageHeight: 2600,
+          contentId: 'c1',
+          pageIndex: 0,
+          imageUrl: 'u1',
+          readingMode: ReadingMode.continuousScroll,
+          imageUrlCount: 1,
+        );
+        await pumpEventQueue();
+
+        expect(cubit.state, isA<ReaderTranslationTranslated>());
+        expect(states.whereType<ReaderTranslationDetecting>().length, 1);
+      },
+    );
   });
 }

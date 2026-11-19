@@ -59,7 +59,10 @@ class WebViewDomReaderSource implements ContentSource {
   }
 
   @override
-  Future<ChapterData?> getChapterImages(String chapterId) async {
+  Future<ChapterData?> getChapterImages(
+    String chapterId, {
+    OnCancelRegister? onCancel,
+  }) async {
     final pageUrl = pageUrlFor(chapterId);
     final cached = _chapterCache[pageUrl];
     if (cached != null && cached.images.isNotEmpty) {

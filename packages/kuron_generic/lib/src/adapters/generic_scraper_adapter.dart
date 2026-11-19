@@ -162,6 +162,7 @@ class GenericScraperAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const <Chapter>[];
 
@@ -184,8 +185,9 @@ class GenericScraperAdapter implements GenericAdapter {
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     if (scraper == null) {
       return const AdapterSearchResult(items: [], hasNextPage: false);
@@ -206,6 +208,7 @@ class GenericScraperAdapter implements GenericAdapter {
         rawConfig: rawConfig,
         scraper: scraper,
         urlPatternsCfg: urlPatternsCfg,
+        cancelToken: cancelToken,
       );
     }
 
@@ -328,6 +331,7 @@ class GenericScraperAdapter implements GenericAdapter {
         page: filter.page,
         paginationCacheKey: paginationCacheKey,
         postForm: postForm,
+        cancelToken: cancelToken,
       );
     }
 
@@ -345,6 +349,7 @@ class GenericScraperAdapter implements GenericAdapter {
           rawConfig: rawConfig,
           paginationCacheKey: paginationCacheKey,
           initialUrl: url,
+          cancelToken: cancelToken,
         ) ??
         pagedUrl;
 
@@ -364,6 +369,7 @@ class GenericScraperAdapter implements GenericAdapter {
       currentPage: filter.page,
       paginationCacheKey: paginationCacheKey,
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
+      cancelToken: cancelToken,
     );
   }
 
@@ -381,6 +387,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required int page,
     required String paginationCacheKey,
     required Map<String, String> postForm,
+    CancelToken? cancelToken,
   }) async {
     // Nonce-bootstrapped POST search (Rawkuma `?action=advanced_search`):
     // the form carries a `{nonce}` placeholder that is filled from a
@@ -391,7 +398,8 @@ class GenericScraperAdapter implements GenericAdapter {
     Map<String, String>? nonceTemplate;
     var usedCachedNonce = false;
     if (postForm.values.any((v) => v.contains('{nonce}'))) {
-      final nonce = await _fetchSearchNonce(scraper, patternKey, rawConfig);
+      final nonce = await _fetchSearchNonce(
+        scraper, patternKey, rawConfig, cancelToken: cancelToken);
       if (nonce == null) {
         _logger
             .w('$_sourceId: search nonce bootstrap failed for "$patternKey"; '
@@ -420,6 +428,7 @@ class GenericScraperAdapter implements GenericAdapter {
       paginationCacheKey: paginationCacheKey,
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
       postForm: postForm,
+      cancelToken: cancelToken,
     );
 
     // A server-side nonce rotation after our cache TTL (or a cold cache that
@@ -432,6 +441,7 @@ class GenericScraperAdapter implements GenericAdapter {
         patternKey,
         rawConfig,
         forceRefresh: true,
+        cancelToken: cancelToken,
       );
       if (nonce != null) {
         final nonceValue = nonce.value;
@@ -449,6 +459,7 @@ class GenericScraperAdapter implements GenericAdapter {
           paginationCacheKey: paginationCacheKey,
           defaultLanguage: rawConfig['defaultLanguage'] as String?,
           postForm: retryForm,
+          cancelToken: cancelToken,
         );
       }
     }
@@ -475,6 +486,7 @@ class GenericScraperAdapter implements GenericAdapter {
     String patternKey,
     Map<String, dynamic> rawConfig, {
     bool forceRefresh = false,
+    CancelToken? cancelToken,
   }) async {
     final urlPatternsCfg =
         (scraper['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -502,6 +514,7 @@ class GenericScraperAdapter implements GenericAdapter {
       final response = await _getWithRedirectFallback(
         bootstrapUrl,
         rawConfig: rawConfig,
+        cancelToken: cancelToken,
       );
       final body = response.data ?? '';
       final patternSrc = (nonceCfg['pattern'] as String?)?.trim();
@@ -510,6 +523,7 @@ class GenericScraperAdapter implements GenericAdapter {
           : patternSrc);
       extracted = regex.firstMatch(body)?.group(1)?.trim();
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: search nonce bootstrap GET failed: $bootstrapUrl',
           error: e);
       return null;
@@ -583,6 +597,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required String queryParamName,
     required String? rawQueryValue,
     required String? rawTagValue,
+    CancelToken? cancelToken,
   }) async {
     final routingBaseKey = _paginationScopeForPatternKey(patternKey);
     final pathTagValue = _pathTagValueForPatternKey(
@@ -628,6 +643,7 @@ class GenericScraperAdapter implements GenericAdapter {
       url: postUrl,
       listConfig: postListConfig,
       page: page,
+      cancelToken: cancelToken,
       paginationCacheKey: _buildRawPaginationCacheKey(
         scope: routingBaseKey,
         rawMap: rawMap,
@@ -647,6 +663,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required Map<String, dynamic> rawConfig,
     required Map<String, dynamic> scraper,
     required Map<String, dynamic> urlPatternsCfg,
+    CancelToken? cancelToken,
   }) async {
     // Parse raw params (e.g. "s=manga&status=ongoing")
     final rawMap = <String, List<String>>{};
@@ -746,6 +763,7 @@ class GenericScraperAdapter implements GenericAdapter {
         queryParamName: queryParamName,
         rawQueryValue: rawQueryValue,
         rawTagValue: rawTagValue,
+        cancelToken: cancelToken,
       );
     }
 
@@ -965,6 +983,7 @@ class GenericScraperAdapter implements GenericAdapter {
           rawConfig: rawConfig,
           paginationCacheKey: paginationCacheKey,
           initialUrl: finalUrl,
+          cancelToken: cancelToken,
         ) ??
         requestUrl;
 
@@ -978,18 +997,21 @@ class GenericScraperAdapter implements GenericAdapter {
       currentPage: page,
       paginationCacheKey: paginationCacheKey,
       defaultLanguage: rawConfig['defaultLanguage'] as String?,
+      cancelToken: cancelToken,
     );
   }
 
   Future<Response<String>> _getWithRedirectFallback(
     String url, {
     required Map<String, dynamic> rawConfig,
+    CancelToken? cancelToken,
   }) async {
     final headers = _resolveRequestHeaders(rawConfig, fallbackReferer: url);
 
     final initialResponse = await _executeRequest<Response<String>>(
       () => _dio.get<String>(
         url,
+        cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.plain,
           headers: headers,
@@ -1037,6 +1059,7 @@ class GenericScraperAdapter implements GenericAdapter {
         final resolvedResponse = await _executeRequest<Response<String>>(
           () => _dio.get<String>(
             resolvedUrl,
+            cancelToken: cancelToken,
             options: Options(
               responseType: ResponseType.plain,
               headers: headers,
@@ -1085,6 +1108,7 @@ class GenericScraperAdapter implements GenericAdapter {
             final isolatedResponse = await _fetchWithIsolatedClient(
               candidateUrl,
               headers: isolatedHeaders,
+              cancelToken: cancelToken,
             );
 
             if (_isSuccessStatus(isolatedResponse.statusCode)) {
@@ -1110,6 +1134,7 @@ class GenericScraperAdapter implements GenericAdapter {
               }
             }
           } on DioException catch (isolatedError) {
+      if (isolatedError.type == DioExceptionType.cancel) rethrow;
             _logger.w(
               '$_sourceId isolated fallback failed for $candidateUrl',
               error: isolatedError,
@@ -1129,6 +1154,7 @@ class GenericScraperAdapter implements GenericAdapter {
   Future<Response<String>> _fetchWithIsolatedClient(
     String url, {
     required Map<String, dynamic> headers,
+    CancelToken? cancelToken,
   }) async {
     final isolatedDio = Dio(
       BaseOptions(
@@ -1145,6 +1171,7 @@ class GenericScraperAdapter implements GenericAdapter {
     try {
       return await isolatedDio.get<String>(
         url,
+        cancelToken: cancelToken,
         options: Options(
           responseType: ResponseType.plain,
           validateStatus: (status) => status != null && status < 500,
@@ -1296,8 +1323,9 @@ class GenericScraperAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
         (scraper?['urlPatterns'] as Map<String, dynamic>?) ?? {};
@@ -1322,6 +1350,7 @@ class GenericScraperAdapter implements GenericAdapter {
       final response = await _executeRequest<Response<String>>(
         () => _dio.get<String>(
           url,
+          cancelToken: cancelToken,
           options: Options(
             responseType: ResponseType.plain,
             headers: requestHeaders,
@@ -1363,6 +1392,7 @@ class GenericScraperAdapter implements GenericAdapter {
             imageUrls: const [],
           );
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('$_sourceId chaotic detail parse failed: $e');
         }
       }
@@ -1390,6 +1420,7 @@ class GenericScraperAdapter implements GenericAdapter {
           final ajaxResponse = await _executeRequest<Response<String>>(
             () => _dio.post<String>(
               ajaxUrl,
+              cancelToken: cancelToken,
               data: '',
               options: Options(
                 responseType: ResponseType.plain,
@@ -1422,6 +1453,7 @@ class GenericScraperAdapter implements GenericAdapter {
               final adminResponse = await _executeRequest<Response<String>>(
                 () => _dio.post<String>(
                   adminAjax,
+                  cancelToken: cancelToken,
                   data: 'action=manga_get_chapters&manga=$dataId',
                   options: Options(
                     responseType: ResponseType.plain,
@@ -1446,6 +1478,7 @@ class GenericScraperAdapter implements GenericAdapter {
           _logger.d(
               '$_sourceId: ajaxHtml chapters=${chapters.length} for $contentId');
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('$_sourceId ajaxHtml chapters failed, falling back to DOM',
               error: e);
         }
@@ -1471,6 +1504,7 @@ class GenericScraperAdapter implements GenericAdapter {
             final adminResponse = await _executeRequest<Response<String>>(
               () => _dio.post<String>(
                 adminAjax,
+                cancelToken: cancelToken,
                 data: 'action=$action&$idParam=$postId',
                 options: Options(
                   responseType: ResponseType.plain,
@@ -1503,6 +1537,7 @@ class GenericScraperAdapter implements GenericAdapter {
                 '$_sourceId: adminAjax chapters=${chapters.length} for $contentId');
           }
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('$_sourceId adminAjax chapters failed, falling back',
               error: e);
         }
@@ -1620,6 +1655,7 @@ class GenericScraperAdapter implements GenericAdapter {
 
       return AdapterDetailResult(content: content, imageUrls: detailImageUrls);
     } on DioException catch (e, stack) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       Logger().i(
           '[$_sourceId] getDetail ERROR (DioException): ${e.message}, statusCode=${e.response?.statusCode}');
       Logger().i('[$_sourceId] stack: $stack');
@@ -1638,6 +1674,7 @@ class GenericScraperAdapter implements GenericAdapter {
       return AdapterDetailResult(
           content: _emptyContent(contentId), imageUrls: []);
     } catch (e, stack) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       Logger().e('[$_sourceId] getDetail ERROR (Exception): $e');
       Logger().e('[$_sourceId] stack: $stack');
       _logger.e('$_sourceId scraper detail failed for $contentId', error: e);
@@ -1653,8 +1690,9 @@ class GenericScraperAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
         (scraper?['urlPatterns'] as Map<String, dynamic>?) ?? {};
@@ -1680,6 +1718,7 @@ class GenericScraperAdapter implements GenericAdapter {
       final response = await _executeRequest<Response<String>>(
         () => _dio.get<String>(
           url,
+          cancelToken: cancelToken,
           options: Options(
             responseType: ResponseType.plain,
             headers: requestHeaders,
@@ -1715,6 +1754,7 @@ class GenericScraperAdapter implements GenericAdapter {
 
       return related;
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       // 🚀 Re-throw Cloudflare 403 so WebViewSessionAdapter can handle it
       if (e.response?.statusCode == 403) {
         final cfMitigated = e.response?.headers.value('cf-mitigated');
@@ -1728,6 +1768,7 @@ class GenericScraperAdapter implements GenericAdapter {
           error: e);
       return const [];
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId scraper related fetch failed for $contentId',
           error: e);
       return const [];
@@ -1737,8 +1778,9 @@ class GenericScraperAdapter implements GenericAdapter {
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
         (scraper?['urlPatterns'] as Map<String, dynamic>?) ?? {};
@@ -1768,6 +1810,7 @@ class GenericScraperAdapter implements GenericAdapter {
         final detailResponse = await _executeRequest<Response<String>>(
           () => _dio.get<String>(
             url,
+            cancelToken: cancelToken,
             options: Options(
               responseType: ResponseType.plain,
               headers: detailRequestHeaders,
@@ -1791,6 +1834,7 @@ class GenericScraperAdapter implements GenericAdapter {
         final response = await _executeRequest<Response<dynamic>>(
           () => _dio.post<dynamic>(
             commentsUrl,
+            cancelToken: cancelToken,
             data: {galleryIdParam: contentId},
             options: Options(
               contentType: Headers.formUrlEncodedContentType,
@@ -1812,6 +1856,7 @@ class GenericScraperAdapter implements GenericAdapter {
           return apiComments;
         }
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         // 🚀 Re-throw Cloudflare 403 so WebViewSessionAdapter can handle it
         if (e is DioException && e.response?.statusCode == 403) {
           final cfMitigated = e.response?.headers.value('cf-mitigated');
@@ -1839,6 +1884,7 @@ class GenericScraperAdapter implements GenericAdapter {
           (await _executeRequest<Response<String>>(
             () => _dio.get<String>(
               url,
+              cancelToken: cancelToken,
               options: Options(
                 responseType: ResponseType.plain,
                 headers: detailRequestHeaders,
@@ -1882,6 +1928,7 @@ class GenericScraperAdapter implements GenericAdapter {
 
       return comments;
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       // 🚀 Re-throw Cloudflare 403 so WebViewSessionAdapter can handle it
       if (e.response?.statusCode == 403) {
         final cfMitigated = e.response?.headers.value('cf-mitigated');
@@ -1895,6 +1942,7 @@ class GenericScraperAdapter implements GenericAdapter {
           error: e);
       return const [];
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId scraper comments fetch failed for $contentId',
           error: e);
       return const [];
@@ -1935,8 +1983,9 @@ class GenericScraperAdapter implements GenericAdapter {
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
         (scraper?['urlPatterns'] as Map?)?.cast<String, dynamic>() ?? {};
@@ -1965,6 +2014,7 @@ class GenericScraperAdapter implements GenericAdapter {
       final response = await _executeRequest<Response<String>>(
         () => _dio.get<String>(
           url,
+          cancelToken: cancelToken,
           options: Options(
             responseType: ResponseType.plain,
             headers: chapterRequestHeaders,
@@ -2014,6 +2064,7 @@ class GenericScraperAdapter implements GenericAdapter {
               );
             }
           } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
             _logger.w('$_sourceId chaoticPayload reader parse failed: $e');
           }
         }
@@ -2028,6 +2079,7 @@ class GenericScraperAdapter implements GenericAdapter {
           final apiResponse = await _executeRequest<Response<String>>(
             () => _dio.post<String>(
               _urlBuilder.resolve(apiPath, const {}),
+              cancelToken: cancelToken,
               data: json.encode({'chapterUrl': url}),
               options: Options(
                 responseType: ResponseType.plain,
@@ -2060,6 +2112,7 @@ class GenericScraperAdapter implements GenericAdapter {
             _logger.w('$_sourceId parseChapterApi error: $apiError');
           }
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('$_sourceId parseChapterApi failed, falling back to DOM',
               error: e);
         }
@@ -2113,6 +2166,7 @@ class GenericScraperAdapter implements GenericAdapter {
           final readerPageResponse = await _executeRequest<Response<String>>(
             () => _dio.get<String>(
               resolvedReaderPageUrl,
+              cancelToken: cancelToken,
               options: Options(
                 responseType: ResponseType.plain,
                 headers: _resolveRequestHeaders(
@@ -2165,6 +2219,7 @@ class GenericScraperAdapter implements GenericAdapter {
                 nextId = _extractSlugFromUrl(nextUrlRaw.replaceAll(r'\/', '/'));
               }
             } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
               _logger.w('$_sourceId tsReaderRegex JSON parse failed', error: e);
             }
           }
@@ -2178,6 +2233,7 @@ class GenericScraperAdapter implements GenericAdapter {
           readerConfig: readerConfig,
           readerDocument: workingDoc,
           readerPageUrl: workingUrl,
+          cancelToken: cancelToken,
         );
       }
 
@@ -2198,6 +2254,7 @@ class GenericScraperAdapter implements GenericAdapter {
           final readerResp = await _executeRequest<Response<String>>(
             () => _dio.get<String>(
               readerPageUrl,
+              cancelToken: cancelToken,
               options: Options(
                 responseType: ResponseType.plain,
                 headers: _resolveRequestHeaders(
@@ -2259,6 +2316,7 @@ class GenericScraperAdapter implements GenericAdapter {
             );
           }
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w(
             '$_sourceId: failed to extract HentaiFox reader-page sample URL',
             error: e,
@@ -2368,6 +2426,7 @@ class GenericScraperAdapter implements GenericAdapter {
             rawConfig: rawConfig,
             readerConfig: readerConfig,
             chapterHtmlContent: workingHtmlContent,
+            cancelToken: cancelToken,
           );
         }
       }
@@ -2525,6 +2584,7 @@ class GenericScraperAdapter implements GenericAdapter {
                 final extraResp = await _executeRequest<Response<String>>(
                   () => _dio.get<String>(
                     extraUrl,
+                    cancelToken: cancelToken,
                     options: Options(
                       responseType: ResponseType.plain,
                       headers: _resolveRequestHeaders(
@@ -2547,6 +2607,7 @@ class GenericScraperAdapter implements GenericAdapter {
                 // discover further pagination from this page if truncated
                 enqueueNextLinks(extraDoc, extraUrl);
               } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
                 _logger.w(
                   '$_sourceId reader pagination fetch failed $extraUrl',
                   error: e,
@@ -2563,6 +2624,7 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
         } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('$_sourceId reader pagination failed', error: e);
         }
       }
@@ -2754,6 +2816,7 @@ class GenericScraperAdapter implements GenericAdapter {
         prevChapterId: prevId,
       );
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       // 🚀 Re-throw Cloudflare 403 so WebViewSessionAdapter can handle it
       if (e.response?.statusCode == 403) {
         final cfMitigated = e.response?.headers.value('cf-mitigated');
@@ -2769,6 +2832,7 @@ class GenericScraperAdapter implements GenericAdapter {
           url: url, feature: 'reader', statusCode: e.response?.statusCode);
       return null;
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId scraper chapter fetch failed for $chapterId',
           error: e);
       FetchErrorReporter.notify(e, sourceId: _sourceId,
@@ -2959,13 +3023,16 @@ class GenericScraperAdapter implements GenericAdapter {
     String? paginationCacheKey,
     String? defaultLanguage,
     Map<String, String>? postForm,
+    CancelToken? cancelToken,
   }) async {
     try {
       final response = postForm == null
-          ? await _getWithRedirectFallback(url, rawConfig: rawConfig)
+          ? await _getWithRedirectFallback(
+              url, rawConfig: rawConfig, cancelToken: cancelToken)
           : await _executeRequest<Response<String>>(
               () => _dio.post<String>(
                 url,
+                cancelToken: cancelToken,
                 data: postForm,
                 options: Options(
                   responseType: ResponseType.plain,
@@ -3156,6 +3223,7 @@ class GenericScraperAdapter implements GenericAdapter {
         totalPages: totalPages,
       );
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId scraper list fetch failed: $url', error: e);
       FetchErrorReporter.notify(e, sourceId: _sourceId,
           url: url,
@@ -3673,6 +3741,7 @@ class GenericScraperAdapter implements GenericAdapter {
       if (match == null) return null;
       return match.groupCount > 0 ? match.group(1) : match.group(0);
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: regex pattern error: $pattern', error: e);
       return null;
     }
@@ -3711,6 +3780,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required Map<String, dynamic> readerConfig,
     required dom.Document readerDocument,
     required String readerPageUrl,
+    CancelToken? cancelToken,
   }) async {
     final requestConfig =
         (readerConfig['request'] as Map?)?.cast<String, dynamic>();
@@ -3778,6 +3848,7 @@ class GenericScraperAdapter implements GenericAdapter {
     final response = await _executeRequest<Response<String>>(
       () => _dio.request<String>(
         requestUrl,
+        cancelToken: cancelToken,
         data: method == 'GET' ? null : bodyFields,
         queryParameters: queryParameters.isEmpty ? null : queryParameters,
         options: Options(
@@ -3934,6 +4005,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required Map<String, dynamic> rawConfig,
     required String paginationCacheKey,
     required String initialUrl,
+    CancelToken? cancelToken,
   }) async {
     if (requestUrl != null || page <= 1 || patternKey.endsWith('Page')) {
       return null;
@@ -3964,6 +4036,7 @@ class GenericScraperAdapter implements GenericAdapter {
         currentPage: currentPage,
         paginationCacheKey: paginationCacheKey,
         defaultLanguage: rawConfig['defaultLanguage'] as String?,
+        cancelToken: cancelToken,
       );
 
       final nextUrl = result.nextPageUrl;
@@ -4100,6 +4173,7 @@ class GenericScraperAdapter implements GenericAdapter {
     required Map<String, dynamic> rawConfig,
     required Map<String, dynamic> readerConfig,
     required String chapterHtmlContent,
+    CancelToken? cancelToken,
   }) async {
     final cdnHost = readerConfig['cdnHost'] as String?;
     if (cdnHost == null || cdnHost.isEmpty) return const [];

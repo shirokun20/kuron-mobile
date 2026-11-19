@@ -33,26 +33,31 @@ class ViHentaiAdapter implements GenericAdapter {
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    await _ensureAuthenticated(rawConfig);
-    return _delegate.search(filter, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    await _ensureAuthenticated(rawConfig, cancelToken: cancelToken);
+    return _delegate.search(filter, rawConfig, cancelToken: cancelToken);
   }
 
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    return _delegate.fetchRelated(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    return _delegate.fetchRelated(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    return _delegate.fetchComments(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    return _delegate.fetchComments(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
@@ -64,17 +69,24 @@ class ViHentaiAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const [];
 
-  Future<void> _ensureAuthenticated(Map<String, dynamic> rawConfig) async {
+  Future<void> _ensureAuthenticated(
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     if (_solved) return;
 
     final baseUrl = rawConfig['baseUrl'] as String? ?? '';
     final homeUrl = '$baseUrl/danh-sach?sort=-views';
 
     try {
-      final response = await _dio.get<String>(homeUrl);
+      final response = await _dio.get<String>(
+        homeUrl,
+        cancelToken: cancelToken,
+      );
       final html = response.data ?? '';
       if (!ViHentaiLivewireAuth.needsPassword(html)) {
         _solved = true;
@@ -111,6 +123,7 @@ class ViHentaiAdapter implements GenericAdapter {
       _solved = true;
       _logger.d('$_sourceId: password solved for session');
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId: password solve failed on home', error: e);
     }
   }
@@ -118,18 +131,21 @@ class ViHentaiAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    await _ensureAuthenticated(rawConfig);
-    return _delegate.fetchDetail(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    await _ensureAuthenticated(rawConfig, cancelToken: cancelToken);
+    return _delegate.fetchDetail(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    await _ensureAuthenticated(rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    await _ensureAuthenticated(rawConfig, cancelToken: cancelToken);
 
     final scraper = rawConfig['scraper'] as Map<String, dynamic>?;
     final urlPatternsCfg =
@@ -165,12 +181,14 @@ class ViHentaiAdapter implements GenericAdapter {
       // on the global Dio reads cf_vihentai jar which now has laravel_session.
       final response = await _dio.get<String>(
         url,
+        cancelToken: cancelToken,
         options: Options(responseType: ResponseType.plain),
       );
       final html = response.data ?? '';
       final imageUrls = ViHentaiPackedJs.extractImageUrls(html);
       return ChapterData(images: imageUrls);
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId chapter fetch failed for $chapterId', error: e);
       return null;
     }

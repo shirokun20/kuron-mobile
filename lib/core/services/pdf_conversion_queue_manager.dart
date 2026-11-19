@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
+
 import 'pdf_conversion_service.dart';
 import 'notification_service.dart';
 
@@ -22,6 +24,10 @@ class PdfConversionQueueManager {
 
   final Queue<PdfConversionTask> _queue = Queue();
   PdfConversionTask? _currentTask;
+  // Token cancelling the currently running conversion. Created per task in
+  // [_processQueue] so [cancelCurrent] can abort the in-flight native worker
+  // (the convert channel call itself cannot be aborted mid-flight).
+  CancelToken? _currentToken;
   bool _isProcessing = false;
   int _totalProcessed = 0;
 
@@ -56,7 +62,8 @@ class PdfConversionQueueManager {
   }) async {
     if (_conversionService == null || _notificationService == null) {
       _logger?.e(
-          'PdfConversionQueueManager: Not initialized! Call initialize() first.');
+        'PdfConversionQueueManager: Not initialized! Call initialize() first.',
+      );
       throw StateError('PdfConversionQueueManager not initialized');
     }
 
@@ -70,7 +77,8 @@ class PdfConversionQueueManager {
 
     _queue.add(task);
     _logger?.i(
-        '📥 Queued PDF conversion: $contentId (Queue size: ${_queue.length})');
+      '📥 Queued PDF conversion: $contentId (Queue size: ${_queue.length})',
+    );
 
     // Broadcast status update
     _broadcastStatus();
@@ -94,10 +102,14 @@ class PdfConversionQueueManager {
       final totalItems = position + _queue.length;
 
       _logger?.i(
-          '📄 Processing PDF $position of $totalItems: ${_currentTask!.title}');
+        '📄 Processing PDF $position of $totalItems: ${_currentTask!.title}',
+      );
 
       // Broadcast status
       _broadcastStatus();
+      // Fresh token per task: cancelCurrent aborts exactly this run.
+      final token = CancelToken();
+      _currentToken = token;
       try {
         // Update group notification: starting
         await _notificationService!.updatePdfGroupProgress(
@@ -114,6 +126,7 @@ class PdfConversionQueueManager {
           title: _currentTask!.title,
           imagePaths: _currentTask!.imagePaths,
           sourceId: _currentTask!.sourceId,
+          cancelToken: token,
           onProgress: (progress, message) {
             _notificationService?.updatePdfGroupProgress(
               currentIndex: position,
@@ -124,11 +137,20 @@ class PdfConversionQueueManager {
           },
         );
 
-        _logger?.i('✅ PDF conversion completed: ${_currentTask!.contentId}');
-        _totalProcessed++;
+        if (token.isCancelled) {
+          _logger?.i(
+            '🚫 PDF conversion cancelled, not counted: ${_currentTask!.contentId}',
+          );
+        } else {
+          _logger?.i('✅ PDF conversion completed: ${_currentTask!.contentId}');
+          _totalProcessed++;
+        }
       } catch (e, stackTrace) {
-        _logger?.e('❌ PDF conversion failed for ${_currentTask!.contentId}',
-            error: e, stackTrace: stackTrace);
+        _logger?.e(
+          '❌ PDF conversion failed for ${_currentTask!.contentId}',
+          error: e,
+          stackTrace: stackTrace,
+        );
         // Show group error (non-fatal, queue continues)
         _notificationService?.showPdfGroupError(
           currentIndex: position,
@@ -138,12 +160,14 @@ class PdfConversionQueueManager {
       }
 
       _currentTask = null;
+      _currentToken = null;
       _broadcastStatus();
     }
 
     _isProcessing = false;
     _logger?.i(
-        '🏁 PDF conversion queue completed. Total processed: $_totalProcessed');
+      '🏁 PDF conversion queue completed. Total processed: $_totalProcessed',
+    );
 
     // Show summary notification
     await _notificationService!.showPdfGroupCompleted(_totalProcessed);
@@ -159,10 +183,29 @@ class PdfConversionQueueManager {
     }
   }
 
-  // Cancel all queued conversions (does not cancel current processing)
+  // Cancel the currently running conversion, if any. Queued tasks stay queued
+  // and the processor moves on to the next one.
+  Future<void> cancelCurrent() async {
+    final task = _currentTask;
+    _logger?.w(
+      '🚫 Cancelling current PDF conversion${task == null ? ' (none running)' : ': ${task.contentId}'}',
+    );
+    final token = _currentToken;
+    if (token != null && !token.isCancelled) {
+      token.cancel('PDF conversion cancelled by user');
+    }
+    // Belt-and-braces: the service re-cancels its active token (same object
+    // in the normal path) and issues a native cancel so a stray worker stops
+    // even when no Dart token is in scope.
+    await _conversionService?.cancelCurrentConversion();
+    _broadcastStatus();
+  }
+
+  // Cancel all queued conversions AND the currently running one.
   Future<void> cancelAll() async {
     _logger?.w('🚫 Cancelling all queued PDF conversions');
     _queue.clear();
+    await cancelCurrent();
     await _notificationService?.cancelPdfGroup();
     _broadcastStatus();
   }

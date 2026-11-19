@@ -298,6 +298,7 @@ class WebViewSessionAdapter {
   Future<Response<T>> requestWithBypass<T>(
     String url, {
     Options? options,
+    CancelToken? cancelToken,
   }) async {
     final bypassOptions = _bypassOptionsBuilder(url, _config);
     try {
@@ -342,6 +343,7 @@ class WebViewSessionAdapter {
           targetUrl: url,
           options: options,
           bypassOptions: bypassOptions,
+          cancelToken: cancelToken,
         );
         if (bypassResponse != null) {
           _logger.i('✅ Site protection bypassed without initial probe.');
@@ -352,7 +354,11 @@ class WebViewSessionAdapter {
       // 1. First attempt — through this adapter's own jar, so a previously
       // minted clearance is attached (shared Dio would send another source's
       // jar and re-trigger the challenge on every call).
-      final response = await _jarClient().get<T>(url, options: options);
+      final response = await _jarClient().get<T>(
+        url,
+        options: options,
+        cancelToken: cancelToken,
+      );
       if (!shouldTriggerBypass(response) || !_config.bypassEnabled) {
         unawaited(_seedImageHeaderCache(url));
         return response;
@@ -366,6 +372,7 @@ class WebViewSessionAdapter {
         targetUrl: url,
         options: options,
         bypassOptions: bypassOptions,
+        cancelToken: cancelToken,
       );
       if (bypassResponse == null) {
         _logger.e('❌ Site protection bypass failed completely.');
@@ -380,6 +387,7 @@ class WebViewSessionAdapter {
       unawaited(_seedImageHeaderCache(url));
       return bypassResponse;
     } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) rethrow;
       if (!shouldTriggerBypass(e.response) || !_config.bypassEnabled) {
         rethrow;
       }
@@ -397,7 +405,11 @@ class WebViewSessionAdapter {
         for (var i = 0; i < 15 && _bypassingUrls.contains(url); i++) {
           await Future.delayed(const Duration(seconds: 2));
         }
-        return await _jarClient().get<T>(url, options: options);
+        return await _jarClient().get<T>(
+          url,
+          options: options,
+          cancelToken: cancelToken,
+        );
       }
 
       // 3. Launch UI Bypass and use verified response directly.
@@ -405,6 +417,7 @@ class WebViewSessionAdapter {
         targetUrl: url,
         options: options,
         bypassOptions: bypassOptions,
+        cancelToken: cancelToken,
       );
       if (bypassResponse == null) {
         _logger.e('❌ Cloudflare bypass failed completely.');
@@ -421,6 +434,7 @@ class WebViewSessionAdapter {
     required String targetUrl,
     Options? options,
     WebViewBypassOptions? bypassOptions,
+    CancelToken? cancelToken,
   }) async {
     _bypassingUrls.add(targetUrl);
     try {
@@ -513,10 +527,12 @@ class WebViewSessionAdapter {
           targetUrl,
           options: options,
           untrustedCookieHeader: untrustedHeader,
+          cancelToken: cancelToken,
         );
       }
       return null;
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('Native Bypass Error: $e');
       return null;
     } finally {
@@ -646,6 +662,7 @@ class WebViewSessionAdapter {
     String url, {
     Options? options,
     String? untrustedCookieHeader,
+    CancelToken? cancelToken,
   }) async {
     // Untrusted-session cookies ride only this verify chain, then drop.
     final untrustedHeader = untrustedCookieHeader;
@@ -655,6 +672,7 @@ class WebViewSessionAdapter {
         try {
           final response = await verifyDio.get<T>(
             url,
+            cancelToken: cancelToken,
             options: Options(
               followRedirects: true,
               validateStatus: (status) => status != null && status < 500,
@@ -675,6 +693,7 @@ class WebViewSessionAdapter {
           // in Turnstile scripts) causing false positives.
           return response;
         } catch (e) {
+          if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
           _logger.w('Verify attempt ${i + 1} failed: $e');
         }
         await Future.delayed(const Duration(seconds: 1));

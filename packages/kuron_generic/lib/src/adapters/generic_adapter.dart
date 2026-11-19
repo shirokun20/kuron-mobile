@@ -5,6 +5,7 @@
 // - [GenericScraperAdapter] — for HTML scraping via CSS selectors
 library;
 
+import 'package:dio/dio.dart';
 import 'package:kuron_core/kuron_core.dart';
 
 // Result of fetching and parsing a search/list page.
@@ -29,10 +30,7 @@ class AdapterDetailResult {
   final Content content;
   final List<String> imageUrls;
 
-  const AdapterDetailResult({
-    required this.content,
-    required this.imageUrls,
-  });
+  const AdapterDetailResult({required this.content, required this.imageUrls});
 }
 
 // Abstract interface all adapters must implement.
@@ -46,32 +44,37 @@ abstract class GenericAdapter {
   // Fetch and parse a search/list page for [filter].
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  );
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  });
 
   // Fetch and parse a content detail (and its image list).
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  );
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  });
 
   // Fetch related content for [contentId].
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  );
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  });
 
   // Fetch comments for [contentId].
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  );
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  });
 
   // Fetch chapter image URLs and navigation data for [chapterId].
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  );
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  });
 
   // Fetch chapters for a specific content lane.
   Future<List<Chapter>> fetchChapters(
@@ -82,6 +85,6 @@ abstract class GenericAdapter {
     int? page,
     int? offset,
     int? limit,
-  }) async =>
-      const [];
+    CancelToken? cancelToken,
+  }) async => const [];
 }

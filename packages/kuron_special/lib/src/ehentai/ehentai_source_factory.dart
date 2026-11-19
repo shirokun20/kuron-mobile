@@ -110,7 +110,11 @@ class _EHentaiDioInterceptor with DioMixin implements Dio {
       path = uri.toString();
     }
 
-    return _sessionAdapter.requestWithBypass<T>(path, options: options);
+    return _sessionAdapter.requestWithBypass<T>(
+      path,
+      options: options,
+      cancelToken: cancelToken,
+    );
   }
 
   @override

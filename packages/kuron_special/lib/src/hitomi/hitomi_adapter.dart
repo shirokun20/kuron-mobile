@@ -38,14 +38,16 @@ class HitomiAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const <Chapter>[];
 
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     // Normalize query: extract plain tag from raw format if present
     // DynamicFormSearchUI passes query as "raw:q=value1&..." for multi-field forms
     // Hitomi nozomi protocol only understands plain tag queries like "female:anal"
@@ -54,7 +56,11 @@ class HitomiAdapter implements GenericAdapter {
       'Hitomi search start: page=${filter.page}, rawQuery="${filter.query}", normalizedQuery="$normalizedQuery"',
     );
 
-    final allIds = await _loadIds(normalizedQuery, rawConfig);
+    final allIds = await _loadIds(
+      normalizedQuery,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
     if (allIds.isEmpty) {
       _logger.w(
         'Hitomi search returned no ids for normalizedQuery="$normalizedQuery"',
@@ -83,7 +89,8 @@ class HitomiAdapter implements GenericAdapter {
       'Hitomi search page ids: totalIds=${allIds.length}, pageIds=${pageIds.length}, page=$page',
     );
     final items = await Future.wait(
-      pageIds.map((id) => _fetchGallery(id.toString(), rawConfig)),
+      pageIds.map((id) => _fetchGallery(
+            id.toString(), rawConfig, cancelToken: cancelToken)),
     );
 
     final compactItems = items.whereType<Content>().toList(growable: false);
@@ -102,10 +109,15 @@ class HitomiAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     _logger.i('Hitomi detail start: id=$contentId');
-    final content = await _fetchGallery(contentId, rawConfig);
+    final content = await _fetchGallery(
+      contentId,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
     if (content == null) {
       _logger.e('Hitomi detail failed: id=$contentId');
       throw const FormatException('Failed to load Hitomi gallery detail');
@@ -124,23 +136,29 @@ class HitomiAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     try {
       _logger.i('Hitomi related start: id=$contentId');
-      final gallery = await _fetchGalleryJson(contentId, rawConfig);
+      final gallery = await _fetchGalleryJson(
+        contentId,
+        rawConfig,
+        cancelToken: cancelToken,
+      );
       final related =
           (gallery['related'] as List?)?.cast<dynamic>() ?? const [];
       if (related.isEmpty) return const <Content>[];
 
       final ids = related.map((e) => e.toString()).toList(growable: false);
-      final items =
-          await Future.wait(ids.map((id) => _fetchGallery(id, rawConfig)));
+      final items = await Future.wait(ids.map(
+          (id) => _fetchGallery(id, rawConfig, cancelToken: cancelToken)));
       _logger.i(
         'Hitomi related done: id=$contentId, relatedIds=${ids.length}',
       );
       return items.whereType<Content>().toList(growable: false);
     } catch (e, stackTrace) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e(
         'Hitomi related failed: id=$contentId',
         error: e,
@@ -153,23 +171,26 @@ class HitomiAdapter implements GenericAdapter {
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     return const <Comment>[];
   }
 
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     return null;
   }
 
   Future<List<int>> _loadIds(
     String query,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final protocol = _protocol(rawConfig);
     final queryTrim = query.trim();
     final defaultLanguage =
@@ -193,7 +214,11 @@ class HitomiAdapter implements GenericAdapter {
         'https://ltn.gold-usergeneratedcontent.net/galleriesindex/galleries.{version}.data';
 
     Future<List<int>> fetchNozomiIds(String url) async {
-      final bytes = await _getBytes(url, rawConfig: rawConfig);
+      final bytes = await _getBytes(
+        url,
+        rawConfig: rawConfig,
+        cancelToken: cancelToken,
+      );
       if (bytes.isEmpty) return const <int>[];
       return _decodeNozomiIds(bytes);
     }
@@ -247,8 +272,11 @@ class HitomiAdapter implements GenericAdapter {
         return fetchNozomiIds(nozomiUrl).then((ids) => ids.toSet());
       }
 
-      final versionBytes =
-          await _getBytes(galleriesIndexVersionEndpoint, rawConfig: rawConfig);
+      final versionBytes = await _getBytes(
+        galleriesIndexVersionEndpoint,
+        rawConfig: rawConfig,
+        cancelToken: cancelToken,
+      );
       final version = utf8.decode(versionBytes).trim();
       if (version.isEmpty) {
         _logger.w('Hitomi galleriesindex version is empty for token "$token"');
@@ -273,17 +301,22 @@ class HitomiAdapter implements GenericAdapter {
         indexUrl,
         rawConfig: rawConfig,
         range: const _ByteRange(0, _hitomiNodeSizeBytes - 1),
+        cancelToken: cancelToken,
       );
 
       // Pure Dart bsearch (sole implementation).
       final rootNode = _decodeNode(rootNodeBytes);
-      final dataRef = await _bSearch(keyHash, rootNode, indexUrl, rawConfig);
+      final dataRef = await _bSearch(
+        keyHash, rootNode, indexUrl, rawConfig,
+        cancelToken: cancelToken,
+      );
       if (dataRef == null) return <int>{};
 
       final dataBytes = await _getBytes(
         dataUrl,
         rawConfig: rawConfig,
         range: _ByteRange(dataRef.offset, dataRef.offset + dataRef.length - 1),
+        cancelToken: cancelToken,
       );
       return _decodeGalleryIdsFromData(dataBytes);
     }
@@ -346,6 +379,7 @@ class HitomiAdapter implements GenericAdapter {
     String url, {
     required Map<String, dynamic> rawConfig,
     _ByteRange? range,
+    CancelToken? cancelToken,
   }) async {
     await _throttle(rawConfig);
     final headers = <String, String>{};
@@ -359,6 +393,7 @@ class HitomiAdapter implements GenericAdapter {
 
     final response = await _dio.get<List<int>>(
       url,
+      cancelToken: cancelToken,
       options: Options(
         responseType: ResponseType.bytes,
         headers: headers.isEmpty ? null : headers,
@@ -477,8 +512,9 @@ class HitomiAdapter implements GenericAdapter {
     Uint8List key,
     _HitomiNode node,
     String indexUrl,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     if (node.keys.isEmpty) return null;
 
     final located = _locateKey(key, node);
@@ -497,9 +533,11 @@ class HitomiAdapter implements GenericAdapter {
         nextAddress,
         nextAddress + _hitomiNodeSizeBytes - 1,
       ),
+      cancelToken: cancelToken,
     );
     final nextNode = _decodeNode(nextNodeBytes);
-    return _bSearch(key, nextNode, indexUrl, rawConfig);
+    return _bSearch(key, nextNode, indexUrl, rawConfig,
+        cancelToken: cancelToken);
   }
 
   // (Rust `_bSearchWithRust` removed — Dart `_bSearch` above is the sole path.)
@@ -544,12 +582,18 @@ class HitomiAdapter implements GenericAdapter {
 
   Future<Content?> _fetchGallery(
     String id,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     try {
-      final gallery = await _fetchGalleryJson(id, rawConfig);
-      return await _toContent(gallery, rawConfig);
+      final gallery = await _fetchGalleryJson(
+        id,
+        rawConfig,
+        cancelToken: cancelToken,
+      );
+      return await _toContent(gallery, rawConfig, cancelToken: cancelToken);
     } catch (e, stackTrace) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e(
         'Hitomi gallery fetch failed: id=$id',
         error: e,
@@ -561,8 +605,9 @@ class HitomiAdapter implements GenericAdapter {
 
   Future<Map<String, dynamic>> _fetchGalleryJson(
     String id,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final protocol = _protocol(rawConfig);
     final endpointTemplate = (protocol['galleryJsEndpoint'] as String?) ??
         'https://ltn.gold-usergeneratedcontent.net/galleries/{id}.js';
@@ -574,6 +619,7 @@ class HitomiAdapter implements GenericAdapter {
     await _throttle(rawConfig);
     final response = await _dio.get<String>(
       endpoint,
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final script = response.data ?? '';
@@ -658,9 +704,10 @@ class HitomiAdapter implements GenericAdapter {
 
   Future<Content> _toContent(
     Map<String, dynamic> gallery,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    await _refreshGg(rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    await _refreshGg(rawConfig, cancelToken: cancelToken);
     final protocol = _protocol(rawConfig);
     final preferAvif = (protocol['preferAvif'] as bool?) ?? false;
 
@@ -723,7 +770,10 @@ class HitomiAdapter implements GenericAdapter {
     );
   }
 
-  Future<void> _refreshGg(Map<String, dynamic> rawConfig) async {
+  Future<void> _refreshGg(
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final now = DateTime.now();
     if (_ggFetchedAt != null && now.difference(_ggFetchedAt!).inMinutes < 30) {
       return;
@@ -736,6 +786,7 @@ class HitomiAdapter implements GenericAdapter {
     await _throttle(rawConfig);
     final response = await _dio.get<String>(
       ggEndpoint,
+      cancelToken: cancelToken,
       options: Options(responseType: ResponseType.plain),
     );
     final script = response.data ?? '';

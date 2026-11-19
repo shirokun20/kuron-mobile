@@ -21,6 +21,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import androidx.browser.customtabs.CustomTabsIntent
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -232,8 +233,24 @@ class KuronNativePlugin :
         val cancelledThumbnailRequests = mutableMapOf<String, Boolean>()
     }
 
-    private val conversionExecutor = Executors.newSingleThreadExecutor() // CPU / image & PDF conversion
+    private val conversionExecutor = Executors.newSingleThreadExecutor() // CPU-bound AVIF→WebP + thumbnails (PDF has its own executor below)
     private val networkExecutor = Executors.newFixedThreadPool(4) // Native HTTP & binary downloads
+    // Dedicated PDF conversion executor (kuron-runtime-concurrency: long AVIF
+    // jobs on conversionExecutor must never starve PDF/thumbnail work).
+    private val pdfExecutor = Executors.newSingleThreadExecutor()
+
+    // Cancellation state for in-flight PDF conversions. Written on pdfExecutor,
+    // cancelled from the platform thread — hence concurrent sets. Mirrors
+    // AvifConverter's epoch/flag scheme.
+    private val activePdfOutputs = ConcurrentHashMap.newKeySet<String>()
+    private val pdfCancelRequested = ConcurrentHashMap.newKeySet<String>()
+    @Volatile
+    private var pdfConvertEpoch = 0L
+
+    // Thrown to unwind a PDF conversion at a page boundary on cancel.
+    private class PdfConversionCancelledException(
+        message: String = "PDF conversion cancelled",
+    ) : Exception(message)
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, "kuron_native")
@@ -304,6 +321,13 @@ class KuronNativePlugin :
             }
             "cancelAllAvifConverts" -> {
                 avifConverter.cancelAllConverts()
+                result.success(null)
+            }
+            "cancelConvertPdf" -> {
+                // Direct call on the handler thread: pdfExecutor may be blocked
+                // rendering pages, so routing cancel through it would never run
+                // (same reason as cancelAvifConvert above).
+                cancelPdfConvert(call.argument<String>("outputPath"))
                 result.success(null)
             }
             "showLoginWebView" -> {
@@ -787,92 +811,160 @@ class KuronNativePlugin :
             return
         }
 
-        // Run on background thread to avoid blocking UI
-        conversionExecutor.execute {
-            var totalPages = 0
-            val document = PdfDocument()
+        // Epoch captured at submit: a task still queued when cancel arrived
+        // (cancelPdfConvert bumped the epoch) reports cancellation without
+        // rendering pages for nobody — mirrors handleConvertAvifToWebP.
+        val submitEpoch = pdfConvertEpoch
+        activePdfOutputs.add(outputPath)
+        // Dedicated PDF executor: long AVIF jobs on conversionExecutor must
+        // never starve PDF work (kuron-runtime-concurrency).
+        pdfExecutor.execute {
+            val partFile = File("$outputPath.part")
+            val finalFile = File(outputPath)
             try {
+                if (submitEpoch != pdfConvertEpoch || outputPath in pdfCancelRequested) {
+                    throw PdfConversionCancelledException()
+                }
                 // Ensure parent exists
-                val file = File(outputPath)
-                file.parentFile?.mkdirs()
-
-                val total = imagePaths.size
-                for ((index, path) in imagePaths.withIndex()) {
-                    // Load bitmap with error handling and optimization
-                    val bitmap = loadBitmap(path)
-                    
-                    if (bitmap != null) {
-                        // Check if webtoon (extreme aspect ratio)
-                        val aspectRatio = bitmap.height.toFloat() / bitmap.width
-                        val isWebtoon = aspectRatio > WEBTOON_ASPECT_RATIO_THRESHOLD
-
-                        if (isWebtoon) {
-                            // Split webtoon into chunks
-                            val chunks = splitBitmap(bitmap, MAX_CHUNK_HEIGHT)
-                            
-                            chunks.forEach { chunk ->
-                                if (addPageToPdf(document, chunk, totalPages)) {
-                                    totalPages++
-                                }
-                                chunk.recycle() // Free memory immediately
-                            }
-                        } else {
-                             // Normal image, add as single page
-                             if (addPageToPdf(document, bitmap, totalPages)) {
-                                 totalPages++
-                             }
-                        }
-                        
-                        bitmap.recycle() // Free memory for original bitmap
-
-                    } else {
-                         android.util.Log.w("KuronNative", "Failed to load bitmap: $path");
-                    }
-                    
-                    // Report Progress (Always report, even if failed)
-                    val progress = ((index + 1).toFloat() / total * 100).toInt()
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        try {
-                            channel.invokeMethod("onProgress", mapOf(
-                                "progress" to progress,
-                                "message" to "Processing page $totalPages (Image ${index + 1}/$total)"
-                            ))
-                        } catch (e: Exception) {
-                            // Ignore if channel closed or ui gone
-                        }
-                    }
+                finalFile.parentFile?.mkdirs()
+                // Drop a stale .part left by a killed run before starting.
+                if (partFile.exists()) {
+                    partFile.delete()
                 }
 
-                // Write to file
-                FileOutputStream(file).use { outputStream ->
-                    document.writeTo(outputStream)
-                }
-                document.close()
-                
-                // Switch back to main thread for result
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    val fileSize = file.length()
-                    val resultMap = mapOf(
-                        "success" to true,
-                        "pdfPath" to outputPath,
-                        "pageCount" to totalPages,
-                        "fileSize" to fileSize
-                    )
-                    result.success(resultMap)
-                }
-
-            } catch (t: Throwable) {
-                try { document.close() } catch (ignored: Throwable) {}
+                val document = PdfDocument()
+                var totalPages = 0
                 try {
-                    val file = File(outputPath)
-                    if (file.exists()) {
-                        file.delete()
+                    val total = imagePaths.size
+                    for ((index, path) in imagePaths.withIndex()) {
+                        // Stop at page boundaries: no new renders after cancel.
+                        if (submitEpoch != pdfConvertEpoch || outputPath in pdfCancelRequested) {
+                            throw PdfConversionCancelledException()
+                        }
+                        // Load bitmap with error handling and optimization
+                        val bitmap = loadBitmap(path)
+
+                        if (bitmap != null) {
+                            // Check if webtoon (extreme aspect ratio)
+                            val aspectRatio = bitmap.height.toFloat() / bitmap.width
+                            val isWebtoon = aspectRatio > WEBTOON_ASPECT_RATIO_THRESHOLD
+
+                            if (isWebtoon) {
+                                // Split webtoon into chunks
+                                val chunks = splitBitmap(bitmap, MAX_CHUNK_HEIGHT)
+
+                                chunks.forEach { chunk ->
+                                    if (addPageToPdf(document, chunk, totalPages)) {
+                                        totalPages++
+                                    }
+                                    chunk.recycle() // Free memory immediately
+                                }
+                            } else {
+                                 // Normal image, add as single page
+                                 if (addPageToPdf(document, bitmap, totalPages)) {
+                                     totalPages++
+                                 }
+                            }
+
+                            bitmap.recycle() // Free memory for original bitmap
+
+                        } else {
+                             android.util.Log.w("KuronNative", "Failed to load bitmap: $path");
+                        }
+
+                        // Report Progress (Always report, even if failed)
+                        val progress = ((index + 1).toFloat() / total * 100).toInt()
+                        mainThread {
+                            try {
+                                channel.invokeMethod("onProgress", mapOf(
+                                    "progress" to progress,
+                                    "message" to "Processing page $totalPages (Image ${index + 1}/$total)"
+                                ))
+                            } catch (e: Exception) {
+                                // Ignore if channel closed or ui gone
+                            }
+                        }
+                    }
+
+                    // Cancel arriving on the final page lands after the last
+                    // in-loop check: re-check before writeTo/renameTo so the
+                    // .part is deleted instead of publishing a torn output.
+                    if (submitEpoch != pdfConvertEpoch || outputPath in pdfCancelRequested) {
+                        throw PdfConversionCancelledException()
+                    }
+
+                    // Write to .part first: readers never see a truncated PDF,
+                    // and cancel only ever deletes the .part — never a good file.
+                    FileOutputStream(partFile).use { outputStream ->
+                        document.writeTo(outputStream)
+                    }
+                    document.close()
+
+                    // Atomic publish.
+                    if (!partFile.renameTo(finalFile)) {
+                        throw java.io.IOException("Failed to publish ${finalFile.absolutePath}")
+                    }
+
+                    // Switch back to main thread for result
+                    mainThread {
+                        val fileSize = finalFile.length()
+                        val resultMap = mapOf(
+                            "success" to true,
+                            "pdfPath" to outputPath,
+                            "pageCount" to totalPages,
+                            "fileSize" to fileSize
+                        )
+                        result.success(resultMap)
+                    }
+                } catch (cancelled: PdfConversionCancelledException) {
+                    try { document.close() } catch (ignored: Throwable) {}
+                    throw cancelled
+                } catch (t: Throwable) {
+                    try { document.close() } catch (ignored: Throwable) {}
+                    throw t
+                }
+            } catch (cancelled: PdfConversionCancelledException) {
+                try {
+                    if (partFile.exists()) {
+                        partFile.delete()
                     }
                 } catch (ignored: Throwable) {}
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                     result.error("PDF_CONVERSION_FAILED", t.message ?: "Unknown error", null)
+                mainThread {
+                    result.error("PDF_CONVERSION_CANCELLED", cancelled.message, null)
                 }
+            } catch (t: Throwable) {
+                try {
+                    if (partFile.exists()) {
+                        partFile.delete()
+                    }
+                } catch (ignored: Throwable) {}
+                mainThread {
+                    result.error("PDF_CONVERSION_FAILED", t.message ?: "Unknown error", null)
+                }
+            } finally {
+                activePdfOutputs.remove(outputPath)
+                // Always clear: a cancel landing after the last boundary check
+                // must never poison the *next* convert of this path.
+                pdfCancelRequested.remove(outputPath)
             }
+        }
+    }
+
+    // Best-effort cancel of in-flight PDF conversion(s). Runs on the platform
+    // thread so it never blocks behind pdfExecutor. A null/blank outputPath
+    // cancels everything: the epoch bump makes queued tasks exit before
+    // rendering, and every active output is flagged for its next boundary.
+    private fun cancelPdfConvert(outputPath: String?) {
+        if (outputPath.isNullOrBlank()) {
+            pdfConvertEpoch++
+            val paths = activePdfOutputs.toList()
+            if (paths.isNotEmpty()) {
+                android.util.Log.i(TAG, "Cancelling ${paths.size} in-flight PDF conversion(s)")
+            }
+            pdfCancelRequested.addAll(paths)
+        } else if (activePdfOutputs.contains(outputPath)) {
+            android.util.Log.i(TAG, "Cancelling in-flight PDF conversion: $outputPath")
+            pdfCancelRequested.add(outputPath)
         }
     }
 
@@ -1189,6 +1281,9 @@ class KuronNativePlugin :
         dnsResolver.clearCache()
         cancelledThumbnailRequests.clear()
         conversionExecutor.shutdownNow()
+        pdfConvertEpoch++
+        pdfCancelRequested.clear()
+        pdfExecutor.shutdownNow()
         networkExecutor.shutdownNow()
     }
 

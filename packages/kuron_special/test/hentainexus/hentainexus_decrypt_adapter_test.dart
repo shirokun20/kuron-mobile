@@ -19,8 +19,9 @@ class _TestHentaiNexusDecryptAdapter extends HentaiNexusDecryptAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     return AdapterDetailResult(
       content: Content(
         id: contentId,

@@ -246,6 +246,13 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<void> cancelConvertPdf({String? outputPath}) {
+    return methodChannel.invokeMethod<void>('cancelConvertPdf', {
+      'outputPath': outputPath,
+    });
+  }
+
+  @override
   Future<void> openWebView({
     required String url,
     bool enableJavaScript = true,

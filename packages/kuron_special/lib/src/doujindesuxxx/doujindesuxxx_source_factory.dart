@@ -131,18 +131,23 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     return data;
   }
 
-  Future<dynamic> _get(String path) async {
+  Future<dynamic> _get(String path, {CancelToken? cancelToken}) async {
     final res = await _dio.get<dynamic>(
       path.startsWith('http') ? path : '$_base$path',
+      cancelToken: cancelToken,
       options: Options(headers: _headers),
     );
     return _decode(res);
   }
 
   // Like [_get] but also reads the `x-total-count` header for pagination.
-  Future<(dynamic, int?)> _getWithTotal(String path) async {
+  Future<(dynamic, int?)> _getWithTotal(
+    String path, {
+    CancelToken? cancelToken,
+  }) async {
     final res = await _dio.get<dynamic>(
       path.startsWith('http') ? path : '$_base$path',
+      cancelToken: cancelToken,
       options: Options(headers: _headers),
     );
     return (
@@ -153,9 +158,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
 
   Map<int, String>? _genreSlugs;
 
-  Future<Map<int, String>> _loadGenreSlugs() async {
+  Future<Map<int, String>> _loadGenreSlugs({CancelToken? cancelToken}) async {
     if (_genreSlugs != null) return _genreSlugs!;
-    final data = await _get('/api/genres?limit=1000');
+    final data = await _get('/api/genres?limit=1000',
+        cancelToken: cancelToken);
     final map = <int, String>{};
     if (data is List) {
       for (final g in data.whereType<Map>()) {
@@ -222,8 +228,9 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     // Genre navigation from a genre tag (numeric genre_id in raw params or
     // `genre:`/`tag:` prefixed slugs) resolves to the site's `genre=<slug>`.
     final q = filter.query.trim();
@@ -278,7 +285,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     }
 
     if (genreSlug.isNotEmpty && int.tryParse(genreSlug) != null) {
-      final slugs = await _loadGenreSlugs();
+      final slugs = await _loadGenreSlugs(cancelToken: cancelToken);
       genreSlug = slugs[int.parse(genreSlug)] ?? '';
     }
 
@@ -290,7 +297,8 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
       var slug = slugifyTerm(taxonomySlug);
       // Configs that pass the genre id (not the slug) still resolve here.
       if (int.tryParse(slug) != null) {
-        slug = (await _loadGenreSlugs())[int.parse(slug)] ?? '';
+        slug = (await _loadGenreSlugs(cancelToken: cancelToken))[int.parse(slug)] ??
+            '';
       }
       if (slug.isEmpty) {
         return const AdapterSearchResult(items: [], hasNextPage: false);
@@ -299,8 +307,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
       final sort = rawSort.isNotEmpty
           ? (rawSort.toLowerCase().startsWith('popular') ? 'popular' : 'latest')
           : taxonomySort(filter.sort);
-      final data = await _get('/api/taxonomy/$taxonomyNamespace/'
-          '${Uri.encodeComponent(slug)}?page=$page&sort=$sort&limit=$_taxonomyPageSize');
+      final data = await _get(
+          '/api/taxonomy/$taxonomyNamespace/'
+          '${Uri.encodeComponent(slug)}?page=$page&sort=$sort&limit=$_taxonomyPageSize',
+          cancelToken: cancelToken);
       final map = data is Map
           ? data.cast<String, dynamic>()
           : const <String, dynamic>{};
@@ -335,7 +345,7 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
             : '';
     final path =
         '/api/manga?limit=$pageSize&offset=$offset${query.isEmpty ? '' : '&$query'}';
-    final (data, total) = await _getWithTotal(path);
+    final (data, total) = await _getWithTotal(path, cancelToken: cancelToken);
     final items = data is List ? data : const [];
     // ponytail: when the site omits x-total-count, fall back to the
     // page-size heuristic; switch to header-only if the API stops sending it.
@@ -481,9 +491,11 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    final data = await _get('/api/manga/$contentId');
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    final data = await _get('/api/manga/$contentId',
+        cancelToken: cancelToken);
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
@@ -499,8 +511,10 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async {
-    final data = await _get('/api/manga/$contentId');
+    final data = await _get('/api/manga/$contentId',
+        cancelToken: cancelToken);
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
@@ -521,9 +535,11 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    final data = await _get('/api/chapters/$chapterId');
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    final data = await _get('/api/chapters/$chapterId',
+        cancelToken: cancelToken);
     final map = (data is Map
         ? data.cast<String, dynamic>()
         : const <String, dynamic>{});
@@ -542,14 +558,16 @@ class DoujinDesuXxxAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async =>
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async =>
       const [];
 
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async =>
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async =>
       const [];
 }

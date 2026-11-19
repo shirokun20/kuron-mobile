@@ -149,6 +149,7 @@ class BypassDioInterceptor with DioMixin implements Dio {
     return _sessionAdapter.requestWithBypass<T>(
       path,
       options: passthroughOptions,
+      cancelToken: cancelToken,
     );
   }
 
@@ -223,6 +224,7 @@ class BypassDioInterceptor with DioMixin implements Dio {
       await _sessionAdapter.requestWithBypass<dynamic>(
         _sessionAdapter.baseUrl,
         options: Options(headers: options?.headers),
+        cancelToken: cancelToken,
       );
       final freshCookie = WebViewSessionAdapter.getCachedCookieHeaderForUrl(
         path,

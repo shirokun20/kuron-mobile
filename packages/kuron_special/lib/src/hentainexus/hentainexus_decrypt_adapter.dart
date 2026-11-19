@@ -42,23 +42,30 @@ class HentaiNexusDecryptAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async =>
       const <Chapter>[];
 
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) {
-    return _delegate.search(filter, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) {
+    return _delegate.search(filter, rawConfig, cancelToken: cancelToken);
   }
 
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    final base = await _delegate.fetchDetail(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    final base = await _delegate.fetchDetail(
+      contentId,
+      rawConfig,
+      cancelToken: cancelToken,
+    );
 
     try {
       final baseUrl = (rawConfig['baseUrl'] as String?) ?? '';
@@ -82,6 +89,7 @@ class HentaiNexusDecryptAdapter implements GenericAdapter {
       await _throttle(rawConfig);
       final response = await _dio.get<String>(
         readerUrl,
+        cancelToken: cancelToken,
         options: Options(responseType: ResponseType.plain),
       );
       final html = response.data ?? '';
@@ -135,6 +143,7 @@ class HentaiNexusDecryptAdapter implements GenericAdapter {
 
       return AdapterDetailResult(content: updated, imageUrls: imageUrls);
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('[$_sourceId] reader extraction failed for $contentId: $e');
       return base;
     }
@@ -143,25 +152,31 @@ class HentaiNexusDecryptAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) {
-    return _delegate.fetchRelated(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) {
+    return _delegate.fetchRelated(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) {
-    return _delegate.fetchComments(contentId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) {
+    return _delegate.fetchComments(contentId, rawConfig,
+        cancelToken: cancelToken);
   }
 
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
-    final detail = await fetchDetail(chapterId, rawConfig);
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
+    final detail = await fetchDetail(chapterId, rawConfig,
+        cancelToken: cancelToken);
     if (detail.imageUrls.isEmpty) {
       return null;
     }

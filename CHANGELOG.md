@@ -8,7 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-- 📤 (Rust pipeline): dropped Rust toolchain + `rust_bridge` — image pipeline now 100% Dart (±4MB/APK).
+- 🔧 (download): bulk download now streams to `.part` + atomic rename with 3-worker concurrency and true batch abort on cancel (`DownloadService` + `DownloadWorker.kt`).
+- 🔧 (reader-ai): epoch gate discards cancelled isolate translation results; ONNX prefetch/translate serialized via single queue with intent + Wi-Fi + idle posture gate; webtoon detection capped at 540px width (zero-decode flat-bubble pass).
+- 🔧 (sources): `CancelToken` propagates through `GenericRestAdapter`, `GenericScraperAdapter`, `kuron_special` adapters, and `WebViewSessionAdapter.requestWithBypass` (`ContentSource.getChapterImages` bridged via pure-Dart `OnCancelRegister`).
+- 🔧 (pdf): `cancelCurrent()` / `cancelAll()` aborts in-flight native PDF conversion with `.part` cleanup and dedicated `pdfExecutor` isolation.
 - 📤 (ONNX 40MB): `bubble_detector.onnx` out of the APK — runtime download via the "Model AI" screen (resumable + SHA256); missing model = full-image fallback.
 - 🆕 (deps): floor SDK `^3.5.4` → `^3.13.0`, notifications 22→23, `window_manager` moved to `legacy.dart` (desktop-only).
 - ⚙️ (build): AGP 9.1.1 + Gradle 9.3.1 (required by `androidx.core:core-ktx:1.19.0`).

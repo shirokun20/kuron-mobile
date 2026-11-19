@@ -81,6 +81,7 @@ class _DoujindesuDioInterceptor with DioMixin implements Dio {
     return _sessionAdapter.requestWithBypass<T>(
       path,
       options: passthroughOptions,
+      cancelToken: cancelToken,
     );
   }
 

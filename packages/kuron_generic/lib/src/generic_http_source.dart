@@ -57,28 +57,36 @@ class GenericHttpSource implements ContentSource {
     GenericAdapter? adapterOverride,
     this._bypassCookieProvider,
     this._bypassUaProvider,
-  })  : _rawConfig = rawConfig,
-        _dio = dio,
-        _headersGenerator = headersGenerator,
-        _delayApplier = delayApplier,
-        _rateLimiter = rateLimiter,
-        _logger = logger,
-        filterTransformer = const GenericFilterTransformer(),
-        _id = rawConfig['source'] as String? ?? 'unknown',
-        _displayName = _resolveDisplayName(rawConfig),
-        _baseUrl = rawConfig['baseUrl'] as String? ?? '',
-        _iconPath = rawConfig['iconPath'] as String? ??
-            (rawConfig['ui'] as Map<String, dynamic>?)?['iconPath']
-                as String? ??
-            'assets/images/sources/generic.png',
-        _requiresBypass = (rawConfig['network']
-                as Map<String, dynamic>?)?['requiresBypass'] as bool? ??
-            false,
-        _defaultHeaders = _resolveHeaders(rawConfig),
-        _brandColorValue = _resolveBrandColor(rawConfig),
-        _adapter = adapterOverride ??
-            _buildAdapter(rawConfig, dio, logger, headersGenerator,
-                delayApplier, rateLimiter);
+  }) : _rawConfig = rawConfig,
+       _dio = dio,
+       _headersGenerator = headersGenerator,
+       _delayApplier = delayApplier,
+       _rateLimiter = rateLimiter,
+       _logger = logger,
+       filterTransformer = const GenericFilterTransformer(),
+       _id = rawConfig['source'] as String? ?? 'unknown',
+       _displayName = _resolveDisplayName(rawConfig),
+       _baseUrl = rawConfig['baseUrl'] as String? ?? '',
+       _iconPath =
+           rawConfig['iconPath'] as String? ??
+           (rawConfig['ui'] as Map<String, dynamic>?)?['iconPath'] as String? ??
+           'assets/images/sources/generic.png',
+       _requiresBypass =
+           (rawConfig['network'] as Map<String, dynamic>?)?['requiresBypass']
+               as bool? ??
+           false,
+       _defaultHeaders = _resolveHeaders(rawConfig),
+       _brandColorValue = _resolveBrandColor(rawConfig),
+       _adapter =
+           adapterOverride ??
+           _buildAdapter(
+             rawConfig,
+             dio,
+             logger,
+             headersGenerator,
+             delayApplier,
+             rateLimiter,
+           );
 
   // ── ContentSource identity ─────────────────────────────────────────────────
 
@@ -136,7 +144,8 @@ class GenericHttpSource implements ContentSource {
     return ContentListResult(
       contents: result.items,
       currentPage: filter.page,
-      totalPages: result.totalPages ??
+      totalPages:
+          result.totalPages ??
           (result.hasNextPage ? filter.page + 1 : filter.page),
       totalCount: result.totalItems ?? result.items.length,
       hasNext: result.hasNextPage,
@@ -184,10 +193,10 @@ class GenericHttpSource implements ContentSource {
           endpoints['random']?.toString().trim() ?? '';
       final scraperRandomEndpoint =
           ((scraper?['endpoints'] as Map<String, dynamic>?)?['random']
-                  ?.toString()
-                  .trim() ??
-              scraper?['randomUrl']?.toString().trim() ??
-              '');
+              ?.toString()
+              .trim() ??
+          scraper?['randomUrl']?.toString().trim() ??
+          '');
 
       final useApiRandomEndpoint = configuredRandomEndpoint.isNotEmpty;
       final randomEndpoint = useApiRandomEndpoint
@@ -216,8 +225,9 @@ class GenericHttpSource implements ContentSource {
 
       for (var index = 0; index < count; index++) {
         try {
-          final url =
-              Uri.parse(requestBaseUrl).resolve(randomEndpoint).toString();
+          final url = Uri.parse(requestBaseUrl)
+              .resolve(randomEndpoint)
+              .toString();
           _logger.d('$_id: Random request #${index + 1}: GET $url');
 
           await _prepareRandomRequest(referer: _baseUrl);
@@ -238,8 +248,9 @@ class GenericHttpSource implements ContentSource {
 
           final contentId = _extractRandomContentId(response.data, response);
           if (contentId == null || contentId.isEmpty) {
-            _logger
-                .w('$_id: Failed to extract content ID from random response');
+            _logger.w(
+              '$_id: Failed to extract content ID from random response',
+            );
             continue;
           }
 
@@ -252,11 +263,15 @@ class GenericHttpSource implements ContentSource {
       }
 
       _logger.i(
-          '$_id: Successfully fetched ${results.length}/$count random galleries');
+        '$_id: Successfully fetched ${results.length}/$count random galleries',
+      );
       return results;
     } catch (e, stackTrace) {
-      _logger.e('$_id: Failed to get random galleries',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        '$_id: Failed to get random galleries',
+        error: e,
+        stackTrace: stackTrace,
+      );
       return const [];
     }
   }
@@ -268,14 +283,18 @@ class GenericHttpSource implements ContentSource {
 
     if (_headersGenerator != null) {
       final generatedHeaders = _headersGenerator(referer: referer);
-      _dio.options.headers =
-          _mergeHeaders(_dio.options.headers, generatedHeaders);
+      _dio.options.headers = _mergeHeaders(
+        _dio.options.headers,
+        generatedHeaders,
+      );
       return;
     }
 
     if (_defaultHeaders.isNotEmpty) {
-      _dio.options.headers =
-          _mergeHeaders(_dio.options.headers, _defaultHeaders);
+      _dio.options.headers = _mergeHeaders(
+        _dio.options.headers,
+        _defaultHeaders,
+      );
     }
   }
 
@@ -283,10 +302,7 @@ class GenericHttpSource implements ContentSource {
     Map<String, dynamic>? base,
     Map<String, dynamic> extra,
   ) {
-    final merged = <String, dynamic>{
-      ...?base,
-      ...extra,
-    };
+    final merged = <String, dynamic>{...?base, ...extra};
     return merged;
   }
 
@@ -366,14 +382,30 @@ class GenericHttpSource implements ContentSource {
   }
 
   @override
-  Future<ChapterData?> getChapterImages(String chapterId) async {
-    final data = await _adapter.fetchChapterImages(chapterId, _rawConfig);
+  Future<ChapterData?> getChapterImages(
+    String chapterId, {
+    OnCancelRegister? onCancel,
+  }) async {
+    CancelToken? cancelToken;
+    if (onCancel != null) {
+      final token = CancelToken();
+      cancelToken = token;
+      onCancel(() {
+        if (!token.isCancelled) token.cancel('Cancelled by caller');
+      });
+    }
+    final data = await _adapter.fetchChapterImages(
+      chapterId,
+      _rawConfig,
+      cancelToken: cancelToken,
+    );
     if (data == null) return null;
     // Plugin seam (conformance-loop 4.2): a registered
     // ImageUrlTransformPlugin for this source post-processes raw image
     // URLs (e.g. HentaiNexus decryption). Absent = pass-through.
-    final plugin = SourcePluginRegistry.instance
-        .getAs<ImageUrlTransformPlugin>('plugin.$_id.imageTransform');
+    final plugin = SourcePluginRegistry.instance.getAs<ImageUrlTransformPlugin>(
+      'plugin.$_id.imageTransform',
+    );
     if (plugin == null || data.images.isEmpty) return data;
     final transformed = await plugin.transformImageUrls(
       rawUrls: data.images,
@@ -439,8 +471,7 @@ class GenericHttpSource implements ContentSource {
   @override
   Future<List<AutocompleteSuggestion>> getAutocompleteSuggestions(
     String query,
-  ) async =>
-      const [];
+  ) async => const [];
 
   @override
   bool get supportsAuthentication {
@@ -491,14 +522,13 @@ class GenericHttpSource implements ContentSource {
   String buildThumbnailUrl({
     required String contentId,
     required String mediaId,
-  }) =>
-      buildImageUrl(
-        contentId: contentId,
-        mediaId: mediaId,
-        page: 1,
-        extension: 'jpg',
-        thumbnail: true,
-      );
+  }) => buildImageUrl(
+    contentId: contentId,
+    mediaId: mediaId,
+    page: 1,
+    extension: 'jpg',
+    thumbnail: true,
+  );
 
   @override
   String? parseContentIdFromUrl(String url) {
@@ -525,8 +555,9 @@ class GenericHttpSource implements ContentSource {
     final parsed = Uri.tryParse(url);
     if (parsed == null) return null;
 
-    final segments =
-        parsed.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    final segments = parsed.pathSegments
+        .where((segment) => segment.isNotEmpty)
+        .toList();
     if (segments.isEmpty) return null;
     return segments.last;
   }
@@ -582,14 +613,9 @@ class GenericHttpSource implements ContentSource {
       return null;
     }
 
-    final escapedTemplate = RegExp.escape(detailTemplate).replaceFirst(
-      r'\{id\}',
-      r'([^/?#]+)',
-    );
-    final candidates = <String>[
-      url,
-      Uri.tryParse(url)?.path ?? '',
-    ];
+    final escapedTemplate = RegExp.escape(detailTemplate)
+        .replaceFirst(r'\{id\}', r'([^/?#]+)');
+    final candidates = <String>[url, Uri.tryParse(url)?.path ?? ''];
 
     for (final candidate in candidates) {
       if (candidate.isEmpty) continue;
@@ -617,14 +643,8 @@ class GenericHttpSource implements ContentSource {
         r'''<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:url["']''',
         caseSensitive: false,
       ),
-      RegExp(
-        r'''href=["']([^"']*/manhwa/[^"']+)["']''',
-        caseSensitive: false,
-      ),
-      RegExp(
-        r'''href=["']([^"']*/hentai/[^"']+)["']''',
-        caseSensitive: false,
-      ),
+      RegExp(r'''href=["']([^"']*/manhwa/[^"']+)["']''', caseSensitive: false),
+      RegExp(r'''href=["']([^"']*/hentai/[^"']+)["']''', caseSensitive: false),
     ];
 
     for (final pattern in patterns) {
@@ -645,7 +665,6 @@ class GenericHttpSource implements ContentSource {
 
   @override
   bool get omitImageReferer => _id == 'comix';
-
 
   @override
   Map<String, String> getImageDownloadHeaders({
@@ -682,15 +701,15 @@ class GenericHttpSource implements ContentSource {
       // Enhance User-Agent to look more like Chrome
       if (!headers.containsKey('User-Agent') ||
           headers['User-Agent']?.isEmpty == true) {
-        headers['User-Agent'] =
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
+        headers['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
       }
     }
 
     // Image CDN needs cross-site Sec-Fetch hints — config-driven via
     // `network.imageHeaders` (HentaiRead/ManhwaRead).
-    final imageHeaders = (_rawConfig['network']
-        as Map<String, dynamic>?)?['imageHeaders'] as Map<String, dynamic>?;
+    final imageHeaders =
+        (_rawConfig['network'] as Map<String, dynamic>?)?['imageHeaders']
+            as Map<String, dynamic>?;
     if (imageHeaders != null && imageHeaders.isNotEmpty) {
       for (final entry in imageHeaders.entries) {
         headers[entry.key] = entry.value.toString();
@@ -721,8 +740,9 @@ class GenericHttpSource implements ContentSource {
     }
 
     if (cookies != null && cookies.isNotEmpty) {
-      headers['Cookie'] =
-          cookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
+      headers['Cookie'] = cookies.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join('; ');
     }
 
     // Cloudflare bypass cookie for generic bypass sources (mangaforfree, beauty, etc.)
@@ -768,7 +788,8 @@ class GenericHttpSource implements ContentSource {
 
   static Map<String, String> _resolveHeaders(Map<String, dynamic> config) {
     final network = config['network'] as Map<String, dynamic>?;
-    final headers = (network?['headers'] as Map<String, dynamic>?)
+    final headers =
+        (network?['headers'] as Map<String, dynamic>?)
             ?.cast<String, String>() ??
         {};
     return headers;
@@ -792,10 +813,9 @@ class GenericHttpSource implements ContentSource {
   ) {
     final sourceId = rawConfig['source'] as String? ?? 'unknown';
     final api = rawConfig['api'] as Map<String, dynamic>?;
-    final baseUrl = (api?['url'] ??
-        api?['apiBase'] ??
-        rawConfig['baseUrl'] ??
-        '') as String;
+    final baseUrl =
+        (api?['url'] ?? api?['apiBase'] ?? rawConfig['baseUrl'] ?? '')
+            as String;
     logger.d('[$sourceId] Adapter baseUrl: "$baseUrl"');
 
     final urlBuilder = GenericUrlBuilder(baseUrl: baseUrl);
@@ -803,7 +823,8 @@ class GenericHttpSource implements ContentSource {
     if (rawConfig.containsKey('scraper')) {
       // HTML scraping path — uses CSS selectors from config's `scraper` block.
       logger.d(
-          '[$sourceId] Using GenericScraperAdapter (scraper block detected)');
+        '[$sourceId] Using GenericScraperAdapter (scraper block detected)',
+      );
       final htmlParser = GenericHtmlParser(logger: logger);
       return GenericScraperAdapter(
         dio: dio,

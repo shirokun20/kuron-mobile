@@ -60,6 +60,7 @@ class GenericRestAdapter implements GenericAdapter {
     int? page,
     int? offset,
     int? limit,
+    CancelToken? cancelToken,
   }) async {
     final api = rawConfig['api'] as Map<String, dynamic>?;
     final detailCfg = api?['detail'] as Map<String, dynamic>? ?? {};
@@ -122,6 +123,7 @@ class GenericRestAdapter implements GenericAdapter {
           cFields: cFields,
           rawConfig: rawConfig,
           autoPaginate: chaptersCfg['autoPaginate'] != false,
+          cancelToken: cancelToken,
         );
         chapters = _composeChapterIdsWithContentId(
           chapters,
@@ -145,6 +147,7 @@ class GenericRestAdapter implements GenericAdapter {
             cFields: vFields,
             rawConfig: rawConfig,
             autoPaginate: volumesCfg['autoPaginate'] != false,
+            cancelToken: cancelToken,
           );
           volumes = _composeChapterIdsWithContentId(
             volumes,
@@ -157,6 +160,7 @@ class GenericRestAdapter implements GenericAdapter {
 
       return chapters;
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId fetchChapters failed: $e');
       return const <Chapter>[];
     }
@@ -165,15 +169,22 @@ class GenericRestAdapter implements GenericAdapter {
   @override
   Future<AdapterSearchResult> search(
     SearchFilter filter,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final api = rawConfig['api'] as Map<String, dynamic>?;
     // ── Schema detection ────────────────────────────────────────────────────
     // New schema: config has `api.list` block with `items` + `fields`.
     // Old schema (nhentai): config uses flat `selectors` map.
     final apiList = api?['list'] as Map<String, dynamic>?;
     if (apiList != null) {
-      return _searchNewSchema(filter, rawConfig, api!, apiList);
+      return _searchNewSchema(
+        filter,
+        rawConfig,
+        api!,
+        apiList,
+        cancelToken: cancelToken,
+      );
     }
 
     final rawEndpoints = (api?['endpoints'] as Map<String, dynamic>?) ?? {};
@@ -351,8 +362,9 @@ class GenericRestAdapter implements GenericAdapter {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
 
       _logger.d('$_sourceId REST search: Fetching URL: $url');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(url));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(url, cancelToken: cancelToken),
+      );
       _logger.d(
           '$_sourceId REST search: Got response status=${response.statusCode}');
 
@@ -375,6 +387,7 @@ class GenericRestAdapter implements GenericAdapter {
         totalItems: totalItems,
       );
     } catch (e, stackTrace) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId REST search failed',
           error: e, stackTrace: stackTrace);
       FetchErrorReporter.notify(
@@ -391,13 +404,20 @@ class GenericRestAdapter implements GenericAdapter {
   @override
   Future<AdapterDetailResult> fetchDetail(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final api = rawConfig['api'] as Map<String, dynamic>?;
     // ── Schema detection ────────────────────────────────────────────────────
     final apiDetail = api?['detail'] as Map<String, dynamic>?;
     if (apiDetail != null) {
-      return _fetchDetailNewSchema(contentId, rawConfig, api!, apiDetail);
+      return _fetchDetailNewSchema(
+        contentId,
+        rawConfig,
+        api!,
+        apiDetail,
+        cancelToken: cancelToken,
+      );
     }
 
     final rawEndpoints = (api?['endpoints'] as Map<String, dynamic>?) ?? {};
@@ -422,8 +442,9 @@ class GenericRestAdapter implements GenericAdapter {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
 
       _logger.d('$_sourceId REST detail: Fetching URL: $url');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(url));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(url, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -440,6 +461,7 @@ class GenericRestAdapter implements GenericAdapter {
         imageUrls: imageUrls,
       );
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId REST detail failed for $contentId', error: e);
       FetchErrorReporter.notify(
         e,
@@ -458,8 +480,9 @@ class GenericRestAdapter implements GenericAdapter {
   @override
   Future<List<Content>> fetchRelated(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final api = rawConfig['api'] as Map<String, dynamic>?;
 
     // Batch two-phase mode short-circuits before any `endpoints.related`
@@ -468,7 +491,13 @@ class GenericRestAdapter implements GenericAdapter {
     final apiRelatedSniff = (api?['related'] as Map<String, dynamic>?);
     final batchCfg = apiRelatedSniff?['batch'] as Map<String, dynamic>?;
     if (batchCfg != null) {
-      return _fetchRelatedBatch(contentId, rawConfig, api!, batchCfg);
+      return _fetchRelatedBatch(
+        contentId,
+        rawConfig,
+        api!,
+        batchCfg,
+        cancelToken: cancelToken,
+      );
     }
 
     final rawEndpoints = (api?['endpoints'] as Map<String, dynamic>?) ?? {};
@@ -484,8 +513,9 @@ class GenericRestAdapter implements GenericAdapter {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
 
       _logger.d('$_sourceId REST related: Fetching URL: $url');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(url));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(url, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -517,6 +547,7 @@ class GenericRestAdapter implements GenericAdapter {
       final selectors = (rawConfig['selectors'] as Map<String, dynamic>?) ?? {};
       return _parseItemList(data, selectors, rawConfig);
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: fetchRelated failed for $contentId', error: e);
       return const [];
     }
@@ -532,8 +563,9 @@ class GenericRestAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig,
     Map<String, dynamic> api,
-    Map<String, dynamic> batch,
-  ) async {
+    Map<String, dynamic> batch, {
+    CancelToken? cancelToken,
+  }) async {
     final idEndpoint = _getEndpointPath(batch['idEndpoint']);
     if (idEndpoint.isEmpty) return const [];
     final idItems = batch['idItems'] as String?;
@@ -547,8 +579,9 @@ class GenericRestAdapter implements GenericAdapter {
       final idUrl = _urlBuilder.buildDetailUrl(idEndpoint, contentId);
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
       _logger.d('$_sourceId REST related (batch phase1): $idUrl');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(idUrl));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(idUrl, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -566,6 +599,7 @@ class GenericRestAdapter implements GenericAdapter {
         }
       }
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: related batch phase1 failed for $contentId',
           error: e);
       return const [];
@@ -591,8 +625,9 @@ class GenericRestAdapter implements GenericAdapter {
     try {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
       _logger.d('$_sourceId REST related (batch phase2): $itemsUrl');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(itemsUrl));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(itemsUrl, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -618,6 +653,7 @@ class GenericRestAdapter implements GenericAdapter {
       }
       return result;
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: related batch phase2 failed for $contentId',
           error: e);
       return const [];
@@ -651,8 +687,9 @@ class GenericRestAdapter implements GenericAdapter {
   @override
   Future<List<Comment>> fetchComments(
     String contentId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final api = rawConfig['api'] as Map<String, dynamic>?;
     final rawEndpoints = (api?['endpoints'] as Map<String, dynamic>?) ?? {};
     final endpoints = <String, String>{
@@ -667,14 +704,16 @@ class GenericRestAdapter implements GenericAdapter {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
 
       _logger.d('$_sourceId REST comments: Fetching URL: $url');
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(url));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(url, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
       final selectors = (rawConfig['selectors'] as Map<String, dynamic>?) ?? {};
       return _parseCommentList(data, selectors, rawConfig);
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId: fetchComments failed for $contentId', error: e);
       return const [];
     }
@@ -683,8 +722,9 @@ class GenericRestAdapter implements GenericAdapter {
   @override
   Future<ChapterData?> fetchChapterImages(
     String chapterId,
-    Map<String, dynamic> rawConfig,
-  ) async {
+    Map<String, dynamic> rawConfig, {
+    CancelToken? cancelToken,
+  }) async {
     final imagesCfg = rawConfig['api']?['images'] as Map<String, dynamic>?;
     if (imagesCfg == null) return null;
 
@@ -716,6 +756,7 @@ class GenericRestAdapter implements GenericAdapter {
           url,
           rawConfig,
           maxAttempts: 3,
+          cancelToken: cancelToken,
         );
 
         final baseUrl = data['baseUrl'] as String?;
@@ -754,6 +795,7 @@ class GenericRestAdapter implements GenericAdapter {
           );
         }
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         _logger.e('$_sourceId fetchChapterImages (atHome) failed', error: e);
       }
     } else if (mode == 'htmlContent') {
@@ -811,8 +853,9 @@ class GenericRestAdapter implements GenericAdapter {
         _logger.d('$_sourceId htmlContent request: $imageUrl');
 
         await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
-        final response =
-            await _executeRequest<dynamic>(() => _dio.get<dynamic>(imageUrl));
+        final response = await _executeRequest<dynamic>(
+          () => _dio.get<dynamic>(imageUrl, cancelToken: cancelToken),
+        );
         final data = response.data is String
             ? jsonDecode(response.data as String)
             : response.data;
@@ -868,6 +911,7 @@ class GenericRestAdapter implements GenericAdapter {
         _logger.w('$_sourceId htmlContent: no images extracted');
         return null;
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         _logger.w('$_sourceId fetchChapterImages (htmlContent) failed: $e');
         return null;
       }
@@ -889,7 +933,7 @@ class GenericRestAdapter implements GenericAdapter {
         final detailUrl = '$baseApiUrl/books/detail/$bookId/$bookKey';
         await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
         final detailResp = await _executeRequest<dynamic>(
-          () => _dio.post<dynamic>(detailUrl),
+          () => _dio.post<dynamic>(detailUrl, cancelToken: cancelToken),
         );
         final detailData = detailResp.data is String
             ? jsonDecode(detailResp.data as String)
@@ -923,7 +967,7 @@ class GenericRestAdapter implements GenericAdapter {
         final pageUrl =
             '$baseApiUrl/books/data/$bookId/$bookKey/$qualId/$qualKey/$quality';
         final pageResp = await _executeRequest<dynamic>(
-          () => _dio.get<dynamic>(pageUrl),
+          () => _dio.get<dynamic>(pageUrl, cancelToken: cancelToken),
         );
         final pageData = pageResp.data is String
             ? jsonDecode(pageResp.data as String)
@@ -959,6 +1003,7 @@ class GenericRestAdapter implements GenericAdapter {
         _logger.d('$_sourceId schaleData: built ${images.length} CDN URLs');
         return ChapterData(images: images);
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         _logger.e('$_sourceId fetchChapterImages (schaleData) failed',
             error: e);
         return null;
@@ -1030,8 +1075,9 @@ class GenericRestAdapter implements GenericAdapter {
         _logger.d('$_sourceId direct images request: $imageUrl');
 
         await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
-        final response =
-            await _executeRequest<dynamic>(() => _dio.get<dynamic>(imageUrl));
+        final response = await _executeRequest<dynamic>(
+          () => _dio.get<dynamic>(imageUrl, cancelToken: cancelToken),
+        );
         final data = response.data is String
             ? jsonDecode(response.data as String)
             : response.data;
@@ -1082,6 +1128,7 @@ class GenericRestAdapter implements GenericAdapter {
           images: images,
         );
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         _logger.w('$_sourceId fetchChapterImages (direct) failed: $e');
       }
     }
@@ -1093,6 +1140,7 @@ class GenericRestAdapter implements GenericAdapter {
     String url,
     Map<String, dynamic> rawConfig, {
     int maxAttempts = 3,
+    CancelToken? cancelToken,
   }) async {
     Object? lastError;
     StackTrace? lastStackTrace;
@@ -1103,6 +1151,7 @@ class GenericRestAdapter implements GenericAdapter {
         final response = await _executeRequest<dynamic>(
           () => _dio.get<dynamic>(
             url,
+            cancelToken: cancelToken,
             options: Options(
               responseType: ResponseType.json,
               headers: const {
@@ -1118,6 +1167,7 @@ class GenericRestAdapter implements GenericAdapter {
             ? jsonDecode(response.data as String)
             : response.data;
       } on DioException catch (e) {
+        if (e.type == DioExceptionType.cancel) rethrow;
         lastError = e;
         lastStackTrace = StackTrace.current;
 
@@ -1131,6 +1181,7 @@ class GenericRestAdapter implements GenericAdapter {
         );
         await Future<void>.delayed(Duration(milliseconds: attempt * 250));
       } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
         lastError = e;
         lastStackTrace = StackTrace.current;
         if (attempt >= maxAttempts) {
@@ -1204,8 +1255,9 @@ class GenericRestAdapter implements GenericAdapter {
     SearchFilter filter,
     Map<String, dynamic> rawConfig,
     Map<String, dynamic> api,
-    Map<String, dynamic> apiList,
-  ) async {
+    Map<String, dynamic> apiList, {
+    CancelToken? cancelToken,
+  }) async {
     final rawEndpoints = (api['endpoints'] as Map<String, dynamic>?) ?? {};
     final endpoints = <String, String>{
       for (final e in rawEndpoints.entries) e.key: _getEndpointPath(e.value),
@@ -1341,8 +1393,9 @@ class GenericRestAdapter implements GenericAdapter {
 
     try {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(url));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(url, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -1443,6 +1496,7 @@ class GenericRestAdapter implements GenericAdapter {
         totalItems: totalItems,
       );
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId REST new schema search failed', error: e);
       return const AdapterSearchResult(items: [], hasNextPage: false);
     }
@@ -1452,8 +1506,9 @@ class GenericRestAdapter implements GenericAdapter {
     String contentId,
     Map<String, dynamic> rawConfig,
     Map<String, dynamic> api,
-    Map<String, dynamic> apiDetail,
-  ) async {
+    Map<String, dynamic> apiDetail, {
+    CancelToken? cancelToken,
+  }) async {
     final rawEndpoints = (api['endpoints'] as Map<String, dynamic>?) ?? {};
     final endpoints = <String, String>{
       for (final e in rawEndpoints.entries) e.key: _getEndpointPath(e.value),
@@ -1485,8 +1540,9 @@ class GenericRestAdapter implements GenericAdapter {
 
     try {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
-      final response =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(detailUrl));
+      final response = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(detailUrl, cancelToken: cancelToken),
+      );
       final data = response.data is String
           ? jsonDecode(response.data as String)
           : response.data;
@@ -1516,7 +1572,7 @@ class GenericRestAdapter implements GenericAdapter {
 
           try {
             final statsRes = await _executeRequest<dynamic>(
-              () => _dio.get<dynamic>(statsUrl),
+              () => _dio.get<dynamic>(statsUrl, cancelToken: cancelToken),
             );
             final statsData = statsRes.data is String
                 ? jsonDecode(statsRes.data as String)
@@ -1532,6 +1588,7 @@ class GenericRestAdapter implements GenericAdapter {
               fields['favorites'] = follows;
             }
           } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
             _logger.w('$_sourceId detail statistics fetch failed: $e');
           }
         }
@@ -1605,6 +1662,7 @@ class GenericRestAdapter implements GenericAdapter {
                 rawConfig: rawConfig,
                 fallbackFields: fallbackFields,
                 autoPaginate: chaptersCfg['autoPaginate'] != false,
+                cancelToken: cancelToken,
               );
               chapters = _composeChapterIdsWithContentId(
                 chapters,
@@ -1613,6 +1671,7 @@ class GenericRestAdapter implements GenericAdapter {
               );
             }
           } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
             _logger.w('$_sourceId detail chapters fetch failed: $e');
           }
         } else if (itemsSelector != null) {
@@ -1666,6 +1725,7 @@ class GenericRestAdapter implements GenericAdapter {
               rawConfig: rawConfig,
               fallbackFields: fallbackFields,
               autoPaginate: volumesCfg['autoPaginate'] != false,
+              cancelToken: cancelToken,
             );
             volumes = _composeChapterIdsWithContentId(
               volumes,
@@ -1674,6 +1734,7 @@ class GenericRestAdapter implements GenericAdapter {
             );
             chapters = [...(chapters ?? []), ...volumes];
           } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
             _logger.w('$_sourceId detail volumes fetch failed: $e');
           }
         }
@@ -1693,6 +1754,7 @@ class GenericRestAdapter implements GenericAdapter {
         imageUrls: imageUrls,
       );
     } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.e('$_sourceId REST new schema detail failed for $contentId',
           error: e);
       return AdapterDetailResult(
@@ -2956,6 +3018,7 @@ class GenericRestAdapter implements GenericAdapter {
     required Map<String, dynamic> rawConfig,
     Map<String, dynamic>? fallbackFields,
     bool autoPaginate = true,
+    CancelToken? cancelToken,
   }) async {
     final chapters = <Chapter>[];
     var pageUrl = url;
@@ -2963,8 +3026,9 @@ class GenericRestAdapter implements GenericAdapter {
 
     while (true) {
       await _prepareRequest(rawConfig, referer: _getBaseUrl(rawConfig));
-      final chapterRes =
-          await _executeRequest<dynamic>(() => _dio.get<dynamic>(pageUrl));
+      final chapterRes = await _executeRequest<dynamic>(
+        () => _dio.get<dynamic>(pageUrl, cancelToken: cancelToken),
+      );
       final cData = chapterRes.data is String
           ? jsonDecode(chapterRes.data as String)
           : chapterRes.data;

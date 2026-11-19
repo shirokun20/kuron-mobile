@@ -106,6 +106,14 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('convertImagesToPdf() has not been implemented.');
   }
 
+  // Cancel an in-flight native PDF conversion (e.g. user left the queue).
+  // Best-effort: no-op when nothing is running. When [outputPath] is given
+  // only that conversion is cancelled, otherwise every in-flight PDF convert
+  // is aborted. Cancelled converts complete with PDF_CONVERSION_CANCELLED.
+  Future<void> cancelConvertPdf({String? outputPath}) {
+    throw UnimplementedError('cancelConvertPdf() has not been implemented.');
+  }
+
   // Open a URL in a native WebView (Custom Tabs on Android)
   Future<void> openWebView({
     required String url,

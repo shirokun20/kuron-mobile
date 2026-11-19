@@ -119,6 +119,17 @@ class KuronNative {
     );
   }
 
+  /// Cancel an in-flight native PDF conversion (e.g. user left the queue).
+  ///
+  /// Best-effort: no-op when nothing is running. When [outputPath] is given
+  /// only that conversion is cancelled, otherwise every in-flight PDF convert
+  /// is aborted and completes with `PDF_CONVERSION_CANCELLED`.
+  Future<void> cancelConvertPdf({String? outputPath}) {
+    return KuronNativePlatform.instance.cancelConvertPdf(
+      outputPath: outputPath,
+    );
+  }
+
   Future<void> openWebView({
     required String url,
     bool enableJavaScript = true,
