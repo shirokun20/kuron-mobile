@@ -50,6 +50,7 @@ class NotificationService {
     this.onNavigateToDownloads,
     this.onPauseAll,
     this.onCancelAll,
+    this.onCancelPdf,
     this._useKuronMascotNotification = true,
   }) : _logger = logger ?? Logger() {
     _actionHandler = NotificationActionHandler(
@@ -76,6 +77,7 @@ class NotificationService {
         onViewQueue: () => onNavigateToDownloads?.call(null),
         onPauseAll: () => onPauseAll?.call(),
         onCancelAll: () => onCancelAll?.call(),
+        onCancelPdf: () => onCancelPdf?.call(),
       );
     }
   }
@@ -93,6 +95,8 @@ class NotificationService {
   void Function(String? contentId)? onNavigateToDownloads;
   VoidCallback? onPauseAll;
   VoidCallback? onCancelAll;
+  // PDF queue is global: no contentId, aborts the active conversion.
+  VoidCallback? onCancelPdf;
 
   String Function(String key, {Map<String, dynamic>? args})? _localize;
 
@@ -169,6 +173,15 @@ class NotificationService {
   }) async {
     if (!isEnabled) return;
     try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showPdfProgress(
+          notificationId: _pdfGroupId,
+          title: _truncateTitle(title),
+          progress: 0,
+          contentId: contentId,
+        );
+        return;
+      }
       final notificationId = _getNotificationId('pdf_$contentId');
       await _notificationsPlugin.show(
           id: notificationId,
@@ -244,6 +257,18 @@ class NotificationService {
     try {
       _logger.i(
           'NotificationService: Showing PDF conversion completed notification for $contentId');
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showPdfCompleted(
+          notificationId: _pdfGroupId,
+          title: _truncateTitle(title),
+          contentId: contentId,
+          metaText: partsCount > 1
+              ? '$partsCount PDFs created • Tap to open'
+              : 'PDF Created Successfully • Tap to open',
+        );
+        _logger.i('Kuron mascot PDF completed notification shown for $contentId');
+        return;
+      }
       final notificationId = _getNotificationId('pdf_$contentId');
       final message = partsCount > 1
           ? _getLocalized('pdfCreatedWithParts',
@@ -964,6 +989,15 @@ class NotificationService {
   }) async {
     if (!isEnabled) return;
     try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showPdfProgress(
+          notificationId: _pdfGroupId,
+          title: title,
+          progress: progress,
+          metaSuffix: 'PDF $currentIndex of $totalCount',
+        );
+        return;
+      }
       final titleText = 'Converting PDF $currentIndex of $totalCount';
       final bodyText = '$progress% — $title';
       await _notificationsPlugin.show(
@@ -985,6 +1019,15 @@ class NotificationService {
     if (!isEnabled) return;
     try {
       final body = count == 1 ? '1 PDF created' : '$count PDFs created';
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showPdfCompleted(
+          notificationId: _pdfGroupId,
+          title: 'PDF Conversions Complete',
+          metaText: '$body • Tap to open',
+        );
+        _logger.i('Kuron mascot PDF group completed notification shown');
+        return;
+      }
       await _notificationsPlugin.show(
         id: _pdfGroupId,
         title: 'PDF Conversions Complete',
@@ -1027,8 +1070,32 @@ class NotificationService {
   Future<void> cancelPdfGroup() async {
     try {
       await _notificationsPlugin.cancel(id: _pdfGroupId);
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.cancel(_pdfGroupId);
+      }
     } catch (e) {
       _logger.e('Failed to cancel PDF group notification: $e');
+    }
+  }
+
+  // PDF conversion cancelled by the user — terminal card (mascot) or group
+  // dismiss (fallback). Posted on the shared PDF group id so one card
+  // morphs progress → cancelled.
+  Future<void> showPdfCancelled({String? title, String? contentId}) async {
+    if (!isEnabled) return;
+    try {
+      if (_useKuronMascotNotification && _mascotHandler != null) {
+        await _mascotHandler!.showPdfCancelled(
+          notificationId: _pdfGroupId,
+          title: title,
+          contentId: contentId,
+        );
+        _logger.i('Kuron mascot PDF cancelled notification shown');
+        return;
+      }
+      await _notificationsPlugin.cancel(id: _pdfGroupId);
+    } catch (e) {
+      _logger.e('Failed to show PDF cancelled notification: $e');
     }
   }
 
@@ -1078,6 +1145,7 @@ class NotificationService {
     required void Function(String? contentId) onNavigateToDownloads,
     VoidCallback? onPauseAll,
     VoidCallback? onCancelAll,
+    VoidCallback? onCancelPdf,
     bool useKuronMascotNotification = true,
   }) {
     return NotificationService(
@@ -1091,6 +1159,7 @@ class NotificationService {
       onNavigateToDownloads: onNavigateToDownloads,
       onPauseAll: onPauseAll,
       onCancelAll: onCancelAll,
+      onCancelPdf: onCancelPdf,
       useKuronMascotNotification: useKuronMascotNotification,
     );
   }
@@ -1106,6 +1175,7 @@ class NotificationService {
     void Function(String? contentId)? onNavigateToDownloads,
     VoidCallback? onPauseAll,
     VoidCallback? onCancelAll,
+    VoidCallback? onCancelPdf,
   }) {
     if (onDownloadPause != null) this.onDownloadPause = onDownloadPause;
     if (onDownloadResume != null) this.onDownloadResume = onDownloadResume;
@@ -1118,7 +1188,7 @@ class NotificationService {
     }
     if (onPauseAll != null) this.onPauseAll = onPauseAll;
     if (onCancelAll != null) this.onCancelAll = onCancelAll;
-
+    if (onCancelPdf != null) this.onCancelPdf = onCancelPdf;
     _actionHandler.setCallbacks(
       onDownloadPause: onDownloadPause,
       onDownloadResume: onDownloadResume,
@@ -1138,6 +1208,7 @@ class NotificationService {
       onViewQueue: () => onNavigateToDownloads?.call(null),
       onPauseAll: onPauseAll,
       onCancelAll: onCancelAll,
+      onCancelPdf: onCancelPdf,
     );
 
     _logger.i('NotificationService: Callbacks updated');

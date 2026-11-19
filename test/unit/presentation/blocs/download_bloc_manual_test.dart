@@ -21,6 +21,7 @@ import 'package:nhasixapp/core/services/pdf_conversion_service.dart';
 import 'package:logger/logger.dart';
 
 import '../../../presentation/blocs/download/download_bloc_test.dart';
+
 // For ContentModel if needed, but imported above too.
 
 // Manual Mocks
@@ -51,7 +52,7 @@ class MockUserDataRepository extends Fake implements UserDataRepository {
         retryCount: 0,
         downloadPath: '',
         startTime: DateTime.now(),
-      )
+      ),
     ];
   }
 
@@ -69,16 +70,18 @@ class MockDownloadContentUseCase extends Fake
 
 class MockConnectivity extends Fake implements Connectivity {
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async =>
-      [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => [
+    ConnectivityResult.wifi,
+  ];
 }
 
 class MockNotificationService extends Fake implements NotificationService {
   @override
-  Future<void> showDownloadError(
-      {required String contentId,
-      required String title,
-      required String error}) async {}
+  Future<void> showDownloadError({
+    required String contentId,
+    required String title,
+    required String error,
+  }) async {}
 
   @override
   Future<void> initialize() async {
@@ -96,6 +99,7 @@ class MockNotificationService extends Fake implements NotificationService {
     void Function(String? contentId)? onNavigateToDownloads,
     VoidCallback? onPauseAll,
     VoidCallback? onCancelAll,
+    VoidCallback? onCancelPdf,
   }) {
     // No-op for test
   }
@@ -118,17 +122,33 @@ class MockOfflineContentManager extends Fake implements OfflineContentManager {}
 
 class MockLogger extends Fake implements Logger {
   @override
-  void i(dynamic message,
-      {DateTime? time, Object? error, StackTrace? stackTrace}) {}
+  void i(
+    dynamic message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
   @override
-  void e(dynamic message,
-      {DateTime? time, Object? error, StackTrace? stackTrace}) {}
+  void e(
+    dynamic message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
   @override
-  void w(dynamic message,
-      {DateTime? time, Object? error, StackTrace? stackTrace}) {}
+  void w(
+    dynamic message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
   @override
-  void d(dynamic message,
-      {DateTime? time, Object? error, StackTrace? stackTrace}) {}
+  void d(
+    dynamic message, {
+    DateTime? time,
+    Object? error,
+    StackTrace? stackTrace,
+  }) {}
 }
 
 void main() {
@@ -177,10 +197,12 @@ void main() {
       }
       if (state is DownloadLoaded) {
         try {
-          final download =
-              state.downloads.firstWhere((d) => d.contentId == 'test-id');
+          final download = state.downloads.firstWhere(
+            (d) => d.contentId == 'test-id',
+          );
           debugPrint(
-              'Download Item State: ${download.state} - Error: ${download.error}');
+            'Download Item State: ${download.state} - Error: ${download.error}',
+          );
           states.add(download.state);
         } catch (e) {
           debugPrint('Download item test-id not found in state');

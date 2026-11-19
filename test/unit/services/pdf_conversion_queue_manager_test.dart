@@ -56,6 +56,12 @@ void main() {
       ),
     ).thenAnswer((_) async {});
     when(() => notificationService.cancelPdfGroup()).thenAnswer((_) async {});
+    when(
+      () => notificationService.showPdfCancelled(
+        title: any(named: 'title'),
+        contentId: any(named: 'contentId'),
+      ),
+    ).thenAnswer((_) async {});
 
     manager = PdfConversionQueueManager();
     manager.initialize(
@@ -98,6 +104,11 @@ void main() {
     expect(captured, isNotNull);
     expect(captured!.isCancelled, isTrue);
     verify(() => conversionService.cancelCurrentConversion()).called(1);
+    verify(
+      () => notificationService.showPdfCancelled(
+        title: any(named: 'title'),
+      ),
+    ).called(1);
 
     final status = manager.getStatus();
     expect(status.queuedCount, 0);
@@ -158,7 +169,11 @@ void main() {
           onProgress: any(named: 'onProgress'),
         ),
       );
-      verify(() => notificationService.cancelPdfGroup()).called(1);
+      verify(
+        () => notificationService.showPdfCancelled(
+          title: any(named: 'title'),
+        ),
+      ).called(1);
 
       final status = manager.getStatus();
       expect(status.queuedCount, 0);

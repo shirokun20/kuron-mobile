@@ -546,6 +546,10 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         _logger.i('NotificationAction: PDF retry requested for $contentId');
         _retryPdfConversion(contentId);
       },
+      onCancelPdf: () {
+        _logger.i('NotificationAction: PDF cancel requested');
+        unawaited(_pdfConversionQueueManager.cancelCurrent());
+      },
       onOpenDownload: (contentId) {
         _logger.i('NotificationAction: Open download requested for $contentId');
         _openDownloadedContent(contentId);

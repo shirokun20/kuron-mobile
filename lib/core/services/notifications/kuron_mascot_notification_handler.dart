@@ -12,6 +12,7 @@ class KuronMascotNotificationHandler {
     this.onViewQueue,
     this.onPauseAll,
     this.onCancelAll,
+    this.onCancelPdf,
   }) {
     _channel.setMethodCallHandler(_handleMethodCall);
   }
@@ -27,6 +28,9 @@ class KuronMascotNotificationHandler {
   VoidCallback? onViewQueue;
   VoidCallback? onPauseAll;
   VoidCallback? onCancelAll;
+  // PDF queue is global (no per-content id): cancelling aborts the active
+  // conversion via PdfConversionQueueManager.cancelCurrent.
+  VoidCallback? onCancelPdf;
 
   void setCallbacks({
     void Function(String contentId)? onDownloadPause,
@@ -37,6 +41,7 @@ class KuronMascotNotificationHandler {
     VoidCallback? onViewQueue,
     VoidCallback? onPauseAll,
     VoidCallback? onCancelAll,
+    VoidCallback? onCancelPdf,
   }) {
     if (onDownloadPause != null) this.onDownloadPause = onDownloadPause;
     if (onDownloadResume != null) this.onDownloadResume = onDownloadResume;
@@ -46,6 +51,7 @@ class KuronMascotNotificationHandler {
     if (onViewQueue != null) this.onViewQueue = onViewQueue;
     if (onPauseAll != null) this.onPauseAll = onPauseAll;
     if (onCancelAll != null) this.onCancelAll = onCancelAll;
+    if (onCancelPdf != null) this.onCancelPdf = onCancelPdf;
   }
 
   DateTime? _lastUpdateTime;
@@ -86,6 +92,9 @@ class KuronMascotNotificationHandler {
         break;
       case 'cancel_all':
         onCancelAll?.call();
+        break;
+      case 'cancel_pdf':
+        onCancelPdf?.call();
         break;
       default:
         break;
@@ -273,5 +282,94 @@ class KuronMascotNotificationHandler {
     _debounceTimer?.cancel();
     _debounceTimer = null;
     await _channel.invokeMethod<void>('cancel', <String, dynamic>{'id': id});
+  }
+
+  /// PDF conversion progress (500ms IPC debounce, immediate at 100%).
+  ///
+  /// Renders in PDF mode on the single-download RemoteViews layouts —
+  /// Nap is hidden, Cancel aborts the conversion, Open PDF reads it.
+  Future<void> showPdfProgress({
+    required int notificationId,
+    required String title,
+    required int progress,
+    String? contentId,
+    int? pagesRendered,
+    int? totalPages,
+    String? speechText,
+    String? metaSuffix,
+  }) async {
+    final metaParts = <String>[];
+    if (pagesRendered != null && totalPages != null) {
+      metaParts.add('Merangkai halaman $pagesRendered/$totalPages');
+    }
+    metaParts.add('$progress%');
+    if (metaSuffix != null && metaSuffix.isNotEmpty) {
+      metaParts.add(metaSuffix);
+    }
+    final metaStr = metaParts.join(' • ');
+    final speech =
+        speechText ?? '🐾 Kuron: Merangkai halaman jadi PDF...';
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title,
+      'progress': progress,
+      'contentId': contentId,
+      'speech': speech,
+      'speechText': speech,
+      'meta': metaStr,
+      'pagesRendered': pagesRendered,
+      'totalPages': totalPages,
+      'status': 'converting',
+    };
+    await _throttledInvoke(
+      'updatePdfDownload',
+      payload,
+      immediate: _isImmediateProgress(progress),
+    );
+  }
+
+  /// PDF conversion finished — terminal card with Open PDF / Close.
+  Future<void> showPdfCompleted({
+    required int notificationId,
+    required String title,
+    String? contentId,
+    String? speechText,
+    String? metaText,
+  }) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    final speech =
+        speechText ?? '🐾 Kuron: PDF siap dibaca! Rapi & bersih ✨';
+    final meta = metaText ?? 'PDF Created Successfully • Tap to open';
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title,
+      'contentId': contentId,
+      'speech': speech,
+      'meta': meta,
+    };
+    await _channel.invokeMethod<void>('showPdfCompleted', payload);
+  }
+
+  /// PDF conversion cancelled by the user — terminal card, Close only.
+  Future<void> showPdfCancelled({
+    required int notificationId,
+    String? title,
+    String? contentId,
+    String? speechText,
+    String? metaText,
+  }) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    final speech = speechText ?? '⚠️ PDF Cancelled';
+    final meta = metaText ?? 'Conversion cancelled • Nothing saved';
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title ?? 'PDF Cancelled',
+      'contentId': contentId,
+      'speech': speech,
+      'meta': meta,
+    };
+    await _channel.invokeMethod<void>('showPdfCancelled', payload);
   }
 }

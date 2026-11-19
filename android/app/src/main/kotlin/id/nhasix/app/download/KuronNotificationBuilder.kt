@@ -33,6 +33,7 @@ object KuronNotificationBuilder {
     const val ACTION_VIEW_QUEUE = "id.nhasix.app.ACTION_KURON_VIEW_QUEUE"
     const val ACTION_OPEN = "id.nhasix.app.ACTION_KURON_OPEN"
     const val ACTION_DISMISS = "id.nhasix.app.ACTION_KURON_DISMISS"
+    const val ACTION_CANCEL_PDF = "id.nhasix.app.ACTION_KURON_CANCEL_PDF"
 
     const val CHANNEL_ID_COMPLETE = "kuron_downloads_complete"
     private const val CHANNEL_NAME_COMPLETE = "Completed Downloads"
@@ -355,6 +356,172 @@ object KuronNotificationBuilder {
             .setAutoCancel(true)
             .setShowWhen(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(contentIntent(context, contentId))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    // ─── PDF conversion mode (reuses single/complete layouts, no new XML) ───
+
+    fun buildPdfExpanded(context: Context, data: Map<String, Any?>): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.notification_kuron_single_expanded)
+        val progress = int(data, "progress", 0)
+        val max = int(data, "max", 100).coerceAtLeast(1)
+        val status = str(data, "status", "converting").lowercase()
+        val avatarRes = when {
+            status == "cancelled" || status == "canceled" -> R.drawable.kuro_frozen_cry
+            progress >= max -> R.drawable.kuro_happy
+            else -> R.drawable.kuro_tsundere
+        }
+        views.setImageViewResource(R.id.kuro_avatar_img, avatarRes)
+        views.setTextViewText(
+            R.id.kuro_speech_txt,
+            str(data, "speech", "🐾 Kuron: Merangkai halaman jadi PDF..."),
+        )
+        views.setTextViewText(
+            R.id.notif_title_txt,
+            str(data, "title", "Converting to PDF"),
+        )
+        views.setProgressBar(R.id.notif_progress_bar, max, progress.coerceIn(0, max), false)
+        views.setTextViewText(
+            R.id.notif_meta_txt,
+            str(data, "meta", "$progress%"),
+        )
+        val notificationId = int(data, "notificationId", 0)
+        val contentId = data["contentId"] as? String
+        // No pause for conversions: hide Nap, Cancel PDF aborts, Open PDF reads.
+        views.setViewVisibility(R.id.btn_pause, android.view.View.GONE)
+        views.setTextViewText(R.id.btn_cancel, "Cancel PDF")
+        views.setOnClickPendingIntent(
+            R.id.btn_cancel,
+            actionIntent(context, ACTION_CANCEL_PDF, notificationId, contentId),
+        )
+        views.setTextViewText(R.id.btn_priority, "Open PDF")
+        views.setOnClickPendingIntent(
+            R.id.btn_priority,
+            actionIntent(context, ACTION_OPEN, notificationId, contentId),
+        )
+        return views
+    }
+
+    fun buildPdfCollapsed(context: Context, data: Map<String, Any?>): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.notification_kuron_single_collapsed)
+        val progress = int(data, "progress", 0)
+        val max = int(data, "max", 100).coerceAtLeast(1)
+        val status = str(data, "status", "converting").lowercase()
+        val avatarRes = when {
+            status == "cancelled" || status == "canceled" -> R.drawable.kuro_frozen_cry
+            progress >= max -> R.drawable.kuro_happy
+            else -> R.drawable.kuro_tsundere
+        }
+        views.setImageViewResource(R.id.notif_mini_avatar, avatarRes)
+        views.setTextViewText(
+            R.id.notif_collapsed_title,
+            str(data, "title", "Converting to PDF"),
+        )
+        views.setProgressBar(R.id.notif_collapsed_progress, max, progress.coerceIn(0, max), false)
+        views.setTextViewText(
+            R.id.notif_collapsed_meta,
+            str(data, "meta", "$progress%"),
+        )
+        return views
+    }
+
+    fun showOrUpdatePdfNotification(
+        context: Context,
+        notificationId: Int,
+        data: Map<String, Any?>,
+    ) {
+        ensureChannel(context)
+        val merged = data + mapOf("notificationId" to notificationId)
+        val contentId = data["contentId"] as? String
+        val ongoing = (data["ongoing"] as? Boolean) ?: true
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(buildPdfCollapsed(context, merged))
+            .setCustomBigContentView(buildPdfExpanded(context, merged))
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(ongoing)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setContentIntent(contentIntent(context, contentId))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    fun showPdfCompleteNotification(
+        context: Context,
+        notificationId: Int,
+        data: Map<String, Any?>,
+    ) {
+        ensureChannel(context)
+        val merged = data + mapOf(
+            "notificationId" to notificationId,
+            "speech" to str(data, "speech", "🐾 Kuron: PDF siap dibaca! Rapi & bersih ✨"),
+        )
+        val contentId = data["contentId"] as? String
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(buildCompleteCollapsed(context, merged))
+            .setCustomBigContentView(buildCompleteExpanded(context, merged))
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setShowWhen(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(contentIntent(context, contentId))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    fun showPdfCancelledNotification(
+        context: Context,
+        notificationId: Int,
+        data: Map<String, Any?>,
+    ) {
+        ensureChannel(context)
+        val merged = data + mapOf(
+            "notificationId" to notificationId,
+            "speech" to str(data, "speech", "⚠️ PDF Cancelled"),
+            "title" to str(data, "title", "PDF Cancelled"),
+            "meta" to str(data, "meta", "Conversion cancelled • Nothing saved"),
+        )
+        val collapsed = RemoteViews(
+            context.packageName,
+            R.layout.notification_kuron_complete_collapsed,
+        )
+        collapsed.setImageViewResource(R.id.notif_complete_mini_avatar, R.drawable.kuro_frozen_cry)
+        collapsed.setTextViewText(R.id.notif_complete_collapsed_title, str(merged, "title", "PDF Cancelled"))
+        collapsed.setTextViewText(R.id.notif_complete_collapsed_meta, str(merged, "meta", ""))
+        val expanded = RemoteViews(
+            context.packageName,
+            R.layout.notification_kuron_complete_expanded,
+        )
+        expanded.setImageViewResource(R.id.kuro_complete_avatar, R.drawable.kuro_frozen_cry)
+        expanded.setTextViewText(R.id.kuro_complete_speech, str(merged, "speech", "⚠️ PDF Cancelled"))
+        expanded.setTextViewText(R.id.notif_complete_title, str(merged, "title", "PDF Cancelled"))
+        expanded.setTextViewText(R.id.notif_complete_meta, str(merged, "meta", ""))
+        // No file to read: keep Close, drop the Read button.
+        expanded.setViewVisibility(R.id.btn_complete_read, android.view.View.GONE)
+        val contentId = data["contentId"] as? String
+        expanded.setOnClickPendingIntent(
+            R.id.btn_complete_dismiss,
+            actionIntent(context, ACTION_DISMISS, notificationId, contentId),
+        )
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(collapsed)
+            .setCustomBigContentView(expanded)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setShowWhen(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setContentIntent(contentIntent(context, contentId))
             .build()

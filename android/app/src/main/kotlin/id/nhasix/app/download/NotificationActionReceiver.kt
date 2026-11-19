@@ -29,6 +29,7 @@ class NotificationActionReceiver : BroadcastReceiver() {
             KuronNotificationBuilder.ACTION_PAUSE_ALL,
             KuronNotificationBuilder.ACTION_CANCEL_ALL,
             KuronNotificationBuilder.ACTION_VIEW_QUEUE,
+            KuronNotificationBuilder.ACTION_CANCEL_PDF,
             -> MainActivity.sendNotificationAction(action, contentId, notificationId)
             KuronNotificationBuilder.ACTION_DISMISS -> {
                 KuronNotificationBuilder.cancelNotification(context, notificationId)

@@ -8,6 +8,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- 🆕 (pdf-notification): Kuron mascot system notifications for PDF conversion (`showPdfProgress` with 500ms debounce, `showPdfCompleted` with `Open PDF` / `Close`, `showPdfCancelled`, and `ACTION_KURON_CANCEL_PDF` wired to `cancelCurrent()`).
 - 🔧 (download): bulk download now streams to `.part` + atomic rename with 3-worker concurrency and true batch abort on cancel (`DownloadService` + `DownloadWorker.kt`).
 - 🔧 (reader-ai): epoch gate discards cancelled isolate translation results; ONNX prefetch/translate serialized via single queue with intent + Wi-Fi + idle posture gate; webtoon detection capped at 540px width (zero-decode flat-bubble pass).
 - 🔧 (sources): `CancelToken` propagates through `GenericRestAdapter`, `GenericScraperAdapter`, `kuron_special` adapters, and `WebViewSessionAdapter.requestWithBypass` (`ContentSource.getChapterImages` bridged via pure-Dart `OnCancelRegister`).

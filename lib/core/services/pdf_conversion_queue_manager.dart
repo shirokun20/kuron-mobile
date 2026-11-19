@@ -184,8 +184,33 @@ class PdfConversionQueueManager {
   }
 
   // Cancel the currently running conversion, if any. Queued tasks stay queued
-  // and the processor moves on to the next one.
+  // and the processor moves on to the next one. Shows the terminal Kuron
+  // "cancelled" card when a task was actually aborted.
   Future<void> cancelCurrent() async {
+    final hadTask = await _abortCurrentConversion();
+    if (hadTask) {
+      await _notificationService?.showPdfCancelled(
+        title: _currentTask?.title,
+      );
+    }
+    _broadcastStatus();
+  }
+
+  // Cancel all queued conversions AND the currently running one, then show
+  // the terminal Kuron "cancelled" card (fallback dismisses the group).
+  Future<void> cancelAll() async {
+    _logger?.w('🚫 Cancelling all queued PDF conversions');
+    _queue.clear();
+    await _abortCurrentConversion();
+    await _notificationService?.showPdfCancelled(
+      title: _currentTask?.title,
+    );
+    _broadcastStatus();
+  }
+
+  // Shared abort: cancels the token and the native worker. Returns true when
+  // a conversion was actually in flight.
+  Future<bool> _abortCurrentConversion() async {
     final task = _currentTask;
     _logger?.w(
       '🚫 Cancelling current PDF conversion${task == null ? ' (none running)' : ': ${task.contentId}'}',
@@ -198,16 +223,7 @@ class PdfConversionQueueManager {
     // in the normal path) and issues a native cancel so a stray worker stops
     // even when no Dart token is in scope.
     await _conversionService?.cancelCurrentConversion();
-    _broadcastStatus();
-  }
-
-  // Cancel all queued conversions AND the currently running one.
-  Future<void> cancelAll() async {
-    _logger?.w('🚫 Cancelling all queued PDF conversions');
-    _queue.clear();
-    await cancelCurrent();
-    await _notificationService?.cancelPdfGroup();
-    _broadcastStatus();
+    return task != null;
   }
 
   // Get current queue status

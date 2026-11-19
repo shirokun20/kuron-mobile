@@ -189,6 +189,45 @@ class MainActivity: FlutterFragmentActivity() {
                             )
                             result.success(null)
                         }
+                        "updatePdfDownload", "showPdfNotification" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.showOrUpdatePdfNotification(
+                                this, id, data,
+                            )
+                            result.success(null)
+                        }
+                        "showPdfCompleted" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.showPdfCompleteNotification(
+                                this, id, data,
+                            )
+                            result.success(null)
+                        }
+                        "showPdfCancelled" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            KuronNotificationBuilder.showPdfCancelledNotification(
+                                this, id, data,
+                            )
+                            result.success(null)
+                        }
                         "cancel", "cancelNotification" -> {
                             val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
                             val id = ((rawMap["id"] as? Number)?.toInt()
