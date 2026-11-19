@@ -172,8 +172,8 @@ You can either:
 
 Go to **About → Check for Updates**. You'll be notified when a new version is available on GitHub.
 
-Current latest release: **v0.9.23+33**
-https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.23%2B33
+Current latest release: **v0.9.29+39**
+https://github.com/shirokun20/nhasixapp/releases/tag/v0.9.29%2B39
 
 ---
 

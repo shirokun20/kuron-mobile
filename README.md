@@ -223,7 +223,7 @@
 
 | Layer | Stack |
 |:------|:------|
-| 🎯 **Language** | Flutter 3.24+ · Dart 3.5+ |
+| 🎯 **Language** | Flutter 3.47+ · Dart 3.13+ |
 | 🏗️ **Architecture** | Clean Architecture · BLoC/Cubit · GetIt DI (manual registration) |
 | 🗄️ **Data** | SQLite · SharedPreferences · Dio · GoRouter |
 | 🎨 **UI** | Material 3 · CachedNetworkImage · Lottie · PhotoView |
@@ -244,8 +244,8 @@
 ```bash
 git clone https://github.com/shirokun20/nhasixapp.git
 cd nhasixapp
-flutter pub get
-flutter run
+fvm flutter pub get
+fvm flutter run
 ```
 
 ---
