@@ -66,6 +66,9 @@ class KuronNativePlugin :
     private val avifConverter = AvifConverter()
     private var bubbleDetector: BubbleDetector? = null
     private var onnxModelManager: OnnxModelManager? = null
+    // Single ProxyWebViewHandler so cancelProxyWebView reaches the same
+    // active-request map that runProxyWebView registers into.
+    private var proxyWebViewHandler: ProxyWebViewHandler? = null
 
     /** Models dir is derived from the detector path (single source). */
     private fun modelManager(): OnnxModelManager {
@@ -403,7 +406,20 @@ class KuronNativePlugin :
                 handleHeadlessGetClearance(call, result)
             }
             "runProxyWebView" -> {
-                ProxyWebViewHandler(context).handle(call, result)
+                val handler = proxyWebViewHandler
+                    ?: ProxyWebViewHandler(context, activityBinding?.activity)
+                        .also { proxyWebViewHandler = it }
+                handler.handle(call, result)
+            }
+            "cancelProxyWebView" -> {
+                val bridgeName = call.argument<String>("bridgeName")
+                if (bridgeName.isNullOrEmpty()) {
+                    result.error("INVALID_ARGS", "bridgeName is required", null)
+                } else {
+                    val cancelled =
+                        proxyWebViewHandler?.cancel(bridgeName) ?: false
+                    result.success(cancelled)
+                }
             }
             "setCookies" -> {
                 handleSetCookies(call, result)

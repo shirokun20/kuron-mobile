@@ -144,6 +144,26 @@ class ComixAdapter implements GenericAdapter {
     return hosts?.map((e) => e.toString()).toList();
   }
 
+  /// DOM selectors for the WebView collectors (`webviewSelectors` in the
+  /// source config, e.g. `chapters` or `reader`). Missing sections or keys
+  /// fall back to the engine defaults, so older cached configs keep working.
+  static Map<String, String>? _resolveWebViewSelectors(
+    Map<String, dynamic> rawConfig,
+    String section,
+  ) {
+    final root = rawConfig['webviewSelectors'];
+    if (root is! Map) return null;
+    final map = root[section];
+    if (map is! Map) return null;
+    final out = <String, String>{};
+    map.forEach((key, value) {
+      if (value is String && value.isNotEmpty) {
+        out[key.toString()] = value;
+      }
+    });
+    return out.isEmpty ? null : out;
+  }
+
   String _baseUrl(Map<String, dynamic> rawConfig) =>
       (rawConfig['baseUrl'] as String?) ?? defaultBaseUrl;
 
@@ -782,6 +802,7 @@ class ComixAdapter implements GenericAdapter {
           urlFragment: sortField,
         );
       },
+      cancelToken: cancelToken,
     );
     final decoded = jsonDecode(payload);
     final map = decoded is Map<String, dynamic> ? decoded : {'result': decoded};
@@ -939,6 +960,7 @@ class ComixAdapter implements GenericAdapter {
         passPayloadName: pass,
         expectedKeywordJson: jsonEncode(keyword),
       ),
+      cancelToken: cancelToken,
     );
     final webResponse = SearchResponse.fromJson(
       jsonDecode(payload) as Map<String, dynamic>,
@@ -1248,6 +1270,7 @@ class ComixAdapter implements GenericAdapter {
             'parsed && parsed.data && typeof parsed.data.hid === "string"',
         apiPathMarker: apiEndpoint ?? '/api/titles/',
       ),
+      cancelToken: cancelToken,
     );
     final detail = MangafireDetail.fromJson(
       jsonDecode(payload) as Map<String, dynamic>,
@@ -1418,6 +1441,7 @@ class ComixAdapter implements GenericAdapter {
       mangaSlug: slug,
       mangaId: mangaId,
       cancelToken: cancelToken,
+      selectors: _resolveWebViewSelectors(rawConfig, 'chapters'),
     );
 
     final effectiveSlug = _resolveCanonicalSlug(slug);
@@ -1503,6 +1527,7 @@ class ComixAdapter implements GenericAdapter {
         targetPage: targetPage,
       ),
       extendDeadlineOnApiTraffic: true,
+      cancelToken: cancelToken,
     );
     final decoded = jsonDecode(payload) as Map<String, dynamic>;
     final items = (decoded['items'] as List? ?? [])
@@ -1579,6 +1604,7 @@ class ComixAdapter implements GenericAdapter {
     required String mangaSlug,
     required String mangaId,
     CancelToken? cancelToken,
+    Map<String, String>? selectors,
   }) async {
     final response = await _dio.getUri(
       Uri.parse('$base/title/$mangaSlug'),
@@ -1602,6 +1628,10 @@ class ComixAdapter implements GenericAdapter {
     } catch (_) {
       // Best-effort canonical slug extraction from SSR queries.
     }
+    // Keep `main-*.js` in the HTML: the SPA must boot so its own signed
+    // chapters requests fire (captured via fetch/XHR hooks) and `atob`
+    // cipher material is produced for Tier-1 unlock. The capture script
+    // additionally probes `apicore-*.js` behaviorally for full pagination.
     final mainScript = document.querySelector(
       'script[type=module][src*="/dist/main-"]',
     );
@@ -1611,7 +1641,6 @@ class ComixAdapter implements GenericAdapter {
       mainScriptUrl = src.startsWith('http')
           ? src
           : '$base${src.startsWith('/') ? src : '/$src'}';
-      mainScript.remove();
     }
     final payload = await _engine.runInWebView(
       pageUrl: '$base/title/$mangaSlug',
@@ -1623,8 +1652,10 @@ class ComixAdapter implements GenericAdapter {
         mangaIdJson: jsonEncode(mangaId),
         mainScriptUrlJson: jsonEncode(mainScriptUrl),
         latestChapterId: null,
+        selectors: selectors,
       ),
       extendDeadlineOnApiTraffic: true,
+      cancelToken: cancelToken,
     );
     return ((jsonDecode(payload) as List))
         .map((e) => ComixChapter.fromJson(e as Map<String, dynamic>))
@@ -1720,6 +1751,9 @@ class ComixAdapter implements GenericAdapter {
       options: Options(responseType: ResponseType.plain),
     );
     final document = html_parser.parse(response.data as String);
+    // Keep `main-*.js`: the reader SPA must boot so its signed pages
+    // request fires (captured via fetch/XHR hooks) and cipher material
+    // is produced. The capture script probes `apicore-*.js` behaviorally.
     final mainScript = document.querySelector(
       'script[type=module][src*="/dist/main-"]',
     );
@@ -1729,7 +1763,6 @@ class ComixAdapter implements GenericAdapter {
       mainScriptUrl = src.startsWith('http')
           ? src
           : '$base${src.startsWith('/') ? src : '/$src'}';
-      mainScript.remove();
     }
     final payload = await _engine.runInWebView(
       pageUrl: '$base/$path',
@@ -1740,7 +1773,9 @@ class ComixAdapter implements GenericAdapter {
         rejectName: reject,
         chapterIdJson: jsonEncode(numericId),
         mainScriptUrlJson: jsonEncode(mainScriptUrl),
+        selectors: _resolveWebViewSelectors(rawConfig, 'reader'),
       ),
+      cancelToken: cancelToken,
     );
     return ChapterData(
       images: buildPages(
@@ -1794,6 +1829,7 @@ class ComixAdapter implements GenericAdapter {
         captureTestJs: 'parsed && ((parsed.data && parsed.data.pages) || (parsed.result && parsed.result.pages) || (Array.isArray(parsed.items) && parsed.items.length > 0 && typeof parsed.items[0].url === "string"))',
         apiPathMarker: apiMarker,
       ),
+      cancelToken: cancelToken,
     );
     final decoded = jsonDecode(payload) as Map<String, dynamic>;
     final data = decoded['data'];

@@ -28,6 +28,8 @@ class MockKuronNativePlatform
       '{"payload":"{}","material":null}';
 
   @override
+  Future<void> cancelProxyWebView({required String bridgeName}) async {}
+  @override
   Future<String?> pickDirectory() async => mockPickedDirectory;
 
   @override

@@ -15,8 +15,9 @@ import 'package:logger/logger.dart';
 // - `_mangafireListUri` splits `raw:` into real browse params, so the SPA's
 //   own `/api/titles?keyword=the` request matches the capture gate
 //   (was a 120s WebView timeout).
-// - `buildChapterListScript` matches the new `apicore-*.js` bundle and the
-//   minified `$Q` chapters function (was `env-*.js` only).
+// - `buildChapterListScript` captures chapters without relying on
+//   obfuscated `apicore-*.js` symbol names (behavioral probing +
+//   endpoint-URL hooks instead of the minified `$Q` function lookup).
 //
 // Private members are verified through the public `search()` API plus the
 // generated script strings, mirroring `mangafire_flow_test.dart`.
@@ -404,7 +405,7 @@ void main() {
     expect(apiParams['order[relevance]'], ['desc']);
   });
 
-  test('chapter script matches env + apicore bundles and \$Q api', () {
+  test('chapter script captures structurally without obfuscated names', () {
     final script = buildChapterListScript(
       passPayloadName: 'passC',
       rejectName: 'rejectD',
@@ -414,25 +415,26 @@ void main() {
     );
     expect(script, contains('(?:env|apicore)'));
     expect(script, contains('env|apicore'));
-    expect(script, contains(r"$Q"));
-    expect(script, contains('fetchChapters'));
-    // Minified K6 and vp item normalization (id <- Od/QV, number <- Iv/Ug, url <- ek/Az, etc.).
-    expect(script, contains('response?.K6'));
-    expect(script, contains('response?.vp'));
-    expect(script, contains(r"$g"));
-    expect(script, contains('item.Od'));
-    expect(script, contains('item.QV'));
-    expect(script, contains('item.Iv'));
-    expect(script, contains('item.Ug'));
-    expect(script, contains('item.kC'));
-    expect(script, contains('item.RR'));
-    expect(script, contains('item.sE'));
-    expect(script, contains('item.Az'));
-    expect(script, contains('item.ek'));
-    expect(script, contains('item._G'));
-    expect(script, contains('item.ux'));
+    // Relaxed endpoint-URL hooks + arity-first batched probing drive capture.
+    expect(script, contains('/manga/'));
+    expect(script, contains('chapters'));
+    expect(script, contains('XMLHttpRequest'));
+    expect(script, contains('Reflect.apply'));
+    expect(script, contains('decryptWindowUntil'));
+    expect(script, contains('batchSize'));
+    expect(script, contains('Promise.all'));
+    expect(script, contains('1500'));
+    // No reliance on rotated export/property names or fn source text, and
+    // no sequential 8s probe stalls before late exports are reached.
+    expect(script, isNot(contains(r"$Q")));
+    expect(script, isNot(contains(r"$g")));
+    expect(script, isNot(contains('fetchChapters')));
+    expect(script, isNot(contains('mangaApi')));
+    expect(script, isNot(contains('toString')));
+    expect(script, isNot(contains('timeoutAfter(8000)')));
+    // Raw items are posted verbatim; Dart normalizes rotated keys.
+    expect(script, contains('JSON.stringify(items)'));
   });
-
   test('browse script decodes urls before the keyword gate', () {
     final script = buildBrowseScript(
       passPayloadName: 'passC',
@@ -497,12 +499,17 @@ void main() {
     );
   });
 
-  test('page script captures data/pages/top-level shapes', () {
+  test('page script captures structurally without obfuscated names', () {
     final script = buildPageListScript(passPayloadName: 'passC');
-    expect(script, contains('parsed.result?.pages'));
-    expect(script, contains('parsed.data?.pages'));
-    expect(script, contains('parsed.pages'));
-    expect(script, contains('Array.isArray(parsed.items)'));
+    // URL-verified hooks for the chapter pages endpoint + strict blind
+    // JSON.parse capture (base URL required) + behavioral probing.
+    expect(script, contains('/api/v1/chapters'));
+    expect(script, contains('XMLHttpRequest'));
+    expect(script, contains('Reflect.apply'));
+    expect(script, contains('initial-data'));
+    expect(script, isNot(contains('chapterApi')));
+    expect(script, isNot(contains('fetchPages')));
+    expect(script, isNot(contains('toString')));
   });
 
   test('rawConfig drives dynamic genreMapping, searchConfig, and webView initialization', () async {

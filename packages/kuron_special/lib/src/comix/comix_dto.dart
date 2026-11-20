@@ -451,36 +451,45 @@ class ComixChapter {
   final int? chapterCount;
 
   factory ComixChapter.fromJson(Map<String, dynamic> json) {
+    // Known keys first (current + previously rotated obfuscations), then
+    // structural fallback so a fresh `comix.to` key rotation still parses:
+    // raw API items are posted verbatim by the WebView capture script.
     final group = json['group'] as Map<String, dynamic>? ??
-        json['cW'] as Map<String, dynamic>?;
+        json['cW'] as Map<String, dynamic>? ??
+        _firstGroupMap(json);
     final createdAt = json['createdAt'] ?? json['createdAtEpoch'];
     final epoch = createdAt is num
         ? createdAt.toInt()
         : int.tryParse('${createdAt ?? ''}');
-    final id = json['id'] ?? json['Od'];
-    final rawNumber = json['number'] ?? json['Iv'] ?? json['_G'] ?? 0;
+    final rawId = _aliased(json, const ['id', 'Od', 'QV']);
+    var id = _numAsInt(rawId) ?? 0;
+    if (id == 0) id = _fallbackChapterId(json) ?? 0;
+    final rawNumber = _aliased(json, const ['number', 'Ug', 'Iv', '_G']);
+    final number = _numAsDouble(rawNumber) ?? _fallbackNumber(json, id) ?? 0.0;
+    final rawName = _aliased(json, const ['name', 'ux', 'title', 'RR']);
+    final language = json['language'] as String?;
+    final name =
+        (rawName as String?) ?? _fallbackName(json, excluded: language) ?? '';
     return ComixChapter(
-      id: id is num ? id.toInt() : (int.tryParse('$id') ?? 0),
+      id: id,
       url: json['url'] as String? ??
           json['ek'] as String? ??
+          json['Az'] as String? ??
           json['href'] as String? ??
+          _fallbackChapterUrl(json) ??
           '',
-      number: rawNumber is num
-          ? rawNumber.toDouble()
-          : (double.tryParse('$rawNumber') ?? 0.0),
-      name: json['name'] as String? ??
-          json['ux'] as String? ??
-          json['title'] as String? ??
-          '',
+      number: number,
+      name: name,
       votes: (json['votes'] as num?)?.toInt() ??
           (json['EH'] as num?)?.toInt() ??
           0,
       createdAtFormatted: json['createdAtFormatted'] as String? ??
           json['created_at_formatted'] as String? ??
           json['Fa'] as String? ??
+          _fallbackDate(json) ??
           '',
       createdAtEpoch: epoch,
-      language: json['language'] as String?,
+      language: language,
       groupId: (group?['id'] as num?)?.toInt() ??
           (group?['NY'] as num?)?.toInt(),
       groupName: group?['name'] as String? ?? group?['gf'] as String?,
@@ -566,7 +575,8 @@ class ChapterPagesResponse {
       final items = piList
           .whereType<Map<String, dynamic>>()
           .map((e) => ChapterPageDto(
-                (e['ek'] ?? e['url'] ?? e['Az'] ?? '').toString(),
+                (e['ek'] ?? e['url'] ?? e['Az'] ?? _firstUrlString(e) ?? '')
+                    .toString(),
                 s: (e['s'] as num?)?.toInt() ?? 0,
               ))
           .where((e) => e.url.isNotEmpty)
@@ -597,13 +607,20 @@ class ChapterPagesResponse {
             pages['pages'] ??
             pages['Yw'] ??
             json['items'] ??
-            json['Yw']) as List?;
+            json['Yw'] ??
+            _genericPageItems(json)) as List?;
+    // Filter out non-page entries (e.g. mixed envelopes): keep maps that
+    // carry at least one URL string.
+    final maps = ((rawItems) ?? []).whereType<Map<String, dynamic>>().toList();
+    final pageMaps = maps.any(_hasUrlString)
+        ? maps.where(_hasUrlString).toList()
+        : maps;
     return ChapterPagesResponse(
-      pages['baseUrl'] as String? ?? pages['base_url'] as String? ?? '',
-      ((rawItems) ?? [])
-          .whereType<Map<String, dynamic>>()
-          .map((e) => ChapterPageDto.fromJson(e))
-          .toList(),
+      pages['baseUrl'] as String? ??
+          pages['base_url'] as String? ??
+          _firstUrlString(pages, baseUrlLike: true) ??
+          '',
+      pageMaps.map((e) => ChapterPageDto.fromJson(e)).toList(),
     );
   }
 }
@@ -615,9 +632,190 @@ class ChapterPageDto {
   final int s;
 
   factory ChapterPageDto.fromJson(Map<String, dynamic> json) => ChapterPageDto(
-        (json['url'] ?? json['ek'] ?? json['Az'] ?? '').toString(),
+        (json['url'] ?? json['ek'] ?? json['Az'] ?? _firstUrlString(json) ?? '')
+            .toString(),
         s: (json['s'] as num?)?.toInt() ?? 0,
       );
+}
+
+/// First non-empty value under [keys], else null. Lets known (current +
+/// rotated) obfuscation aliases win before structural fallback runs.
+Object? _aliased(Map<String, dynamic> json, List<String> keys) {
+  for (final k in keys) {
+    final v = json[k];
+    if (v != null && v != '') return v;
+  }
+  return null;
+}
+
+int? _numAsInt(Object? v) {
+  if (v is num) return v.toInt();
+  if (v is String) return int.tryParse(v.trim());
+  return null;
+}
+
+double? _numAsDouble(Object? v) {
+  if (v is num) return v.toDouble();
+  if (v is String) return double.tryParse(v.trim());
+  return null;
+}
+
+bool _isNested(Object? v) => v is Map || v is List;
+
+/// Largest positive integer field, skipping number/vote/count-ish keys.
+/// Chapter ids dwarf chapter numbers/votes, so max-int is the id when
+/// every alias missed after a fresh key rotation.
+int? _fallbackChapterId(Map<String, dynamic> json) {
+  var best = 0;
+  json.forEach((key, value) {
+    if (_isNested(value)) return;
+    if (_looksLikeCountKey(key)) return;
+    final v = _numAsInt(value);
+    if (v != null && v > best) best = v;
+  });
+  return best == 0 ? null : best;
+}
+
+/// Smallest positive number that isn't the id. Aliases cover live keys;
+/// this only runs after a fresh rotation.
+double? _fallbackNumber(Map<String, dynamic> json, int id) {
+  double? best;
+  json.forEach((key, value) {
+    if (_isNested(value)) return;
+    if (_looksLikeCountKey(key)) return;
+    final v = _numAsDouble(value);
+    if (v == null || v.isNaN || v <= 0) return;
+    if (id != 0 && v == id.toDouble()) return;
+    final current = best;
+    if (current == null || v < current) best = v;
+  });
+  return best;
+}
+
+bool _looksLikeCountKey(String key) {
+  final lower = key.toLowerCase();
+  return lower.contains('vote') ||
+      lower.contains('count') ||
+      lower == 'eh' ||
+      lower == 'chaptercount';
+}
+
+bool _isDateish(String v) {
+  final lower = v.trim().toLowerCase();
+  if (lower.isEmpty) return false;
+  if (lower.endsWith(' ago')) return true;
+  return RegExp(r'\d{4}-\d{2}-\d{2}').hasMatch(v);
+}
+
+/// Longest human-readable string: no slashes/URLs, not a date, and never
+/// the language code (e.g. mangafire `language: 'en'` must not become the
+/// chapter title when `name` is empty).
+String? _fallbackName(Map<String, dynamic> json, {String? excluded}) {
+  String? best;
+  for (final entry in json.entries) {
+    final key = entry.key.toLowerCase();
+    // Metadata keys are never titles (`type: unofficial`, language codes).
+    if (key == 'language' ||
+        key == 'lang' ||
+        key == 'type' ||
+        key == 'status') {
+      continue;
+    }
+    final value = entry.value;
+    if (value is! String) continue;
+    final v = value.trim();
+    if (v.isEmpty || v.contains('/') || v.startsWith('http')) continue;
+    if (v == excluded || _isDateish(v)) continue;
+    if (best == null || v.length > best.length) best = v;
+  }
+  return best;
+}
+
+/// Reader path (`/title/...`) else any absolute path.
+String? _fallbackChapterUrl(Map<String, dynamic> json) {
+  String? path;
+  for (final value in json.values) {
+    if (value is! String) continue;
+    if (value.contains('/title/')) return value;
+    if (value.startsWith('/')) path ??= value;
+  }
+  return path;
+}
+
+/// First relative-date/ISO string.
+String? _fallbackDate(Map<String, dynamic> json) {
+  for (final value in json.values) {
+    if (value is! String) continue;
+    if (_isDateish(value)) return value;
+  }
+  return null;
+}
+
+/// First nested map carrying a name-ish string (scanlator group).
+Map<String, dynamic>? _firstGroupMap(Map<String, dynamic> json) {
+  for (final value in json.values) {
+    if (value is Map<String, dynamic>) {
+      if (value.values.any((v) => v is String && v.isNotEmpty)) {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
+bool _hasUrlString(Map<String, dynamic> json) => _firstUrlString(json) != null;
+
+/// First http(s) string value (any key — covers rotated page-item keys).
+/// With [baseUrlLike], prefers trailing-slash directory URLs.
+String? _firstUrlString(Map<String, dynamic> json, {bool baseUrlLike = false}) {
+  String? any;
+  for (final value in json.values) {
+    if (value is! String) continue;
+    final v = value.trim();
+    if (!v.startsWith('http')) continue;
+    if (baseUrlLike) {
+      if (v.endsWith('/')) return v;
+      any ??= v;
+    } else {
+      return v;
+    }
+  }
+  return any;
+}
+
+/// BFS for the first list of URL-carrying maps (rotated `items` keys).
+List? _genericPageItems(Map<String, dynamic> root) {
+  var queue = <Object>[root];
+  var depth = 0;
+  while (queue.isNotEmpty && depth < 4) {
+    final next = <Object>[];
+    for (final node in queue) {
+      if (node is List) {
+        if (node.isNotEmpty &&
+            node.first is Map<String, dynamic> &&
+            _hasUrlString(node.first as Map<String, dynamic>)) {
+          return node;
+        }
+        continue;
+      }
+      if (node is Map<String, dynamic>) {
+        for (final v in node.values) {
+          if (v is List && v.isNotEmpty) {
+            if (v.first is Map<String, dynamic> &&
+                _hasUrlString(v.first as Map<String, dynamic>)) {
+              return v;
+            }
+            next.add(v);
+          } else if (v is Map<String, dynamic>) {
+            next.add(v);
+          }
+        }
+      }
+    }
+    queue = next;
+    depth++;
+  }
+  return null;
 }
 
 extension _StringBlank on String {

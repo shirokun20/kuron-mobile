@@ -327,6 +327,14 @@ class KuronNative {
     );
   }
 
+  /// Aborts an in-flight [runProxyWebView] request identified by
+  /// [bridgeName], destroying its WebView. Fire-and-forget safe.
+  Future<void> cancelProxyWebView({required String bridgeName}) {
+    return KuronNativePlatform.instance.cancelProxyWebView(
+      bridgeName: bridgeName,
+    );
+  }
+
   // Open a local AVIF image in an external gallery/photo app.
   Future<void> openAvif({required String filePath}) {
     return KuronNativePlatform.instance.openAvif(filePath: filePath);

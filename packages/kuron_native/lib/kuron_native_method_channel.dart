@@ -568,6 +568,14 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<void> cancelProxyWebView({required String bridgeName}) async {
+    await methodChannel.invokeMethod<void>(
+      'cancelProxyWebView',
+      {'bridgeName': bridgeName},
+    );
+  }
+
+  @override
   Future<bool> setDohProvider(int provider) async {
     final result = await methodChannel.invokeMethod<bool>('setDohProvider', {
       'provider': provider,

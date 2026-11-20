@@ -166,6 +166,15 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('runProxyWebView() has not been implemented.');
   }
 
+  /// Aborts an in-flight [runProxyWebView] request identified by
+  /// [bridgeName], destroying its WebView. Unknown or already-settled
+  /// bridge names are ignored.
+  Future<void> cancelProxyWebView({required String bridgeName}) {
+    throw UnimplementedError(
+      'cancelProxyWebView() has not been implemented.',
+    );
+  }
+
   Future<void> clearAnimatedWebPCache() {
     throw UnimplementedError(
       'clearAnimatedWebPCache() has not been implemented.',

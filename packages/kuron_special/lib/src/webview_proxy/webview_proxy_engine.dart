@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:dio/dio.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 
@@ -17,6 +18,37 @@ import '../comix/comix_cipher.dart';
 const int webviewTimeoutSeconds = 120;
 const int scriptRetryIntervalMs = 100;
 const int maxChapterPages = 200;
+
+/// Default DOM selectors for the comix WebView collectors. Mirrors
+/// `webviewSelectors` in comix-config.json; used when the config omits
+/// them (e.g. older cached configs), so overrides stay optional.
+const Map<String, String> defaultChapterSelectors = {
+  'item': '.mchap-list .mchap-item',
+  'link': 'a.mchap-row__primary',
+  'number': '.mchap-row__ch',
+  'title': '.mchap-row__title',
+  'group': '.mchap-row__group',
+  'date': '.mchap-row__time',
+  'votes': '.mchap-row__likes',
+  'pagerButton': 'nav.npager .npager__num',
+  'pagerActive': 'nav.npager .npager__num.is-active',
+};
+
+/// Default DOM selectors for the comix reader WebView collector.
+const Map<String, String> defaultReaderSelectors = {
+  'pageContainer': '.rpage-page',
+  'pageImage': 'img.rpage-page__img',
+  'pageAttr': 'data-page',
+};
+
+/// Safely injects one selector into generated JS: config override when
+/// present, otherwise the default. `jsonEncode` keeps injection safe.
+String _selectorJson(
+  Map<String, String>? selectors,
+  String key,
+  String fallback,
+) =>
+    jsonEncode(selectors?[key] ?? fallback);
 
 const List<String> comixAllowedHosts = [
   'comix.to',
@@ -384,161 +416,812 @@ String buildApiCaptureScript({
 ''';
 }
 
-/// Chapter-list capture script (env bundle import + mangaApi.chapters loop).
+/// Chapter-list capture script — rotation-proof hybrid.
+///
+/// The SPA boots normally (callers keep `<script src="/dist/main-*.js">`
+/// in the HTML) and this captures its own signed chapters requests:
+/// fetch/XHR hooks accumulate every JSON response whose request URL pairs
+/// `/manga/` (or `/api/`) with `chapters`. Signed responses are often
+/// encrypted (`{"e":"..."}`) and only become chapters-shaped after apicore
+/// decrypts them, so an encrypted chapters response opens a short window
+/// in which chapters-shaped `JSON.parse` results are also captured. Manga /
+/// recommendation objects are explicitly rejected (manga-only keys and
+/// 1-segment `/title/<slug>` URLs), so related-title payloads can never
+/// win as chapters. In parallel, the `apicore-*.js` bundle referenced by
+/// `main-*.js` is imported and its exports are probed *behaviorally* —
+/// functions are tried arity-first in small concurrent batches with short
+/// timeouts while outgoing requests are watched; only a candidate that
+/// actually fired a `/chapters` request (sequentially re-verified per
+/// candidate, never trusted from shared batch state) and returned chapter
+/// items pages the full list. Identity comes from observed network
+/// behavior, never from export/property names or stringified function
+/// source, and items/envelopes are matched structurally, so key rotation
+/// in `comix.to` obfuscated bundles doesn't break chapter loading.
 String buildChapterListScript({
   required String passPayloadName,
   required String rejectName,
   required String mangaIdJson,
   required String mainScriptUrlJson,
   required int? latestChapterId,
+  Map<String, String>? selectors,
 }) =>
     '''
 (function () {
-    const payloadKey = '__comixChapterPayload';
+    const payloadGuard = '__comixChapterPayload';
     const mangaId = $mangaIdJson;
     const mainScriptUrl = $mainScriptUrlJson;
     const latestChapterId = ${latestChapterId?.toString() ?? 'null'};
-    if (window[payloadKey]) return null;
-    window[payloadKey] = true;
+    const maxPages = $maxChapterPages;
+    const selItem = ${_selectorJson(selectors, 'item', defaultChapterSelectors['item']!)};
+    const selLink = ${_selectorJson(selectors, 'link', defaultChapterSelectors['link']!)};
+    const selNumber = ${_selectorJson(selectors, 'number', defaultChapterSelectors['number']!)};
+    const selTitle = ${_selectorJson(selectors, 'title', defaultChapterSelectors['title']!)};
+    const selGroup = ${_selectorJson(selectors, 'group', defaultChapterSelectors['group']!)};
+    const selDate = ${_selectorJson(selectors, 'date', defaultChapterSelectors['date']!)};
+    const selVotes = ${_selectorJson(selectors, 'votes', defaultChapterSelectors['votes']!)};
+    const selPagerButton = ${_selectorJson(selectors, 'pagerButton', defaultChapterSelectors['pagerButton']!)};
+    const selPagerActive = ${_selectorJson(selectors, 'pagerActive', defaultChapterSelectors['pagerActive']!)};
+    if (window[payloadGuard]) return null;
+    window[payloadGuard] = true;
+    if (window.__comixChaptersInstalled) return null;
+    window.__comixChaptersInstalled = true;
+
+    const byId = new Map();
+    const requestLog = [];
+    let settled = false;
+    let probeDone = false;
+    let quietTimer = 0;
+
+    const finish = (items) => {
+        if (settled) return;
+        settled = true;
+        if (quietTimer) clearTimeout(quietTimer);
+        window.$passPayloadName(JSON.stringify(items));
+    };
+    const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        if (quietTimer) clearTimeout(quietTimer);
+        window.$rejectName(new Error(message));
+    };
+    const allItems = () => Array.from(byId.values());
+
+    const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+    // Manga/recommendation objects also carry numbers + strings, so reject
+    // them explicitly: manga-only keys, and 1-segment `/title/<slug>` URLs
+    // (chapter URLs carry the chapter path as a second segment).
+    const mangaOnlyKeys = ['poster', 'synopsis', 'synopsisHtml',
+        'contentRating', 'altTitles', 'followsTotal', 'latestChapter',
+        'ratedAvg', 'recPivot', 'genres', 'authors'];
+    const isMangaUrl = (u) => {
+        if (typeof u !== 'string') return false;
+        const idx = u.indexOf('/title/');
+        if (idx === -1) return false;
+        const rest = u.substring(idx + 7).split('?')[0].split('#')[0]
+            .split('/').filter((s) => s.length > 0);
+        return rest.length === 1;
+    };
+    const isChapterItem = (o) => {
+        if (!isObject(o)) return false;
+        for (const k of mangaOnlyKeys) {
+            if (k in o) return false;
+        }
+        for (const k of ['url', 'href', 'Az', 'ek']) {
+            if (isMangaUrl(o[k])) return false;
+        }
+        let numbers = 0;
+        let strings = 0;
+        for (const v of Object.values(o)) {
+            if (typeof v === 'number' && isFinite(v)) numbers++;
+            else if (typeof v === 'string' && v.length > 0) strings++;
+        }
+        return numbers >= 1 && strings >= 1;
+    };
+    // Chapters envelope: a bare array, `{items:[...]}`,
+    // `{result|data:{items,...}}`, or any object whose array-valued
+    // property holds chapter-shaped entries (covers rotated keys).
+    const itemsOf = (node, depth) => {
+        if (node === null || node === undefined) return null;
+        if (Array.isArray(node)) return node;
+        if (!isObject(node) || (depth || 0) > 2) return null;
+        if (Array.isArray(node.items)) return node.items;
+        for (const key of ['result', 'data']) {
+            const inner = itemsOf(node[key], (depth || 0) + 1);
+            if (inner) return inner;
+        }
+        for (const v of Object.values(node)) {
+            if (Array.isArray(v) && (v.length === 0 || isChapterItem(v[0]))) return v;
+        }
+        return null;
+    };
+    // Pagination meta: known wrappers plus any nested object holding a
+    // boolean flag or several numbers (covers rotated meta keys).
+    const metaOf = (node) => {
+        if (Array.isArray(node) || !isObject(node)) return {};
+        for (const key of ['meta', 'pagination']) {
+            if (isObject(node[key])) return node[key];
+        }
+        for (const key of ['result', 'data']) {
+            if (isObject(node[key])) {
+                const inner = metaOf(node[key]);
+                if (Object.keys(inner).length > 0) return inner;
+            }
+        }
+        for (const v of Object.values(node)) {
+            if (!isObject(v)) continue;
+            const vals = Object.values(v);
+            const bools = vals.filter((x) => typeof x === 'boolean').length;
+            const nums = vals.filter((x) => typeof x === 'number').length;
+            if (bools >= 1 || nums >= 2) return v;
+        }
+        return {};
+    };
+    const lastPageOf = (m, page) => {
+        for (const k of Object.keys(m)) {
+            if (/last/i.test(k) && typeof m[k] === 'number' && m[k] >= page) {
+                return Math.floor(m[k]);
+            }
+        }
+        let best = 0;
+        for (const v of Object.values(m)) {
+            if (typeof v === 'number' && isFinite(v) && v > page && v <= maxPages && v > best) {
+                best = Math.floor(v);
+            }
+        }
+        return best;
+    };
+    const shouldFetchMore = (meta, page, count) => {
+        if (meta.hasNext === true) return true;
+        if (meta.hasNext === false) return false;
+        const last = lastPageOf(meta, page);
+        if (last > page) return true;
+        if (last > 0) return false;
+        // Uninformative envelope (rotated keys): a full page suggests more.
+        return count >= 100;
+    };
+    const containsId = (items, id) => items.some((it) =>
+        isObject(it) && Object.values(it).some((v) => v === id || (typeof v === 'string' && Number(v) === id)));
+
+    const absorb = (parsed) => {
+        const items = itemsOf(parsed, 0);
+        if (!items || items.length === 0) return 'empty';
+        let added = 0;
+        for (const it of items) {
+            if (!isChapterItem(it)) continue;
+            const key = JSON.stringify(it);
+            if (!byId.has(key)) {
+                byId.set(key, it);
+                added++;
+            }
+        }
+        return added > 0 ? 'added' : 'dup';
+    };
+    const armSettle = () => {
+        if (settled || byId.size === 0) return;
+        if (quietTimer) clearTimeout(quietTimer);
+        quietTimer = setTimeout(() => finish(allItems()), 8000);
+    };
+
+    // Relaxed on purpose: the path prefix varies between deploys, but the
+    // resource pair (`/manga/` + `chapters`, or any `/api/` chapters call)
+    // is stable server-side.
+    const isChaptersUrl = (url) => {
+        const u = String(url || '');
+        if (u.indexOf('chapters') === -1) return false;
+        return u.indexOf('/manga/') !== -1 || u.indexOf('/api/') !== -1;
+    };
+    const noteRequest = (url) => {
+        requestLog.push(String(url || ''));
+        if (requestLog.length > 400) requestLog.splice(0, requestLog.length - 400);
+    };
+    const absorbText = (text) => {
+        try {
+            const parsed = JSON.parse(text);
+            noteEncrypted(parsed);
+            if (absorb(parsed) === 'added' && probeDone) armSettle();
+        } catch (e) {}
+    };
+
+    const originalFetch = window.fetch;
+    if (typeof originalFetch === 'function') {
+        window.fetch = function () {
+            let url = '';
+            try {
+                url = (arguments[0] && arguments[0].url) || String(arguments[0] || '');
+            } catch (e) {}
+            noteRequest(url);
+            return originalFetch.apply(this, arguments).then((response) => {
+                try {
+                    if (isChaptersUrl(response ? response.url : url)) {
+                        response.clone().text().then(absorbText).catch(() => {});
+                    }
+                } catch (e) {}
+                return response;
+            });
+        };
+    }
+
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        try {
+            this.__comixChaptersUrl = String(url || '');
+        } catch (e) {}
+        return originalOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+        try {
+            noteRequest(this.__comixChaptersUrl || '');
+        } catch (e) {}
+        this.addEventListener('load', function () {
+            try {
+                if (isChaptersUrl(this.__comixChaptersUrl || '')) {
+                    const data = this.response;
+                    if (typeof data === 'string') {
+                        absorbText(data);
+                    } else if (data !== null && typeof data === 'object') {
+                        noteEncrypted(data);
+                        if (absorb(data) === 'added' && probeDone) armSettle();
+                    }
+                }
+            } catch (e) {}
+        });
+        return originalSend.apply(this, arguments);
+    };
+
+    // Encrypted signed responses (`{"e":"..."}`) carry no items at the
+    // fetch/XHR layer — apicore decrypts them and parses the plaintext via
+    // JSON.parse. So a chapters-URL encrypted response opens a short window
+    // during which chapters-shaped JSON.parse results are captured. The
+    // window (not blind capture) keeps unrelated SPA JSON from winning.
+    let decryptWindowUntil = 0;
+    const noteEncrypted = (parsed) => {
+        try {
+            if (!isObject(parsed)) return;
+            const keys = Object.keys(parsed);
+            if (keys.length === 1 && typeof parsed[keys[0]] === 'string' &&
+                parsed[keys[0]].length > 64) {
+                decryptWindowUntil = Date.now() + 15000;
+            }
+        } catch (e) {}
+    };
+    const absorbParsedLoose = (parsed) => {
+        try {
+            const items = itemsOf(parsed, 0);
+            if (items && items.length > 0 && items.some(isChapterItem)) {
+                if (absorb(parsed) === 'added' && probeDone) armSettle();
+            }
+        } catch (e) {}
+    };
+
+    if (!JSON.parse.__comixChaptersParseInstalled) {
+        const originalParse = JSON.parse;
+        const proxiedParse = new Proxy(originalParse, {
+            apply(target, thisArg, args) {
+                const parsed = Reflect.apply(target, thisArg, args);
+                try {
+                    if (!settled && Date.now() < decryptWindowUntil) {
+                        absorbParsedLoose(parsed);
+                    }
+                } catch (e) {}
+                return parsed;
+            }
+        });
+        proxiedParse.__comixChaptersParseInstalled = true;
+        JSON.parse = proxiedParse;
+    }
+
+    const timeoutAfter = (ms) => new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('probe timeout')), ms));
+    const firedChapters = (mark) => {
+        for (let i = mark; i < requestLog.length; i++) {
+            if (requestLog[i].indexOf('chapters') !== -1) return true;
+        }
+        return false;
+    };
+    const looksChapters = (r) => {
+        const items = itemsOf(r, 0);
+        return !!items && items.length > 0 && items.some(isChapterItem);
+    };
+    // Behavioral probe: call every exported function with chapters-list
+    // arguments and watch outgoing requests. Prioritizes functions whose
+    // arity fits a `(id, params)` list call, probes in small concurrent
+    // batches with a short per-call timeout (hanging exports must not stall
+    // the scan — the live chapters export sits behind dozens of them), and
+    // confirms batch hits sequentially since concurrent attribution is
+    // ambiguous. Never inspects names or function source.
+    const probeNamespaces = async (mod) => {
+        const namespaces = [];
+        try {
+            for (const v of Object.values(mod)) {
+                if ((v !== null && typeof v === 'object') || typeof v === 'function') namespaces.push(v);
+            }
+        } catch (e) {}
+        if (namespaces.length === 0 && mod !== null &&
+            (typeof mod === 'object' || typeof mod === 'function')) {
+            namespaces.push(mod);
+        }
+        const seenFns = new Set();
+        const prioritized = [];
+        const deferred = [];
+        for (const ns of namespaces) {
+            let fns = [];
+            try {
+                fns = (typeof ns === 'function') ? [ns] : Object.values(ns).filter((v) => typeof v === 'function');
+            } catch (e) {}
+            const target = (typeof ns === 'object' && ns !== null) ? ns : null;
+            for (const fn of fns) {
+                if (seenFns.has(fn)) continue;
+                seenFns.add(fn);
+                const arity = (typeof fn.length === 'number') ? fn.length : 99;
+                if (arity >= 1 && arity <= 3) prioritized.push({target, fn});
+                else deferred.push({target, fn});
+            }
+        }
+        const ordered = prioritized.concat(deferred).slice(0, 240);
+        const argSets = [
+            [mangaId, {page: 1, limit: 5, order: {number: 'desc'}}],
+            [mangaId, {page: 1, limit: 5}],
+            [mangaId, {page: '1', limit: '5'}],
+        ];
+        const deadline = Date.now() + 45000;
+        const batchSize = 10;
+        const isEncryptedEnvelope = (r) => {
+            if (!isObject(r)) return false;
+            const keys = Object.keys(r);
+            return keys.length === 1 && typeof r[keys[0]] === 'string' &&
+                r[keys[0]].length > 64;
+        };
+        const tryOne = async (cand, args, timeoutMs) => {
+            const mark = requestLog.length;
+            try {
+                const result = await Promise.race([
+                    Reflect.apply(cand.fn, cand.target, args),
+                    timeoutAfter(timeoutMs),
+                ]);
+                // NEVER accept shape alone: the recommendations API also
+                // returns item arrays. Only a candidate that actually fired
+                // a `/chapters` request — and whose result is chapters (or
+                // still-encrypted) — is the chapters API.
+                if (!firedChapters(mark)) return null;
+                if (looksChapters(result) || isEncryptedEnvelope(result)) {
+                    return cand;
+                }
+            } catch (e) {}
+            return null;
+        };
+        for (const args of argSets) {
+            for (let i = 0; i < ordered.length; i += batchSize) {
+                if (settled || Date.now() > deadline) return null;
+                const batch = ordered.slice(i, i + batchSize);
+                const hits = await Promise.all(batch.map((c) => tryOne(c, args, 1500)));
+                for (let j = 0; j < batch.length; j++) {
+                    if (settled || Date.now() > deadline) return null;
+                    if (!hits[j]) continue;
+                    // Sequential confirm: a batch hit may credit a sibling
+                    // sharing requestLog, so re-verify THIS candidate fired.
+                    // Never fall back to the batch hit itself.
+                    const confirm = await tryOne(batch[j], args, 4000);
+                    if (confirm) return confirm;
+                }
+            }
+        }
+        return null;
+    };
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const textOf = (root, sel) => {
+        try {
+            const el = root.querySelector(sel);
+            return ((el && el.textContent) || '').trim();
+        } catch (e) {
+            return '';
+        }
+    };
+    const attrOf = (root, sel, attr) => {
+        try {
+            const el = root.querySelector(sel);
+            return ((el && el.getAttribute(attr)) || '');
+        } catch (e) {
+            return '';
+        }
+    };
+    // Primary collector: page-1 chapters are SSR-rendered in
+    // `.mchap-list .mchap-item`, so the SPA often never fetches the
+    // chapters API on initial load. Scrape the DOM and drive `.npager`
+    // pagination by clicking the next-page button.
+    const scrapeDomChapters = () => {
+        const out = [];
+        let items = [];
+        try {
+            items = Array.from(document.querySelectorAll(selItem));
+        } catch (e) {
+            return out;
+        }
+        for (const li of items) {
+            try {
+                const href = attrOf(li, selLink, 'href');
+                if (!href) continue;
+                const segs = href.split('?')[0].split('#')[0].split('/').filter((s) => s.length > 0);
+                const lastSeg = segs.length > 0 ? segs[segs.length - 1] : '';
+                const id = parseInt(lastSeg.split('-')[0], 10);
+                if (!isFinite(id)) continue;
+                const chText = textOf(li, selNumber).replace('Ch.', '').replace('Ch', '').trim();
+                const number = parseFloat(chText);
+                const name = textOf(li, selTitle);
+                const createdAtFormatted = textOf(li, selDate);
+                const groupName = textOf(li, selGroup);
+                const groupHref = attrOf(li, selGroup, 'href');
+                let groupId = 0;
+                if (groupHref) {
+                    const gsegs = groupHref.split('?')[0].split('#')[0].split('/').filter((s) => s.length > 0);
+                    const gparsed = parseInt(gsegs.length > 0 ? gsegs[gsegs.length - 1] : '', 10);
+                    if (isFinite(gparsed)) groupId = gparsed;
+                }
+                const votes = parseInt(textOf(li, selVotes).replace(/,/g, ''), 10);
+                const item = {
+                    id, url: href,
+                    number: isFinite(number) ? number : 0, name,
+                    votes: isFinite(votes) ? votes : 0, createdAtFormatted,
+                };
+                if (groupName) {
+                    item.group = {name: groupName};
+                    if (groupId) item.group.id = groupId;
+                }
+                out.push(item);
+            } catch (e) {}
+        }
+        return out;
+    };
+    const firstDomHref = () => {
+        try {
+            const a = document.querySelector(selItem + ' ' + selLink);
+            return (a && a.getAttribute('href')) || '';
+        } catch (e) {
+            return '';
+        }
+    };
+    const collectDomChapters = async () => {
+        // SSR renders page 1 immediately; allow briefly for SPA boot.
+        let items = [];
+        for (let i = 0; i < 100 && items.length === 0; i++) {
+            items = scrapeDomChapters();
+            if (items.length === 0) await sleep(50);
+        }
+        if (items.length === 0) return [];
+        const seen = new Set();
+        const all = [];
+        const pushAll = (list) => {
+            for (const it of list) {
+                const key = String(it.id);
+                if (seen.has(key)) continue;
+                seen.add(key);
+                all.push(it);
+                if (latestChapterId !== null && latestChapterId !== undefined && it.id === latestChapterId) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        if (!pushAll(items)) return all;
+        let page = 1;
+        while (page < maxPages) {
+            let nextBtn = null;
+            try {
+                const btns = Array.from(document.querySelectorAll(selPagerButton));
+                for (const b of btns) {
+                    if (((b.textContent) || '').trim() === String(page + 1)) {
+                        nextBtn = b;
+                        break;
+                    }
+                }
+            } catch (e) {}
+            if (!nextBtn) break;
+            const prevFirst = firstDomHref();
+            try {
+                nextBtn.click();
+            } catch (e) {
+                break;
+            }
+            let changed = false;
+            for (let i = 0; i < 100; i++) {
+                await sleep(50);
+                try {
+                    const active = document.querySelector(selPagerActive);
+                    if (active && ((active.textContent) || '').trim() === String(page + 1)) {
+                        changed = true;
+                        break;
+                    }
+                } catch (e) {}
+                if (firstDomHref() !== prevFirst) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) break;
+            page++;
+            const list = scrapeDomChapters();
+            if (list.length === 0) break;
+            if (!pushAll(list)) break;
+        }
+        return all;
+    };
 
     (async () => {
         try {
-            if (!mainScriptUrl) throw new Error('Could not find main bundle');
-            const mainResponse = await fetch(mainScriptUrl);
-            if (!mainResponse.ok) throw new Error('Could not load main bundle');
-            const mainJavaScript = await mainResponse.text();
-            const environmentFile = mainJavaScript.match(
-                /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
-            )?.[1];
-            if (!environmentFile) throw new Error('Could not find environment bundle');
-
-            const importBundle = new Function('url', 'return import(url)');
-            const environment = await importBundle(
-                new URL(environmentFile, mainScriptUrl).href
-            );
-            let mangaApi = null;
-            let fetchChapters = null;
-
-            // Prefer known manga API exports (e.g. export 'f' or 'mangaApi')
-            for (const key of ['f', 'mangaApi']) {
-                const candidate = environment[key];
-                if (candidate && typeof candidate === 'object') {
-                    const fn = candidate.chapters || candidate['\$g'] || candidate['\$Q'];
-                    if (typeof fn === 'function') {
-                        mangaApi = candidate;
-                        fetchChapters = fn.bind(candidate);
-                        break;
-                    }
+            // DOM first: SSR + npager clicks need no API access at all.
+            // Only fall back to behavioral probing when the DOM has
+            // no chapters (avoids the probe scan entirely).
+            const domItems = await collectDomChapters();
+            if (domItems.length > 0) {
+                absorb(domItems);
+                const items = allItems();
+                if (items.length > 0) {
+                    finish(items);
+                    return;
                 }
             }
-
-            if (!fetchChapters) {
-                for (const value of Object.values(environment)) {
-                    if (!value || typeof value !== 'object') continue;
-                    if (typeof value.chapters === 'function') {
-                        mangaApi = value;
-                        fetchChapters = value.chapters.bind(value);
-                        break;
-                    }
-                    if (typeof value['\$g'] === 'function' && typeof value['dN'] === 'function') {
-                        mangaApi = value;
-                        fetchChapters = value['\$g'].bind(value);
-                        break;
-                    }
-                    if (typeof value['\$g'] === 'function' || typeof value['\$Q'] === 'function') {
-                        mangaApi = value;
-                        fetchChapters = (value['\$g'] || value['\$Q']).bind(value);
-                        break;
-                    }
-                    for (const [key, fn] of Object.entries(value)) {
-                        if (typeof fn === 'function') {
-                            const fnStr = fn.toString();
-                            if (fnStr.includes('\$g') || fnStr.includes('chapters') || fnStr.includes('/chapters')) {
-                                mangaApi = value;
-                                fetchChapters = fn.bind(value);
-                                break;
-                            }
+            let found = null;
+            try {
+                let mainUrl = mainScriptUrl;
+                if (!mainUrl) {
+                    const el = document.querySelector('script[type=module][src*="/dist/main-"]');
+                    mainUrl = el ? el.src : '';
+                }
+                if (mainUrl) {
+                    const mainResponse = await Promise.race([fetch(mainUrl), timeoutAfter(20000)]);
+                    if (mainResponse && mainResponse.ok) {
+                        const mainJavaScript = await mainResponse.text();
+                        const match = mainJavaScript.match(
+                            /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
+                        );
+                        const environmentFile = match ? match[1] : null;
+                        if (environmentFile) {
+                            const importer = new Function('url', 'return import(url)');
+                            const envModule = await Promise.race([
+                                importer(new URL(environmentFile, mainUrl).href),
+                                timeoutAfter(20000),
+                            ]);
+                            found = await probeNamespaces(envModule);
                         }
                     }
-                    if (fetchChapters) break;
+                }
+            } catch (e) {
+                found = null;
+            }
+            if (found) {
+                let page = 1;
+                let consecutiveEmpty = 0;
+                while (page <= maxPages) {
+                    let response = null;
+                    try {
+                        response = await Promise.race([
+                            Reflect.apply(found.fn, found.target, [
+                                mangaId,
+                                {page, limit: 100, order: {number: 'desc'}},
+                            ]),
+                            timeoutAfter(20000),
+                        ]);
+                    } catch (e) {
+                        break;
+                    }
+                    const items = itemsOf(response, 0);
+                    if (!items || items.length === 0) {
+                        consecutiveEmpty++;
+                        if (consecutiveEmpty >= 2) break;
+                        page++;
+                        continue;
+                    }
+                    consecutiveEmpty = 0;
+                    absorb(response);
+                    if (latestChapterId !== null && latestChapterId !== undefined &&
+                        containsId(items, latestChapterId)) break;
+                    if (!shouldFetchMore(metaOf(response), page, items.length)) break;
+                    page++;
+                }
+                const items = allItems();
+                if (items.length > 0) {
+                    finish(items);
+                    return;
                 }
             }
-            if (!fetchChapters) throw new Error('Could not find manga API');
-
-            const items = [];
-            let page = 1;
-            while (page <= $maxChapterPages) {
-                const response = await fetchChapters(mangaId, {
-                    page,
-                    limit: 100,
-                    order: { number: 'desc' }
-                });
-                const rawItems = response?.items ?? response?.K6 ?? response?.vp;
-                if (!Array.isArray(rawItems) || rawItems.length === 0) break;
-                const pageItems = rawItems.map(item => ({
-                    ...item,
-                    id: item.id ?? item.QV ?? item.Od,
-                    number: item.number ?? item.Ug ?? item.Iv ?? item._G,
-                    volume: item.volume ?? item.kC ?? item._G,
-                    title: item.title ?? item.RR ?? item.name ?? item.ux ?? '',
-                    name: item.name ?? item.RR ?? item.title ?? item.ux ?? '',
-                    date: item.date ?? item.sE ?? item.createdAtFormatted ?? item.Fa ?? item.uploadDate ?? item.xl,
-                    url: item.url ?? item.Az ?? item.ek ?? item.href ?? ''
-                }));
-
-                items.push(...pageItems);
-                if (pageItems.some(item => item.id === latestChapterId)) break;
-
-                const meta = response.meta || response.pagination || response.JF || {};
-                const lastPage = meta.lastPage || meta.last_page || meta.c_ || page;
-                if (!(meta.hasNext || meta.gE || page < lastPage)) break;
-                page++;
-            }
-            window.$passPayloadName(JSON.stringify(items));
-        } catch (error) {
-            window.$rejectName(error);
+        } catch (e) {
+            // Fall through to passive capture below.
+        } finally {
+            probeDone = true;
+        }
+        if (byId.size > 0) {
+            armSettle();
+        } else if (!settled) {
+            if (quietTimer) clearTimeout(quietTimer);
+            quietTimer = setTimeout(() => {
+                if (byId.size > 0) finish(allItems());
+                else fail('Could not capture chapters list for this title');
+            }, 30000);
         }
     })();
     return null;
 })();
 ''';
 
-/// Reader pages capture script (initial-data + JSON.parse proxy + active apicore import).
+/// Reader pages capture script — rotation-proof hybrid.
+///
+/// Primary: URL-verified fetch/XHR hooks for the chapter pages API plus a
+/// structural pages-shape check (image-URL items, optional base URL), so
+/// obfuscated `apicore-*.js` renames can't break it. Fallback: the
+/// `apicore-*.js` bundle is imported and its exports probed behaviorally —
+/// each function is tried with the chapter id while outgoing requests are
+/// watched; whatever hits the chapter pages endpoint (or returns a
+/// pages-shaped envelope) supplies the payload. Posted as canonical
+/// `{result:{pages:{baseUrl,items}}}` for `ChapterPagesResponse`.
+/// A strict blind `JSON.parse` hook (base URL required) covers SSR shells
+/// whose pages payload never crosses fetch/XHR.
 String buildPageListScript({
   required String passPayloadName,
   String rejectName = r'$reject',
   String chapterIdJson = 'null',
   String mainScriptUrlJson = 'null',
+  Map<String, String>? selectors,
 }) =>
     '''
 (function () {
-    const payloadKey = '__comixPagePayload';
-    const capture = parsed => {
-        try {
-            if (parsed && (parsed.result?.pages || parsed.data?.pages || parsed.pages || parsed.Yw || Array.isArray(parsed.items) || Array.isArray(parsed.pi))) {
-                window[payloadKey] = JSON.stringify(parsed);
-                window.$passPayloadName(window[payloadKey]);
-                return true;
-            }
-        } catch (e) {}
-        return false;
+    const payloadGuard = '__comixPagePayload';
+    if (window[payloadGuard]) return null;
+    window[payloadGuard] = true;
+    if (window.__comixPagesInstalled) return null;
+    window.__comixPagesInstalled = true;
+
+    let chapterId = $chapterIdJson;
+    const mainScriptUrl = $mainScriptUrlJson;
+    const selPageContainer = ${_selectorJson(selectors, 'pageContainer', defaultReaderSelectors['pageContainer']!)};
+    const selPageImage = ${_selectorJson(selectors, 'pageImage', defaultReaderSelectors['pageImage']!)};
+    const selPageAttr = ${_selectorJson(selectors, 'pageAttr', defaultReaderSelectors['pageAttr']!)};
+    const requestLog = [];
+    let settled = false;
+    const finish = (baseUrl, items) => {
+        if (settled) return;
+        settled = true;
+        window.$passPayloadName(JSON.stringify({result: {pages: {baseUrl: baseUrl || '', items}}}));
     };
 
-    if (window[payloadKey]) return window[payloadKey];
+    const isHttp = (v) => typeof v === 'string' && /^https?:\\/\\//.test(v);
+    const isPageItem = (o) => o !== null && typeof o === 'object' && !Array.isArray(o) &&
+        Object.values(o).some(isHttp);
+    // Structural pages envelope: an object graph containing an array of
+    // image-URL items plus the sibling base URL. `strict` (blind JSON.parse
+    // path) additionally requires the base URL, which chapters/browse
+    // payloads don't carry — that discriminator avoids wrong wins.
+    const pagesOf = (node, depth, strict) => {
+        if (node === null || node === undefined) return null;
+        if (typeof node !== 'object' || (depth || 0) > 3) return null;
+        if (Array.isArray(node)) {
+            if (node.length === 0) return null;
+            const pages = node.filter(isPageItem);
+            if (pages.length === 0) return null;
+            if (strict && !pages.every(isPageItem)) return null;
+            return {baseUrl: '', items: strict ? node : pages};
+        }
+        const itemArrays = [];
+        if (Array.isArray(node.items)) itemArrays.push(node.items);
+        for (const v of Object.values(node)) {
+            if (Array.isArray(v) && v.length > 0 && v.some(isPageItem) && itemArrays.indexOf(v) === -1) {
+                itemArrays.push(v);
+            }
+        }
+        for (const k of ['result', 'data', 'pages']) {
+            if (node[k] !== null && typeof node[k] === 'object') {
+                const inner = pagesOf(node[k], (depth || 0) + 1, strict);
+                if (inner) return inner;
+            }
+        }
+        if (itemArrays.length === 0) return null;
+        let baseUrl = '';
+        for (const k of Object.keys(node)) {
+            if (/base/i.test(k) && isHttp(node[k])) {
+                baseUrl = node[k];
+                break;
+            }
+        }
+        if (!baseUrl) {
+            for (const v of Object.values(node)) {
+                if (isHttp(v) && v.endsWith('/')) {
+                    baseUrl = v;
+                    break;
+                }
+            }
+        }
+        if (strict && !baseUrl) return null;
+        const items = itemArrays[0];
+        if (strict && !items.every(isPageItem)) return null;
+        return {baseUrl, items: strict ? items : items.filter(isPageItem)};
+    };
+    const absorbStrict = (parsed) => {
+        const found = pagesOf(parsed, 0, true);
+        if (found && found.items.length > 0) finish(found.baseUrl, found.items);
+    };
+    const absorbLoose = (parsed) => {
+        const found = pagesOf(parsed, 0, false);
+        if (found && found.items.length > 0) finish(found.baseUrl, found.items);
+    };
 
     try {
         const raw = document.querySelector('script#initial-data')?.textContent;
         const queries = raw && JSON.parse(raw).queries;
-        if (queries) Object.values(queries).some(capture);
+        if (queries) {
+            for (const q of Object.values(queries)) absorbStrict(q);
+            if (!chapterId) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    chapterId = chapterId || parsed?.read?.chapterId;
+                } catch (e) {}
+            }
+        }
     } catch (e) {}
+    if (settled) return null;
 
-    if (window[payloadKey]) return window[payloadKey];
+    const isPagesUrl = (url) => String(url || '').indexOf('/api/v1/chapters') !== -1;
+    const noteRequest = (url) => {
+        requestLog.push(String(url || ''));
+        if (requestLog.length > 400) requestLog.splice(0, requestLog.length - 400);
+    };
+    const absorbText = (text, loose) => {
+        try {
+            if (loose) absorbLoose(JSON.parse(text));
+            else absorbStrict(JSON.parse(text));
+        } catch (e) {}
+    };
+
+    const originalFetch = window.fetch;
+    if (typeof originalFetch === 'function') {
+        window.fetch = function () {
+            let url = '';
+            try {
+                url = (arguments[0] && arguments[0].url) || String(arguments[0] || '');
+            } catch (e) {}
+            noteRequest(url);
+            return originalFetch.apply(this, arguments).then((response) => {
+                try {
+                    if (isPagesUrl(response ? response.url : url)) {
+                        response.clone().text().then((t) => absorbText(t, true)).catch(() => {});
+                    }
+                } catch (e) {}
+                return response;
+            });
+        };
+    }
+
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function (method, url) {
+        try {
+            this.__comixPagesUrl = String(url || '');
+        } catch (e) {}
+        return originalOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function () {
+        try {
+            noteRequest(this.__comixPagesUrl || '');
+        } catch (e) {}
+        this.addEventListener('load', function () {
+            try {
+                if (isPagesUrl(this.__comixPagesUrl || '')) {
+                    const data = this.response;
+                    if (typeof data === 'string') absorbText(data, true);
+                    else if (data !== null && typeof data === 'object') absorbLoose(data);
+                }
+            } catch (e) {}
+        });
+        return originalSend.apply(this, arguments);
+    };
+
     if (!JSON.parse.__comixPageCaptureInstalled) {
         const originalParse = JSON.parse;
         const proxiedParse = new Proxy(originalParse, {
             apply(target, thisArg, args) {
                 const parsed = Reflect.apply(target, thisArg, args);
-                capture(parsed);
+                try {
+                    if (!settled) absorbStrict(parsed);
+                } catch (e) {}
                 return parsed;
             }
         });
@@ -546,63 +1229,182 @@ String buildPageListScript({
         JSON.parse = proxiedParse;
     }
 
-    (async () => {
-        try {
-            let chapterId = $chapterIdJson;
-            if (!chapterId) {
+    const timeoutAfter = (ms) => new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('probe timeout')), ms));
+    const firedPages = (mark) => {
+        for (let i = mark; i < requestLog.length; i++) {
+            if (requestLog[i].indexOf('/api/v1/chapters') !== -1) return true;
+        }
+        return false;
+    };
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    // Primary collector: reader pages render as `.rpage-page` divs with
+    // lazy `img.rpage-page__img`. Scrolling each into view materializes
+    // every `src` in milliseconds with no API access at all.
+    const collectDomPages = async () => {
+        let pages = [];
+        for (let i = 0; i < 150 && pages.length === 0; i++) {
+            try {
+                pages = Array.from(document.querySelectorAll(selPageContainer));
+            } catch (e) {
+                pages = [];
+            }
+            if (pages.length === 0) await sleep(100);
+        }
+        if (pages.length === 0) return false;
+        const byPage = new Map();
+        const readVisible = () => {
+            for (const p of pages) {
                 try {
-                    const raw = document.querySelector('script#initial-data')?.textContent;
-                    const parsed = raw && JSON.parse(raw);
-                    chapterId = parsed?.read?.chapterId;
+                    const key = (p.getAttribute(selPageAttr) || '').trim();
+                    if (!key || byPage.has(key)) continue;
+                    const img = p.querySelector(selPageImage);
+                    const src = (img && img.getAttribute('src')) || '';
+                    if (src) byPage.set(key, src);
                 } catch (e) {}
             }
-            if (!chapterId) return;
-
-            let mainUrl = $mainScriptUrlJson;
-            if (!mainUrl) {
-                const scriptEl = document.querySelector('script[type=module][src*="/dist/main-"]');
-                mainUrl = scriptEl?.src || '';
-            }
-            if (!mainUrl) return;
-
-            const mainResponse = await fetch(mainUrl);
-            if (!mainResponse.ok) return;
-            const mainJavaScript = await mainResponse.text();
-            const environmentFile = mainJavaScript.match(
-                /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
-            )?.[1];
-            if (!environmentFile) return;
-            const envPath = new URL(environmentFile, mainUrl).href;
-            const envModule = await import(/* @vite-ignore */ envPath);
-
-            let chapterApi = envModule.chapterApi || envModule.\$n || envModule.n;
-            let fetchPages = chapterApi?.read || chapterApi?.pages || chapterApi?.N4 || chapterApi?.pQ;
-            if (typeof fetchPages !== 'function') {
-                for (const value of Object.values(envModule)) {
-                    if (!value || typeof value !== 'object') continue;
-                    const fn = value.read || value.pages || value.N4 || value.pQ;
-                    if (typeof fn === 'function') {
-                        chapterApi = value;
-                        fetchPages = fn;
-                        break;
-                    }
+        };
+        readVisible();
+        // Bounded to two passes (forward + one retry): with a real
+        // viewport each scroll materializes its image in ~ms, so a missing
+        // page only needs a short settle wait, never a 30s loop.
+        const scanPass = async () => {
+            for (const p of pages) {
+                if (settled) return;
+                let key = '';
+                try {
+                    key = (p.getAttribute(selPageAttr) || '').trim();
+                } catch (e) {}
+                if (!key || byPage.has(key)) continue;
+                try {
+                    p.scrollIntoView({behavior: 'instant', block: 'center'});
+                } catch (e) {}
+                for (let i = 0; i < 8; i++) {
+                    await sleep(20);
+                    try {
+                        const img = p.querySelector(selPageImage);
+                        const src = (img && img.getAttribute('src')) || '';
+                        if (src) {
+                            byPage.set(key, src);
+                            break;
+                        }
+                    } catch (e) {}
                 }
             }
-            if (typeof fetchPages !== 'function') return;
+            readVisible();
+        };
+        await scanPass();
+        if (byPage.size < pages.length && !settled) {
+            try {
+                pages = Array.from(document.querySelectorAll(selPageContainer));
+            } catch (e) {}
+            await scanPass();
+        }
+        if (byPage.size === 0) return false;
+        const orderedKeys = Array.from(byPage.keys())
+            .sort((a, b) => Number(a) - Number(b));
+        finish('', orderedKeys.map((k) => ({url: byPage.get(k)})));
+        return true;
+    };
 
-            const result = await fetchPages(chapterId);
-            if (window[payloadKey]) return;
-            if (capture(result)) return;
-            if (result) {
-                window[payloadKey] = JSON.stringify(result);
-                window.$passPayloadName(window[payloadKey]);
+    (async () => {
+        try {
+            // DOM first: scrolling `.rpage-page` into view needs no API
+            // access. Only probe apicore when the DOM has no pages.
+            try {
+                if (await collectDomPages()) return;
+            } catch (e) {}
+            if (settled) return;
+            if (!chapterId) return;
+            let mainUrl = mainScriptUrl;
+            if (!mainUrl) {
+                const scriptEl = document.querySelector('script[type=module][src*="/dist/main-"]');
+                mainUrl = scriptEl ? scriptEl.src : '';
+            }
+            if (!mainUrl) return;
+            const mainResponse = await Promise.race([fetch(mainUrl), timeoutAfter(20000)]);
+            if (!mainResponse || !mainResponse.ok) return;
+            const mainJavaScript = await mainResponse.text();
+            const match = mainJavaScript.match(
+                /from\\s*["']\\.\\/((?:env|apicore)-[^"']+\\.js)["']/
+            );
+            const environmentFile = match ? match[1] : null;
+            if (!environmentFile) return;
+            const importer = new Function('url', 'return import(url)');
+            const envModule = await Promise.race([
+                importer(new URL(environmentFile, mainUrl).href),
+                timeoutAfter(20000),
+            ]);
+            const seenFns = new Set();
+            const prioritized = [];
+            const deferred = [];
+            for (const ns of namespaces) {
+                let fns = [];
+                try {
+                    fns = (typeof ns === 'function') ? [ns] : Object.values(ns).filter((v) => typeof v === 'function');
+                } catch (e) {}
+                const target = (typeof ns === 'object' && ns !== null) ? ns : null;
+                for (const fn of fns) {
+                    if (seenFns.has(fn)) continue;
+                    seenFns.add(fn);
+                    const arity = (typeof fn.length === 'number') ? fn.length : 99;
+                    if (arity >= 1 && arity <= 2) prioritized.push({target, fn});
+                    else deferred.push({target, fn});
+                }
+            }
+            const ordered = prioritized.concat(deferred).slice(0, 240);
+            const variants = [chapterId];
+            try {
+                const n = Number(chapterId);
+                if (isFinite(n)) variants.push(n, String(n));
+            } catch (e) {}
+            const deadline = Date.now() + 45000;
+            const batchSize = 10;
+            const tryPageFn = async (cand, variant, timeoutMs) => {
+                const mark = requestLog.length;
+                try {
+                    const result = await Promise.race([
+                        Reflect.apply(cand.fn, cand.target, [variant]),
+                        timeoutAfter(timeoutMs),
+                    ]);
+                    // Require `/chapters/` URL proof: shape alone also matches
+                    // unrelated item arrays, and a blind win here would post
+                    // manga payloads as reader pages.
+                    if (!firedPages(mark)) return null;
+                    const found = pagesOf(result, 0, false);
+                    if (found && found.items.length > 0) {
+                        return {cand, found, result};
+                    }
+                    return {cand, found: null, result};
+                } catch (e) {}
+                return null;
+            };
+            for (const variant of variants) {
+                for (let i = 0; i < ordered.length; i += batchSize) {
+                    if (settled || Date.now() > deadline) return;
+                    const batch = ordered.slice(i, i + batchSize);
+                    const hits = await Promise.all(batch.map((c) => tryPageFn(c, variant, 1500)));
+                    for (let j = 0; j < batch.length; j++) {
+                        if (!hits[j] || settled || Date.now() > deadline) continue;
+                        const confirm = await tryPageFn(batch[j], variant, 4000);
+                        const win = confirm || hits[j];
+                        if (win.found && win.found.items.length > 0) {
+                            finish(win.found.baseUrl, win.found.items);
+                        } else if (win.result !== null && typeof win.result === 'object') {
+                            absorbLoose(win.result);
+                        }
+                        if (settled) return;
+                    }
+                }
+                if (settled) return;
             }
         } catch (e) {
-            // Passive JSON.parse proxy remains active if active fetch fails
+            // Passive hooks remain active if active fetch fails.
         }
     })();
 
-    return window[payloadKey] || null;
+    return null;
 })();
 ''';
 
@@ -651,6 +1453,7 @@ class WebViewProxyEngine {
     required String Function(String passPayloadName, String rejectName)
     buildScript,
     bool extendDeadlineOnApiTraffic = false,
+    CancelToken? cancelToken,
   }) async {
     final bridgeName = _randomBridgeName();
     final errorBridgeName = _randomBridgeName();
@@ -677,9 +1480,16 @@ class WebViewProxyEngine {
         ? {...allowedHosts, ...extraAllowedHosts}.toList()
         : allowedHosts;
 
+    if (cancelToken?.isCancelled == true) {
+      throw DioException.requestCancelled(
+        requestOptions: RequestOptions(path: pageUrl),
+        reason: cancelToken?.cancelError,
+      );
+    }
+
     late final String raw;
     try {
-      raw = await _native
+      final pending = _native
           .runProxyWebView(
             pageUrl: pageUrl,
             html: html,
@@ -697,6 +1507,26 @@ class WebViewProxyEngine {
             onTimeout: () =>
                 throw TimeoutException('Timed out waiting for WebView'),
           );
+      if (cancelToken == null) {
+        raw = await pending;
+      } else {
+        // Fire-and-forget: abort + destroy the native WebView immediately
+        // on cancel. Unknown/already-settled bridge names are ignored.
+        unawaited(
+          cancelToken.whenCancel.then<void>((_) {
+            return _native.cancelProxyWebView(bridgeName: bridgeName);
+          }).catchError((_) {}),
+        );
+        raw = await Future.any([
+          pending,
+          cancelToken.whenCancel.then<String>((_) {
+            throw DioException.requestCancelled(
+              requestOptions: RequestOptions(path: pageUrl),
+              reason: cancelToken.cancelError,
+            );
+          }),
+        ]);
+      }
     } on TimeoutException {
       _logger.w('comix: WebView proxy timed out for $pageUrl');
       rethrow;

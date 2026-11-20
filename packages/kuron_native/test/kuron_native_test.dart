@@ -1,9 +1,9 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:kuron_native/kuron_native_platform_interface.dart';
 import 'package:kuron_native/kuron_native_method_channel.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-import 'dart:typed_data';
 
 class MockKuronNativePlatform
     with MockPlatformInterfaceMixin
@@ -22,6 +22,14 @@ class MockKuronNativePlatform
     bool extendDeadlineOnApiTraffic = false,
   }) =>
       Future.value('{"payload":"{}","material":null}');
+
+  String? lastCancelledBridge;
+
+  @override
+  Future<void> cancelProxyWebView({required String bridgeName}) {
+    lastCancelledBridge = bridgeName;
+    return Future.value();
+  }
 
   @override
   Future<String?> getPlatformVersion() => Future.value('42');
@@ -340,5 +348,36 @@ void main() {
 
     final provider = await kuronNativePlugin.getDohProvider();
     expect(provider, equals(DohProvider.disabled)); // mock returns -1
+  });
+
+  test('cancelProxyWebView invokes method channel with bridgeName',
+      () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('kuron_native');
+    String? calledMethod;
+    Map<dynamic, dynamic>? calledArgs;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calledMethod = call.method;
+      calledArgs = Map<dynamic, dynamic>.from(call.arguments as Map);
+      return null;
+    });
+    try {
+      await MethodChannelKuronNative()
+          .cancelProxyWebView(bridgeName: 'bridgeA');
+      expect(calledMethod, 'cancelProxyWebView');
+      expect(calledArgs?['bridgeName'], 'bridgeA');
+    } finally {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    }
+  });
+
+  test('cancelProxyWebView delegates through the platform interface',
+      () async {
+    final fakePlatform = MockKuronNativePlatform();
+    KuronNativePlatform.instance = fakePlatform;
+    await KuronNative().cancelProxyWebView(bridgeName: 'bridgeB');
+    expect(fakePlatform.lastCancelledBridge, 'bridgeB');
   });
 }

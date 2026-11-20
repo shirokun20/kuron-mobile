@@ -257,39 +257,68 @@ void main() {
         contains('shouldCaptureUrl'),
       ),
     );
+    // Rotation-proof chapter script: passive fetch/XHR hooks on the
+    // chapters endpoint + behavioral apicore probing, no obfuscated
+    // export/property names or stringified-function-source matching.
+    final chapterScript = buildChapterListScript(
+      passPayloadName: 'passC',
+      rejectName: 'rejectD',
+      mangaIdJson: jsonEncode('n93ny'),
+      mainScriptUrlJson: jsonEncode('https://comix.to/dist/main-x.js'),
+      latestChapterId: null,
+    );
     expect(
-      buildChapterListScript(
-        passPayloadName: 'passC',
-        rejectName: 'rejectD',
-        mangaIdJson: jsonEncode('n93ny'),
-        mainScriptUrlJson: jsonEncode('https://comix.to/dist/main-x.js'),
-        latestChapterId: null,
-      ),
+      chapterScript,
       allOf(
         contains('(?:env|apicore)'),
         contains('apicore)'),
-        contains('fetchChapters'),
-        contains(r"$Q"),
+        // Relaxed endpoint gate: `/manga/` (or `/api/`) + `chapters`.
+        contains('/manga/'),
+        contains('chapters'),
+        contains('XMLHttpRequest'),
         contains('window.passC('),
       ),
     );
     expect(
-      buildPageListScript(passPayloadName: 'passC'),
-      allOf(contains('__comixPagePayload'), contains('window.passC(')),
+      chapterScript,
+      allOf(
+        contains('window.rejectD('),
+        // Encrypted `{"e":"..."}` responses arm a gated JSON.parse hook.
+        contains('decryptWindowUntil'),
+        contains('__comixChaptersParseInstalled'),
+        // Arity-first behavioral probe in fast concurrent batches.
+        contains('batchSize'),
+        contains('Promise.all'),
+        contains('arity'),
+      ),
+    );
+    // Same for the reader script: structural pages capture + probing.
+    final pageScript = buildPageListScript(
+      passPayloadName: 'passC',
+      chapterIdJson: '11737225',
+      mainScriptUrlJson: '"https://comix.to/assets/build/dist/main.js"',
     );
     expect(
-      buildPageListScript(
-        passPayloadName: 'passC',
-        chapterIdJson: '11737225',
-        mainScriptUrlJson: '"https://comix.to/assets/build/dist/main.js"',
-      ),
+      pageScript,
       allOf(
         contains('__comixPagePayload'),
         contains('(?:env|apicore)'),
-        contains('chapterApi'),
-        contains('N4'),
-        contains('fetchPages'),
+        contains('/api/v1/chapters'),
+        contains('XMLHttpRequest'),
+        contains('window.passC('),
       ),
+    );
+    expect(pageScript, isNot(contains('chapterApi')));
+    expect(pageScript, isNot(contains('fetchPages')));
+    expect(pageScript, isNot(contains('toString')));
+    expect(pageScript, isNot(contains('timeoutAfter(8000)')));
+    // Same batched arity-first probe fix as the chapter script.
+    expect(pageScript, contains('batchSize'));
+    expect(pageScript, contains('Promise.all'));
+    expect(pageScript, contains('arity'));
+    expect(
+      buildPageListScript(passPayloadName: 'passC'),
+      allOf(contains('__comixPagePayload'), contains('window.passC(')),
     );
   });
 
@@ -473,19 +502,35 @@ void main() {
   });
 
   test('all generated scripts are syntactically valid JavaScript', () {
+    final scripts = <String, String>{
+      'chapter': buildChapterListScript(
+        passPayloadName: 'passC',
+        rejectName: 'rejectD',
+        mangaIdJson: jsonEncode('n93ny'),
+        mainScriptUrlJson: jsonEncode('https://comix.to/dist/main-x.js'),
+        latestChapterId: null,
+      ),
+      'page': buildPageListScript(
+        passPayloadName: 'passC',
+        chapterIdJson: '11737225',
+        mainScriptUrlJson: jsonEncode('https://comix.to/dist/main-x.js'),
+      ),
+    };
     for (final page in [1, 2, 3]) {
-      final script = buildApiCaptureScript(
+      scripts['browse_p$page'] = buildApiCaptureScript(
         payloadKey: '__testKey',
         passPayloadName: 'passTest',
         captureTestJs: 'parsed && parsed.items',
         targetPage: page,
       );
-      final tempFile = File('${Directory.systemTemp.path}/test_capture_p$page.js');
-      tempFile.writeAsStringSync(script);
+    }
+    for (final entry in scripts.entries) {
+      final tempFile = File('${Directory.systemTemp.path}/test_${entry.key}.js');
+      tempFile.writeAsStringSync(entry.value);
       try {
         final result = Process.runSync('node', ['-c', tempFile.path]);
         expect(result.exitCode, 0,
-            reason: 'JS syntax error on page $page: ${result.stderr}');
+            reason: 'JS syntax error in ${entry.key}: ${result.stderr}');
       } finally {
         if (tempFile.existsSync()) tempFile.deleteSync();
       }
