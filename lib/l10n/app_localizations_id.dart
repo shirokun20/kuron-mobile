@@ -2018,6 +2018,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get retry => 'Coba Lagi';
 
   @override
+  String get verifyAction => 'Verifikasi';
+
+  @override
+  String get chaptersVerificationRequired =>
+      'Verifikasi diperlukan untuk memuat bab';
+
+  @override
   String get details => 'Detail';
 
   @override

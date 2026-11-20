@@ -38,6 +38,12 @@ import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import androidx.core.content.FileProvider
 import android.webkit.CookieManager
+import android.webkit.WebView
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
+import java.util.concurrent.atomic.AtomicBoolean
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.ConnectionPool
@@ -300,6 +306,9 @@ class KuronNativePlugin :
             }
             "openWebView" -> {
                 handleOpenWebView(call, result)
+            }
+            "openInteractiveWebView" -> {
+                handleOpenInteractiveWebView(call, result)
             }
             "openVideoPlayer" -> {
                 handleOpenVideoPlayer(call, result)
@@ -1114,6 +1123,153 @@ class KuronNativePlugin :
             result.success(null)
         } catch (e: Exception) {
             result.error("WEBVIEW_ERROR", e.message, null)
+        }
+    }
+
+    /**
+     * Interactive challenge/verification WebView in an in-app dialog.
+     *
+     * Unlike [handleOpenWebView] (a Custom Tab with an isolated cookie jar),
+     * this uses `android.webkit.WebView`, which shares `CookieManager` with
+     * the headless proxy WebViews — cookies set while solving a WAF
+     * challenge are visible to subsequent proxy requests. The dialog shows
+     * a title bar with a Done button; `result` resolves ONLY on dismiss so
+     * callers can await actual completion before retrying.
+     */
+    private fun handleOpenInteractiveWebView(call: MethodCall, result: Result) {
+        val url = call.argument<String>("url")
+        if (url.isNullOrEmpty()) {
+            result.error("INVALID_ARGS", "url is required", null)
+            return
+        }
+        val userAgent = call.argument<String>("userAgent")
+        val title = call.argument<String>("title") ?: "Security Check"
+        val hostActivity = activityBinding?.activity
+        if (hostActivity == null ||
+            hostActivity.isFinishing ||
+            hostActivity.isDestroyed
+        ) {
+            result.error(
+                "NO_ACTIVITY",
+                "No foreground activity for interactive WebView",
+                null,
+            )
+            return
+        }
+        hostActivity.runOnUiThread {
+            val settled = AtomicBoolean(false)
+            fun settle(value: Boolean) {
+                if (settled.compareAndSet(false, true)) {
+                    runCatching { result.success(value) }
+                }
+            }
+            try {
+                val dialog = android.app.Dialog(
+                    hostActivity,
+                    android.R.style.Theme_Material_NoActionBar,
+                )
+                val root = LinearLayout(hostActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    layoutParams = ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+                }
+                val bar = LinearLayout(hostActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    val pad = (16 * hostActivity.resources.displayMetrics.density).toInt()
+                    setPadding(pad, pad, pad, pad)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                    )
+                }
+                val titleView = TextView(hostActivity).apply {
+                    text = title
+                    textSize = 18f
+                    layoutParams = LinearLayout.LayoutParams(
+                        0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        1f,
+                    )
+                }
+                val doneButton = Button(hostActivity).apply {
+                    text = "Done"
+                    setOnClickListener { dialog.dismiss() }
+                }
+                bar.addView(titleView)
+                bar.addView(doneButton)
+                val webView = WebView(hostActivity)
+                with(webView.settings) {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                    databaseEnabled = true
+                    if (!userAgent.isNullOrEmpty()) userAgentString = userAgent
+                }
+                CookieManager.getInstance().setAcceptCookie(true)
+                CookieManager.getInstance()
+                    .setAcceptThirdPartyCookies(webView, true)
+                val challengePath: String? = try {
+                    android.net.Uri.parse(url)?.path
+                } catch (e: Exception) {
+                    null
+                }
+                webView.webViewClient = object : android.webkit.WebViewClient() {
+                    override fun shouldOverrideUrlLoading(
+                        view: android.webkit.WebView?,
+                        request: android.webkit.WebResourceRequest?,
+                    ): Boolean {
+                        // Keep http/https navigation inside the dialog
+                        // WebView: without this, the post-challenge redirect
+                        // fires an external browser intent (denied without a
+                        // user gesture) instead of navigating in place.
+                        return false
+                    }
+
+                    override fun onPageFinished(
+                        view: android.webkit.WebView?,
+                        finishedUrl: String?,
+                    ) {
+                        super.onPageFinished(view, finishedUrl)
+                        CookieManager.getInstance().flush()
+                        try {
+                            val finished = finishedUrl?.let {
+                                android.net.Uri.parse(it)
+                            }
+                            val schemeOk = finished?.scheme == "http" ||
+                                finished?.scheme == "https"
+                            if (schemeOk && finished?.path != challengePath) {
+                                // Solved and redirected away from the
+                                // challenge — close without manual Done.
+                                runCatching { dialog.dismiss() }
+                            }
+                        } catch (e: Exception) {
+                            // Keep the dialog open on parse failure.
+                        }
+                    }
+                }
+                webView.layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    0,
+                    1f,
+                )
+                root.addView(bar)
+                root.addView(webView)
+                dialog.setContentView(root)
+                dialog.setOnDismissListener {
+                    CookieManager.getInstance().flush()
+                    runCatching { webView.stopLoading() }
+                    runCatching {
+                        (webView.parent as? ViewGroup)?.removeView(webView)
+                    }
+                    runCatching { webView.destroy() }
+                    settle(true)
+                }
+                webView.loadUrl(url)
+                dialog.show()
+            } catch (e: Exception) {
+                runCatching { result.error("WEBVIEW_ERROR", e.message, null) }
+            }
         }
     }
 

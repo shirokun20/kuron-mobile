@@ -958,6 +958,8 @@
   "resume": "Lanjutkan",
   "cancel": "Batal",
   "retry": "Coba Lagi",
+  "verifyAction": "Verifikasi",
+  "chaptersVerificationRequired": "Verifikasi diperlukan untuk memuat bab",
   "details": "Detail",
   "remove": "Hapus",
   "downloadActionPause": "Jeda",

@@ -647,6 +647,8 @@
   "confirm": "确认",
   "loading": "加载中...",
   "retry": "重试",
+  "verifyAction": "验证",
+  "chaptersVerificationRequired": "加载章节需要验证",
   "tryAgain": "重试",
   "save": "保存",
   "edit": "编辑",

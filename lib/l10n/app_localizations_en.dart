@@ -2012,6 +2012,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get retry => 'Retry';
 
   @override
+  String get verifyAction => 'Verify';
+
+  @override
+  String get chaptersVerificationRequired =>
+      'Verification required to load chapters';
+
+  @override
   String get details => 'Details';
 
   @override

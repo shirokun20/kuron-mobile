@@ -1031,6 +1031,8 @@
   "resume": "Resume",
   "cancel": "Cancel",
   "retry": "Retry",
+  "verifyAction": "Verify",
+  "chaptersVerificationRequired": "Verification required to load chapters",
   "details": "Details",
   "remove": "Remove",
   "downloadActionPause": "Pause",

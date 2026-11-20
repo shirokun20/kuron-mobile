@@ -116,6 +116,12 @@ void main() {
     expect(script, contains('latestChapter'));
     expect(script, contains('ratedAvg'));
     expect(script, contains('/title/'));
+    // Comment/thread rejection: comment-only keys + endpoint exclusions.
+    expect(script, contains('commentOnlyKeys'));
+    expect(script, contains('threadId'));
+    expect(script, contains('replyCount'));
+    expect(script, contains('/threads/'));
+    expect(script, contains('/comments'));
     // Probe acceptance requires a fired `/chapters` request — shape alone
     // (which the recommendations API also satisfies) never wins, and
     // unconfirmed batch hits are dropped instead of trusted.
@@ -373,6 +379,38 @@ void main() {
         reason: 'exit=${result.exitCode}\nstdout:\n${result.stdout}\n'
             'stderr:\n${result.stderr}',
       );
+    expect(result.exitCode, 0);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
+
+  // Live-device hang: a broken/0-page chapter (no `.rpage-page`, no API
+  // payload) never settled, hanging until the 120s native timeout. The
+  // script must reject ~5s after DOM + probe finish instead.
+  test('empty reader fails fast instead of hanging (node e2e)', () async {
+    final script = buildPageListScript(
+      passPayloadName: 'passC',
+      rejectName: 'rejectD',
+      chapterIdJson: '2449063',
+      mainScriptUrlJson: jsonEncode(''),
+    );
+    final dir = await Directory.systemTemp.createTemp('comix_pgempty_');
+    try {
+      final scriptFile = File('${dir.path}/pages.js')
+        ..writeAsStringSync(script);
+      final harnessFile = File('${dir.path}/pgempty.js')
+        ..writeAsStringSync(nodeEmptyPagesHarness);
+      final result = await Process.run(
+        'node',
+        [harnessFile.path, scriptFile.path],
+      ).timeout(const Duration(seconds: 60));
+      expect(
+        result.stdout,
+        contains('PGEMPTY_PASS'),
+        reason: 'exit=${result.exitCode}\nstdout:\n${result.stdout}\n'
+            'stderr:\n${result.stderr}',
+      );
       expect(result.exitCode, 0);
     } finally {
       await dir.delete(recursive: true);
@@ -424,6 +462,41 @@ void main() {
     expect(sneakyScript, contains(jsonEncode(sneaky)));
     expect(sneakyScript, isNot(contains(sneaky)));
   });
+
+  // Live-device finding: `GET /api/v1/manga/{id}/chapters` can answer
+  // `HTTP 403 {"error":"captcha_required","challenge":"/@waf/challenge"}`
+  // while the SSR `.mchap-list` is absent. The script must reject
+  // immediately with `CAPTCHA_REQUIRED:<path>` instead of waiting 30s.
+  test('403 captcha_required rejects fast with challenge path (node e2e)',
+      () async {
+    final script = buildChapterListScript(
+      passPayloadName: 'passC',
+      rejectName: 'rejectD',
+      mangaIdJson: jsonEncode('nnl80'),
+      mainScriptUrlJson: jsonEncode(''),
+      latestChapterId: null,
+    );
+    final dir = await Directory.systemTemp.createTemp('comix_waf_');
+    try {
+      final scriptFile = File('${dir.path}/capture.js')
+        ..writeAsStringSync(script);
+      final harnessFile = File('${dir.path}/waf.js')
+        ..writeAsStringSync(nodeWafHarness);
+      final result = await Process.run(
+        'node',
+        [harnessFile.path, scriptFile.path],
+      ).timeout(const Duration(seconds: 60));
+      expect(
+        result.stdout,
+        contains('WAF_PASS'),
+        reason: 'exit=${result.exitCode}\nstdout:\n${result.stdout}\n'
+            'stderr:\n${result.stderr}',
+      );
+      expect(result.exitCode, 0);
+    } finally {
+      await dir.delete(recursive: true);
+    }
+  });
 }
 
 /// Node harness: stubs `window`/`document`/`XMLHttpRequest`/`fetch`, evals
@@ -470,6 +543,11 @@ const fail = (msg) => { console.log('E2E_FAIL: ' + msg); process.exit(1); };
   JSON.parse('{"items":[{"id":42789,"hid":"zdq96","title":"Ikenai! Runa-sensei R","poster":{"small":"x"},"latestChapter":4,"ratedAvg":8.4,"synopsis":"s","contentRating":"safe","altTitles":["a"],"url":"/title/rg28-ikenai-runa-sensei-r"}],"meta":{"hasNext":false}}');
   await sleep(300);
   if (calls.pass.length > 0) fail('recommendations won during decrypt window');
+  // 2c. Comments parsed DURING the open window must still lose: comment-only
+  //     keys (threadId/body/user/...) reject thread payloads as chapters.
+  JSON.parse('{"status":"ok","result":{"items":[{"id":3182907,"threadId":19782,"body":"Art style changes every 5 chapters","user":{"name":"u"},"createdAt":"2026-01-01"}],"meta":{"hasNext":false}}}');
+  await sleep(300);
+  if (calls.pass.length > 0) fail('comments won during decrypt window');
   // 3. ...followed by apicore re-parsing the decrypted plaintext.
   JSON.parse('{"items":[{"id":991122,"number":12,"name":"A New Dawn"}],"meta":{"hasNext":false}}');
   await sleep(9500);
@@ -477,6 +555,9 @@ const fail = (msg) => { console.log('E2E_FAIL: ' + msg); process.exit(1); };
   if (calls.pass.length !== 1) fail('expected 1 payload, got ' + calls.pass.length);
   if (calls.pass[0].indexOf('991122') === -1) fail('payload missing chapter id: ' + calls.pass[0]);
   if (calls.pass[0].indexOf('A New Dawn') === -1) fail('payload missing chapter name');
+  if (calls.pass[0].indexOf('42789') !== -1) fail('recommendations leaked into payload');
+  if (calls.pass[0].indexOf('3182907') !== -1) fail('comments leaked into payload: ' + calls.pass[0]);
+  if (calls.pass[0].indexOf('Art style') !== -1) fail('comment body leaked into payload');
   console.log('E2E_PASS');
   process.exit(0);
 })().catch((e) => fail('harness error: ' + ((e && e.stack) || e)));
@@ -688,6 +769,104 @@ const fail = (msg) => { console.log('DOMPG_FAIL: ' + msg); process.exit(1); };
   }
   if (elapsed > 20000) fail('DOM collection too slow: ' + elapsed + 'ms');
   console.log('DOMPG_PASS in ' + elapsed + 'ms');
+  process.exit(0);
+})();
+''';
+
+/// Node harness for the WAF challenge fast-reject: the chapters API answers
+/// `HTTP 403 {"error":"captcha_required","challenge":"/@waf/challenge"}`
+/// while the DOM has no chapters. Runs the REAL generated script.
+const nodeWafHarness = '''
+const fs = require('fs');
+const scriptSrc = fs.readFileSync(process.argv[2], 'utf8');
+const calls = {pass: [], reject: []};
+const startedAt = Date.now();
+global.window = {};
+window.passC = (payload) => { calls.pass.push(String(payload)); };
+window.rejectD = (err) => { calls.reject.push(String((err && err.message) || err)); };
+global.document = {querySelector: () => null, querySelectorAll: () => []};
+global.XMLHttpRequest = class {
+  open(method, url) { this.__url = String(url || ''); }
+  send() {}
+  addEventListener() {}
+  get status() { return 200; }
+  get response() { return '{}'; }
+};
+window.fetch = async (url) => {
+  const u = String((url && url.url) || url || '');
+  if (u.indexOf('chapters') !== -1) {
+    return {
+      url: u, status: 403, ok: false,
+      clone() { return {text: async () => '{"error":"captcha_required","challenge":"/@waf/challenge"}'}; },
+      text: async () => '{"error":"captcha_required","challenge":"/@waf/challenge"}',
+    };
+  }
+  return {url: u, status: 200, ok: true, clone() { return {text: async () => '{}'}; }, text: async () => '{}'};
+};
+global.fetch = window.fetch;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fail = (msg) => { console.log('WAF_FAIL: ' + msg); process.exit(1); };
+(async () => {
+  (0, eval)(scriptSrc);
+  await sleep(6000);
+  if (calls.pass.length > 0) fail('unexpected payload before chapters fetch');
+  await window.fetch('https://comix.to/api/v1/manga/nnl80/chapters?page=1&limit=5');
+  for (let waited = 0; waited < 25000; waited += 250) {
+    await sleep(250);
+    if (calls.pass.length > 0 || calls.reject.length > 0) break;
+  }
+  const elapsed = Date.now() - startedAt;
+  if (calls.pass.length > 0) fail('captured payload instead of rejecting: ' + calls.pass[0]);
+  if (calls.reject.length !== 1) fail('expected 1 rejection, got ' + calls.reject.length);
+  if (calls.reject[0].indexOf('CAPTCHA_REQUIRED:/@waf/challenge') === -1) {
+    fail('wrong rejection (waited ' + elapsed + 'ms): ' + calls.reject[0]);
+  }
+  if (elapsed > 15000) fail('rejection too slow: ' + elapsed + 'ms');
+  console.log('WAF_PASS in ' + elapsed + 'ms');
+  process.exit(0);
+})();
+''';
+
+/// Node harness for the empty-reader fast-fail: no `.rpage-page` divs and
+/// no API payload. The script must reject within ~20s (5s grace after the
+/// DOM wait) instead of hanging until the 120s native timeout.
+const nodeEmptyPagesHarness = '''
+const fs = require('fs');
+const scriptSrc = fs.readFileSync(process.argv[2], 'utf8');
+const calls = {pass: [], reject: []};
+const startedAt = Date.now();
+global.window = {};
+window.passC = (payload) => { calls.pass.push(String(payload)); };
+window.rejectD = (err) => { calls.reject.push(String((err && err.message) || err)); };
+global.document = {querySelector: () => null, querySelectorAll: () => []};
+global.XMLHttpRequest = class {
+  open(method, url) { this.__url = String(url || ''); }
+  send() {}
+  addEventListener() {}
+  get status() { return 200; }
+  get response() { return '{}'; }
+};
+window.fetch = async (url) => {
+  const u = String((url && url.url) || url || '');
+  return {url: u, status: 200, ok: false, clone() { return {text: async () => '{}'}; }, text: async () => '{}'};
+};
+global.fetch = window.fetch;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const fail = (msg) => { console.log('PGEMPTY_FAIL: ' + msg); process.exit(1); };
+(async () => {
+  (0, eval)(scriptSrc);
+  for (let waited = 0; waited < 40000; waited += 500) {
+    await sleep(500);
+    if (calls.pass.length > 0 || calls.reject.length > 0) break;
+  }
+  const elapsed = Date.now() - startedAt;
+  if (calls.pass.length > 0) fail('captured payload for empty reader: ' + calls.pass[0]);
+  if (calls.reject.length !== 1) fail('expected 1 rejection, got ' + calls.reject.length + ' after ' + elapsed + 'ms');
+  if (calls.reject[0].indexOf('Could not capture reader pages') === -1) {
+    fail('wrong rejection (waited ' + elapsed + 'ms): ' + calls.reject[0]);
+  }
+  if (elapsed > 30000) fail('rejection too slow (hung like the 120s bug): ' + elapsed + 'ms');
+  console.log('PGEMPTY_PASS in ' + elapsed + 'ms');
   process.exit(0);
 })();
 ''';

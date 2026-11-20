@@ -1944,6 +1944,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get retry => '重试';
 
   @override
+  String get verifyAction => '验证';
+
+  @override
+  String get chaptersVerificationRequired => '加载章节需要验证';
+
+  @override
   String get details => '详情';
 
   @override

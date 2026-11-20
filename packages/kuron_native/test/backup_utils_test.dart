@@ -29,6 +29,15 @@ class MockKuronNativePlatform
 
   @override
   Future<void> cancelProxyWebView({required String bridgeName}) async {}
+
+  @override
+  Future<bool> openInteractiveWebView({
+    required String url,
+    String? userAgent,
+    String? title,
+  }) async =>
+      true;
+
   @override
   Future<String?> pickDirectory() async => mockPickedDirectory;
 

@@ -33,6 +33,9 @@ class DetailLoaded extends DetailState {
     this.chapterHistory,
     this.relatedContent,
     this.comments,
+    this.chaptersError,
+    this.chaptersChallengeUrl,
+    this.chaptersChallengeUserAgent,
   });
 
   final Content content;
@@ -44,6 +47,15 @@ class DetailLoaded extends DetailState {
   final Map<String, History>? chapterHistory;
   final List<Content>? relatedContent;
   final List<Comment>? comments;
+  /// Non-null when the last chapter load failed: user-visible message with
+  /// a retry action (never a spinner forever).
+  final String? chaptersError;
+  /// Set when chapter loading hit a WAF/bot challenge: absolute URL the
+  /// user must open to verify, then retry.
+  final String? chaptersChallengeUrl;
+  /// Request User-Agent to reuse for interactive verification: WAF cookies
+  /// can be User-Agent bound, so the dialog must match the proxy request.
+  final String? chaptersChallengeUserAgent;
 
   @override
   List<Object?> get props => [
@@ -56,6 +68,9 @@ class DetailLoaded extends DetailState {
         chapterHistory,
         relatedContent,
         comments,
+        chaptersError,
+        chaptersChallengeUrl,
+        chaptersChallengeUserAgent,
       ];
 
   // Create a copy with updated properties
@@ -69,6 +84,12 @@ class DetailLoaded extends DetailState {
     Map<String, History>? chapterHistory,
     List<Content>? relatedContent,
     List<Comment>? comments,
+    String? chaptersError,
+    String? chaptersChallengeUrl,
+    String? chaptersChallengeUserAgent,
+    bool clearChaptersError = false,
+    bool clearChaptersChallengeUrl = false,
+    bool clearChaptersChallengeUserAgent = false,
   }) {
     return DetailLoaded(
       content: content ?? this.content,
@@ -80,6 +101,14 @@ class DetailLoaded extends DetailState {
       chapterHistory: chapterHistory ?? this.chapterHistory,
       relatedContent: relatedContent ?? this.relatedContent,
       comments: comments ?? this.comments,
+      chaptersError:
+          clearChaptersError ? null : (chaptersError ?? this.chaptersError),
+      chaptersChallengeUrl: clearChaptersChallengeUrl
+          ? null
+          : (chaptersChallengeUrl ?? this.chaptersChallengeUrl),
+      chaptersChallengeUserAgent: clearChaptersChallengeUserAgent
+          ? null
+          : (chaptersChallengeUserAgent ?? this.chaptersChallengeUserAgent),
     );
   }
 

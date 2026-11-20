@@ -7,6 +7,7 @@ import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
+import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -167,6 +168,10 @@ class ProxyWebViewHandler(
             blockNetworkImage = true
             if (userAgent.isNotEmpty()) this.userAgentString = userAgent
         }
+        // Share the app CookieManager jar (including challenge cookies saved
+        // by the interactive verification dialog) on every proxy request.
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         // A 0x0 detached WebView reports window.innerWidth/innerHeight === 0
         // and Chromium's IntersectionObserver never fires, so lazy content
         // (reader `.rpage-page` images) never materializes. Give the WebView

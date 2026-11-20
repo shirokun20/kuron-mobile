@@ -32,11 +32,24 @@ class MockKuronNativePlatform
   }
 
   @override
+  Future<bool> openInteractiveWebView({
+    required String url,
+    String? userAgent,
+    String? title,
+  }) {
+    lastInteractiveUrl = url;
+    return Future.value(true);
+  }
+
+  String? lastInteractiveUrl;
+
+  @override
   Future<String?> getPlatformVersion() => Future.value('42');
 
   @override
   Future<Map<Object?, Object?>?> getSystemInfo(String type) =>
       Future.value({'ram': 100});
+
 
   @override
   Future<String?> pickDirectory() => Future.value('picked_path');
@@ -379,5 +392,48 @@ void main() {
     KuronNativePlatform.instance = fakePlatform;
     await KuronNative().cancelProxyWebView(bridgeName: 'bridgeB');
     expect(fakePlatform.lastCancelledBridge, 'bridgeB');
+  });
+
+  test('openInteractiveWebView invokes method channel with url', () async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    const channel = MethodChannel('kuron_native');
+    String? calledMethod;
+    Map<dynamic, dynamic>? calledArgs;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      calledMethod = call.method;
+      calledArgs = Map<dynamic, dynamic>.from(call.arguments as Map);
+      return true;
+    });
+    try {
+      final dismissed = await MethodChannelKuronNative()
+          .openInteractiveWebView(
+            url: 'https://comix.to/@waf/challenge',
+            userAgent: 'comix-proxy-ua',
+            title: 'Verify',
+          );
+      expect(calledMethod, 'openInteractiveWebView');
+      expect(
+        calledArgs?['url'],
+        'https://comix.to/@waf/challenge',
+      );
+      expect(calledArgs?['userAgent'], 'comix-proxy-ua');
+      expect(calledArgs?['title'], 'Verify');
+      expect(dismissed, isTrue);
+    } finally {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    }
+  });
+
+  test('openInteractiveWebView delegates through the platform interface',
+      () async {
+    final fakePlatform = MockKuronNativePlatform();
+    KuronNativePlatform.instance = fakePlatform;
+    final dismissed = await KuronNative().openInteractiveWebView(
+      url: 'https://comix.to/@waf/challenge',
+    );
+    expect(dismissed, isTrue);
+    expect(fakePlatform.lastInteractiveUrl, 'https://comix.to/@waf/challenge');
   });
 }

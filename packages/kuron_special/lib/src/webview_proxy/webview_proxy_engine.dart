@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/services.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 
@@ -49,6 +50,29 @@ String _selectorJson(
   String fallback,
 ) =>
     jsonEncode(selectors?[key] ?? fallback);
+
+/// Thrown by [WebViewProxyEngine.runInWebView] when the site answers with a
+/// WAF/bot challenge (`CAPTCHA_REQUIRED:<challengePath>` from the capture
+/// script) instead of content. Callers surface a user-visible verification
+/// action; never attempt to bypass the challenge automatically.
+class WebViewChallengeException implements Exception {
+  const WebViewChallengeException(this.challengePath, {this.pageUrl, this.userAgent});
+
+  /// Challenge path as reported by the site (`/@waf/challenge`, relative
+  /// or absolute). Resolve against the site origin before opening.
+  final String challengePath;
+
+  /// Page that triggered the challenge, if known.
+  final String? pageUrl;
+
+  /// Request User-Agent that triggered the challenge. WAF cookies can be
+  /// User-Agent bound, so interactive verification must reuse it.
+  final String? userAgent;
+
+  @override
+  String toString() =>
+      'WebViewChallengeException($challengePath, pageUrl: $pageUrl)';
+}
 
 const List<String> comixAllowedHosts = [
   'comix.to',
@@ -426,8 +450,10 @@ String buildApiCaptureScript({
 /// decrypts them, so an encrypted chapters response opens a short window
 /// in which chapters-shaped `JSON.parse` results are also captured. Manga /
 /// recommendation objects are explicitly rejected (manga-only keys and
-/// 1-segment `/title/<slug>` URLs), so related-title payloads can never
-/// win as chapters. In parallel, the `apicore-*.js` bundle referenced by
+/// 1-segment `/title/<slug>` URLs), as are comment/thread objects
+/// (comment-only keys; `/threads/` and `/comments` URLs never match),
+/// so related-title and discussion payloads can never win as chapters.
+/// In parallel, the `apicore-*.js` bundle referenced by
 /// `main-*.js` is imported and its exports are probed *behaviorally* —
 /// functions are tried arity-first in small concurrent batches with short
 /// timeouts while outgoing requests are watched; only a candidate that
@@ -493,6 +519,13 @@ String buildChapterListScript({
     const mangaOnlyKeys = ['poster', 'synopsis', 'synopsisHtml',
         'contentRating', 'altTitles', 'followsTotal', 'latestChapter',
         'ratedAvg', 'recPivot', 'genres', 'authors'];
+    // Comment/thread/collection objects (e.g. `/api/v1/threads/{id}/comments`
+    // items) also look chapter-shaped; reject them via comment-only keys.
+    const commentOnlyKeys = ['body', 'content', 'text', 'threadId',
+        'thread_id', 'userId', 'user_id', 'user', 'author', 'replies',
+        'replyCount', 'reply_count', 'parentId', 'parent_id', 'isEdited',
+        'is_deleted', 'objectType', 'pageIdentifier', 'itemCount', 'owner',
+        'preview'];
     const isMangaUrl = (u) => {
         if (typeof u !== 'string') return false;
         const idx = u.indexOf('/title/');
@@ -504,6 +537,9 @@ String buildChapterListScript({
     const isChapterItem = (o) => {
         if (!isObject(o)) return false;
         for (const k of mangaOnlyKeys) {
+            if (k in o) return false;
+        }
+        for (const k of commentOnlyKeys) {
             if (k in o) return false;
         }
         for (const k of ['url', 'href', 'Az', 'ek']) {
@@ -604,10 +640,13 @@ String buildChapterListScript({
 
     // Relaxed on purpose: the path prefix varies between deploys, but the
     // resource pair (`/manga/` + `chapters`, or any `/api/` chapters call)
-    // is stable server-side.
+    // is stable server-side. Threads/comments endpoints are explicitly
+    // excluded so discussion payloads can never match.
     const isChaptersUrl = (url) => {
         const u = String(url || '');
         if (u.indexOf('chapters') === -1) return false;
+        if (u.indexOf('/comments') !== -1) return false;
+        if (u.indexOf('/threads/') !== -1) return false;
         return u.indexOf('/manga/') !== -1 || u.indexOf('/api/') !== -1;
     };
     const noteRequest = (url) => {
@@ -616,10 +655,29 @@ String buildChapterListScript({
     };
     const absorbText = (text) => {
         try {
+            if (checkChallenge(0, text)) return;
             const parsed = JSON.parse(text);
             noteEncrypted(parsed);
             if (absorb(parsed) === 'added' && probeDone) armSettle();
         } catch (e) {}
+    };
+    // WAF challenge fast-reject: a 403/503 (or any body mentioning the
+    // marker) carrying `{"error":"captcha_required","challenge":"..."}` is
+    // rejected immediately instead of waiting out the 30s grace timer.
+    const checkChallenge = (status, text) => {
+        try {
+            const statusBlocked = status === 403 || status === 503;
+            const bodySaysCaptcha = typeof text === 'string' &&
+                text.indexOf('captcha_required') !== -1;
+            if (!statusBlocked && !bodySaysCaptcha) return false;
+            const parsed = typeof text === 'string' ? JSON.parse(text) : text;
+            if (parsed && (parsed.error === 'captcha_required' ||
+                typeof parsed.challenge === 'string')) {
+                fail('CAPTCHA_REQUIRED:' + (parsed.challenge || '/@waf/challenge'));
+                return true;
+            }
+        } catch (e) {}
+        return false;
     };
 
     const originalFetch = window.fetch;
@@ -632,7 +690,12 @@ String buildChapterListScript({
             noteRequest(url);
             return originalFetch.apply(this, arguments).then((response) => {
                 try {
-                    if (isChaptersUrl(response ? response.url : url)) {
+                    const status = response ? response.status : 0;
+                    const rurl = (response && response.url) || url;
+                    if (status === 403 || status === 503) {
+                        response.clone().text().then((t) => checkChallenge(status, t)).catch(() => {});
+                    }
+                    if (isChaptersUrl(rurl)) {
                         response.clone().text().then(absorbText).catch(() => {});
                     }
                 } catch (e) {}
@@ -655,8 +718,12 @@ String buildChapterListScript({
         } catch (e) {}
         this.addEventListener('load', function () {
             try {
+                const status = this.status || 0;
+                const data = this.response;
+                if (status === 403 || status === 503) {
+                    checkChallenge(status, data);
+                }
                 if (isChaptersUrl(this.__comixChaptersUrl || '')) {
-                    const data = this.response;
                     if (typeof data === 'string') {
                         absorbText(data);
                     } else if (data !== null && typeof data === 'object') {
@@ -1083,6 +1150,29 @@ String buildPageListScript({
         settled = true;
         window.$passPayloadName(JSON.stringify({result: {pages: {baseUrl: baseUrl || '', items}}}));
     };
+    const fail = (message) => {
+        if (settled) return;
+        settled = true;
+        window.$rejectName(new Error(message));
+    };
+    // WAF challenge fast-reject: a 403/503 (or any body mentioning the
+    // marker) carrying `{"error":"captcha_required","challenge":"..."}` is
+    // rejected immediately instead of waiting out the probe scan.
+    const checkChallenge = (status, text) => {
+        try {
+            const statusBlocked = status === 403 || status === 503;
+            const bodySaysCaptcha = typeof text === 'string' &&
+                text.indexOf('captcha_required') !== -1;
+            if (!statusBlocked && !bodySaysCaptcha) return false;
+            const parsed = typeof text === 'string' ? JSON.parse(text) : text;
+            if (parsed && (parsed.error === 'captcha_required' ||
+                typeof parsed.challenge === 'string')) {
+                fail('CAPTCHA_REQUIRED:' + (parsed.challenge || '/@waf/challenge'));
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    };
 
     const isHttp = (v) => typeof v === 'string' && /^https?:\\/\\//.test(v);
     const isPageItem = (o) => o !== null && typeof o === 'object' && !Array.isArray(o) &&
@@ -1166,6 +1256,7 @@ String buildPageListScript({
     };
     const absorbText = (text, loose) => {
         try {
+            if (checkChallenge(0, text)) return;
             if (loose) absorbLoose(JSON.parse(text));
             else absorbStrict(JSON.parse(text));
         } catch (e) {}
@@ -1181,6 +1272,10 @@ String buildPageListScript({
             noteRequest(url);
             return originalFetch.apply(this, arguments).then((response) => {
                 try {
+                    const status = response ? response.status : 0;
+                    if (status === 403 || status === 503) {
+                        response.clone().text().then((t) => checkChallenge(status, t)).catch(() => {});
+                    }
                     if (isPagesUrl(response ? response.url : url)) {
                         response.clone().text().then((t) => absorbText(t, true)).catch(() => {});
                     }
@@ -1204,8 +1299,12 @@ String buildPageListScript({
         } catch (e) {}
         this.addEventListener('load', function () {
             try {
+                const status = this.status || 0;
+                const data = this.response;
+                if (status === 403 || status === 503) {
+                    checkChallenge(status, data);
+                }
                 if (isPagesUrl(this.__comixPagesUrl || '')) {
-                    const data = this.response;
                     if (typeof data === 'string') absorbText(data, true);
                     else if (data !== null && typeof data === 'object') absorbLoose(data);
                 }
@@ -1401,6 +1500,17 @@ String buildPageListScript({
             }
         } catch (e) {
             // Passive hooks remain active if active fetch fails.
+        } finally {
+            // Nothing captured and nothing still running: fail fast after a
+            // brief grace period for late fetch/XHR captures instead of
+            // hanging until the 120s native WebView timeout.
+            if (!settled) {
+                setTimeout(() => {
+                    if (!settled) {
+                        fail('Could not capture reader pages for this chapter');
+                    }
+                }, 5000);
+            }
         }
     })();
 
@@ -1529,6 +1639,16 @@ class WebViewProxyEngine {
       }
     } on TimeoutException {
       _logger.w('comix: WebView proxy timed out for $pageUrl');
+      rethrow;
+    } on PlatformException catch (e) {
+      if (e.code == 'WEBVIEW_PROXY' &&
+          (e.message ?? '').startsWith('CAPTCHA_REQUIRED:')) {
+        throw WebViewChallengeException(
+          (e.message ?? '').substring('CAPTCHA_REQUIRED:'.length),
+          pageUrl: pageUrl,
+          userAgent: userAgent,
+        );
+      }
       rethrow;
     }
 

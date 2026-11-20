@@ -268,6 +268,19 @@ class MethodChannelKuronNative extends KuronNativePlatform {
   }
 
   @override
+  Future<bool> openInteractiveWebView({
+    required String url,
+    String? userAgent,
+    String? title,
+  }) async {
+    final result = await methodChannel.invokeMethod<bool>(
+      'openInteractiveWebView',
+      {'url': url, 'userAgent': userAgent, 'title': title},
+    );
+    return result ?? false;
+  }
+
+  @override
   Future<void> openVideoPlayer({
     required String url,
     String? referer,

@@ -3748,6 +3748,18 @@ abstract class AppLocalizations {
   /// **'Retry'**
   String get retry;
 
+  /// No description provided for @verifyAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify'**
+  String get verifyAction;
+
+  /// No description provided for @chaptersVerificationRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification required to load chapters'**
+  String get chaptersVerificationRequired;
+
   /// No description provided for @details.
   ///
   /// In en, this message translates to:

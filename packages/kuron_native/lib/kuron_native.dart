@@ -144,6 +144,20 @@ class KuronNative {
     );
   }
 
+  /// In-app dialog WebView sharing the proxy cookie jar. Awaits user
+  /// dismissal — await before retrying challenged requests.
+  Future<bool> openInteractiveWebView({
+    required String url,
+    String? userAgent,
+    String? title,
+  }) {
+    return KuronNativePlatform.instance.openInteractiveWebView(
+      url: url,
+      userAgent: userAgent,
+      title: title,
+    );
+  }
+
   /// Play [url] in the app's own player screen rather than a Custom Tab.
   ///
   /// [referer] is sent as the request's `Referer` header — required by

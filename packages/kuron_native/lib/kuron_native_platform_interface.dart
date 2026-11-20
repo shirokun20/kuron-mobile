@@ -124,6 +124,20 @@ abstract class KuronNativePlatform extends PlatformInterface {
     throw UnimplementedError('openWebView() has not been implemented.');
   }
 
+  /// Open [url] in an in-app dialog `android.webkit.WebView` that shares
+  /// the `CookieManager` jar with the proxy WebViews (unlike a Custom Tab,
+  /// whose cookie jar is isolated). Completes with true only when the user
+  /// dismisses the dialog — await it before retrying challenged requests.
+  Future<bool> openInteractiveWebView({
+    required String url,
+    String? userAgent,
+    String? title,
+  }) {
+    throw UnimplementedError(
+      'openInteractiveWebView() has not been implemented.',
+    );
+  }
+
   /// Play [url] in the app's own video player screen.
   ///
   /// Use this for chapter video, not [openWebView]: a Custom Tab cannot send

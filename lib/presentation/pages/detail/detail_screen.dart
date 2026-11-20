@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/web.dart';
+import 'package:kuron_native/kuron_native.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -1482,6 +1483,9 @@ class _DetailScreenState extends State<DetailScreen> {
           },
         );
       }
+      if (detailState.chaptersError != null) {
+        return _buildChaptersErrorCard(detailState);
+      }
       return _buildNoChaptersNotice();
     }
 
@@ -1543,6 +1547,80 @@ class _DetailScreenState extends State<DetailScreen> {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+
+  /// Inline card shown when the chapter list failed to load: a verification
+  /// action (opens the WAF challenge in a visible WebView, then retries)
+  /// when the site blocked the request, otherwise a plain retry action.
+  /// Never auto-solves challenges — the user completes them visibly.
+  Widget _buildChaptersErrorCard(DetailLoaded detailState) {
+    final l10n = AppLocalizations.of(context)!;
+    final challengeUrl = detailState.chaptersChallengeUrl;
+    final isChallenge = challengeUrl != null;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isChallenge
+                    ? Icons.verified_user_outlined
+                    : Icons.error_outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  isChallenge
+                      ? l10n.chaptersVerificationRequired
+                      : (detailState.chaptersError ?? l10n.tryAgain),
+                  style: TextStyleConst.bodyMedium.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (isChallenge)
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: Text(l10n.verifyAction),
+                    onPressed: () async {
+                      await KuronNative.instance.openInteractiveWebView(
+                        url: challengeUrl,
+                        userAgent: detailState.chaptersChallengeUserAgent,
+                        title: l10n.verifyAction,
+                      );
+                      if (!mounted) return;
+                      unawaited(_detailCubit.retryChapters());
+                    },
+                  ),
+                ),
+              if (isChallenge) const SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: Text(l10n.retry),
+                  onPressed: () => unawaited(_detailCubit.retryChapters()),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
