@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView
 import id.nhasix.kuron_native.kuron_native.R
 import kotlinx.coroutines.*
 import java.io.File
+import java.util.Collections
 
 /**
  * Vertical Continuous Scroll PDF Viewer (Webtoon Style)
@@ -75,7 +76,7 @@ class PdfReaderActivity : AppCompatActivity() {
     private var isControlsVisible = true
 
     // Coroutine scope for async rendering
-    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -166,11 +167,24 @@ class PdfReaderActivity : AppCompatActivity() {
                 }
 
                 fileDescriptor = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                pdfRenderer = PdfRenderer(fileDescriptor!!)
-                totalPages = pdfRenderer?.pageCount ?: 0
+                val renderer = PdfRenderer(fileDescriptor!!)
+                pdfRenderer = renderer
+                totalPages = renderer.pageCount
+
+                val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
+                val heights = IntArray(totalPages)
+                synchronized(renderer) {
+                    for (i in 0 until totalPages) {
+                        renderer.openPage(i).use { page ->
+                            val srcW = page.width.coerceAtLeast(1)
+                            heights[i] =
+                                (page.height * (screenWidth.toFloat() / srcW)).toInt().coerceAtLeast(1)
+                        }
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
-                    setupRecyclerView(startPage)
+                    setupRecyclerView(startPage, heights)
                     updatePageIndicator(startPage)
                 }
             } catch (e: Exception) {
@@ -180,8 +194,8 @@ class PdfReaderActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupRecyclerView(startPage: Int) {
-        adapter = PdfPageAdapter(pdfRenderer!!, totalPages) {
+    private fun setupRecyclerView(startPage: Int, pageHeights: IntArray) {
+        adapter = PdfPageAdapter(pdfRenderer!!, totalPages, pageHeights) {
             toggleControls()
         }
         recyclerView.adapter = adapter
@@ -195,7 +209,11 @@ class PdfReaderActivity : AppCompatActivity() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 val layoutManager = recyclerView.layoutManager as? LinearLayoutManager
-                val pos = layoutManager?.findFirstVisibleItemPosition() ?: RecyclerView.NO_POSITION
+                val pos = layoutManager?.let {
+                    val complete = it.findFirstCompletelyVisibleItemPosition()
+                    if (complete != RecyclerView.NO_POSITION) complete
+                    else it.findFirstVisibleItemPosition()
+                } ?: RecyclerView.NO_POSITION
                 if (pos != RecyclerView.NO_POSITION) {
                     updatePageIndicator(pos)
                 }
@@ -283,6 +301,7 @@ class PdfReaderActivity : AppCompatActivity() {
     inner class PdfPageAdapter(
         private val renderer: PdfRenderer,
         private val count: Int,
+        private val pageHeights: IntArray,
         private val onItemClick: () -> Unit
     ) : RecyclerView.Adapter<PdfPageViewHolder>() {
 
@@ -293,6 +312,13 @@ class PdfReaderActivity : AppCompatActivity() {
                 return bitmap.byteCount / 1024
             }
         }
+        private val inFlightPrefetch = Collections.synchronizedSet(mutableSetOf<Int>())
+
+        init {
+            setHasStableIds(true)
+        }
+
+        override fun getItemId(position: Int): Long = position.toLong()
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PdfPageViewHolder {
             val imageView = ZoomableImageView(parent.context).apply {
@@ -303,14 +329,18 @@ class PdfReaderActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: PdfPageViewHolder, position: Int) {
-            // Adjust LayoutParams based on Mode
-            if (isVerticalMode) {
-                holder.imageView.layoutParams = ViewGroup.LayoutParams(
+            holder.renderJob?.cancel()
+            holder.renderJob = null
+            holder.currentPosition = position
+            holder.imageView.resetZoom()
+
+            holder.imageView.layoutParams = if (isVerticalMode) {
+                ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
+                    pageHeights.getOrElse(position) { ViewGroup.LayoutParams.WRAP_CONTENT }
                 )
             } else {
-                holder.imageView.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
@@ -319,55 +349,98 @@ class PdfReaderActivity : AppCompatActivity() {
             holder.imageView.setOnClickListener { onItemClick() }
 
             val cachedBitmap = memoryCache.get(position)
-            
+
             if (cachedBitmap != null) {
                 holder.imageView.setImageBitmap(cachedBitmap)
+                holder.imageView.background = null
+                prefetchAdjacent(position)
             } else {
                 holder.imageView.setImageBitmap(null)
                 holder.imageView.setBackgroundColor(0xFF222222.toInt())
-                renderPageAsync(position, holder)
+                holder.renderJob = renderPageAsync(position, holder)
+                prefetchAdjacent(position)
             }
         }
 
-        private fun renderPageAsync(index: Int, holder: PdfPageViewHolder) {
-            holder.currentPosition = index
+        override fun onViewRecycled(holder: PdfPageViewHolder) {
+            holder.renderJob?.cancel()
+            holder.renderJob = null
+            holder.currentPosition = -1
+            super.onViewRecycled(holder)
+        }
 
-            scope.launch(Dispatchers.Default) {
-                if (holder.currentPosition != index) return@launch
+        private fun prefetchAdjacent(position: Int) {
+            val targets = listOf(position + 1, position + 2)
+            for (idx in targets) {
+                if (idx !in 0 until count) continue
+                if (memoryCache.get(idx) != null) continue
+                if (!inFlightPrefetch.add(idx)) continue
+
+                scope.launch(Dispatchers.Default) {
+                    try {
+                        if (!isActive) return@launch
+                        if (memoryCache.get(idx) != null) return@launch
+                        val bitmap = renderBitmap(idx) ?: return@launch
+                        memoryCache.put(idx, bitmap)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: IllegalStateException) {
+                        // Renderer closed while prefetching
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        inFlightPrefetch.remove(idx)
+                    }
+                }
+            }
+        }
+
+        private fun renderBitmap(index: Int): Bitmap? {
+            val screenWidth = resources.displayMetrics.widthPixels.coerceAtLeast(1)
+            return try {
                 var bitmap: Bitmap? = null
+                synchronized(renderer) {
+                    if (index >= count) return null
+                    renderer.openPage(index).use { page ->
+                        val srcW = page.width.coerceAtLeast(1)
+                        val srcH = page.height.coerceAtLeast(1)
+                        val renderWidth = screenWidth
+                        val renderHeight = (srcH * (screenWidth.toFloat() / srcW)).toInt().coerceAtLeast(1)
+                        val bmp = Bitmap.createBitmap(
+                            renderWidth,
+                            renderHeight,
+                            Bitmap.Config.ARGB_8888
+                        )
+                        page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bitmap = bmp
+                    }
+                }
+                bitmap
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IllegalStateException) {
+                null
+            }
+        }
 
+        private fun renderPageAsync(index: Int, holder: PdfPageViewHolder): Job {
+            return scope.launch(Dispatchers.Default) {
                 try {
-                    synchronized(renderer) {
-                        if (index >= count) return@launch
-                        
-                        renderer.openPage(index).use { page ->
-                            val screenWidth = resources.displayMetrics.widthPixels
-                            // Simple quality logic:
-                            val srcWidth = page.width
-                            val srcHeight = page.height
-                            
-                            val renderWidth = screenWidth
-                            val renderHeight = (srcHeight * (screenWidth.toFloat() / srcWidth)).toInt()
-                            
-                            bitmap = Bitmap.createBitmap(
-                                renderWidth,
-                                renderHeight,
-                                Bitmap.Config.ARGB_8888
-                            )
-                            
-                            page.render(bitmap!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        }
-                    }
+                    if (!isActive || holder.currentPosition != index) return@launch
+                    val bitmap = renderBitmap(index) ?: return@launch
+                    if (!isActive) return@launch
 
-                    if (bitmap != null) {
-                        memoryCache.put(index, bitmap)
-                        withContext(Dispatchers.Main) {
-                            if (holder.currentPosition == index) {
-                                holder.imageView.setImageBitmap(bitmap)
-                                holder.imageView.background = null
-                            }
+                    memoryCache.put(index, bitmap)
+                    withContext(Dispatchers.Main) {
+                        if (isActive && holder.currentPosition == index) {
+                            holder.imageView.setImageBitmap(bitmap)
+                            holder.imageView.background = null
                         }
                     }
+                } catch (e: CancellationException) {
+                    // Normal during scroll/recycle/destroy
+                } catch (e: IllegalStateException) {
+                    // Renderer closed or invalid state during teardown
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -379,5 +452,6 @@ class PdfReaderActivity : AppCompatActivity() {
 
     inner class PdfPageViewHolder(val imageView: ZoomableImageView) : RecyclerView.ViewHolder(imageView) {
         var currentPosition: Int = -1
+        var renderJob: Job? = null
     }
 }

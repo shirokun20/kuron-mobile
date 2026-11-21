@@ -88,7 +88,7 @@ void main() {
     );
   });
 
-  DetailLoaded _loaded(DetailCubit cubit) {
+  DetailLoaded emitLoaded(DetailCubit cubit) {
     cubit.emit(DetailLoaded(
       content: _content(),
       isFavorited: false,
@@ -108,7 +108,7 @@ void main() {
     );
     final cubit = _cubit(chaptersUseCase: chapters);
     addTearDown(cubit.close);
-    _loaded(cubit);
+    emitLoaded(cubit);
 
     await cubit.loadChapterLane(language: 'en', scanGroup: 'Chapter');
 
@@ -134,7 +134,7 @@ void main() {
     );
     final cubit = _cubit(chaptersUseCase: chapters);
     addTearDown(cubit.close);
-    _loaded(cubit);
+    emitLoaded(cubit);
 
     await cubit.loadChapterLane(language: 'en', scanGroup: 'Chapter');
 
@@ -152,7 +152,7 @@ void main() {
     when(() => chapters(any())).thenThrow(TimeoutException('timed out'));
     final cubit = _cubit(chaptersUseCase: chapters);
     addTearDown(cubit.close);
-    _loaded(cubit);
+    emitLoaded(cubit);
 
     await cubit.loadChapterLane(language: 'en', scanGroup: 'Chapter');
 
@@ -169,7 +169,7 @@ void main() {
     );
     final cubit = _cubit(chaptersUseCase: chapters);
     addTearDown(cubit.close);
-    _loaded(cubit);
+    emitLoaded(cubit);
 
     await cubit.loadChapterLane(language: 'en', scanGroup: 'Chapter');
     expect(

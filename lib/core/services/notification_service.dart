@@ -103,6 +103,7 @@ class NotificationService {
   bool _permissionGranted = false;
   bool _initialized = false;
   bool _useKuronMascotNotification;
+  String? _lastCompletedPdfContentId;
   Completer<void>? _initCompleter;
 
   late final NotificationActionHandler _actionHandler;
@@ -255,6 +256,7 @@ class NotificationService {
     }
 
     try {
+      _lastCompletedPdfContentId = contentId;
       _logger.i(
           'NotificationService: Showing PDF conversion completed notification for $contentId');
       if (_useKuronMascotNotification && _mascotHandler != null) {
@@ -1023,6 +1025,7 @@ class NotificationService {
         await _mascotHandler!.showPdfCompleted(
           notificationId: _pdfGroupId,
           title: 'PDF Conversions Complete',
+          contentId: count <= 1 ? _lastCompletedPdfContentId : null,
           metaText: '$body • Tap to open',
         );
         _logger.i('Kuron mascot PDF group completed notification shown');

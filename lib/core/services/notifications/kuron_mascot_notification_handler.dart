@@ -82,7 +82,11 @@ class KuronMascotNotificationHandler {
         if (contentId != null) onDownloadPriority?.call(contentId);
         break;
       case 'open':
-        if (contentId != null) onDownloadOpen?.call(contentId);
+        if (contentId != null && contentId.isNotEmpty) {
+          onDownloadOpen?.call(contentId);
+        } else {
+          onViewQueue?.call();
+        }
         break;
       case 'view_queue':
         onViewQueue?.call();

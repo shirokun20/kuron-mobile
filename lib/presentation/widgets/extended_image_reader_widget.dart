@@ -2062,48 +2062,54 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       child: Center(
         // Flat + bordered (house rule): elevation 0 + outline 1px,
         // maxWidth ganti fixed 240/280. Eye path: maskot → bar → caption.
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 280),
-          child: Container(
-            margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLg),
-            padding: EdgeInsets.all(DesignTokens.spaceMd),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainer,
-              borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-              border: Border.all(
-                color: Theme.of(context).colorScheme.outline,
-                width: 1,
+        // Scale down when a continuous-scroll placeholder is shorter than the
+        // card so tight image slots never trigger a RenderFlex bottom overflow.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.center,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: Container(
+              margin: EdgeInsets.symmetric(horizontal: DesignTokens.spaceLg),
+              padding: EdgeInsets.all(DesignTokens.spaceMd),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1,
+                ),
               ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // 1 ticker pair per kartu loading; cuma window visible±4
-                // yang hidup — masih di bawah budget thermal.
-                const KuroMascot(mood: KuroMood.waiting, size: 64),
-                SizedBox(height: DesignTokens.spaceSm),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                  child: LinearProgressIndicator(
-                    value:
-                        showIndeterminateFromRealBytes ? null : indicatorValue,
-                    minHeight: 6,
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHighest,
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.primary,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // 1 ticker pair per kartu loading; cuma window visible±4
+                  // yang hidup — masih di bawah budget thermal.
+                  const KuroMascot(mood: KuroMood.waiting, size: 64),
+                  SizedBox(height: DesignTokens.spaceSm),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                    child: LinearProgressIndicator(
+                      value:
+                          showIndeterminateFromRealBytes ? null : indicatorValue,
+                      minHeight: 6,
+                      backgroundColor:
+                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.primary,
+                      ),
                     ),
                   ),
-                ),
-                SizedBox(height: DesignTokens.spaceSm),
-                Text(
-                  captionText,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                  SizedBox(height: DesignTokens.spaceSm),
+                  Text(
+                    captionText,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),

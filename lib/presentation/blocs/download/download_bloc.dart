@@ -2977,8 +2977,15 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
               (download.sourceId != null && download.sourceId!.isNotEmpty)
                   ? download.sourceId!
                   : 'unknown';
-          downloadPath = path.join(
+          final rawDir = path.join(
               _settings.customStorageRoot!, 'nhasix', sourceId, contentId);
+          final safeDir = path.join(
+              _settings.customStorageRoot!,
+              'nhasix',
+              sourceId,
+              DownloadStorageUtils.getSafeContentId(contentId));
+          downloadPath =
+              await Directory(rawDir).exists() ? rawDir : safeDir;
           _logger.d('DownloadBloc: Reconstructed path for open: $downloadPath');
         }
       }

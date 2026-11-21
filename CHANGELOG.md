@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- 🐛 (pdf-reader): precompute `pageHeights` in `PdfReaderActivity`, enable stable adapter IDs, cancel stale `renderJob` & reset zoom on bind/recycle, and prefetch adjacent pages (fixes vertical scroll page jumping).
+- 🐛 (pdf-notification): track `_lastCompletedPdfContentId` for single-PDF completion notifications, fall back to `onViewQueue` when `contentId` is empty, and resolve safe download paths in `DownloadBloc` (`Open PDF` / `Read Now` works reliably).
+- 🐛 (reader): wrap `_buildLoadingWidget` in `FittedBox(BoxFit.scaleDown)` (eliminates 68px bottom `RenderFlex` overflow in continuous scroll).
+- 🔧 (comix): switch chapter/page WebView scripts to DOM-first with configurable `webviewSelectors`, wire `CancelToken` abort to `cancelProxyWebView`, and surface interactive `/@waf/challenge` Verify + Retry flow via `openInteractiveWebView`.
+
 - 🆕 (pdf-notification): Kuron mascot system notifications for PDF conversion (`showPdfProgress` with 500ms debounce, `showPdfCompleted` with `Open PDF` / `Close`, `showPdfCancelled`, and `ACTION_KURON_CANCEL_PDF` wired to `cancelCurrent()`).
 - 🔧 (download): bulk download now streams to `.part` + atomic rename with 3-worker concurrency and true batch abort on cancel (`DownloadService` + `DownloadWorker.kt`).
 - 🔧 (reader-ai): epoch gate discards cancelled isolate translation results; ONNX prefetch/translate serialized via single queue with intent + Wi-Fi + idle posture gate; webtoon detection capped at 540px width (zero-decode flat-bubble pass).
