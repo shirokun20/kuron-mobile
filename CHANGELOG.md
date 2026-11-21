@@ -8,6 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+- 🆕 (notifications): Kuron mascot task notifications now cover Sync, ZIP Extraction, File Verification, PDF error/queue/batch, Backup/Restore/NClient Import, and AI-model download via generic `showTaskProgress` / `showTaskCompleted` / `showTaskError` entrypoints (plain plugin fallback when mascot is off); all mascot speech strings localized through en/id/zh ARB (`kuronNotif*Speech` keys).
+- 🐛 (reader): shared pure-Dart `ChapterOrderUtils` fixes inverted Next/Previous chapter navigation on MangaDex multi-group and descending-order configs — volume is compared only when both chapters declare one, numeric chapter progression picks the adjacent chapter, and UUID digits are never parsed as chapter numbers.
+- ⚙️ (cleanup): pre-Flutter-3.50 housekeeping — archive 6 completed plans, delete the unreferenced `PaginationInfo` domain entity and the unused `assets/widget/` PNG bundle (Android drawables remain the single source), and drop stray `.DS_Store` files under `assets/` (no dependency changes).
 - 🐛 (pdf-reader): precompute `pageHeights` in `PdfReaderActivity`, enable stable adapter IDs, cancel stale `renderJob` & reset zoom on bind/recycle, and prefetch adjacent pages (fixes vertical scroll page jumping).
 - 🐛 (pdf-notification): track `_lastCompletedPdfContentId` for single-PDF completion notifications, fall back to `onViewQueue` when `contentId` is empty, and resolve safe download paths in `DownloadBloc` (`Open PDF` / `Read Now` works reliably).
 - 🐛 (reader): wrap `_buildLoadingWidget` in `FittedBox(BoxFit.scaleDown)` (eliminates 68px bottom `RenderFlex` overflow in continuous scroll).
