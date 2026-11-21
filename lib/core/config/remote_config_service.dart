@@ -56,7 +56,18 @@ class RemoteConfigService {
   // Source IDs that are bundled into the APK and always available.
   static const Set<String> _bundledSourceIds = {'nhentai'};
 
-  // ── Source ID validation (path traversal guard) ────────────────────────────
+  // Reserved non-source config identifiers and bundled source IDs that must
+  // never be installed, overwritten, restored, or uninstalled as user sources.
+  static const Set<String> reservedConfigIds = {
+    'app',
+    'tags',
+    ..._bundledSourceIds,
+  };
+
+  static bool isReservedConfigId(String sourceId) =>
+      reservedConfigIds.contains(sourceId.trim().toLowerCase());
+
+  // ── Source ID validation (path traversal & reserved ID guard) ──────────────
 
   // Allowlist for source IDs used in cache file names. IDs are compared
   // case-sensitively throughout the codebase (`==`), and all known IDs are
@@ -64,7 +75,7 @@ class RemoteConfigService {
   static final RegExp _sourceIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]*$');
 
   static void _validateSourceId(String sourceId) {
-    if (!_sourceIdPattern.hasMatch(sourceId)) {
+    if (!_sourceIdPattern.hasMatch(sourceId) || isReservedConfigId(sourceId)) {
       throw FormatException('Invalid sourceId: "$sourceId"');
     }
   }
@@ -452,7 +463,7 @@ class RemoteConfigService {
 
   // Persist install state for an installable source.
   Future<void> markSourceInstalled(String sourceId) async {
-    if (_bundledSourceIds.contains(sourceId)) return;
+    _validateSourceId(sourceId);
 
     final prefs = await SharedPreferences.getInstance();
     final ids = (prefs.getStringList(_prefInstalledSourceIds) ?? <String>[])
@@ -473,12 +484,14 @@ class RemoteConfigService {
 
   // Fully removes an installable source from local cache + in-memory maps.
   ///
-  // Bundled sources (e.g. nhentai) are protected and cannot be uninstalled.
+  // Bundled and reserved configs (e.g. nhentai, app, tags) are protected and
+  // cannot be uninstalled.
   Future<void> uninstallSourceConfig(String sourceId) async {
-    if (_bundledSourceIds.contains(sourceId)) {
-      _logger.w('Skip uninstall for bundled source: $sourceId');
+    if (isReservedConfigId(sourceId)) {
+      _logger.w('Skip uninstall for reserved/bundled source: $sourceId');
       return;
     }
+    _validateSourceId(sourceId);
 
     final configDir = await _getConfigDirectory();
     final cachedFile = File(p.join(configDir.path, '$sourceId-config.json'));
@@ -621,6 +634,13 @@ class RemoteConfigService {
     );
 
     for (final sourceId in installedIds) {
+      if (!_sourceIdPattern.hasMatch(sourceId) ||
+          isReservedConfigId(sourceId)) {
+        _logger.w(
+          'Skipping invalid or reserved installed sourceId in cache: $sourceId',
+        );
+        continue;
+      }
       final cachedFile = File(p.join(configDir.path, '$sourceId-config.json'));
       if (!cachedFile.existsSync()) {
         _logger.w('Cached config not found for installed source: $sourceId');
@@ -799,6 +819,5 @@ class RemoteConfigService {
 
   Map<String, dynamic> _normalizeSourceConfigForCompatibility(
     Map<String, dynamic> raw,
-  ) =>
-      normalizeSourceConfigForCompatibility(raw);
+  ) => normalizeSourceConfigForCompatibility(raw);
 }

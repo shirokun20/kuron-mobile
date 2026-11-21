@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../support/ext_config_loader.dart';
+
 import 'package:kuron_core/kuron_core.dart' show CompatibilityStatus;
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -29,12 +30,12 @@ void main() {
 
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(pathProviderChannel, (call) async {
-      return switch (call.method) {
-        'getApplicationDocumentsDirectory' => tempDir.path,
-        'getTemporaryDirectory' => tempDir.path,
-        _ => tempDir.path,
-      };
-    });
+          return switch (call.method) {
+            'getApplicationDocumentsDirectory' => tempDir.path,
+            'getTemporaryDirectory' => tempDir.path,
+            _ => tempDir.path,
+          };
+        });
 
     service = RemoteConfigService(
       dio: Dio(),
@@ -50,55 +51,64 @@ void main() {
     }
   });
 
-  test('applySourceConfigFromJson caches validation report for imported config',
-      () async {
-    await service.applySourceConfigFromJson(
-      sourceId: 'komikcast',
-      rawJson: await readConfig('komikcast-config.json'),
-      sourceLabel: 'test',
-    );
+  test(
+    'applySourceConfigFromJson caches validation report for imported config',
+    () async {
+      await service.applySourceConfigFromJson(
+        sourceId: 'komikcast',
+        rawJson: await readConfig('komikcast-config.json'),
+        sourceLabel: 'test',
+      );
 
-    final report = service.getValidationReport('komikcast');
-    expect(report, isNotNull);
-    expect(
-      report!.overallStatus,
-      anyOf(
-        CompatibilityStatus.compatible,
-        CompatibilityStatus.partiallyCompatible,
-      ),
-    );
-    expect(service.getConfig('komikcast'), isNotNull);
+      final report = service.getValidationReport('komikcast');
+      expect(report, isNotNull);
+      expect(
+        report!.overallStatus,
+        anyOf(
+          CompatibilityStatus.compatible,
+          CompatibilityStatus.partiallyCompatible,
+        ),
+      );
+      expect(service.getConfig('komikcast'), isNotNull);
 
-    final cachedFile =
-        File(p.join(tempDir.path, 'configs', 'komikcast-config.json'));
-    expect(await cachedFile.exists(), isTrue);
-  });
+      final cachedFile = File(
+        p.join(tempDir.path, 'configs', 'komikcast-config.json'),
+      );
+      expect(await cachedFile.exists(), isTrue);
+    },
+  );
 
-  test('applySourceConfigFromJson preserves needsEngineSupport status',
-      () async {
-    await service.applySourceConfigFromJson(
-      sourceId: 'hitomi',
-      rawJson: await readConfig('hitomi-config.json'),
-      sourceLabel: 'test',
-    );
+  test(
+    'applySourceConfigFromJson preserves needsEngineSupport status',
+    () async {
+      await service.applySourceConfigFromJson(
+        sourceId: 'hitomi',
+        rawJson: await readConfig('hitomi-config.json'),
+        sourceLabel: 'test',
+      );
 
-    final report = service.getValidationReport('hitomi');
-    expect(report, isNotNull);
-    expect(report!.overallStatus, CompatibilityStatus.needsEngineSupport);
-  });
-  test('getInstalledVersion returns applied version and null when absent',
-      () async {
-    expect(service.getInstalledVersion('komikcast'), isNull);
+      final report = service.getValidationReport('hitomi');
+      expect(report, isNotNull);
+      expect(report!.overallStatus, CompatibilityStatus.needsEngineSupport);
+    },
+  );
+  test(
+    'getInstalledVersion returns applied version and null when absent',
+    () async {
+      expect(service.getInstalledVersion('komikcast'), isNull);
 
-    await service.applySourceConfigFromJson(
-      sourceId: 'komikcast',
-      rawJson: await readConfig('komikcast-config.json'),
-      sourceLabel: 'test',
-    );
+      await service.applySourceConfigFromJson(
+        sourceId: 'komikcast',
+        rawJson: await readConfig('komikcast-config.json'),
+        sourceLabel: 'test',
+      );
 
-    expect(service.getInstalledVersion('komikcast'),
-        service.getConfig('komikcast')?.version);
-  });
+      expect(
+        service.getInstalledVersion('komikcast'),
+        service.getConfig('komikcast')?.version,
+      );
+    },
+  );
 
   test('uninstallSourceConfig clears cached validation report', () async {
     await service.applySourceConfigFromJson(
@@ -115,6 +125,29 @@ void main() {
     expect(
       await File(p.join(tempDir.path, 'configs', 'komikcast-config.json'))
           .exists(),
+      isFalse,
+    );
+  });
+
+  test('rejects reserved and bundled config identifiers (app, tags, nhentai) on install', () async {
+    for (final reserved in ['app', 'tags', 'nhentai', 'APP', ' app ']) {
+      await expectLater(
+        () => service.applySourceConfigFromJson(
+          sourceId: reserved,
+          rawJson:
+              '{"source":"${reserved.trim().toLowerCase()}","version":"1.0.0"}',
+          sourceLabel: 'test',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+      await expectLater(
+        () => service.markSourceInstalled(reserved),
+        throwsA(isA<FormatException>()),
+      );
+    }
+
+    expect(
+      await File(p.join(tempDir.path, 'configs', 'app-config.json')).exists(),
       isFalse,
     );
   });

@@ -20,11 +20,12 @@ import 'package:nhasixapp/core/utils/source_version_utils.dart';
 
 enum ManifestSortMode { updatesFirst, nameAsc, versionDesc }
 
-final RegExp _validSourceIdPattern = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$');
+final RegExp _validSourceIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]*$');
 
 String _validateSourceId(String sourceId) {
   final trimmed = sourceId.trim();
-  if (!_validSourceIdPattern.hasMatch(trimmed)) {
+  if (!_validSourceIdPattern.hasMatch(trimmed) ||
+      RemoteConfigService.isReservedConfigId(trimmed)) {
     throw FormatException('Invalid source ID: "$sourceId"');
   }
   return trimmed;
@@ -83,14 +84,15 @@ class SourcePackageManifest {
       return normalized;
     }
 
-    final sourceId =
-        _validateSourceId(readAnyString(const ['sourceId', 'id', 'source']));
+    final sourceId = _validateSourceId(
+      readAnyString(const ['sourceId', 'id', 'source']),
+    );
     final version = readAnyString(const ['version']);
     final configPathRaw = readAnyString(const ['configPath', 'path', 'url']);
-    final checksum = readAnyString(
-      const ['checksumSha256', 'checksum'],
-      required: false,
-    );
+    final checksum = readAnyString(const [
+      'checksumSha256',
+      'checksum',
+    ], required: false);
 
     return SourcePackageManifest(
       schemaVersion: schemaVersion,
@@ -251,7 +253,9 @@ class SourceInstallerService {
   // Powers the Update badge/sort in the installed list. In-memory only by design.
   final Map<String, String> _lastSeenCandidateVersions = <String, String>{};
 
-  void rememberCandidateVersions(Iterable<({String id, String version})> items) {
+  void rememberCandidateVersions(
+    Iterable<({String id, String version})> items,
+  ) {
     for (final item in items) {
       final v = item.version.trim();
       if (v.isNotEmpty && v.toLowerCase() != 'unknown') {
@@ -306,9 +310,8 @@ class SourceInstallerService {
     }).toList();
     final indexed = ranked.asMap().entries.toList();
     indexed.sort((a, b) {
-      final rank = _statusRank(a.value.status).compareTo(
-        _statusRank(b.value.status),
-      );
+      final rank = _statusRank(a.value.status)
+          .compareTo(_statusRank(b.value.status));
       return rank != 0 ? rank : a.key.compareTo(b.key);
     });
     return [for (final entry in indexed) entry.value];
@@ -319,13 +322,11 @@ class SourceInstallerService {
 
   List<GlobalManifestEntry> sortEntriesUpdateFirst(
     List<GlobalManifestEntry> entries,
-  ) =>
-      sortUpdateFirst(
-        entries,
-        installedVersionOf: (entry) =>
-            _remoteConfig.getInstalledVersion(entry.id),
-        candidateVersionOf: (entry) => entry.version,
-      );
+  ) => sortUpdateFirst(
+    entries,
+    installedVersionOf: (entry) => _remoteConfig.getInstalledVersion(entry.id),
+    candidateVersionOf: (entry) => entry.version,
+  );
 
   List<GlobalManifestEntry> applyManifestSort(
     List<GlobalManifestEntry> entries,
@@ -353,9 +354,9 @@ class SourceInstallerService {
             case SourceVersionComparison.unknown:
               break;
           }
-          return (a.displayName ?? a.id)
-              .toLowerCase()
-              .compareTo((b.displayName ?? b.id).toLowerCase());
+          return (a.displayName ?? a.id).toLowerCase().compareTo(
+            (b.displayName ?? b.id).toLowerCase(),
+          );
         });
         return copy;
     }
@@ -399,12 +400,13 @@ class SourceInstallerService {
           description: null,
           rawJson: manifestRaw,
           isVerified: false,
-        )
+        ),
       ];
       return SourceInstallDirectPlan(candidates);
     }
 
-    final installableSources = _parseGlobalManifestEntries(manifestMap).toList();
+    final installableSources = _parseGlobalManifestEntries(manifestMap)
+        .toList();
     if (installableSources.isNotEmpty) {
       return SourceInstallSelectionPlan(
         entries: installableSources,
@@ -413,8 +415,9 @@ class SourceInstallerService {
     }
 
     final manifest = SourcePackageManifest.fromMap(manifestMap);
-    final resolvedConfigUrl =
-        Uri.parse(link).resolve(manifest.configPath).toString();
+    final resolvedConfigUrl = Uri.parse(link)
+        .resolve(manifest.configPath)
+        .toString();
     final configResponse = await _dio.get<String>(
       resolvedConfigUrl,
       options: Options(
@@ -448,7 +451,8 @@ class SourceInstallerService {
     );
     if (sourceIdFromConfig != manifest.sourceId) {
       throw const FormatException(
-          'Config source ID does not match package manifest');
+        'Config source ID does not match package manifest',
+      );
     }
 
     final candidates = [
@@ -459,7 +463,7 @@ class SourceInstallerService {
         description: null,
         rawJson: rawJson,
         isVerified: manifest.checksumSha256.isNotEmpty,
-      )
+      ),
     ];
     return SourceInstallDirectPlan(candidates);
   }
@@ -486,7 +490,8 @@ class SourceInstallerService {
       invalidMessage: 'Invalid manifest format',
     );
 
-    final installableSources = _parseGlobalManifestEntries(manifestMap).toList();
+    final installableSources = _parseGlobalManifestEntries(manifestMap)
+        .toList();
     if (installableSources.isNotEmpty) {
       return SourceInstallSelectionPlan(
         entries: installableSources,
@@ -547,7 +552,8 @@ class SourceInstallerService {
     );
     if (sourceIdFromConfig != manifest.sourceId) {
       throw const FormatException(
-          'Config source ID does not match package manifest');
+        'Config source ID does not match package manifest',
+      );
     }
 
     final candidates = [
@@ -570,10 +576,8 @@ class SourceInstallerService {
   }) async {
     return Future.wait(
       selectedEntries.map(
-        (entry) => _downloadCandidateFromEntry(
-          baseLink: baseLink,
-          entry: entry,
-        ),
+        (entry) =>
+            _downloadCandidateFromEntry(baseLink: baseLink, entry: entry),
       ),
     );
   }
@@ -772,6 +776,7 @@ class SourceInstallerService {
 
   /// Instantiates source via resolver / GenericSourceFactory and registers it in ContentSourceRegistry.
   Future<void> registerSourceInRegistry(String sourceId) async {
+    _validateSourceId(sourceId);
     final raw = _remoteConfig.getRawConfig(sourceId);
 
     if (raw == null) {
@@ -806,10 +811,7 @@ class SourceInstallerService {
   /// the isolated [WebViewSessionRegistry] session. Sources with an explicit
   /// factory, non-bypass sources, or a missing session registry keep the
   /// plain resolver path (unchanged behavior).
-  ContentSource _createRoutedSource(
-    String sourceId,
-    Map<String, dynamic> raw,
-  ) {
+  ContentSource _createRoutedSource(String sourceId, Map<String, dynamic> raw) {
     final factory = _resolver.resolve(raw);
     if (factory is! GenericSourceFactory ||
         !sourceRequiresBypass(raw) ||
@@ -883,7 +885,8 @@ class SourceInstallerService {
     String? displayName,
     String? description,
   }) {
-    final meta = (configMap['meta'] as Map?)?.cast<String, dynamic>() ??
+    final meta =
+        (configMap['meta'] as Map?)?.cast<String, dynamic>() ??
         <String, dynamic>{};
 
     if (displayName != null && displayName.trim().isNotEmpty) {
@@ -907,8 +910,8 @@ class SourceInstallerService {
     final configIconPath = _readConfigIconPath(configMap);
     final candidatePath =
         (entryIconUrl != null && entryIconUrl.trim().isNotEmpty)
-            ? entryIconUrl.trim()
-            : configIconPath;
+        ? entryIconUrl.trim()
+        : configIconPath;
     if (candidatePath == null || candidatePath.isEmpty) {
       return;
     }
@@ -941,14 +944,15 @@ class SourceInstallerService {
     final configIconPath = _readConfigIconPath(configMap);
     final candidatePath =
         (entryIconUrl != null && entryIconUrl.trim().isNotEmpty)
-            ? entryIconUrl.trim()
-            : configIconPath;
+        ? entryIconUrl.trim()
+        : configIconPath;
     if (candidatePath == null || candidatePath.isEmpty) {
       return;
     }
 
     final iconUri = Uri.tryParse(candidatePath);
-    final isAbsoluteHttp = iconUri != null &&
+    final isAbsoluteHttp =
+        iconUri != null &&
         (iconUri.scheme == 'http' || iconUri.scheme == 'https');
     final resolvedUrl = isAbsoluteHttp
         ? candidatePath
@@ -1001,7 +1005,8 @@ class SourceInstallerService {
   void _setConfigIconPath(Map<String, dynamic> configMap, String localPath) {
     configMap['iconPath'] = localPath;
 
-    final uiMap = (configMap['ui'] as Map?)?.cast<String, dynamic>() ??
+    final uiMap =
+        (configMap['ui'] as Map?)?.cast<String, dynamic>() ??
         <String, dynamic>{};
     uiMap['iconPath'] = localPath;
     configMap['ui'] = uiMap;
@@ -1027,9 +1032,7 @@ class SourceInstallerService {
       }
 
       final baseDir = p.normalize(iconDir.path);
-      final filePath = p.normalize(
-        p.join(baseDir, '$safeStem$extension'),
-      );
+      final filePath = p.normalize(p.join(baseDir, '$safeStem$extension'));
       if (!p.isWithin(baseDir, filePath)) {
         _logger.w('Blocked source icon write outside iconDir for $sourceId');
         return null;
