@@ -52,6 +52,7 @@ class NotificationService {
     this.onCancelAll,
     this.onCancelPdf,
     this._useKuronMascotNotification = true,
+    KuronMascotNotificationHandler? mascotHandler,
   }) : _logger = logger ?? Logger() {
     _actionHandler = NotificationActionHandler(
       logger: _logger,
@@ -67,8 +68,10 @@ class NotificationService {
     _permissionHandler = NotificationPermissionHandler(logger: _logger);
     _idManager = NotificationIdManager();
 
-    if (Platform.isAndroid) {
-      _mascotHandler = KuronMascotNotificationHandler(
+    // An injected handler is used by unit tests, where dart:io reports a
+    // non-Android host and the native channel would otherwise never be built.
+    if (Platform.isAndroid || mascotHandler != null) {
+      _mascotHandler = mascotHandler ?? KuronMascotNotificationHandler(
         onDownloadPause: (id) => onDownloadPause?.call(id),
         onDownloadResume: (id) => onDownloadResume?.call(id),
         onDownloadCancel: (id) => onDownloadCancel?.call(id),
@@ -115,6 +118,142 @@ class NotificationService {
 
   void setUseKuronMascotNotification(bool value) {
     _useKuronMascotNotification = value;
+  }
+
+  bool _shouldUseMascotNotification() =>
+      _useKuronMascotNotification && _mascotHandler != null;
+
+  /// Marks the service ready without touching platform channels. Test-only.
+  @visibleForTesting
+  void markEnabledForTesting() {
+    _permissionGranted = true;
+    _initialized = true;
+  }
+
+  // ============================================================
+  // GENERIC KURON TASK NOTIFICATIONS
+  // ============================================================
+
+  /// Progress card for a long-running non-download task (backup, AI model, …).
+  Future<void> showTaskProgress({
+    required int id,
+    required String title,
+    required String speech,
+    required String meta,
+    int progress = 0,
+    int max = 100,
+    bool indeterminate = false,
+  }) async {
+    if (!isEnabled) return;
+    try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: id,
+          title: title,
+          speechText: speech,
+          metaText: meta,
+          progress: progress,
+          max: max,
+          indeterminate: indeterminate,
+        );
+        return;
+      }
+      await _notificationsPlugin.show(
+        id: id,
+        title: title,
+        body: meta,
+        notificationDetails: NotificationDetailsBuilder.progress(
+          progress: indeterminate ? 0 : progress,
+        ),
+        payload: null,
+      );
+    } catch (e) {
+      _logger.e('Failed to show task progress notification: $e');
+    }
+  }
+
+  /// Terminal success card. [autoCancelAfter] additionally clears a card the
+  /// user never tapped (native auto-cancel already handles the tap case).
+  Future<void> showTaskCompleted({
+    required int id,
+    required String title,
+    required String speech,
+    required String meta,
+    Duration? autoCancelAfter,
+  }) async {
+    if (!isEnabled) return;
+    try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskCompleted(
+          notificationId: id,
+          title: title,
+          speechText: speech,
+          metaText: meta,
+        );
+      } else {
+        await _notificationsPlugin.show(
+          id: id,
+          title: title,
+          body: meta,
+          notificationDetails: NotificationDetailsBuilder.success(),
+          payload: null,
+        );
+      }
+    } catch (e) {
+      _logger.e('Failed to show task completed notification: $e');
+    }
+    if (autoCancelAfter != null) {
+      unawaited(
+        Future.delayed(autoCancelAfter, () => cancelTaskNotification(id)),
+      );
+    }
+  }
+
+  /// Terminal failure card.
+  Future<void> showTaskError({
+    required int id,
+    required String title,
+    required String speech,
+    required String meta,
+    Duration? autoCancelAfter,
+  }) async {
+    if (!isEnabled) return;
+    try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskError(
+          notificationId: id,
+          title: title,
+          speechText: speech,
+          metaText: meta,
+        );
+      } else {
+        await _notificationsPlugin.show(
+          id: id,
+          title: title,
+          body: meta,
+          notificationDetails: NotificationDetailsBuilder.error(),
+          payload: null,
+        );
+      }
+    } catch (e) {
+      _logger.e('Failed to show task error notification: $e');
+    }
+    if (autoCancelAfter != null) {
+      unawaited(
+        Future.delayed(autoCancelAfter, () => cancelTaskNotification(id)),
+      );
+    }
+  }
+
+  Future<void> cancelTaskNotification(int id) async {
+    try {
+      await _notificationsPlugin.cancel(id: id);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.cancel(id);
+      }
+    } catch (e) {
+      _logger.e('Failed to cancel task notification: $e');
+    }
   }
 
   // ============================================================
@@ -180,6 +319,8 @@ class NotificationService {
           title: _truncateTitle(title),
           progress: 0,
           contentId: contentId,
+          speechText: _getLocalized('kuronNotifPdfConverting',
+              fallback: '🐾 Kuron: Merangkai halaman jadi PDF...'),
         );
         return;
       }
@@ -265,8 +406,11 @@ class NotificationService {
           title: _truncateTitle(title),
           contentId: contentId,
           metaText: partsCount > 1
-              ? '$partsCount PDFs created • Tap to open'
-              : 'PDF Created Successfully • Tap to open',
+              ? _getLocalized('kuronNotifPdfMetaParts',
+                  args: {'count': '$partsCount'},
+                  fallback: '$partsCount PDFs created • Tap to open')
+              : _getLocalized('kuronNotifPdfReadyMeta',
+                  fallback: 'PDF Created Successfully • Tap to open'),
         );
         _logger.i('Kuron mascot PDF completed notification shown for $contentId');
         return;
@@ -329,6 +473,17 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskError(
+          notificationId: _pdfGroupId,
+          title: _getLocalized('kuronNotifPdfFailedTitle',
+              fallback: 'PDF Conversion Failed'),
+          speechText: _getLocalized('kuronNotifPdfConvertErrorSpeech',
+              fallback: '⚠️ Kuron: Gagal membuat PDF'),
+          metaText: _truncateError(error),
+        );
+        return;
+      }
       _logger.i(
           'NotificationService: Showing PDF conversion error notification for $contentId');
       final notificationId = _getNotificationId('pdf_$contentId');
@@ -372,6 +527,19 @@ class NotificationService {
     if (!isEnabled) return;
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _pdfQueueNotificationId,
+          title: _getLocalized('kuronNotifPdfQueueTitle', fallback: 'PDF Queue'),
+          speechText: _getLocalized('kuronNotifPdfQueueSpeech',
+              fallback: '🐾 Kuron: Mengantre konversi PDF...'),
+          metaText: '$currentIndex/$totalCount',
+          progress: currentIndex,
+          max: totalCount,
+          indeterminate: true,
+        );
+        return;
+      }
       final notificationId = _getNotificationId('pdf_$contentId');
       await _notificationsPlugin.show(
           id: notificationId,
@@ -404,6 +572,22 @@ class NotificationService {
     if (!isEnabled) return;
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _pdfQueueNotificationId,
+          title: _getLocalized('kuronNotifPdfQueueTitle', fallback: 'PDF Queue'),
+          speechText: _getLocalized('kuronNotifPdfQueueWaitSpeech',
+              fallback: '🐾 Kuron: Menunggu antrean PDF...'),
+          metaText: '${_getLocalized('pdfQueueWaiting',
+                  args: {'count': '$queuedCount'},
+                  fallback: 'PDF Queue: $queuedCount items waiting')} • '
+              '${_getLocalized('pdfQueueNext',
+                  args: {'titles': queuedTitles},
+                  fallback: 'Next: $queuedTitles')}',
+          indeterminate: true,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _pdfQueueNotificationId,
           title: _getLocalized('pdfQueueWaiting',
@@ -429,6 +613,9 @@ class NotificationService {
   Future<void> clearPdfQueueNotification() async {
     try {
       await _notificationsPlugin.cancel(id: _pdfQueueNotificationId);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.cancel(_pdfQueueNotificationId);
+      }
     } catch (e) {
       _logger.e('Failed to clear PDF queue notification: $e');
     }
@@ -439,6 +626,19 @@ class NotificationService {
     if (!isEnabled) return;
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskCompleted(
+          notificationId: _pdfQueueNotificationId,
+          title: _getLocalized('pdfBatchCompleted',
+              fallback: 'PDF Batch Completed'),
+          speechText: _getLocalized('kuronNotifPdfBatchDoneSpeech',
+              fallback: '🐾 Kuron: Semua PDF selesai! ✨'),
+          metaText: _getLocalized('pdfBatchCompletedCount',
+              args: {'count': '$count'},
+              fallback: '$count PDFs created successfully'),
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _pdfQueueNotificationId,
           title: _getLocalized('pdfBatchCompleted',
@@ -659,10 +859,14 @@ class NotificationService {
         final notificationId = _getNotificationId(contentId);
         final speedSuffix = (speedText != null && speedText.isNotEmpty) ? ' • $speedText' : '';
         final speech = isPaused
-            ? '🐾 Kuron: Napping right now... zzz'
+            ? _getLocalized('kuronNotifDownloadNapping',
+                fallback: '🐾 Kuron: Napping right now... zzz')
             : (progress >= 100
-                ? '🐾 Kuron: Delivery complete! All packed~'
-                : '🐾 Kuron: $progress% packed$speedSuffix~');
+                ? _getLocalized('kuronNotifDownloadDeliveryComplete',
+                    fallback: '🐾 Kuron: Delivery complete! All packed~')
+                : _getLocalized('kuronNotifDownloadProgressSpeech',
+                    args: {'progress': '$progress', 'speed': speedSuffix},
+                    fallback: '🐾 Kuron: $progress% packed$speedSuffix~'));
         await _mascotHandler!.updateSingleDownload(
           notificationId: notificationId,
           title: title,
@@ -769,8 +973,10 @@ class NotificationService {
           notificationId: notificationId,
           title: title,
           contentId: contentId,
-          speechText: '🐾 Kuron: Delivery arrived! Ready to read~ 🎉',
-          metaText: 'All pages packed! • 100% Complete • Ready offline',
+          speechText: _getLocalized('kuronNotifDownloadArrived',
+              fallback: '🐾 Kuron: Delivery arrived! Ready to read~ 🎉'),
+          metaText: _getLocalized('kuronNotifDownloadAllPackedMeta',
+              fallback: 'All pages packed! • 100% Complete • Ready offline'),
         );
         _logger.i(
             'Kuron mascot download completed notification shown for: $contentId');
@@ -895,9 +1101,16 @@ class NotificationService {
     try {
       if (_useKuronMascotNotification && _mascotHandler != null) {
         final title = activeTitle ??
-            (activeCount == 1 ? 'Downloading 1 item' : 'Downloading $activeCount items');
+            (activeCount == 1
+                ? _getLocalized('kuronNotifDownloadGroupTitleOne',
+                    fallback: 'Downloading 1 item')
+                : _getLocalized('kuronNotifDownloadGroupTitleMany',
+                    args: {'count': '$activeCount'},
+                    fallback: 'Downloading $activeCount items'));
         final speedSuffix = (speedText != null && speedText.isNotEmpty) ? ' • $speedText' : '';
-        final speech = '🐾 Kuron: $activeCount chapters loaded$speedSuffix~';
+        final speech = _getLocalized('kuronNotifBatchSpeech',
+            args: {'count': '$activeCount', 'speed': speedSuffix},
+            fallback: '🐾 Kuron: $activeCount chapters loaded$speedSuffix~');
         await _mascotHandler!.updateBatchDownload(
           notificationId: _downloadGroupId,
           activeTitle: title,
@@ -937,15 +1150,24 @@ class NotificationService {
     if (!isEnabled) return;
     try {
       if (_useKuronMascotNotification && _mascotHandler != null) {
-        final title =
-            count == 1 ? '1 download completed' : '$count downloads completed';
+        final title = count == 1
+            ? _getLocalized('kuronNotifDownloadGroupDoneTitle',
+                args: {'count': '1'}, fallback: '1 download completed')
+            : _getLocalized('kuronNotifDownloadGroupDoneTitle',
+                args: {'count': '$count'},
+                fallback: '$count downloads completed');
         await _mascotHandler!.showDownloadCompleted(
           notificationId: _downloadGroupId,
           title: title,
           speechText: count == 1
-              ? '🐾 Kuron: Delivery arrived! Ready to read~ 🎉'
-              : '🐾 Kuron: All $count downloads packed and ready! 🎉',
-          metaText: 'Everything safely delivered offline • Ready to read',
+              ? _getLocalized('kuronNotifDownloadArrived',
+                  fallback: '🐾 Kuron: Delivery arrived! Ready to read~ 🎉')
+              : _getLocalized('kuronNotifDownloadGroupDone',
+                  args: {'count': '$count'},
+                  fallback:
+                      '🐾 Kuron: All $count downloads packed and ready! 🎉'),
+          metaText: _getLocalized('kuronNotifDownloadGroupMeta',
+              fallback: 'Everything safely delivered offline • Ready to read'),
         );
         _logger.i('Kuron mascot download group completed notification shown for $count items');
         return;
@@ -996,7 +1218,9 @@ class NotificationService {
           notificationId: _pdfGroupId,
           title: title,
           progress: progress,
-          metaSuffix: 'PDF $currentIndex of $totalCount',
+          metaSuffix: _getLocalized('convertingPdfQueued',
+              args: {'current': '$currentIndex', 'total': '$totalCount'},
+              fallback: 'PDF $currentIndex of $totalCount'),
         );
         return;
       }
@@ -1024,9 +1248,11 @@ class NotificationService {
       if (_useKuronMascotNotification && _mascotHandler != null) {
         await _mascotHandler!.showPdfCompleted(
           notificationId: _pdfGroupId,
-          title: 'PDF Conversions Complete',
+          title: _getLocalized('kuronNotifPdfGroupTitle',
+              fallback: 'PDF Conversions Complete'),
           contentId: count <= 1 ? _lastCompletedPdfContentId : null,
-          metaText: '$body • Tap to open',
+          metaText: _getLocalized('kuronNotifPdfMetaParts',
+              args: {'count': '$count'}, fallback: '$body • Tap to open'),
         );
         _logger.i('Kuron mascot PDF group completed notification shown');
         return;
@@ -1053,6 +1279,18 @@ class NotificationService {
     try {
       final title = 'PDF $currentIndex of $totalCount failed';
       final body = _truncateError(error);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskError(
+          notificationId: _pdfGroupId,
+          title: _getLocalized('kuronNotifPdfGroupErrorTitle',
+              args: {'current': '$currentIndex', 'total': '$totalCount'},
+              fallback: title),
+          speechText: _getLocalized('kuronNotifPdfGroupErrorSpeech',
+              fallback: '⚠️ Kuron: Ada PDF yang gagal'),
+          metaText: body,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
         id: _pdfGroupId,
         title: title,
@@ -1223,6 +1461,11 @@ class NotificationService {
     _logger.i('NotificationService: Localization callback set');
   }
 
+  /// Localized string lookup for callers that post Kuron task notifications
+  /// outside this service (backup/restore/NClient import, AI model download).
+  String localize(String key, {Map<String, dynamic>? args, String? fallback}) =>
+      _getLocalized(key, args: args, fallback: fallback);
+
   // Get localized string (fallback to key or provided fallback)
   String _getLocalized(String key,
       {Map<String, dynamic>? args, String? fallback}) {
@@ -1265,6 +1508,18 @@ class NotificationService {
 
       final notificationId = _getVerificationNotificationId(contentId);
 
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: notificationId,
+          title: _getLocalized('verifyingFiles', fallback: 'Verifying Files'),
+          speechText: _getLocalized('kuronNotifVerifyStartSpeech',
+              fallback: '🐾 Kuron: Memeriksa file...'),
+          metaText: _truncateTitle(title),
+          indeterminate: true,
+        );
+        return;
+      }
+
       await _notificationsPlugin.show(
           id: notificationId,
           title: _getLocalized('verifyingFiles', fallback: 'Verifying Files'),
@@ -1300,6 +1555,19 @@ class NotificationService {
     try {
       final notificationId = _getVerificationNotificationId(contentId);
 
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: notificationId,
+          title: _getLocalized('verifyingFiles', fallback: 'Verifying Files'),
+          speechText: _getLocalized('kuronNotifVerifyProgressSpeech',
+              args: {'progress': '$progress'},
+              fallback: '🐾 Kuron: Memeriksa $progress%...'),
+          metaText: _truncateTitle(title),
+          progress: progress,
+        );
+        return;
+      }
+
       await _notificationsPlugin.show(
           id: notificationId,
           title: _getLocalized('verifyingProgress',
@@ -1327,6 +1595,9 @@ class NotificationService {
     try {
       final notificationId = _getVerificationNotificationId(contentId);
       await _notificationsPlugin.cancel(id: notificationId);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.cancel(notificationId);
+      }
 
       _logger.d('Verification notification cancelled for: $contentId');
     } catch (e) {
@@ -1361,6 +1632,20 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _zipExtractionNotificationId,
+          title: _getLocalized('zipExtractionInProgress',
+              fallback: 'Extracting ZIP'),
+          speechText: _getLocalized('kuronNotifZipStartSpeech',
+              fallback: '🐾 Kuron: Membuka arsip ZIP...'),
+          metaText: message ??
+              _getLocalized('extractingZipContent',
+                  fallback: 'Preparing extraction...'),
+          indeterminate: true,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _zipExtractionNotificationId,
           title: _getLocalized('zipExtractionInProgress',
@@ -1394,6 +1679,19 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _zipExtractionNotificationId,
+          title: _getLocalized('zipExtractionInProgress',
+              fallback: 'Extracting ZIP'),
+          speechText: _getLocalized('kuronNotifZipProgressSpeech',
+              args: {'progress': '$progress'},
+              fallback: '🐾 Kuron: Mengekstrak $progress%...'),
+          metaText: message,
+          progress: progress,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _zipExtractionNotificationId,
           title: _getLocalized('extractingProgress',
@@ -1427,6 +1725,19 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskCompleted(
+          notificationId: _zipExtractionNotificationId,
+          title: _getLocalized('zipExtractionComplete',
+              fallback: 'ZIP Extraction Complete'),
+          speechText: _getLocalized('kuronNotifZipDoneSpeech',
+              fallback: '🐾 Kuron: Arsip selesai dibuka! ✨'),
+          metaText: _getLocalized('zipExtractedWithCount',
+              args: {'count': '$imageCount'},
+              fallback: '$imageCount images extracted'),
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _zipExtractionNotificationId,
           title: _getLocalized('zipExtractionComplete',
@@ -1457,6 +1768,17 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskError(
+          notificationId: _zipExtractionNotificationId,
+          title: _getLocalized('zipExtractionFailed',
+              fallback: 'ZIP Extraction Failed'),
+          speechText: _getLocalized('kuronNotifZipErrorSpeech',
+              fallback: '⚠️ Kuron: Gagal membuka arsip'),
+          metaText: _truncateError(error),
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _zipExtractionNotificationId,
           title: _getLocalized('zipExtractionFailed',
@@ -1481,6 +1803,9 @@ class NotificationService {
   Future<void> cancelZipExtractionNotification() async {
     try {
       await _notificationsPlugin.cancel(id: _zipExtractionNotificationId);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.cancel(_zipExtractionNotificationId);
+      }
       _logger.d('ZIP extraction notification cancelled');
     } catch (e) {
       _logger.e('Failed to cancel ZIP extraction notification: $e');
@@ -1502,9 +1827,22 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _syncNotificationId,
+          title: _getLocalized('kuronNotifSyncTitle', fallback: 'Syncing Data'),
+          speechText: _getLocalized('kuronNotifSyncStartSpeech',
+              fallback: '🐾 Kuron: Menyinkronkan data offline...'),
+          metaText: message ??
+              _getLocalized('syncingOfflineContent',
+                  fallback: 'Loading offline content...'),
+          indeterminate: true,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _syncNotificationId,
-          title: _getLocalized('syncInProgress', fallback: 'Syncing Data'),
+          title: _getLocalized('kuronNotifSyncTitle', fallback: 'Syncing Data'),
           body: message ??
               _getLocalized('syncingOfflineContent',
                   fallback: 'Loading offline content...'),
@@ -1534,6 +1872,18 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskProgress(
+          notificationId: _syncNotificationId,
+          title: _getLocalized('kuronNotifSyncTitle', fallback: 'Syncing Data'),
+          speechText: _getLocalized('kuronNotifSyncProgressSpeech',
+              args: {'progress': '$progress'},
+              fallback: '🐾 Kuron: Menyinkronkan $progress%...'),
+          metaText: message,
+          progress: progress,
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _syncNotificationId,
           title: _getLocalized('syncingProgress',
@@ -1563,6 +1913,18 @@ class NotificationService {
     }
 
     try {
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.showTaskCompleted(
+          notificationId: _syncNotificationId,
+          title: _getLocalized('syncComplete', fallback: 'Sync Complete'),
+          speechText: _getLocalized('kuronNotifSyncDoneSpeech',
+              fallback: '🐾 Kuron: Sinkronisasi selesai! ✨'),
+          metaText: _getLocalized('syncCompletedWithCount',
+              args: {'count': '$itemCount'},
+              fallback: '$itemCount offline content'),
+        );
+        return;
+      }
       await _notificationsPlugin.show(
           id: _syncNotificationId,
           title: _getLocalized('syncComplete', fallback: 'Sync Complete'),
@@ -1586,6 +1948,9 @@ class NotificationService {
   Future<void> cancelSyncNotification() async {
     try {
       await _notificationsPlugin.cancel(id: _syncNotificationId);
+      if (_shouldUseMascotNotification()) {
+        await _mascotHandler!.cancel(_syncNotificationId);
+      }
       _logger.d('Sync notification cancelled');
     } catch (e) {
       _logger.e('Failed to cancel sync notification: $e');

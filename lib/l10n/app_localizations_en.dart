@@ -5690,8 +5690,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get aiTutorialGotIt => 'Got it!';
 
   @override
-  String get aiNotAvailableCS =>
-      'AI translate tidak tersedia di continue scroll.';
+  String get aiNotAvailableCS => 'AI translate unavailable in continue scroll.';
 
   @override
   String get aiHideTranslation => 'Hide translation';
@@ -5767,7 +5766,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String aiTranslateFailed(Object error) {
-    return 'Translate gagal: $error';
+    return 'Translation failed: $error';
   }
 
   @override
@@ -6260,4 +6259,303 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get copy => 'Copy';
+
+  @override
+  String get kuronNotifDownloadPacking => '🐾 Kuron: Packing your chapters~';
+
+  @override
+  String get kuronNotifDownloadNapping => '🐾 Kuron: Napping right now... zzz';
+
+  @override
+  String kuronNotifDownloadPackedProgress(String progress) {
+    return '🐾 Kuron: $progress% packed! Almost ready~';
+  }
+
+  @override
+  String get kuronNotifDownloadDeliveryComplete =>
+      '🐾 Kuron: Delivery complete! All packed~';
+
+  @override
+  String kuronNotifBatchLoaded(String count) {
+    return '🐾 Kuron: $count chapters loaded! Packing away~';
+  }
+
+  @override
+  String get kuronNotifBatchPacking => '🐾 Kuron: Packing the whole queue~';
+
+  @override
+  String get kuronNotifDownloadArrived =>
+      '🐾 Kuron: Delivery arrived! Ready to read~ 🎉';
+
+  @override
+  String get kuronNotifDownloadAllPackedMeta =>
+      'All pages packed! • 100% Complete • Ready offline';
+
+  @override
+  String get kuronNotifPdfConverting =>
+      '🐾 Kuron: Assembling pages into a PDF...';
+
+  @override
+  String kuronNotifPdfRenderingPages(String done, String total) {
+    return 'Assembling pages $done/$total';
+  }
+
+  @override
+  String get kuronNotifPdfReady =>
+      '🐾 Kuron: PDF ready to read! Neat & clean ✨';
+
+  @override
+  String get kuronNotifPdfReadyMeta => 'PDF Created Successfully • Tap to open';
+
+  @override
+  String get kuronNotifPdfCancelled => '⚠️ PDF Cancelled';
+
+  @override
+  String get kuronNotifPdfCancelMeta => 'Conversion cancelled • Nothing saved';
+
+  @override
+  String get kuronNotifTaskProcessing => '🐾 Kuron: Processing...';
+
+  @override
+  String get kuronNotifTaskWorking => 'Working...';
+
+  @override
+  String get kuronNotifTaskComplete => '🐾 Kuron: All done! ✨';
+
+  @override
+  String get kuronNotifTaskCompleteTitle => 'Task Complete';
+
+  @override
+  String get kuronNotifTaskAllDoneMeta => 'All done ✓';
+
+  @override
+  String get kuronNotifPdfGroupTitle => 'PDF Conversions Complete';
+
+  @override
+  String kuronNotifPdfMetaParts(String count) {
+    return '$count PDFs created • Tap to open';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDone(String count) {
+    return 'All $count downloads packed and ready! 🎉';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupMeta =>
+      'Everything safely delivered offline • Ready to read';
+
+  @override
+  String kuronNotifDownloadProgressSpeech(String progress, String speed) {
+    return '🐾 Kuron: $progress% packed$speed~';
+  }
+
+  @override
+  String kuronNotifBatchSpeech(String count, String speed) {
+    return '🐾 Kuron: $count chapters loaded$speed~';
+  }
+
+  @override
+  String kuronNotifPdfProgressMeta(String page, String total) {
+    return 'Assembling pages $page/$total';
+  }
+
+  @override
+  String kuronNotifPdfBatchMeta(String count) {
+    return '$count PDFs created successfully';
+  }
+
+  @override
+  String get kuronNotifSyncStartSpeech => '🐾 Kuron: Syncing offline data...';
+
+  @override
+  String kuronNotifSyncProgressSpeech(String progress) {
+    return '🐾 Kuron: Syncing $progress%...';
+  }
+
+  @override
+  String get kuronNotifSyncDoneSpeech => '🐾 Kuron: Sync complete! ✨';
+
+  @override
+  String kuronNotifSyncDoneMeta(String count) {
+    return '$count offline content';
+  }
+
+  @override
+  String get kuronNotifZipStartSpeech => '🐾 Kuron: Opening ZIP archive...';
+
+  @override
+  String kuronNotifZipProgressSpeech(String progress) {
+    return '🐾 Kuron: Extracting $progress%...';
+  }
+
+  @override
+  String get kuronNotifZipDoneSpeech => '🐾 Kuron: Archive extracted! ✨';
+
+  @override
+  String kuronNotifZipDoneMeta(String count) {
+    return '$count images extracted';
+  }
+
+  @override
+  String get kuronNotifZipErrorSpeech => '⚠️ Kuron: Failed to open archive';
+
+  @override
+  String get kuronNotifVerifyStartSpeech => '🐾 Kuron: Verifying files...';
+
+  @override
+  String kuronNotifVerifyProgressSpeech(String progress) {
+    return '🐾 Kuron: Verifying $progress%...';
+  }
+
+  @override
+  String get kuronNotifPdfQueueTitle => 'PDF Queue';
+
+  @override
+  String get kuronNotifPdfQueueSpeech => '🐾 Kuron: Queueing PDF conversion...';
+
+  @override
+  String get kuronNotifPdfQueueWaitSpeech =>
+      '🐾 Kuron: Waiting in PDF queue...';
+
+  @override
+  String get kuronNotifPdfBatchDoneSpeech => '🐾 Kuron: All PDFs done! ✨';
+
+  @override
+  String get kuronNotifPdfConvertErrorSpeech =>
+      '⚠️ Kuron: Failed to create PDF';
+
+  @override
+  String get kuronNotifPdfGroupErrorSpeech => '⚠️ Kuron: A PDF failed';
+
+  @override
+  String get kuronNotifBackupStartSpeech =>
+      '🐾 Kuron: Processing backup data...';
+
+  @override
+  String kuronNotifBackupCategorySpeech(String label) {
+    return '🐾 Kuron: Processing $label...';
+  }
+
+  @override
+  String get kuronNotifBackupDoneSpeech =>
+      '🐾 Kuron: Backup/restore complete! ✨';
+
+  @override
+  String kuronNotifBackupMeta(String title) {
+    return '$title completed';
+  }
+
+  @override
+  String get kuronNotifBackupErrorSpeech => '⚠️ Kuron: Process failed';
+
+  @override
+  String kuronNotifBackupProgressMeta(String label, String done, String total) {
+    return '$label: $done/$total';
+  }
+
+  @override
+  String get kuronNotifAiDownloadSpeech => '🐾 Kuron: Downloading AI model...';
+
+  @override
+  String get kuronNotifAiDownloadingMeta => 'Downloading...';
+
+  @override
+  String get kuronNotifAiDoneSpeech => '🐾 Kuron: AI model ready to use! ✨';
+
+  @override
+  String get kuronNotifAiDoneMeta => 'Download complete';
+
+  @override
+  String get kuronNotifAiErrorSpeech => '⚠️ Kuron: Failed to download AI model';
+
+  @override
+  String convertingPdfQueued(String current, String total) {
+    return 'Converting PDF $current of $total';
+  }
+
+  @override
+  String pdfQueueWaiting(String count) {
+    return 'PDF Queue: $count items waiting';
+  }
+
+  @override
+  String pdfQueueNext(String titles) {
+    return 'Next: $titles';
+  }
+
+  @override
+  String get pdfBatchCompleted => 'PDF Batch Completed';
+
+  @override
+  String pdfBatchCompletedCount(String count) {
+    return '✅ $count PDFs created successfully';
+  }
+
+  @override
+  String get syncingOfflineContent => 'Loading offline content...';
+
+  @override
+  String get syncComplete => 'Sync Complete';
+
+  @override
+  String syncCompletedWithCount(String count) {
+    return 'Found $count offline content';
+  }
+
+  @override
+  String get zipExtractionInProgress => 'Extracting ZIP';
+
+  @override
+  String get extractingZipContent => 'Preparing extraction...';
+
+  @override
+  String syncingProgress(String progress) {
+    return 'Syncing ($progress%)';
+  }
+
+  @override
+  String extractingProgress(String progress) {
+    return 'Extracting ($progress%)';
+  }
+
+  @override
+  String get zipExtractionComplete => 'ZIP Extraction Complete';
+
+  @override
+  String zipExtractedWithCount(String count) {
+    return 'Extracted $count images successfully';
+  }
+
+  @override
+  String get zipExtractionFailed => 'ZIP Extraction Failed';
+
+  @override
+  String zipExtractionFailedWithError(String error) {
+    return 'Failed to extract ZIP: $error';
+  }
+
+  @override
+  String get kuronNotifPdfFailedTitle => 'PDF Conversion Failed';
+
+  @override
+  String get kuronNotifSyncTitle => 'Syncing Data';
+
+  @override
+  String kuronNotifPdfGroupErrorTitle(String current, String total) {
+    return 'PDF $current of $total failed';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupTitleOne => 'Downloading 1 item';
+
+  @override
+  String kuronNotifDownloadGroupTitleMany(String count) {
+    return 'Downloading $count items';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDoneTitle(String count) {
+    return '$count downloads completed';
+  }
 }

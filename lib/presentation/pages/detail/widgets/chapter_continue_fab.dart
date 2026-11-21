@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/domain/entities/history.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'package:nhasixapp/presentation/utils/chapter_order_utils.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 const double _fabWidth = 236;
@@ -136,16 +137,8 @@ ChapterContinueTarget? resolveChapterContinueTarget({
 
 /// Chapter order as declared by its name: `Chapter 12`, `Bab 12.5`, `Ch. 3`,
 /// `第12話`, or a bare leading number. Numeric (`2` < `10`), never lexical.
-double? chapterNumberFromName(String name) {
-  final keyword = RegExp(
-    r'(?:chapter|chap|ch|bab|episode|eps|ep|第)\s*[.\-:]?\s*(\d+(?:[.,]\d+)?)',
-    caseSensitive: false,
-  ).firstMatch(name);
-  final match = keyword ?? RegExp(r'(\d+(?:[.,]\d+)?)').firstMatch(name);
-  final raw = match?.group(1);
-  if (raw == null) return null;
-  return double.tryParse(raw.replaceAll(',', '.'));
-}
+double? chapterNumberFromName(String name) =>
+    ChapterOrderUtils.parseChapterNumber(name);
 
 /// Readable chapters with a parsed number, ascending. Unnumbered and
 /// unreadable chapters are dropped — they cannot be ordered by name.

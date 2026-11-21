@@ -3196,13 +3196,17 @@
   "aiModelErrorGeneric": "Unduhan gagal ({code}). Ketuk Coba Lagi.",
   "@aiModelErrorGeneric": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "aiModelVersion": "Versi {version}",
   "@aiModelVersion": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "aiManageProviders": "Provider AI",
@@ -3415,5 +3419,346 @@
   "openingGitHubReport": "Membuka form laporan GitHub...",
   "anomalyDeleteTitle": "Hapus Record Anomali",
   "anomalyDeleteConfirm": "Apakah Anda yakin ingin menghapus record anomali ini?",
-  "copy": "Salin"
+  "copy": "Salin",
+  "kuronNotifDownloadPacking": "🐾 Kuron: Mengemas chapter kamu~",
+  "kuronNotifDownloadNapping": "🐾 Kuron: Sedang tidur... zzz",
+  "kuronNotifDownloadPackedProgress": "🐾 Kuron: {progress}% terkemas! Hampir siap~",
+  "@kuronNotifDownloadPackedProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifDownloadDeliveryComplete": "🐾 Kuron: Selesai! Semua terkemas~",
+  "kuronNotifBatchLoaded": "🐾 Kuron: {count} chapter dimuat! Sedang dikemas~",
+  "@kuronNotifBatchLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifBatchPacking": "🐾 Kuron: Mengemas semua antrean~",
+  "kuronNotifDownloadArrived": "🐾 Kuron: Sampai! Siap dibaca~ 🎉",
+  "kuronNotifDownloadAllPackedMeta": "Semua halaman terkemas! • 100% Selesai • Siap offline",
+  "kuronNotifPdfConverting": "🐾 Kuron: Merangkai halaman jadi PDF...",
+  "kuronNotifPdfRenderingPages": "Merangkai halaman {done}/{total}",
+  "@kuronNotifPdfRenderingPages": {
+    "placeholders": {
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfReady": "🐾 Kuron: PDF siap dibaca! Rapi & bersih ✨",
+  "kuronNotifPdfReadyMeta": "PDF Berhasil Dibuat • Ketuk untuk membuka",
+  "kuronNotifPdfCancelled": "⚠️ PDF Dibatalkan",
+  "kuronNotifPdfCancelMeta": "Konversi dibatalkan • Tidak ada yang disimpan",
+  "kuronNotifTaskProcessing": "🐾 Kuron: Sedang memproses...",
+  "kuronNotifTaskWorking": "Memproses...",
+  "kuronNotifTaskComplete": "🐾 Kuron: Selesai! ✨",
+  "kuronNotifTaskCompleteTitle": "Tugas Selesai",
+  "kuronNotifTaskAllDoneMeta": "Selesai ✓",
+  "kuronNotifPdfGroupTitle": "Konversi PDF Selesai",
+  "kuronNotifPdfMetaParts": "{count} PDF dibuat • Ketuk untuk membuka",
+  "@kuronNotifPdfMetaParts": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "2"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDone": "Semua {count} unduhan terkemas dan siap! 🎉",
+  "@kuronNotifDownloadGroupDone": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupMeta": "Semua tersimpan aman offline • Siap dibaca",
+  "kuronNotifDownloadProgressSpeech": "🐾 Kuron: {progress}% terkemas{speed}~",
+  "@kuronNotifDownloadProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifBatchSpeech": "🐾 Kuron: {count} chapter dimuat{speed}~",
+  "@kuronNotifBatchSpeech": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifPdfProgressMeta": "Merangkai halaman {page}/{total}",
+  "@kuronNotifPdfProgressMeta": {
+    "placeholders": {
+      "page": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfBatchMeta": "{count} PDF berhasil dibuat",
+  "@kuronNotifPdfBatchMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifSyncStartSpeech": "🐾 Kuron: Menyinkronkan data offline...",
+  "kuronNotifSyncProgressSpeech": "🐾 Kuron: Menyinkronkan {progress}%...",
+  "@kuronNotifSyncProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifSyncDoneSpeech": "🐾 Kuron: Sinkronisasi selesai! ✨",
+  "kuronNotifSyncDoneMeta": "{count} konten offline",
+  "@kuronNotifSyncDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifZipStartSpeech": "🐾 Kuron: Membuka arsip ZIP...",
+  "kuronNotifZipProgressSpeech": "🐾 Kuron: Mengekstrak {progress}%...",
+  "@kuronNotifZipProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifZipDoneSpeech": "🐾 Kuron: Arsip selesai dibuka! ✨",
+  "kuronNotifZipDoneMeta": "{count} gambar diekstrak",
+  "@kuronNotifZipDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "kuronNotifZipErrorSpeech": "⚠️ Kuron: Gagal membuka arsip",
+  "kuronNotifVerifyStartSpeech": "🐾 Kuron: Memeriksa file...",
+  "kuronNotifVerifyProgressSpeech": "🐾 Kuron: Memeriksa {progress}%...",
+  "@kuronNotifVerifyProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifPdfQueueTitle": "Antrean PDF",
+  "kuronNotifPdfQueueSpeech": "🐾 Kuron: Mengantre konversi PDF...",
+  "kuronNotifPdfQueueWaitSpeech": "🐾 Kuron: Menunggu antrean PDF...",
+  "kuronNotifPdfBatchDoneSpeech": "🐾 Kuron: Semua PDF selesai! ✨",
+  "kuronNotifPdfConvertErrorSpeech": "⚠️ Kuron: Gagal membuat PDF",
+  "kuronNotifPdfGroupErrorSpeech": "⚠️ Kuron: Ada PDF yang gagal",
+  "kuronNotifBackupStartSpeech": "🐾 Kuron: Memproses data backup...",
+  "kuronNotifBackupCategorySpeech": "🐾 Kuron: Memproses {label}...",
+  "@kuronNotifBackupCategorySpeech": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      }
+    }
+  },
+  "kuronNotifBackupDoneSpeech": "🐾 Kuron: Proses backup/restore selesai! ✨",
+  "kuronNotifBackupMeta": "{title} selesai",
+  "@kuronNotifBackupMeta": {
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Backup"
+      }
+    }
+  },
+  "kuronNotifBackupErrorSpeech": "⚠️ Kuron: Proses gagal",
+  "kuronNotifBackupProgressMeta": "{label}: {done}/{total}",
+  "@kuronNotifBackupProgressMeta": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      },
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifAiDownloadSpeech": "🐾 Kuron: Mengunduh model AI...",
+  "kuronNotifAiDownloadingMeta": "Mengunduh...",
+  "kuronNotifAiDoneSpeech": "🐾 Kuron: Model AI siap dipakai! ✨",
+  "kuronNotifAiDoneMeta": "Unduhan selesai",
+  "kuronNotifAiErrorSpeech": "⚠️ Kuron: Gagal mengunduh model AI",
+  "convertingPdfQueued": "Mengonversi PDF {current} dari {total}",
+  "@convertingPdfQueued": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "pdfQueueWaiting": "Antrean PDF: {count} item menunggu",
+  "@pdfQueueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "4"
+      }
+    }
+  },
+  "pdfQueueNext": "Berikutnya: {titles}",
+  "@pdfQueueNext": {
+    "placeholders": {
+      "titles": {
+        "type": "String",
+        "example": "A, B"
+      }
+    }
+  },
+  "pdfBatchCompleted": "Batch PDF Selesai",
+  "pdfBatchCompletedCount": "✅ {count} PDF berhasil dibuat",
+  "@pdfBatchCompletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "syncingOfflineContent": "Memuat konten offline...",
+  "syncComplete": "Sinkronisasi Selesai",
+  "syncCompletedWithCount": "Menemukan {count} konten offline",
+  "@syncCompletedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "zipExtractionInProgress": "Mengekstrak ZIP",
+  "extractingZipContent": "Menyiapkan ekstraksi...",
+  "syncingProgress": "Menyinkronkan ({progress}%)",
+  "@syncingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "extractingProgress": "Mengekstrak ({progress}%)",
+  "@extractingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "zipExtractionComplete": "Ekstraksi ZIP Selesai",
+  "zipExtractedWithCount": "Berhasil mengekstrak {count} gambar",
+  "@zipExtractedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "zipExtractionFailed": "Ekstraksi ZIP Gagal",
+  "zipExtractionFailedWithError": "Gagal mengekstrak ZIP: {error}",
+  "@zipExtractionFailedWithError": {
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "bad crc"
+      }
+    }
+  },
+  "kuronNotifPdfFailedTitle": "Konversi PDF Gagal",
+  "kuronNotifSyncTitle": "Menyinkronkan Data",
+  "kuronNotifPdfGroupErrorTitle": "PDF {current} dari {total} gagal",
+  "@kuronNotifPdfGroupErrorTitle": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupTitleOne": "Mengunduh 1 item",
+  "kuronNotifDownloadGroupTitleMany": "Mengunduh {count} item",
+  "@kuronNotifDownloadGroupTitleMany": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDoneTitle": "{count} unduhan selesai",
+  "@kuronNotifDownloadGroupDoneTitle": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  }
 }

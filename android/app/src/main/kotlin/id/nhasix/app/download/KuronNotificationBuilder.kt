@@ -528,6 +528,139 @@ object KuronNotificationBuilder {
         NotificationManagerCompat.from(context).notify(notificationId, notification)
     }
 
+    // ─── Generic Kuron task notifications (sync / ZIP / verify / backup / AI) ───
+    // Reuses the single/complete RemoteViews layouts so no extra XML is needed.
+    // Generic tasks have no download actions, so Nap/Cancel/Priority are hidden.
+
+    private fun buildTaskProgressCollapsed(
+        context: Context,
+        data: Map<String, Any?>,
+    ): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.notification_kuron_single_collapsed)
+        val progress = int(data, "progress", 0)
+        val max = int(data, "max", 100).coerceAtLeast(1)
+        val indeterminate = (data["indeterminate"] as? Boolean) ?: false
+        val avatarRes = if (!indeterminate && progress >= max) {
+            R.drawable.kuro_happy
+        } else {
+            R.drawable.kuro_tsundere
+        }
+        views.setImageViewResource(R.id.notif_mini_avatar, avatarRes)
+        views.setTextViewText(R.id.notif_collapsed_title, str(data, "title", "Working..."))
+        views.setProgressBar(R.id.notif_collapsed_progress, max, progress.coerceIn(0, max), indeterminate)
+        views.setTextViewText(R.id.notif_collapsed_meta, str(data, "meta", "$progress%"))
+        return views
+    }
+
+    private fun buildTaskProgressExpanded(
+        context: Context,
+        data: Map<String, Any?>,
+    ): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.notification_kuron_single_expanded)
+        val progress = int(data, "progress", 0)
+        val max = int(data, "max", 100).coerceAtLeast(1)
+        val indeterminate = (data["indeterminate"] as? Boolean) ?: false
+        val avatarRes = if (!indeterminate && progress >= max) {
+            R.drawable.kuro_happy
+        } else {
+            R.drawable.kuro_tsundere
+        }
+        views.setImageViewResource(R.id.kuro_avatar_img, avatarRes)
+        views.setTextViewText(
+            R.id.kuro_speech_txt,
+            str(data, "speech", "🐾 Kuron: Sedang memproses..."),
+        )
+        views.setTextViewText(R.id.notif_title_txt, str(data, "title", "Working..."))
+        views.setProgressBar(R.id.notif_progress_bar, max, progress.coerceIn(0, max), indeterminate)
+        views.setTextViewText(R.id.notif_meta_txt, str(data, "meta", "$progress%"))
+        // Generic tasks do not expose download pause/priority actions.
+        views.setViewVisibility(R.id.btn_pause, android.view.View.GONE)
+        views.setViewVisibility(R.id.btn_cancel, android.view.View.GONE)
+        views.setViewVisibility(R.id.btn_priority, android.view.View.GONE)
+        return views
+    }
+
+    fun showTaskProgress(context: Context, notificationId: Int, data: Map<String, Any?>) {
+        ensureChannel(context)
+        val merged = data + mapOf("notificationId" to notificationId)
+        val ongoing = (data["ongoing"] as? Boolean) ?: true
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(buildTaskProgressCollapsed(context, merged))
+            .setCustomBigContentView(buildTaskProgressExpanded(context, merged))
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(ongoing)
+            .setOnlyAlertOnce(true)
+            .setSilent(true)
+            .setShowWhen(false)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+            .setContentIntent(contentIntent(context, null))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    private fun buildTaskCompleteViews(
+        context: Context,
+        data: Map<String, Any?>,
+        avatarRes: Int,
+    ): Pair<RemoteViews, RemoteViews> {
+        val collapsed = RemoteViews(context.packageName, R.layout.notification_kuron_complete_collapsed)
+        collapsed.setImageViewResource(R.id.notif_complete_mini_avatar, avatarRes)
+        collapsed.setTextViewText(R.id.notif_complete_collapsed_title, str(data, "title", "Task Complete"))
+        collapsed.setTextViewText(R.id.notif_complete_collapsed_meta, str(data, "meta", "All done ✓"))
+        val expanded = RemoteViews(context.packageName, R.layout.notification_kuron_complete_expanded)
+        expanded.setImageViewResource(R.id.kuro_complete_avatar, avatarRes)
+        expanded.setTextViewText(R.id.kuro_complete_speech, str(data, "speech", "🐾 Kuron: Selesai! ✨"))
+        expanded.setTextViewText(R.id.notif_complete_title, str(data, "title", "Task Complete"))
+        expanded.setTextViewText(R.id.notif_complete_meta, str(data, "meta", "All done ✓"))
+        expanded.setViewVisibility(R.id.btn_complete_read, android.view.View.GONE)
+        val notificationId = int(data, "notificationId", 0)
+        expanded.setOnClickPendingIntent(
+            R.id.btn_complete_dismiss,
+            actionIntent(context, ACTION_DISMISS, notificationId, null),
+        )
+        return collapsed to expanded
+    }
+
+    fun showTaskCompleted(context: Context, notificationId: Int, data: Map<String, Any?>) {
+        ensureChannel(context)
+        val merged = data + mapOf("notificationId" to notificationId)
+        val views = buildTaskCompleteViews(context, merged, R.drawable.kuro_happy)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID_COMPLETE)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(views.first)
+            .setCustomBigContentView(views.second)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setShowWhen(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(contentIntent(context, null))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
+    fun showTaskError(context: Context, notificationId: Int, data: Map<String, Any?>) {
+        ensureChannel(context)
+        val merged = data + mapOf("notificationId" to notificationId)
+        val views = buildTaskCompleteViews(context, merged, R.drawable.kuro_frozen_cry)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_kuron)
+            .setCustomContentView(views.first)
+            .setCustomBigContentView(views.second)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setOngoing(false)
+            .setAutoCancel(true)
+            .setShowWhen(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setContentIntent(contentIntent(context, null))
+            .build()
+        NotificationManagerCompat.from(context).notify(notificationId, notification)
+    }
+
     fun cancelNotification(context: Context, notificationId: Int) {
         NotificationManagerCompat.from(context).cancel(notificationId)
     }

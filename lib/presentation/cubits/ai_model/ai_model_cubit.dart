@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:kuron_native/kuron_native.dart';
+import 'package:nhasixapp/core/di/service_locator.dart';
+import 'package:nhasixapp/core/services/notification_service.dart';
 
 import '../base/base_cubit.dart';
 import 'ai_model_state.dart';
@@ -12,12 +14,25 @@ import 'ai_model_state.dart';
 /// No auto-download, no silent failures: every state comes from the native
 /// `OnnxModelManager` via a thin method channel, with the pin
 class AiModelCubit extends BaseCubit<AiModelState> {
-  AiModelCubit({required super.logger, this._assetBundle})
-      : super(initialState: const AiModelState());
+  AiModelCubit({
+    required super.logger,
+    this._assetBundle,
+    NotificationService? notificationService,
+  })  : _notif = notificationService ??
+            (getIt.isRegistered<NotificationService>()
+                ? getIt<NotificationService>()
+                : null),
+        super(initialState: const AiModelState());
+
+  // Distinct from the download-group id (777778) and PDF queue id (777777).
+  static const int _aiModelNotificationId = 777771;
 
   /// Injected in tests (flutter_test does not bundle assets); production
   /// uses [rootBundle] which serves the app-bundled `assets/model.pin.json`.
   final AssetBundle? _assetBundle;
+
+  final NotificationService? _notif;
+  bool _wasDownloading = false;
 
   Timer? _poll;
 
@@ -47,6 +62,11 @@ class AiModelCubit extends BaseCubit<AiModelState> {
         errorMessage: map['errorMessage'] as String?,
         errorScreenMessage: null,
       ));
+      _syncDownloadNotification(
+        modelState: modelState,
+        bytesReceived: (map['bytesReceived'] as num?)?.toInt() ?? 0,
+        totalBytes: (map['totalBytes'] as num?)?.toInt(),
+      );
       _syncPoll(modelState);
     } on FormatException catch (e) {
       logWarning('AI model pin invalid: $e');
@@ -119,6 +139,69 @@ class AiModelCubit extends BaseCubit<AiModelState> {
     }
   }
 
+  String _loc(String key,
+          {Map<String, dynamic>? args, required String fallback}) =>
+      _notif?.localize(key, args: args, fallback: fallback) ?? fallback;
+
+  /// Mirrors the download lifecycle into a single Kuron task notification.
+  /// Only the transition into/out of `downloading` is terminal; poll ticks are
+  /// routed through the service's 500ms IPC throttle.
+  void _syncDownloadNotification({
+    required String modelState,
+    required int bytesReceived,
+    int? totalBytes,
+  }) {
+    final notif = _notif;
+    if (notif == null) return;
+    final hasTotal = totalBytes != null && totalBytes > 0;
+    final progressPercent = hasTotal
+        ? ((bytesReceived / totalBytes) * 100).round().clamp(0, 100)
+        : 0;
+    final fileName = state.fileName;
+
+    if (modelState == 'downloading') {
+      _wasDownloading = true;
+      unawaited(notif.showTaskProgress(
+        id: _aiModelNotificationId,
+        title: fileName,
+        speech: _loc('kuronNotifAiDownloadSpeech',
+            fallback: '🐾 Kuron: Mengunduh model AI...'),
+        meta: hasTotal
+            ? '$progressPercent%'
+            : _loc('kuronNotifAiDownloadingMeta', fallback: 'Mengunduh...'),
+        progress: progressPercent,
+        indeterminate: !hasTotal,
+      ));
+      return;
+    }
+
+    if (!_wasDownloading) return;
+    _wasDownloading = false;
+
+    if (modelState == 'ready') {
+      unawaited(notif.showTaskCompleted(
+        id: _aiModelNotificationId,
+        title: fileName,
+        speech: _loc('kuronNotifAiDoneSpeech',
+            fallback: '🐾 Kuron: Model AI siap dipakai! ✨'),
+        meta: _loc('kuronNotifAiDoneMeta', fallback: 'Download complete'),
+        autoCancelAfter: const Duration(seconds: 4),
+      ));
+    } else if (modelState == 'error') {
+      unawaited(notif.showTaskError(
+        id: _aiModelNotificationId,
+        title: fileName,
+        speech: _loc('kuronNotifAiErrorSpeech',
+            fallback: '⚠️ Kuron: Gagal mengunduh model AI'),
+        meta: state.errorMessage ?? state.errorCode ?? 'Download error',
+        autoCancelAfter: const Duration(seconds: 5),
+      ));
+    } else {
+      // Cancelled / not_downloaded: just clear the stuck progress card.
+      unawaited(notif.cancelTaskNotification(_aiModelNotificationId));
+    }
+  }
+
   void _syncPoll(String modelState) {
     if (modelState == 'downloading') {
       _poll ??= Timer.periodic(const Duration(seconds: 1), (_) {
@@ -135,6 +218,10 @@ class AiModelCubit extends BaseCubit<AiModelState> {
   Future<void> close() {
     _poll?.cancel();
     _poll = null;
+    if (_wasDownloading) {
+      _wasDownloading = false;
+      unawaited(_notif?.cancelTaskNotification(_aiModelNotificationId));
+    }
     return super.close();
   }
 }

@@ -297,6 +297,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
           ? () => widget.cubit.loadNextChapter()
           : null,
       onGoToFirstPage: onGoToFirstPage,
+      resolvedPreviousChapterTitle: widget.cubit.resolvedPreviousChapterTitle(),
+      resolvedNextChapterTitle: widget.cubit.resolvedNextChapterTitle(),
     );
   }
 

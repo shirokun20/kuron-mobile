@@ -376,4 +376,71 @@ class KuronMascotNotificationHandler {
     };
     await _channel.invokeMethod<void>('showPdfCancelled', payload);
   }
+
+  // ─── Generic Kuron task notifications ───
+  // Shared by sync, ZIP extraction, file verification, backup/restore and AI
+  // model download. IPC is debounced like download progress and flushed
+  // immediately at 100% (or while indeterminate with no progress yet).
+
+  Future<void> showTaskProgress({
+    required int notificationId,
+    required String title,
+    required String speechText,
+    required String metaText,
+    int progress = 0,
+    int max = 100,
+    bool indeterminate = false,
+    bool ongoing = true,
+  }) async {
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title,
+      'speech': speechText,
+      'meta': metaText,
+      'progress': progress,
+      'max': max,
+      'indeterminate': indeterminate,
+      'ongoing': ongoing,
+    };
+    await _throttledInvoke(
+      'showTaskProgress',
+      payload,
+      immediate: _isImmediateProgress(progress) ||
+          (indeterminate && progress == 0),
+    );
+  }
+
+  Future<void> showTaskCompleted({
+    required int notificationId,
+    required String title,
+    required String speechText,
+    required String metaText,
+  }) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title,
+      'speech': speechText,
+      'meta': metaText,
+    };
+    await _channel.invokeMethod<void>('showTaskCompleted', payload);
+  }
+
+  Future<void> showTaskError({
+    required int notificationId,
+    required String title,
+    required String speechText,
+    required String metaText,
+  }) async {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    final payload = <String, dynamic>{
+      'notificationId': notificationId,
+      'title': title,
+      'speech': speechText,
+      'meta': metaText,
+    };
+    await _channel.invokeMethod<void>('showTaskError', payload);
+  }
 }

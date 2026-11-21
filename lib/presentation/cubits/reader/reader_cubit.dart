@@ -34,6 +34,7 @@ import '../../../core/services/image_metadata_service.dart';
 import '../../../core/services/local_image_preloader.dart';
 import '../../widgets/content_list_widget.dart';
 import '../../utils/chapter_language_presenter.dart';
+import '../../utils/chapter_order_utils.dart';
 import '../base/base_cubit.dart';
 import '../network/network_cubit.dart';
 import '../../../core/utils/webtoon_detector.dart';
@@ -790,8 +791,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       // Sort ascending by chapter number
       merged.sort((a, b) {
-        final aNum = _extractChapterValue(a.title) ?? double.infinity;
-        final bNum = _extractChapterValue(b.title) ?? double.infinity;
+        final aNum =
+            ChapterOrderUtils.parseChapterNumber(a.title) ?? double.infinity;
+        final bNum =
+            ChapterOrderUtils.parseChapterNumber(b.title) ?? double.infinity;
         final cmp = aNum.compareTo(bNum);
         return cmp != 0 ? cmp : a.id.compareTo(b.id);
       });
@@ -863,7 +866,27 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     return null;
   }
 
+  /// Title of the chapter [loadNextChapter] would open, for button labels when
+  /// the source did not provide one.
+  String? resolvedNextChapterTitle() => _findAdjacentChapter(step: 1)?.title;
+
+  /// Title of the chapter [loadPreviousChapter] would open.
+  String? resolvedPreviousChapterTitle() =>
+      _findAdjacentChapter(step: -1)?.title;
+
   String? _resolveAdjacentChapterId({
+    required int step,
+    String? preferredLanguage,
+  }) {
+    return _findAdjacentChapter(
+      step: step,
+      preferredLanguage: preferredLanguage,
+    )?.id;
+  }
+
+  /// Shared lookup for both navigation IDs and resolved button labels. Keeps
+  /// the existing scanGroup + preferredLanguage filtering intact.
+  Chapter? _findAdjacentChapter({
     required int step,
     String? preferredLanguage,
   }) {
@@ -895,32 +918,28 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       return null;
     }
 
-    final currentChapterId = state.currentChapter?.id ?? state.content?.id;
-    if (currentChapterId == null || currentChapterId.isEmpty) {
+    Chapter? currentChapter = state.currentChapter;
+    if (currentChapter == null) {
+      // Preserve the old content.id lookup when no explicit chapter is set.
+      final contentId = state.content?.id;
+      if (contentId != null) {
+        for (final candidate in chapterPool) {
+          if (candidate.id == contentId) {
+            currentChapter = candidate;
+            break;
+          }
+        }
+      }
+    }
+    if (currentChapter == null) {
       return null;
     }
 
-    final currentIndex =
-        chapterPool.indexWhere((chapter) => chapter.id == currentChapterId);
-    if (currentIndex == -1) {
-      return null;
-    }
-
-    final isAscending = _isAscendingByChapterNumber(chapterPool);
-    final effectiveStep =
-        isAscending == null ? step : (isAscending ? step : -step);
-
-    final targetIndex = currentIndex + effectiveStep;
-    if (targetIndex < 0 || targetIndex >= chapterPool.length) {
-      return null;
-    }
-
-    final targetChapterId = chapterPool[targetIndex].id;
-    if (targetChapterId.isEmpty || targetChapterId == currentChapterId) {
-      return null;
-    }
-
-    return targetChapterId;
+    return ChapterOrderUtils.resolveAdjacentChapter(
+      pool: chapterPool,
+      currentChapter: currentChapter,
+      step: step,
+    );
   }
 
   String? _currentChapterLanguageKey() {
@@ -930,87 +949,6 @@ class ReaderCubit extends BaseCubit<ReaderState> {
   String? _normalizeLanguageKey(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     return ChapterLanguagePresenter.normalize(value);
-  }
-
-  bool? _isAscendingByChapterNumber(List<Chapter> chapters) {
-    if (chapters.length < 2) {
-      return null;
-    }
-
-    for (int i = 0; i < chapters.length - 1; i++) {
-      final comparison = _compareChapterOrder(chapters[i], chapters[i + 1]);
-      if (comparison == null || comparison == 0) {
-        continue;
-      }
-      return comparison > 0;
-    }
-
-    return null;
-  }
-
-  int? _compareChapterOrder(Chapter current, Chapter next) {
-    final currentOrder = _extractChapterOrder(current);
-    final nextOrder = _extractChapterOrder(next);
-
-    if (currentOrder == null || nextOrder == null) {
-      return null;
-    }
-
-    if (currentOrder.volume != null || nextOrder.volume != null) {
-      final volumeCompare = (nextOrder.volume ?? 0).compareTo(
-        currentOrder.volume ?? 0,
-      );
-      if (volumeCompare != 0) {
-        return volumeCompare;
-      }
-    }
-
-    return nextOrder.chapter.compareTo(currentOrder.chapter);
-  }
-
-  _ChapterOrder? _extractChapterOrder(Chapter chapter) {
-    final title = chapter.title;
-    final id = chapter.id;
-
-    final chapterValue =
-        _extractChapterValue(title) ?? _extractChapterValue(id);
-    if (chapterValue == null) {
-      return null;
-    }
-
-    final volumeValue = _extractVolumeValue(title) ?? _extractVolumeValue(id);
-    return _ChapterOrder(chapter: chapterValue, volume: volumeValue);
-  }
-
-  double? _extractChapterValue(String input) {
-    final chapterPattern = RegExp(
-      r'(?:\bch(?:apter)?\b\s*[:\.-]?)\s*(\d+(?:\.\d+)?)',
-      caseSensitive: false,
-    );
-    final chapterMatch = chapterPattern.firstMatch(input);
-    if (chapterMatch != null) {
-      return double.tryParse(chapterMatch.group(1) ?? '');
-    }
-
-    final numericMatch = RegExp(r'(\d+(?:\.\d+)?)').firstMatch(input);
-    if (numericMatch != null) {
-      return double.tryParse(numericMatch.group(1) ?? '');
-    }
-
-    return null;
-  }
-
-  double? _extractVolumeValue(String input) {
-    final volumePattern = RegExp(
-      r'(?:\bvol(?:ume)?\b\s*[:\.-]?)\s*(\d+(?:\.\d+)?)',
-      caseSensitive: false,
-    );
-    final volumeMatch = volumePattern.firstMatch(input);
-    if (volumeMatch == null) {
-      return null;
-    }
-
-    return double.tryParse(volumeMatch.group(1) ?? '');
   }
 
   Future<void> loadChapter(String chapterId) async {
@@ -2839,14 +2777,4 @@ class _ReaderRepairTarget {
 
   final String requestUrl;
   final String? readerPageUrl;
-}
-
-class _ChapterOrder {
-  const _ChapterOrder({
-    required this.chapter,
-    required this.volume,
-  });
-
-  final double chapter;
-  final double? volume;
 }

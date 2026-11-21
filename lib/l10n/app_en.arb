@@ -4205,7 +4205,7 @@
   "aiTutorialClearTitle": "🗑 Clear",
   "aiTutorialClearDesc": "Remove translation result + all reference bubbles.",
   "aiTutorialGotIt": "Got it!",
-  "aiNotAvailableCS": "AI translate tidak tersedia di continue scroll.",
+  "aiNotAvailableCS": "AI translate unavailable in continue scroll.",
   "aiHideTranslation": "Hide translation",
   "aiTranslating": "Translating...",
   "aiDetecting": "Detecting bubbles...",
@@ -4230,7 +4230,7 @@
   "aiSaveToGlossaryHint": "Save to learning glossary",
   "aiSaveToGlossary": "Save to Glossary",
   "aiSavedToGlossary": "Saved to Glossary",
-  "aiTranslateFailed": "Translate gagal: {error}",
+  "aiTranslateFailed": "Translation failed: {error}",
   "aiNeedVisionProvider": "AI translate needs a vision provider. Set it up in Settings → AI Translation.",
   "aiRateLimited": "Rate limited. {fallback}",
   "aiUsingFallback": "Using {name} as fallback.",
@@ -4252,13 +4252,17 @@
   "aiModelErrorGeneric": "Download failed ({code}). Tap Retry.",
   "@aiModelErrorGeneric": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "aiModelVersion": "Version {version}",
   "@aiModelVersion": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "aiManageProviders": "AI Providers",
@@ -4471,5 +4475,346 @@
   "openingGitHubReport": "Opening GitHub issue form...",
   "anomalyDeleteTitle": "Delete Anomaly Record",
   "anomalyDeleteConfirm": "Are you sure you want to delete this anomaly record?",
-  "copy": "Copy"
+  "copy": "Copy",
+  "kuronNotifDownloadPacking": "🐾 Kuron: Packing your chapters~",
+  "kuronNotifDownloadNapping": "🐾 Kuron: Napping right now... zzz",
+  "kuronNotifDownloadPackedProgress": "🐾 Kuron: {progress}% packed! Almost ready~",
+  "@kuronNotifDownloadPackedProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifDownloadDeliveryComplete": "🐾 Kuron: Delivery complete! All packed~",
+  "kuronNotifBatchLoaded": "🐾 Kuron: {count} chapters loaded! Packing away~",
+  "@kuronNotifBatchLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifBatchPacking": "🐾 Kuron: Packing the whole queue~",
+  "kuronNotifDownloadArrived": "🐾 Kuron: Delivery arrived! Ready to read~ 🎉",
+  "kuronNotifDownloadAllPackedMeta": "All pages packed! • 100% Complete • Ready offline",
+  "kuronNotifPdfConverting": "🐾 Kuron: Assembling pages into a PDF...",
+  "kuronNotifPdfRenderingPages": "Assembling pages {done}/{total}",
+  "@kuronNotifPdfRenderingPages": {
+    "placeholders": {
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfReady": "🐾 Kuron: PDF ready to read! Neat & clean ✨",
+  "kuronNotifPdfReadyMeta": "PDF Created Successfully • Tap to open",
+  "kuronNotifPdfCancelled": "⚠️ PDF Cancelled",
+  "kuronNotifPdfCancelMeta": "Conversion cancelled • Nothing saved",
+  "kuronNotifTaskProcessing": "🐾 Kuron: Processing...",
+  "kuronNotifTaskWorking": "Working...",
+  "kuronNotifTaskComplete": "🐾 Kuron: All done! ✨",
+  "kuronNotifTaskCompleteTitle": "Task Complete",
+  "kuronNotifTaskAllDoneMeta": "All done ✓",
+  "kuronNotifPdfGroupTitle": "PDF Conversions Complete",
+  "kuronNotifPdfMetaParts": "{count} PDFs created • Tap to open",
+  "@kuronNotifPdfMetaParts": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "2"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDone": "All {count} downloads packed and ready! 🎉",
+  "@kuronNotifDownloadGroupDone": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupMeta": "Everything safely delivered offline • Ready to read",
+  "kuronNotifDownloadProgressSpeech": "🐾 Kuron: {progress}% packed{speed}~",
+  "@kuronNotifDownloadProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifBatchSpeech": "🐾 Kuron: {count} chapters loaded{speed}~",
+  "@kuronNotifBatchSpeech": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifPdfProgressMeta": "Assembling pages {page}/{total}",
+  "@kuronNotifPdfProgressMeta": {
+    "placeholders": {
+      "page": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfBatchMeta": "{count} PDFs created successfully",
+  "@kuronNotifPdfBatchMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifSyncStartSpeech": "🐾 Kuron: Syncing offline data...",
+  "kuronNotifSyncProgressSpeech": "🐾 Kuron: Syncing {progress}%...",
+  "@kuronNotifSyncProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifSyncDoneSpeech": "🐾 Kuron: Sync complete! ✨",
+  "kuronNotifSyncDoneMeta": "{count} offline content",
+  "@kuronNotifSyncDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifZipStartSpeech": "🐾 Kuron: Opening ZIP archive...",
+  "kuronNotifZipProgressSpeech": "🐾 Kuron: Extracting {progress}%...",
+  "@kuronNotifZipProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifZipDoneSpeech": "🐾 Kuron: Archive extracted! ✨",
+  "kuronNotifZipDoneMeta": "{count} images extracted",
+  "@kuronNotifZipDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "kuronNotifZipErrorSpeech": "⚠️ Kuron: Failed to open archive",
+  "kuronNotifVerifyStartSpeech": "🐾 Kuron: Verifying files...",
+  "kuronNotifVerifyProgressSpeech": "🐾 Kuron: Verifying {progress}%...",
+  "@kuronNotifVerifyProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifPdfQueueTitle": "PDF Queue",
+  "kuronNotifPdfQueueSpeech": "🐾 Kuron: Queueing PDF conversion...",
+  "kuronNotifPdfQueueWaitSpeech": "🐾 Kuron: Waiting in PDF queue...",
+  "kuronNotifPdfBatchDoneSpeech": "🐾 Kuron: All PDFs done! ✨",
+  "kuronNotifPdfConvertErrorSpeech": "⚠️ Kuron: Failed to create PDF",
+  "kuronNotifPdfGroupErrorSpeech": "⚠️ Kuron: A PDF failed",
+  "kuronNotifBackupStartSpeech": "🐾 Kuron: Processing backup data...",
+  "kuronNotifBackupCategorySpeech": "🐾 Kuron: Processing {label}...",
+  "@kuronNotifBackupCategorySpeech": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      }
+    }
+  },
+  "kuronNotifBackupDoneSpeech": "🐾 Kuron: Backup/restore complete! ✨",
+  "kuronNotifBackupMeta": "{title} completed",
+  "@kuronNotifBackupMeta": {
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Backup"
+      }
+    }
+  },
+  "kuronNotifBackupErrorSpeech": "⚠️ Kuron: Process failed",
+  "kuronNotifBackupProgressMeta": "{label}: {done}/{total}",
+  "@kuronNotifBackupProgressMeta": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      },
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifAiDownloadSpeech": "🐾 Kuron: Downloading AI model...",
+  "kuronNotifAiDownloadingMeta": "Downloading...",
+  "kuronNotifAiDoneSpeech": "🐾 Kuron: AI model ready to use! ✨",
+  "kuronNotifAiDoneMeta": "Download complete",
+  "kuronNotifAiErrorSpeech": "⚠️ Kuron: Failed to download AI model",
+  "convertingPdfQueued": "Converting PDF {current} of {total}",
+  "@convertingPdfQueued": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "pdfQueueWaiting": "PDF Queue: {count} items waiting",
+  "@pdfQueueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "4"
+      }
+    }
+  },
+  "pdfQueueNext": "Next: {titles}",
+  "@pdfQueueNext": {
+    "placeholders": {
+      "titles": {
+        "type": "String",
+        "example": "A, B"
+      }
+    }
+  },
+  "pdfBatchCompleted": "PDF Batch Completed",
+  "pdfBatchCompletedCount": "✅ {count} PDFs created successfully",
+  "@pdfBatchCompletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "syncingOfflineContent": "Loading offline content...",
+  "syncComplete": "Sync Complete",
+  "syncCompletedWithCount": "Found {count} offline content",
+  "@syncCompletedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "zipExtractionInProgress": "Extracting ZIP",
+  "extractingZipContent": "Preparing extraction...",
+  "syncingProgress": "Syncing ({progress}%)",
+  "@syncingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "extractingProgress": "Extracting ({progress}%)",
+  "@extractingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "zipExtractionComplete": "ZIP Extraction Complete",
+  "zipExtractedWithCount": "Extracted {count} images successfully",
+  "@zipExtractedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "zipExtractionFailed": "ZIP Extraction Failed",
+  "zipExtractionFailedWithError": "Failed to extract ZIP: {error}",
+  "@zipExtractionFailedWithError": {
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "bad crc"
+      }
+    }
+  },
+  "kuronNotifPdfFailedTitle": "PDF Conversion Failed",
+  "kuronNotifSyncTitle": "Syncing Data",
+  "kuronNotifPdfGroupErrorTitle": "PDF {current} of {total} failed",
+  "@kuronNotifPdfGroupErrorTitle": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupTitleOne": "Downloading 1 item",
+  "kuronNotifDownloadGroupTitleMany": "Downloading {count} items",
+  "@kuronNotifDownloadGroupTitleMany": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDoneTitle": "{count} downloads completed",
+  "@kuronNotifDownloadGroupDoneTitle": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  }
 }

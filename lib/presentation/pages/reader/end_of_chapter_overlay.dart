@@ -16,6 +16,11 @@ class EndOfChapterOverlay extends StatelessWidget {
   final bool isChapterMode;
   final bool isOfflineMode;
 
+  /// Titles of the actually resolved adjacent chapters, used when the source
+  /// did not provide one in [ReaderState.chapterData].
+  final String? resolvedPreviousChapterTitle;
+  final String? resolvedNextChapterTitle;
+
   const EndOfChapterOverlay({
     super.key,
     required this.state,
@@ -25,18 +30,22 @@ class EndOfChapterOverlay extends StatelessWidget {
     this.onGoToFirstPage,
     required this.isChapterMode,
     this.isOfflineMode = false,
+    this.resolvedPreviousChapterTitle,
+    this.resolvedNextChapterTitle,
   });
 
   @override
   Widget build(BuildContext context) {
-    final previousLabel =
-        (state.chapterData?.prevChapterTitle?.trim().isNotEmpty ?? false)
-            ? state.chapterData!.prevChapterTitle!.trim()
-            : AppLocalizations.of(context)!.prevChapter;
-    final nextLabel =
-        (state.chapterData?.nextChapterTitle?.trim().isNotEmpty ?? false)
-            ? state.chapterData!.nextChapterTitle!.trim()
-            : AppLocalizations.of(context)!.nextChapter;
+    final previousLabel = _resolveLabel(
+      state.chapterData?.prevChapterTitle,
+      resolvedPreviousChapterTitle,
+      AppLocalizations.of(context)!.prevChapter,
+    );
+    final nextLabel = _resolveLabel(
+      state.chapterData?.nextChapterTitle,
+      resolvedNextChapterTitle,
+      AppLocalizations.of(context)!.nextChapter,
+    );
 
     return Container(
       color: Theme.of(context).colorScheme.surface,
@@ -165,6 +174,16 @@ class EndOfChapterOverlay extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Source-declared title wins; otherwise use the resolved adjacent chapter's
+  /// title from the loaded pool; finally fall back to a generic label.
+  String _resolveLabel(String? declared, String? resolved, String fallback) {
+    final declaredTrim = declared?.trim();
+    if (declaredTrim != null && declaredTrim.isNotEmpty) return declaredTrim;
+    final resolvedTrim = resolved?.trim();
+    if (resolvedTrim != null && resolvedTrim.isNotEmpty) return resolvedTrim;
+    return fallback;
   }
 
   Widget _buildSupportSection(BuildContext context) {

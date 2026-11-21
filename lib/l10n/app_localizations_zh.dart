@@ -6087,4 +6087,293 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get copy => '复制';
+
+  @override
+  String get kuronNotifDownloadPacking => '🐾 Kuron: 正在整理你的章节~';
+
+  @override
+  String get kuronNotifDownloadNapping => '🐾 Kuron: 正在打盹... zzz';
+
+  @override
+  String kuronNotifDownloadPackedProgress(String progress) {
+    return '🐾 Kuron: 已整理 $progress%！快好了~';
+  }
+
+  @override
+  String get kuronNotifDownloadDeliveryComplete => '🐾 Kuron: 已完成！全部整理好~';
+
+  @override
+  String kuronNotifBatchLoaded(String count) {
+    return '🐾 Kuron: 已加载 $count 章！正在整理~';
+  }
+
+  @override
+  String get kuronNotifBatchPacking => '🐾 Kuron: 正在整理整个队列~';
+
+  @override
+  String get kuronNotifDownloadArrived => '🐾 Kuron: 已送达！可以阅读了~ 🎉';
+
+  @override
+  String get kuronNotifDownloadAllPackedMeta => '所有页面已整理！• 100% 完成 • 可离线阅读';
+
+  @override
+  String get kuronNotifPdfConverting => '🐾 Kuron: 正在把页面整理成 PDF...';
+
+  @override
+  String kuronNotifPdfRenderingPages(String done, String total) {
+    return '正在整理页面 $done/$total';
+  }
+
+  @override
+  String get kuronNotifPdfReady => '🐾 Kuron: PDF 已就绪！整洁漂亮 ✨';
+
+  @override
+  String get kuronNotifPdfReadyMeta => 'PDF 创建成功 • 点击打开';
+
+  @override
+  String get kuronNotifPdfCancelled => '⚠️ PDF 已取消';
+
+  @override
+  String get kuronNotifPdfCancelMeta => '转换已取消 • 未保存任何内容';
+
+  @override
+  String get kuronNotifTaskProcessing => '🐾 Kuron: 正在处理...';
+
+  @override
+  String get kuronNotifTaskWorking => '处理中...';
+
+  @override
+  String get kuronNotifTaskComplete => '🐾 Kuron: 完成啦！✨';
+
+  @override
+  String get kuronNotifTaskCompleteTitle => '任务完成';
+
+  @override
+  String get kuronNotifTaskAllDoneMeta => '全部完成 ✓';
+
+  @override
+  String get kuronNotifPdfGroupTitle => 'PDF 转换完成';
+
+  @override
+  String kuronNotifPdfMetaParts(String count) {
+    return '已创建 $count 个 PDF • 点击打开';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDone(String count) {
+    return '全部 $count 个下载已整理好！🎉';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupMeta => '全部已安全离线保存 • 可以阅读';
+
+  @override
+  String kuronNotifDownloadProgressSpeech(String progress, String speed) {
+    return '🐾 Kuron: 已整理 $progress%$speed~';
+  }
+
+  @override
+  String kuronNotifBatchSpeech(String count, String speed) {
+    return '🐾 Kuron: 已加载 $count 章$speed~';
+  }
+
+  @override
+  String kuronNotifPdfProgressMeta(String page, String total) {
+    return '正在整理页面 $page/$total';
+  }
+
+  @override
+  String kuronNotifPdfBatchMeta(String count) {
+    return '已成功创建 $count 个 PDF';
+  }
+
+  @override
+  String get kuronNotifSyncStartSpeech => '🐾 Kuron: 正在同步离线数据...';
+
+  @override
+  String kuronNotifSyncProgressSpeech(String progress) {
+    return '🐾 Kuron: 正在同步 $progress%...';
+  }
+
+  @override
+  String get kuronNotifSyncDoneSpeech => '🐾 Kuron: 同步完成！✨';
+
+  @override
+  String kuronNotifSyncDoneMeta(String count) {
+    return '$count 项离线内容';
+  }
+
+  @override
+  String get kuronNotifZipStartSpeech => '🐾 Kuron: 正在打开 ZIP 压缩包...';
+
+  @override
+  String kuronNotifZipProgressSpeech(String progress) {
+    return '🐾 Kuron: 正在解压 $progress%...';
+  }
+
+  @override
+  String get kuronNotifZipDoneSpeech => '🐾 Kuron: 压缩包已解压！✨';
+
+  @override
+  String kuronNotifZipDoneMeta(String count) {
+    return '已解压 $count 张图片';
+  }
+
+  @override
+  String get kuronNotifZipErrorSpeech => '⚠️ Kuron: 无法打开压缩包';
+
+  @override
+  String get kuronNotifVerifyStartSpeech => '🐾 Kuron: 正在校验文件...';
+
+  @override
+  String kuronNotifVerifyProgressSpeech(String progress) {
+    return '🐾 Kuron: 正在校验 $progress%...';
+  }
+
+  @override
+  String get kuronNotifPdfQueueTitle => 'PDF 队列';
+
+  @override
+  String get kuronNotifPdfQueueSpeech => '🐾 Kuron: 正在排队转换 PDF...';
+
+  @override
+  String get kuronNotifPdfQueueWaitSpeech => '🐾 Kuron: 正在等待 PDF 队列...';
+
+  @override
+  String get kuronNotifPdfBatchDoneSpeech => '🐾 Kuron: 所有 PDF 已完成！✨';
+
+  @override
+  String get kuronNotifPdfConvertErrorSpeech => '⚠️ Kuron: 无法创建 PDF';
+
+  @override
+  String get kuronNotifPdfGroupErrorSpeech => '⚠️ Kuron: 有 PDF 转换失败';
+
+  @override
+  String get kuronNotifBackupStartSpeech => '🐾 Kuron: 正在处理备份数据...';
+
+  @override
+  String kuronNotifBackupCategorySpeech(String label) {
+    return '🐾 Kuron: 正在处理 $label...';
+  }
+
+  @override
+  String get kuronNotifBackupDoneSpeech => '🐾 Kuron: 备份/恢复完成！✨';
+
+  @override
+  String kuronNotifBackupMeta(String title) {
+    return '$title 已完成';
+  }
+
+  @override
+  String get kuronNotifBackupErrorSpeech => '⚠️ Kuron: 处理失败';
+
+  @override
+  String kuronNotifBackupProgressMeta(String label, String done, String total) {
+    return '$label: $done/$total';
+  }
+
+  @override
+  String get kuronNotifAiDownloadSpeech => '🐾 Kuron: 正在下载 AI 模型...';
+
+  @override
+  String get kuronNotifAiDownloadingMeta => '下载中...';
+
+  @override
+  String get kuronNotifAiDoneSpeech => '🐾 Kuron: AI 模型已就绪！✨';
+
+  @override
+  String get kuronNotifAiDoneMeta => '下载完成';
+
+  @override
+  String get kuronNotifAiErrorSpeech => '⚠️ Kuron: 下载 AI 模型失败';
+
+  @override
+  String convertingPdfQueued(String current, String total) {
+    return '正在转换 PDF $current/$total';
+  }
+
+  @override
+  String pdfQueueWaiting(String count) {
+    return 'PDF 队列：$count 项等待中';
+  }
+
+  @override
+  String pdfQueueNext(String titles) {
+    return '下一个：$titles';
+  }
+
+  @override
+  String get pdfBatchCompleted => 'PDF 批量转换完成';
+
+  @override
+  String pdfBatchCompletedCount(String count) {
+    return '✅ 已成功创建 $count 个 PDF';
+  }
+
+  @override
+  String get syncingOfflineContent => '正在加载离线内容...';
+
+  @override
+  String get syncComplete => '同步完成';
+
+  @override
+  String syncCompletedWithCount(String count) {
+    return '找到 $count 项离线内容';
+  }
+
+  @override
+  String get zipExtractionInProgress => '正在解压 ZIP';
+
+  @override
+  String get extractingZipContent => '正在准备解压...';
+
+  @override
+  String syncingProgress(String progress) {
+    return '正在同步 ($progress%)';
+  }
+
+  @override
+  String extractingProgress(String progress) {
+    return '正在解压 ($progress%)';
+  }
+
+  @override
+  String get zipExtractionComplete => 'ZIP 解压完成';
+
+  @override
+  String zipExtractedWithCount(String count) {
+    return '已成功解压 $count 张图片';
+  }
+
+  @override
+  String get zipExtractionFailed => 'ZIP 解压失败';
+
+  @override
+  String zipExtractionFailedWithError(String error) {
+    return 'ZIP 解压失败：$error';
+  }
+
+  @override
+  String get kuronNotifPdfFailedTitle => 'PDF 转换失败';
+
+  @override
+  String get kuronNotifSyncTitle => '正在同步数据';
+
+  @override
+  String kuronNotifPdfGroupErrorTitle(String current, String total) {
+    return 'PDF 第 $current/$total 项失败';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupTitleOne => '正在下载 1 项';
+
+  @override
+  String kuronNotifDownloadGroupTitleMany(String count) {
+    return '正在下载 $count 项';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDoneTitle(String count) {
+    return '已完成 $count 个下载';
+  }
 }

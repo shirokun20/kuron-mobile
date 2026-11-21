@@ -228,6 +228,21 @@ class MainActivity: FlutterFragmentActivity() {
                             )
                             result.success(null)
                         }
+                        "showTaskProgress", "showTaskCompleted", "showTaskError" -> {
+                            val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
+                            @Suppress("UNCHECKED_CAST")
+                            val data = ((call.argument<Map<String, Any?>>("data")) ?: (rawMap as Map<String, Any?>))
+                            val id = ((data["notificationId"] as? Number)?.toInt()
+                                ?: call.argument<Int>("notificationId")
+                                ?: call.argument<Long>("notificationId")?.toInt()
+                                ?: 0)
+                            when (call.method) {
+                                "showTaskProgress" -> KuronNotificationBuilder.showTaskProgress(this, id, data)
+                                "showTaskCompleted" -> KuronNotificationBuilder.showTaskCompleted(this, id, data)
+                                else -> KuronNotificationBuilder.showTaskError(this, id, data)
+                            }
+                            result.success(null)
+                        }
                         "cancel", "cancelNotification" -> {
                             val rawMap = (call.arguments as? Map<*, *>) ?: emptyMap<String, Any?>()
                             val id = ((rawMap["id"] as? Number)?.toInt()

@@ -9714,7 +9714,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiNotAvailableCS.
   ///
   /// In en, this message translates to:
-  /// **'AI translate tidak tersedia di continue scroll.'**
+  /// **'AI translate unavailable in continue scroll.'**
   String get aiNotAvailableCS;
 
   /// No description provided for @aiHideTranslation.
@@ -9864,7 +9864,7 @@ abstract class AppLocalizations {
   /// No description provided for @aiTranslateFailed.
   ///
   /// In en, this message translates to:
-  /// **'Translate gagal: {error}'**
+  /// **'Translation failed: {error}'**
   String aiTranslateFailed(Object error);
 
   /// No description provided for @aiNeedVisionProvider.
@@ -10718,6 +10718,468 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Copy'**
   String get copy;
+
+  /// No description provided for @kuronNotifDownloadPacking.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Packing your chapters~'**
+  String get kuronNotifDownloadPacking;
+
+  /// No description provided for @kuronNotifDownloadNapping.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Napping right now... zzz'**
+  String get kuronNotifDownloadNapping;
+
+  /// No description provided for @kuronNotifDownloadPackedProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: {progress}% packed! Almost ready~'**
+  String kuronNotifDownloadPackedProgress(String progress);
+
+  /// No description provided for @kuronNotifDownloadDeliveryComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Delivery complete! All packed~'**
+  String get kuronNotifDownloadDeliveryComplete;
+
+  /// No description provided for @kuronNotifBatchLoaded.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: {count} chapters loaded! Packing away~'**
+  String kuronNotifBatchLoaded(String count);
+
+  /// No description provided for @kuronNotifBatchPacking.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Packing the whole queue~'**
+  String get kuronNotifBatchPacking;
+
+  /// No description provided for @kuronNotifDownloadArrived.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Delivery arrived! Ready to read~ 🎉'**
+  String get kuronNotifDownloadArrived;
+
+  /// No description provided for @kuronNotifDownloadAllPackedMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'All pages packed! • 100% Complete • Ready offline'**
+  String get kuronNotifDownloadAllPackedMeta;
+
+  /// No description provided for @kuronNotifPdfConverting.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Assembling pages into a PDF...'**
+  String get kuronNotifPdfConverting;
+
+  /// No description provided for @kuronNotifPdfRenderingPages.
+  ///
+  /// In en, this message translates to:
+  /// **'Assembling pages {done}/{total}'**
+  String kuronNotifPdfRenderingPages(String done, String total);
+
+  /// No description provided for @kuronNotifPdfReady.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: PDF ready to read! Neat & clean ✨'**
+  String get kuronNotifPdfReady;
+
+  /// No description provided for @kuronNotifPdfReadyMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Created Successfully • Tap to open'**
+  String get kuronNotifPdfReadyMeta;
+
+  /// No description provided for @kuronNotifPdfCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ PDF Cancelled'**
+  String get kuronNotifPdfCancelled;
+
+  /// No description provided for @kuronNotifPdfCancelMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Conversion cancelled • Nothing saved'**
+  String get kuronNotifPdfCancelMeta;
+
+  /// No description provided for @kuronNotifTaskProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Processing...'**
+  String get kuronNotifTaskProcessing;
+
+  /// No description provided for @kuronNotifTaskWorking.
+  ///
+  /// In en, this message translates to:
+  /// **'Working...'**
+  String get kuronNotifTaskWorking;
+
+  /// No description provided for @kuronNotifTaskComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: All done! ✨'**
+  String get kuronNotifTaskComplete;
+
+  /// No description provided for @kuronNotifTaskCompleteTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Task Complete'**
+  String get kuronNotifTaskCompleteTitle;
+
+  /// No description provided for @kuronNotifTaskAllDoneMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'All done ✓'**
+  String get kuronNotifTaskAllDoneMeta;
+
+  /// No description provided for @kuronNotifPdfGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Conversions Complete'**
+  String get kuronNotifPdfGroupTitle;
+
+  /// No description provided for @kuronNotifPdfMetaParts.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} PDFs created • Tap to open'**
+  String kuronNotifPdfMetaParts(String count);
+
+  /// No description provided for @kuronNotifDownloadGroupDone.
+  ///
+  /// In en, this message translates to:
+  /// **'All {count} downloads packed and ready! 🎉'**
+  String kuronNotifDownloadGroupDone(String count);
+
+  /// No description provided for @kuronNotifDownloadGroupMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything safely delivered offline • Ready to read'**
+  String get kuronNotifDownloadGroupMeta;
+
+  /// No description provided for @kuronNotifDownloadProgressSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: {progress}% packed{speed}~'**
+  String kuronNotifDownloadProgressSpeech(String progress, String speed);
+
+  /// No description provided for @kuronNotifBatchSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: {count} chapters loaded{speed}~'**
+  String kuronNotifBatchSpeech(String count, String speed);
+
+  /// No description provided for @kuronNotifPdfProgressMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Assembling pages {page}/{total}'**
+  String kuronNotifPdfProgressMeta(String page, String total);
+
+  /// No description provided for @kuronNotifPdfBatchMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} PDFs created successfully'**
+  String kuronNotifPdfBatchMeta(String count);
+
+  /// No description provided for @kuronNotifSyncStartSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Syncing offline data...'**
+  String get kuronNotifSyncStartSpeech;
+
+  /// No description provided for @kuronNotifSyncProgressSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Syncing {progress}%...'**
+  String kuronNotifSyncProgressSpeech(String progress);
+
+  /// No description provided for @kuronNotifSyncDoneSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Sync complete! ✨'**
+  String get kuronNotifSyncDoneSpeech;
+
+  /// No description provided for @kuronNotifSyncDoneMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} offline content'**
+  String kuronNotifSyncDoneMeta(String count);
+
+  /// No description provided for @kuronNotifZipStartSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Opening ZIP archive...'**
+  String get kuronNotifZipStartSpeech;
+
+  /// No description provided for @kuronNotifZipProgressSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Extracting {progress}%...'**
+  String kuronNotifZipProgressSpeech(String progress);
+
+  /// No description provided for @kuronNotifZipDoneSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Archive extracted! ✨'**
+  String get kuronNotifZipDoneSpeech;
+
+  /// No description provided for @kuronNotifZipDoneMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} images extracted'**
+  String kuronNotifZipDoneMeta(String count);
+
+  /// No description provided for @kuronNotifZipErrorSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Kuron: Failed to open archive'**
+  String get kuronNotifZipErrorSpeech;
+
+  /// No description provided for @kuronNotifVerifyStartSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Verifying files...'**
+  String get kuronNotifVerifyStartSpeech;
+
+  /// No description provided for @kuronNotifVerifyProgressSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Verifying {progress}%...'**
+  String kuronNotifVerifyProgressSpeech(String progress);
+
+  /// No description provided for @kuronNotifPdfQueueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Queue'**
+  String get kuronNotifPdfQueueTitle;
+
+  /// No description provided for @kuronNotifPdfQueueSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Queueing PDF conversion...'**
+  String get kuronNotifPdfQueueSpeech;
+
+  /// No description provided for @kuronNotifPdfQueueWaitSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Waiting in PDF queue...'**
+  String get kuronNotifPdfQueueWaitSpeech;
+
+  /// No description provided for @kuronNotifPdfBatchDoneSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: All PDFs done! ✨'**
+  String get kuronNotifPdfBatchDoneSpeech;
+
+  /// No description provided for @kuronNotifPdfConvertErrorSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Kuron: Failed to create PDF'**
+  String get kuronNotifPdfConvertErrorSpeech;
+
+  /// No description provided for @kuronNotifPdfGroupErrorSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Kuron: A PDF failed'**
+  String get kuronNotifPdfGroupErrorSpeech;
+
+  /// No description provided for @kuronNotifBackupStartSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Processing backup data...'**
+  String get kuronNotifBackupStartSpeech;
+
+  /// No description provided for @kuronNotifBackupCategorySpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Processing {label}...'**
+  String kuronNotifBackupCategorySpeech(String label);
+
+  /// No description provided for @kuronNotifBackupDoneSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Backup/restore complete! ✨'**
+  String get kuronNotifBackupDoneSpeech;
+
+  /// No description provided for @kuronNotifBackupMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{title} completed'**
+  String kuronNotifBackupMeta(String title);
+
+  /// No description provided for @kuronNotifBackupErrorSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Kuron: Process failed'**
+  String get kuronNotifBackupErrorSpeech;
+
+  /// No description provided for @kuronNotifBackupProgressMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'{label}: {done}/{total}'**
+  String kuronNotifBackupProgressMeta(String label, String done, String total);
+
+  /// No description provided for @kuronNotifAiDownloadSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: Downloading AI model...'**
+  String get kuronNotifAiDownloadSpeech;
+
+  /// No description provided for @kuronNotifAiDownloadingMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading...'**
+  String get kuronNotifAiDownloadingMeta;
+
+  /// No description provided for @kuronNotifAiDoneSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'🐾 Kuron: AI model ready to use! ✨'**
+  String get kuronNotifAiDoneSpeech;
+
+  /// No description provided for @kuronNotifAiDoneMeta.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete'**
+  String get kuronNotifAiDoneMeta;
+
+  /// No description provided for @kuronNotifAiErrorSpeech.
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ Kuron: Failed to download AI model'**
+  String get kuronNotifAiErrorSpeech;
+
+  /// No description provided for @convertingPdfQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Converting PDF {current} of {total}'**
+  String convertingPdfQueued(String current, String total);
+
+  /// No description provided for @pdfQueueWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Queue: {count} items waiting'**
+  String pdfQueueWaiting(String count);
+
+  /// No description provided for @pdfQueueNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {titles}'**
+  String pdfQueueNext(String titles);
+
+  /// No description provided for @pdfBatchCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Batch Completed'**
+  String get pdfBatchCompleted;
+
+  /// No description provided for @pdfBatchCompletedCount.
+  ///
+  /// In en, this message translates to:
+  /// **'✅ {count} PDFs created successfully'**
+  String pdfBatchCompletedCount(String count);
+
+  /// No description provided for @syncingOfflineContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading offline content...'**
+  String get syncingOfflineContent;
+
+  /// No description provided for @syncComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync Complete'**
+  String get syncComplete;
+
+  /// No description provided for @syncCompletedWithCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {count} offline content'**
+  String syncCompletedWithCount(String count);
+
+  /// No description provided for @zipExtractionInProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting ZIP'**
+  String get zipExtractionInProgress;
+
+  /// No description provided for @extractingZipContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing extraction...'**
+  String get extractingZipContent;
+
+  /// No description provided for @syncingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing ({progress}%)'**
+  String syncingProgress(String progress);
+
+  /// No description provided for @extractingProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting ({progress}%)'**
+  String extractingProgress(String progress);
+
+  /// No description provided for @zipExtractionComplete.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIP Extraction Complete'**
+  String get zipExtractionComplete;
+
+  /// No description provided for @zipExtractedWithCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracted {count} images successfully'**
+  String zipExtractedWithCount(String count);
+
+  /// No description provided for @zipExtractionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'ZIP Extraction Failed'**
+  String get zipExtractionFailed;
+
+  /// No description provided for @zipExtractionFailedWithError.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to extract ZIP: {error}'**
+  String zipExtractionFailedWithError(String error);
+
+  /// No description provided for @kuronNotifPdfFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF Conversion Failed'**
+  String get kuronNotifPdfFailedTitle;
+
+  /// No description provided for @kuronNotifSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing Data'**
+  String get kuronNotifSyncTitle;
+
+  /// No description provided for @kuronNotifPdfGroupErrorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PDF {current} of {total} failed'**
+  String kuronNotifPdfGroupErrorTitle(String current, String total);
+
+  /// No description provided for @kuronNotifDownloadGroupTitleOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading 1 item'**
+  String get kuronNotifDownloadGroupTitleOne;
+
+  /// No description provided for @kuronNotifDownloadGroupTitleMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {count} items'**
+  String kuronNotifDownloadGroupTitleMany(String count);
+
+  /// No description provided for @kuronNotifDownloadGroupDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} downloads completed'**
+  String kuronNotifDownloadGroupDoneTitle(String count);
 }
 
 class _AppLocalizationsDelegate

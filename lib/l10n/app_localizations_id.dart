@@ -6287,4 +6287,303 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get copy => 'Salin';
+
+  @override
+  String get kuronNotifDownloadPacking => '🐾 Kuron: Mengemas chapter kamu~';
+
+  @override
+  String get kuronNotifDownloadNapping => '🐾 Kuron: Sedang tidur... zzz';
+
+  @override
+  String kuronNotifDownloadPackedProgress(String progress) {
+    return '🐾 Kuron: $progress% terkemas! Hampir siap~';
+  }
+
+  @override
+  String get kuronNotifDownloadDeliveryComplete =>
+      '🐾 Kuron: Selesai! Semua terkemas~';
+
+  @override
+  String kuronNotifBatchLoaded(String count) {
+    return '🐾 Kuron: $count chapter dimuat! Sedang dikemas~';
+  }
+
+  @override
+  String get kuronNotifBatchPacking => '🐾 Kuron: Mengemas semua antrean~';
+
+  @override
+  String get kuronNotifDownloadArrived => '🐾 Kuron: Sampai! Siap dibaca~ 🎉';
+
+  @override
+  String get kuronNotifDownloadAllPackedMeta =>
+      'Semua halaman terkemas! • 100% Selesai • Siap offline';
+
+  @override
+  String get kuronNotifPdfConverting =>
+      '🐾 Kuron: Merangkai halaman jadi PDF...';
+
+  @override
+  String kuronNotifPdfRenderingPages(String done, String total) {
+    return 'Merangkai halaman $done/$total';
+  }
+
+  @override
+  String get kuronNotifPdfReady => '🐾 Kuron: PDF siap dibaca! Rapi & bersih ✨';
+
+  @override
+  String get kuronNotifPdfReadyMeta =>
+      'PDF Berhasil Dibuat • Ketuk untuk membuka';
+
+  @override
+  String get kuronNotifPdfCancelled => '⚠️ PDF Dibatalkan';
+
+  @override
+  String get kuronNotifPdfCancelMeta =>
+      'Konversi dibatalkan • Tidak ada yang disimpan';
+
+  @override
+  String get kuronNotifTaskProcessing => '🐾 Kuron: Sedang memproses...';
+
+  @override
+  String get kuronNotifTaskWorking => 'Memproses...';
+
+  @override
+  String get kuronNotifTaskComplete => '🐾 Kuron: Selesai! ✨';
+
+  @override
+  String get kuronNotifTaskCompleteTitle => 'Tugas Selesai';
+
+  @override
+  String get kuronNotifTaskAllDoneMeta => 'Selesai ✓';
+
+  @override
+  String get kuronNotifPdfGroupTitle => 'Konversi PDF Selesai';
+
+  @override
+  String kuronNotifPdfMetaParts(String count) {
+    return '$count PDF dibuat • Ketuk untuk membuka';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDone(String count) {
+    return 'Semua $count unduhan terkemas dan siap! 🎉';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupMeta =>
+      'Semua tersimpan aman offline • Siap dibaca';
+
+  @override
+  String kuronNotifDownloadProgressSpeech(String progress, String speed) {
+    return '🐾 Kuron: $progress% terkemas$speed~';
+  }
+
+  @override
+  String kuronNotifBatchSpeech(String count, String speed) {
+    return '🐾 Kuron: $count chapter dimuat$speed~';
+  }
+
+  @override
+  String kuronNotifPdfProgressMeta(String page, String total) {
+    return 'Merangkai halaman $page/$total';
+  }
+
+  @override
+  String kuronNotifPdfBatchMeta(String count) {
+    return '$count PDF berhasil dibuat';
+  }
+
+  @override
+  String get kuronNotifSyncStartSpeech =>
+      '🐾 Kuron: Menyinkronkan data offline...';
+
+  @override
+  String kuronNotifSyncProgressSpeech(String progress) {
+    return '🐾 Kuron: Menyinkronkan $progress%...';
+  }
+
+  @override
+  String get kuronNotifSyncDoneSpeech => '🐾 Kuron: Sinkronisasi selesai! ✨';
+
+  @override
+  String kuronNotifSyncDoneMeta(String count) {
+    return '$count konten offline';
+  }
+
+  @override
+  String get kuronNotifZipStartSpeech => '🐾 Kuron: Membuka arsip ZIP...';
+
+  @override
+  String kuronNotifZipProgressSpeech(String progress) {
+    return '🐾 Kuron: Mengekstrak $progress%...';
+  }
+
+  @override
+  String get kuronNotifZipDoneSpeech => '🐾 Kuron: Arsip selesai dibuka! ✨';
+
+  @override
+  String kuronNotifZipDoneMeta(String count) {
+    return '$count gambar diekstrak';
+  }
+
+  @override
+  String get kuronNotifZipErrorSpeech => '⚠️ Kuron: Gagal membuka arsip';
+
+  @override
+  String get kuronNotifVerifyStartSpeech => '🐾 Kuron: Memeriksa file...';
+
+  @override
+  String kuronNotifVerifyProgressSpeech(String progress) {
+    return '🐾 Kuron: Memeriksa $progress%...';
+  }
+
+  @override
+  String get kuronNotifPdfQueueTitle => 'Antrean PDF';
+
+  @override
+  String get kuronNotifPdfQueueSpeech => '🐾 Kuron: Mengantre konversi PDF...';
+
+  @override
+  String get kuronNotifPdfQueueWaitSpeech =>
+      '🐾 Kuron: Menunggu antrean PDF...';
+
+  @override
+  String get kuronNotifPdfBatchDoneSpeech => '🐾 Kuron: Semua PDF selesai! ✨';
+
+  @override
+  String get kuronNotifPdfConvertErrorSpeech => '⚠️ Kuron: Gagal membuat PDF';
+
+  @override
+  String get kuronNotifPdfGroupErrorSpeech => '⚠️ Kuron: Ada PDF yang gagal';
+
+  @override
+  String get kuronNotifBackupStartSpeech =>
+      '🐾 Kuron: Memproses data backup...';
+
+  @override
+  String kuronNotifBackupCategorySpeech(String label) {
+    return '🐾 Kuron: Memproses $label...';
+  }
+
+  @override
+  String get kuronNotifBackupDoneSpeech =>
+      '🐾 Kuron: Proses backup/restore selesai! ✨';
+
+  @override
+  String kuronNotifBackupMeta(String title) {
+    return '$title selesai';
+  }
+
+  @override
+  String get kuronNotifBackupErrorSpeech => '⚠️ Kuron: Proses gagal';
+
+  @override
+  String kuronNotifBackupProgressMeta(String label, String done, String total) {
+    return '$label: $done/$total';
+  }
+
+  @override
+  String get kuronNotifAiDownloadSpeech => '🐾 Kuron: Mengunduh model AI...';
+
+  @override
+  String get kuronNotifAiDownloadingMeta => 'Mengunduh...';
+
+  @override
+  String get kuronNotifAiDoneSpeech => '🐾 Kuron: Model AI siap dipakai! ✨';
+
+  @override
+  String get kuronNotifAiDoneMeta => 'Unduhan selesai';
+
+  @override
+  String get kuronNotifAiErrorSpeech => '⚠️ Kuron: Gagal mengunduh model AI';
+
+  @override
+  String convertingPdfQueued(String current, String total) {
+    return 'Mengonversi PDF $current dari $total';
+  }
+
+  @override
+  String pdfQueueWaiting(String count) {
+    return 'Antrean PDF: $count item menunggu';
+  }
+
+  @override
+  String pdfQueueNext(String titles) {
+    return 'Berikutnya: $titles';
+  }
+
+  @override
+  String get pdfBatchCompleted => 'Batch PDF Selesai';
+
+  @override
+  String pdfBatchCompletedCount(String count) {
+    return '✅ $count PDF berhasil dibuat';
+  }
+
+  @override
+  String get syncingOfflineContent => 'Memuat konten offline...';
+
+  @override
+  String get syncComplete => 'Sinkronisasi Selesai';
+
+  @override
+  String syncCompletedWithCount(String count) {
+    return 'Menemukan $count konten offline';
+  }
+
+  @override
+  String get zipExtractionInProgress => 'Mengekstrak ZIP';
+
+  @override
+  String get extractingZipContent => 'Menyiapkan ekstraksi...';
+
+  @override
+  String syncingProgress(String progress) {
+    return 'Menyinkronkan ($progress%)';
+  }
+
+  @override
+  String extractingProgress(String progress) {
+    return 'Mengekstrak ($progress%)';
+  }
+
+  @override
+  String get zipExtractionComplete => 'Ekstraksi ZIP Selesai';
+
+  @override
+  String zipExtractedWithCount(String count) {
+    return 'Berhasil mengekstrak $count gambar';
+  }
+
+  @override
+  String get zipExtractionFailed => 'Ekstraksi ZIP Gagal';
+
+  @override
+  String zipExtractionFailedWithError(String error) {
+    return 'Gagal mengekstrak ZIP: $error';
+  }
+
+  @override
+  String get kuronNotifPdfFailedTitle => 'Konversi PDF Gagal';
+
+  @override
+  String get kuronNotifSyncTitle => 'Menyinkronkan Data';
+
+  @override
+  String kuronNotifPdfGroupErrorTitle(String current, String total) {
+    return 'PDF $current dari $total gagal';
+  }
+
+  @override
+  String get kuronNotifDownloadGroupTitleOne => 'Mengunduh 1 item';
+
+  @override
+  String kuronNotifDownloadGroupTitleMany(String count) {
+    return 'Mengunduh $count item';
+  }
+
+  @override
+  String kuronNotifDownloadGroupDoneTitle(String count) {
+    return '$count unduhan selesai';
+  }
 }

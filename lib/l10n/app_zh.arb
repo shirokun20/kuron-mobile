@@ -3792,13 +3792,17 @@
   "aiModelErrorGeneric": "下载失败（{code}）。点击重试。",
   "@aiModelErrorGeneric": {
     "placeholders": {
-      "code": {"type": "String"}
+      "code": {
+        "type": "String"
+      }
     }
   },
   "aiModelVersion": "版本 {version}",
   "@aiModelVersion": {
     "placeholders": {
-      "version": {"type": "String"}
+      "version": {
+        "type": "String"
+      }
     }
   },
   "aiManageProviders": "AI 提供商",
@@ -4011,5 +4015,346 @@
   "openingGitHubReport": "正在打开 GitHub 议题表单...",
   "anomalyDeleteTitle": "删除异常记录",
   "anomalyDeleteConfirm": "确定要删除此异常记录吗？",
-  "copy": "复制"
+  "copy": "复制",
+  "kuronNotifDownloadPacking": "🐾 Kuron: 正在整理你的章节~",
+  "kuronNotifDownloadNapping": "🐾 Kuron: 正在打盹... zzz",
+  "kuronNotifDownloadPackedProgress": "🐾 Kuron: 已整理 {progress}%！快好了~",
+  "@kuronNotifDownloadPackedProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifDownloadDeliveryComplete": "🐾 Kuron: 已完成！全部整理好~",
+  "kuronNotifBatchLoaded": "🐾 Kuron: 已加载 {count} 章！正在整理~",
+  "@kuronNotifBatchLoaded": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifBatchPacking": "🐾 Kuron: 正在整理整个队列~",
+  "kuronNotifDownloadArrived": "🐾 Kuron: 已送达！可以阅读了~ 🎉",
+  "kuronNotifDownloadAllPackedMeta": "所有页面已整理！• 100% 完成 • 可离线阅读",
+  "kuronNotifPdfConverting": "🐾 Kuron: 正在把页面整理成 PDF...",
+  "kuronNotifPdfRenderingPages": "正在整理页面 {done}/{total}",
+  "@kuronNotifPdfRenderingPages": {
+    "placeholders": {
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfReady": "🐾 Kuron: PDF 已就绪！整洁漂亮 ✨",
+  "kuronNotifPdfReadyMeta": "PDF 创建成功 • 点击打开",
+  "kuronNotifPdfCancelled": "⚠️ PDF 已取消",
+  "kuronNotifPdfCancelMeta": "转换已取消 • 未保存任何内容",
+  "kuronNotifTaskProcessing": "🐾 Kuron: 正在处理...",
+  "kuronNotifTaskWorking": "处理中...",
+  "kuronNotifTaskComplete": "🐾 Kuron: 完成啦！✨",
+  "kuronNotifTaskCompleteTitle": "任务完成",
+  "kuronNotifTaskAllDoneMeta": "全部完成 ✓",
+  "kuronNotifPdfGroupTitle": "PDF 转换完成",
+  "kuronNotifPdfMetaParts": "已创建 {count} 个 PDF • 点击打开",
+  "@kuronNotifPdfMetaParts": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "2"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDone": "全部 {count} 个下载已整理好！🎉",
+  "@kuronNotifDownloadGroupDone": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupMeta": "全部已安全离线保存 • 可以阅读",
+  "kuronNotifDownloadProgressSpeech": "🐾 Kuron: 已整理 {progress}%{speed}~",
+  "@kuronNotifDownloadProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifBatchSpeech": "🐾 Kuron: 已加载 {count} 章{speed}~",
+  "@kuronNotifBatchSpeech": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      },
+      "speed": {
+        "type": "String",
+        "example": " • 1.2 MB/s"
+      }
+    }
+  },
+  "kuronNotifPdfProgressMeta": "正在整理页面 {page}/{total}",
+  "@kuronNotifPdfProgressMeta": {
+    "placeholders": {
+      "page": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifPdfBatchMeta": "已成功创建 {count} 个 PDF",
+  "@kuronNotifPdfBatchMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifSyncStartSpeech": "🐾 Kuron: 正在同步离线数据...",
+  "kuronNotifSyncProgressSpeech": "🐾 Kuron: 正在同步 {progress}%...",
+  "@kuronNotifSyncProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifSyncDoneSpeech": "🐾 Kuron: 同步完成！✨",
+  "kuronNotifSyncDoneMeta": "{count} 项离线内容",
+  "@kuronNotifSyncDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifZipStartSpeech": "🐾 Kuron: 正在打开 ZIP 压缩包...",
+  "kuronNotifZipProgressSpeech": "🐾 Kuron: 正在解压 {progress}%...",
+  "@kuronNotifZipProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifZipDoneSpeech": "🐾 Kuron: 压缩包已解压！✨",
+  "kuronNotifZipDoneMeta": "已解压 {count} 张图片",
+  "@kuronNotifZipDoneMeta": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "kuronNotifZipErrorSpeech": "⚠️ Kuron: 无法打开压缩包",
+  "kuronNotifVerifyStartSpeech": "🐾 Kuron: 正在校验文件...",
+  "kuronNotifVerifyProgressSpeech": "🐾 Kuron: 正在校验 {progress}%...",
+  "@kuronNotifVerifyProgressSpeech": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "kuronNotifPdfQueueTitle": "PDF 队列",
+  "kuronNotifPdfQueueSpeech": "🐾 Kuron: 正在排队转换 PDF...",
+  "kuronNotifPdfQueueWaitSpeech": "🐾 Kuron: 正在等待 PDF 队列...",
+  "kuronNotifPdfBatchDoneSpeech": "🐾 Kuron: 所有 PDF 已完成！✨",
+  "kuronNotifPdfConvertErrorSpeech": "⚠️ Kuron: 无法创建 PDF",
+  "kuronNotifPdfGroupErrorSpeech": "⚠️ Kuron: 有 PDF 转换失败",
+  "kuronNotifBackupStartSpeech": "🐾 Kuron: 正在处理备份数据...",
+  "kuronNotifBackupCategorySpeech": "🐾 Kuron: 正在处理 {label}...",
+  "@kuronNotifBackupCategorySpeech": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      }
+    }
+  },
+  "kuronNotifBackupDoneSpeech": "🐾 Kuron: 备份/恢复完成！✨",
+  "kuronNotifBackupMeta": "{title} 已完成",
+  "@kuronNotifBackupMeta": {
+    "placeholders": {
+      "title": {
+        "type": "String",
+        "example": "Backup"
+      }
+    }
+  },
+  "kuronNotifBackupErrorSpeech": "⚠️ Kuron: 处理失败",
+  "kuronNotifBackupProgressMeta": "{label}: {done}/{total}",
+  "@kuronNotifBackupProgressMeta": {
+    "placeholders": {
+      "label": {
+        "type": "String",
+        "example": "Favorites"
+      },
+      "done": {
+        "type": "String",
+        "example": "3"
+      },
+      "total": {
+        "type": "String",
+        "example": "10"
+      }
+    }
+  },
+  "kuronNotifAiDownloadSpeech": "🐾 Kuron: 正在下载 AI 模型...",
+  "kuronNotifAiDownloadingMeta": "下载中...",
+  "kuronNotifAiDoneSpeech": "🐾 Kuron: AI 模型已就绪！✨",
+  "kuronNotifAiDoneMeta": "下载完成",
+  "kuronNotifAiErrorSpeech": "⚠️ Kuron: 下载 AI 模型失败",
+  "convertingPdfQueued": "正在转换 PDF {current}/{total}",
+  "@convertingPdfQueued": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "pdfQueueWaiting": "PDF 队列：{count} 项等待中",
+  "@pdfQueueWaiting": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "4"
+      }
+    }
+  },
+  "pdfQueueNext": "下一个：{titles}",
+  "@pdfQueueNext": {
+    "placeholders": {
+      "titles": {
+        "type": "String",
+        "example": "A, B"
+      }
+    }
+  },
+  "pdfBatchCompleted": "PDF 批量转换完成",
+  "pdfBatchCompletedCount": "✅ 已成功创建 {count} 个 PDF",
+  "@pdfBatchCompletedCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "syncingOfflineContent": "正在加载离线内容...",
+  "syncComplete": "同步完成",
+  "syncCompletedWithCount": "找到 {count} 项离线内容",
+  "@syncCompletedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "zipExtractionInProgress": "正在解压 ZIP",
+  "extractingZipContent": "正在准备解压...",
+  "syncingProgress": "正在同步 ({progress}%)",
+  "@syncingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "extractingProgress": "正在解压 ({progress}%)",
+  "@extractingProgress": {
+    "placeholders": {
+      "progress": {
+        "type": "String",
+        "example": "50"
+      }
+    }
+  },
+  "zipExtractionComplete": "ZIP 解压完成",
+  "zipExtractedWithCount": "已成功解压 {count} 张图片",
+  "@zipExtractedWithCount": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "12"
+      }
+    }
+  },
+  "zipExtractionFailed": "ZIP 解压失败",
+  "zipExtractionFailedWithError": "ZIP 解压失败：{error}",
+  "@zipExtractionFailedWithError": {
+    "placeholders": {
+      "error": {
+        "type": "String",
+        "example": "bad crc"
+      }
+    }
+  },
+  "kuronNotifPdfFailedTitle": "PDF 转换失败",
+  "kuronNotifSyncTitle": "正在同步数据",
+  "kuronNotifPdfGroupErrorTitle": "PDF 第 {current}/{total} 项失败",
+  "@kuronNotifPdfGroupErrorTitle": {
+    "placeholders": {
+      "current": {
+        "type": "String",
+        "example": "2"
+      },
+      "total": {
+        "type": "String",
+        "example": "5"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupTitleOne": "正在下载 1 项",
+  "kuronNotifDownloadGroupTitleMany": "正在下载 {count} 项",
+  "@kuronNotifDownloadGroupTitleMany": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  },
+  "kuronNotifDownloadGroupDoneTitle": "已完成 {count} 个下载",
+  "@kuronNotifDownloadGroupDoneTitle": {
+    "placeholders": {
+      "count": {
+        "type": "String",
+        "example": "3"
+      }
+    }
+  }
 }
