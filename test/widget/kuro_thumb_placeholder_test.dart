@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 void main() {
-  testWidgets('thumb placeholder paints static Kuro without tickers',
-      (tester) async {
+  testWidgets('thumb placeholder paints static Kuro without tickers', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
-            body:
-                SizedBox.square(dimension: 120, child: KuroThumbPlaceholder())),
+          body: SizedBox.square(dimension: 120, child: KuroThumbPlaceholder()),
+        ),
       ),
     );
 

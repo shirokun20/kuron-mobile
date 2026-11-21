@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -162,10 +162,7 @@ class AppRouter {
           return AppAnimations.animatedPageBuilder(
             context,
             state,
-            ContentByTagScreen(
-              tagQuery: query,
-              displayLabel: displayLabel,
-            ),
+            ContentByTagScreen(tagQuery: query, displayLabel: displayLabel),
             kind: RouteKind.forward,
           );
         },
@@ -179,8 +176,9 @@ class AppRouter {
           final encodedId = state.pathParameters['id']!;
           final contentId = UriComponentUtils.safeDecode(encodedId);
           final sourceId = state.uri.queryParameters['sourceId'];
-          final preloaded =
-              state.extra is Content ? state.extra as Content : null;
+          final preloaded = state.extra is Content
+              ? state.extra as Content
+              : null;
           return AppAnimations.animatedPageBuilder(
             context,
             state,
@@ -202,8 +200,9 @@ class AppRouter {
         path: AppRoute.reader,
         name: AppRoute.readerName,
         pageBuilder: (context, state) {
-          final contentId =
-              UriComponentUtils.safeDecode(state.pathParameters['id'] ?? '');
+          final contentId = UriComponentUtils.safeDecode(
+            state.pathParameters['id'] ?? '',
+          );
           final page =
               int.tryParse(state.uri.queryParameters['page'] ?? '1') ?? 1;
           final forceStartFromBeginning =
@@ -212,8 +211,9 @@ class AppRouter {
 
           // Extract content, imageMetadata, and chapterData from extra
           final content = readReaderContent(extra?['content'] ?? state.extra);
-          final imageMetadata =
-              readReaderImageMetadata(extra?['imageMetadata']);
+          final imageMetadata = readReaderImageMetadata(
+            extra?['imageMetadata'],
+          );
           final chapterData = readReaderChapterData(extra?['chapterData']);
           final parentContent = readReaderContent(extra?['parentContent']);
           final allChapters = readReaderChapters(extra?['allChapters']);
@@ -223,7 +223,7 @@ class AppRouter {
           );
           final fromOffline =
               state.uri.queryParameters['fromOffline'] == 'true' ||
-                  readReaderFromOffline(extra?['fromOffline']);
+              readReaderFromOffline(extra?['fromOffline']);
 
           return AppAnimations.animatedPageBuilder(
             context,
@@ -314,8 +314,9 @@ class AppRouter {
         name: AppRoute.offlineSeriesDetailName,
         pageBuilder: (context, state) {
           final contentGroup = state.extra;
-          final typedContentGroup =
-              contentGroup is ContentGroup ? contentGroup : null;
+          final typedContentGroup = contentGroup is ContentGroup
+              ? contentGroup
+              : null;
           final sourceId = state.uri.queryParameters['source'];
           final baseTitle = state.uri.queryParameters['title'];
           if (typedContentGroup == null &&
@@ -378,8 +379,8 @@ class AppRouter {
           state,
           Scaffold(
             body: Center(
-                child:
-                    Text(AppLocalizations.of(context)!.tagsScreenPlaceholder)),
+              child: Text(AppLocalizations.of(context)!.tagsScreenPlaceholder),
+            ),
           ),
           kind: RouteKind.tab,
         ),
@@ -394,8 +395,10 @@ class AppRouter {
           state,
           Scaffold(
             body: Center(
-                child: Text(
-                    AppLocalizations.of(context)!.artistsScreenPlaceholder)),
+              child: Text(
+                AppLocalizations.of(context)!.artistsScreenPlaceholder,
+              ),
+            ),
           ),
           kind: RouteKind.tab,
         ),
@@ -412,11 +415,7 @@ class AppRouter {
           return AppAnimations.animatedPageBuilder(
             context,
             state,
-            TagDetailScreen(
-              tagType: tagType,
-              slug: slug,
-              sourceId: sourceId,
-            ),
+            TagDetailScreen(tagType: tagType, slug: slug, sourceId: sourceId),
             kind: RouteKind.forward,
           );
         },
@@ -431,8 +430,10 @@ class AppRouter {
           state,
           Scaffold(
             body: Center(
-                child: Text(
-                    AppLocalizations.of(context)!.statusScreenPlaceholder)),
+              child: Text(
+                AppLocalizations.of(context)!.statusScreenPlaceholder,
+              ),
+            ),
           ),
           kind: RouteKind.tab,
         ),
@@ -581,8 +582,10 @@ class AppRouter {
         redirect: (context, state) {
           // This is a bit hacky for a route, but useful for menu consistency
           // Better handled in the onTap handler, but here for completeness if deep linked
-          launchUrl(Uri.parse('https://trakteer.id/crotpedia/tip'),
-              mode: LaunchMode.externalApplication);
+          launchUrl(
+            Uri.parse('https://trakteer.id/crotpedia/tip'),
+            mode: LaunchMode.externalApplication,
+          );
           return null;
         },
       ),
@@ -628,8 +631,9 @@ class AppRouter {
     String? displayLabel,
   }) {
     final encodedQuery = Uri.encodeQueryComponent(tagQuery);
-    final encodedLabel =
-        displayLabel == null ? null : Uri.encodeQueryComponent(displayLabel);
+    final encodedLabel = displayLabel == null
+        ? null
+        : Uri.encodeQueryComponent(displayLabel);
     final labelQuery = (encodedLabel == null || encodedLabel.isEmpty)
         ? ''
         : '&label=$encodedLabel';
@@ -650,40 +654,48 @@ class AppRouter {
     );
   }
 
-  static Future<void> goToReader(BuildContext context, String contentId,
-      {int page = 1,
-      bool forceStartFromBeginning = false,
-      Content? content,
-      List<ImageMetadata>? imageMetadata,
-      ChapterData? chapterData,
-      Content? parentContent, // Parent series for chapter mode
-      List<Chapter>? allChapters, // All chapters for navigation
-      Chapter? currentChapter,
-      String? activeChapterLanguage,
-      bool fromOffline = false}) {
+  static Future<void> goToReader(
+    BuildContext context,
+    String contentId, {
+    int page = 1,
+    bool forceStartFromBeginning = false,
+    Content? content,
+    List<ImageMetadata>? imageMetadata,
+    ChapterData? chapterData,
+    Content? parentContent, // Parent series for chapter mode
+    List<Chapter>? allChapters, // All chapters for navigation
+    Chapter? currentChapter,
+    String? activeChapterLanguage,
+    bool fromOffline = false,
+  }) {
     // Current chapter being read
     final encodedContentId = Uri.encodeComponent(contentId);
     final offlineParam = fromOffline ? '&fromOffline=true' : '';
     return context.push(
-        '/reader/$encodedContentId?page=$page&forceStartFromBeginning=$forceStartFromBeginning$offlineParam',
-        extra: buildReaderRouteExtra(
-          content: content,
-          imageMetadata: imageMetadata,
-          chapterData: chapterData,
-          parentContent: parentContent,
-          allChapters: allChapters,
-          currentChapter: currentChapter,
-          activeChapterLanguage: activeChapterLanguage,
-          fromOffline: fromOffline,
-        ));
+      '/reader/$encodedContentId?page=$page&forceStartFromBeginning=$forceStartFromBeginning$offlineParam',
+      extra: buildReaderRouteExtra(
+        content: content,
+        imageMetadata: imageMetadata,
+        chapterData: chapterData,
+        parentContent: parentContent,
+        allChapters: allChapters,
+        currentChapter: currentChapter,
+        activeChapterLanguage: activeChapterLanguage,
+        fromOffline: fromOffline,
+      ),
+    );
   }
 
-  static void goToReaderPdf(BuildContext context,
-      {required String filePath,
-      required String contentId,
-      required String title}) {
-    context.push('/reader_pdf',
-        extra: {'filePath': filePath, 'contentId': contentId, 'title': title});
+  static void goToReaderPdf(
+    BuildContext context, {
+    required String filePath,
+    required String contentId,
+    required String title,
+  }) {
+    context.push(
+      '/reader_pdf',
+      extra: {'filePath': filePath, 'contentId': contentId, 'title': title},
+    );
   }
 
   static void goToFavorites(BuildContext context) {
@@ -709,10 +721,7 @@ class AppRouter {
         'title': contentGroup.baseTitle,
       },
     ).toString();
-    return context.push<bool>(
-      location,
-      extra: contentGroup,
-    );
+    return context.push<bool>(location, extra: contentGroup);
   }
 
   static void goToHistory(BuildContext context) {
@@ -811,7 +820,9 @@ class AppRouter {
 
   // Navigation method specifically for returning from FilterDataScreen
   static void returnFromFilterData(
-      BuildContext context, List<FilterItem> selectedFilters) {
+    BuildContext context,
+    List<FilterItem> selectedFilters,
+  ) {
     try {
       // Ensure we're passing the correct type
       final typedFilters = List<FilterItem>.from(selectedFilters);

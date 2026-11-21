@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
+
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
 // Custom error widget with black theme and contextual information
@@ -111,28 +112,30 @@ class AppErrorWidget extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          ...suggestions.map((suggestion) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '• ',
+          ...suggestions.map(
+            (suggestion) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '• ',
+                    style: TextStyleConst.bodySmall.copyWith(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      suggestion,
                       style: TextStyleConst.bodySmall.copyWith(
-                        color: Theme.of(context).colorScheme.primary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    Expanded(
-                      child: Text(
-                        suggestion,
-                        style: TextStyleConst.bodySmall.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -204,9 +207,7 @@ class AppErrorWidget extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
                 side: BorderSide(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .outline
+                  color: Theme.of(context).colorScheme.outline
                       .withValues(alpha: 0.3),
                 ),
                 padding: const EdgeInsets.symmetric(vertical: 12),
@@ -230,11 +231,7 @@ class AppErrorWidget extends StatelessWidget {
 
 // Network error widget
 class NetworkErrorWidget extends StatelessWidget {
-  const NetworkErrorWidget({
-    super.key,
-    this.onRetry,
-    this.onGoOffline,
-  });
+  const NetworkErrorWidget({super.key, this.onRetry, this.onGoOffline});
 
   final VoidCallback? onRetry;
   final VoidCallback? onGoOffline;
@@ -262,11 +259,7 @@ class NetworkErrorWidget extends StatelessWidget {
 
 // Server error widget
 class ServerErrorWidget extends StatelessWidget {
-  const ServerErrorWidget({
-    super.key,
-    this.onRetry,
-    this.statusCode,
-  });
+  const ServerErrorWidget({super.key, this.onRetry, this.statusCode});
 
   final VoidCallback? onRetry;
   final int? statusCode;
@@ -292,11 +285,7 @@ class ServerErrorWidget extends StatelessWidget {
 
 // Cloudflare error widget
 class CloudflareErrorWidget extends StatelessWidget {
-  const CloudflareErrorWidget({
-    super.key,
-    this.onRetry,
-    this.onBypass,
-  });
+  const CloudflareErrorWidget({super.key, this.onRetry, this.onBypass});
 
   final VoidCallback? onRetry;
   final VoidCallback? onBypass;
@@ -323,11 +312,7 @@ class CloudflareErrorWidget extends StatelessWidget {
 
 // Parse error widget
 class ParseErrorWidget extends StatelessWidget {
-  const ParseErrorWidget({
-    super.key,
-    this.onRetry,
-    this.onReport,
-  });
+  const ParseErrorWidget({super.key, this.onRetry, this.onReport});
 
   final VoidCallback? onRetry;
   final VoidCallback? onReport;
@@ -401,16 +386,18 @@ class EmptyStateWidget extends StatelessWidget {
           ),
           if (suggestions.isNotEmpty) ...[
             const SizedBox(height: 16),
-            ...suggestions.map((suggestion) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    '• $suggestion',
-                    style: TextStyleConst.bodySmall.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
+            ...suggestions.map(
+              (suggestion) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  '• $suggestion',
+                  style: TextStyleConst.bodySmall.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                )),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
           ],
           if (onAction != null && actionText != null) ...[
             const SizedBox(height: 24),
@@ -476,10 +463,7 @@ class NoSearchResultsWidget extends StatelessWidget {
 
 // Maintenance mode widget
 class MaintenanceWidget extends StatelessWidget {
-  const MaintenanceWidget({
-    super.key,
-    this.onCheckAgain,
-  });
+  const MaintenanceWidget({super.key, this.onCheckAgain});
 
   final VoidCallback? onCheckAgain;
 

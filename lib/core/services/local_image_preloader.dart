@@ -5,13 +5,14 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:kuron_special/kuron_special.dart';
+
 import '../utils/download_storage_utils.dart';
 
 import '../utils/storage_settings.dart';
@@ -125,7 +126,9 @@ class LocalImagePreloader {
         if (await downloadDir.exists()) {
           basePaths.add(path.join(downloadPath, _baseLocalPath));
           if (shouldLog) {
-            _d('Found external storage: ${path.join(downloadPath, _baseLocalPath)}');
+            _d(
+              'Found external storage: ${path.join(downloadPath, _baseLocalPath)}',
+            );
           }
         }
       }
@@ -808,8 +811,7 @@ class LocalImagePreloader {
           : networkUrl;
       final dio = getIt<Dio>();
       final requestHeaders = <String, dynamic>{
-        'User-Agent':
-            'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       };
       if (headers != null) {
         requestHeaders.addAll(headers);
@@ -902,8 +904,7 @@ class LocalImagePreloader {
 
       final dio = getIt<Dio>();
       final requestHeaders = <String, dynamic>{
-        'User-Agent':
-            'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
       };
       if (headers != null) {
         requestHeaders.addAll(headers);
@@ -916,9 +917,7 @@ class LocalImagePreloader {
         tmpPath,
         onReceiveProgress: onProgress,
         cancelToken: cancelToken,
-        options: Options(
-          headers: requestHeaders,
-        ),
+        options: Options(headers: requestHeaders),
       );
 
       if (!await File(tmpPath).exists() || await File(tmpPath).length() == 0) {

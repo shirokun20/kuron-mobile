@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:go_router/go_router.dart';
@@ -48,178 +49,182 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
-          if (didPop) return;
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
 
-          // Check if drawer is open using the GlobalKey
-          if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
-            _scaffoldKey.currentState?.closeDrawer();
-            return;
-          }
+        // Check if drawer is open using the GlobalKey
+        if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+          _scaffoldKey.currentState?.closeDrawer();
+          return;
+        }
 
-          // Pop nested routes; drawer is handled above.
-          if (context.canPop()) {
-            context.pop();
-            return;
-          }
+        // Pop nested routes; drawer is handled above.
+        if (context.canPop()) {
+          context.pop();
+          return;
+        }
 
-          // At root: do nothing here. Root exit UX is owned solely by the
-          // main screen's double-press snackbar — a second exit dialog here
-          // fired together with the snackbar on a single back press (and a
-          // cancelled dialog still left the snackbar timer armed).
-        },
-        child: StreamBuilder<bool>(
-          // Listen to offline mode changes from AppStateManager
-          stream: AppStateManager().offlineModeStream,
-          initialData: AppStateManager().isOfflineMode,
-          builder: (context, snapshot) {
-            final isOfflineMode = snapshot.data ?? false;
+        // At root: do nothing here. Root exit UX is owned solely by the
+        // main screen's double-press snackbar — a second exit dialog here
+        // fired together with the snackbar on a single back press (and a
+        // cancelled dialog still left the snackbar timer armed).
+      },
+      child: StreamBuilder<bool>(
+        // Listen to offline mode changes from AppStateManager
+        stream: AppStateManager().offlineModeStream,
+        initialData: AppStateManager().isOfflineMode,
+        builder: (context, snapshot) {
+          final isOfflineMode = snapshot.data ?? false;
 
-            return LayoutBuilder(
-              builder: (context, constraints) {
-                // Early safety check for extremely small windows (popup/floating mode)
-                if (constraints.maxWidth < 100 || constraints.maxHeight < 100) {
-                  return Scaffold(
-                    key: _scaffoldKey,
-                    backgroundColor: widget.backgroundColor,
-                    body: Container(
-                      color: Theme.of(context).colorScheme.surface,
-                      child: const Center(
-                        child: Icon(Icons.fullscreen_exit, size: 24),
-                      ),
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              // Early safety check for extremely small windows (popup/floating mode)
+              if (constraints.maxWidth < 100 || constraints.maxHeight < 100) {
+                return Scaffold(
+                  key: _scaffoldKey,
+                  backgroundColor: widget.backgroundColor,
+                  body: Container(
+                    color: Theme.of(context).colorScheme.surface,
+                    child: const Center(
+                      child: Icon(Icons.fullscreen_exit, size: 24),
                     ),
-                  );
-                }
+                  ),
+                );
+              }
 
-                // Adaptive layout for large screens (Tablet/Desktop/DeX)
-                // Use persistent sidebar if width > 900dp
-                final isLargeScreen = constraints.maxWidth > 900;
+              // Adaptive layout for large screens (Tablet/Desktop/DeX)
+              // Use persistent sidebar if width > 900dp
+              final isLargeScreen = constraints.maxWidth > 900;
 
-                final topHeaderInset = widget.extendBodyBehindAppBar
-                    ? (MediaQuery.paddingOf(context).top +
+              final topHeaderInset = widget.extendBodyBehindAppBar
+                  ? (MediaQuery.paddingOf(context).top +
                         (widget.appBar != null
                             ? (widget.appBar is PreferredSizeWidget
-                                ? (widget.appBar as PreferredSizeWidget)
-                                    .preferredSize
-                                    .height
-                                : kToolbarHeight)
+                                  ? (widget.appBar as PreferredSizeWidget)
+                                        .preferredSize
+                                        .height
+                                  : kToolbarHeight)
                             : 0.0))
-                    : 0.0;
+                  : 0.0;
 
-                final scaffold = Scaffold(
-                  key: _scaffoldKey,
-                  appBar: widget.appBar ??
-                      _buildAppBarWithOfflineIndicator(context, isOfflineMode),
-                  backgroundColor: widget.backgroundColor,
-                  // On large screens, hide the drawer from Scaffold (sidebar is used instead)
-                  // On small screens, use the provided drawer
-                  drawer: isLargeScreen ? null : widget.drawer,
-                  extendBodyBehindAppBar: widget.extendBodyBehindAppBar,
-                  // Increase drawer edge drag width to 25% of screen width for easier gesture
-                  drawerEdgeDragWidth:
-                      isLargeScreen ? 0 : constraints.maxWidth * 0.25,
-                  // Add haptic feedback when drawer state changes
-                  onDrawerChanged: (isOpen) {
-                    if (isOpen) {
-                      HapticFeedback.lightImpact();
-                    }
-                  },
-                  floatingActionButton: widget.floatingActionButton,
-                  bottomNavigationBar: widget.bottomNavigationBar,
-                  body: Column(
-                    children: [
-                      // GLOBAL DOWNLOAD HEADER
-                      GlobalDownloadProgressWidget(
-                        topInset: topHeaderInset,
-                      ),
+              final scaffold = Scaffold(
+                key: _scaffoldKey,
+                appBar:
+                    widget.appBar ??
+                    _buildAppBarWithOfflineIndicator(context, isOfflineMode),
+                backgroundColor: widget.backgroundColor,
+                // On large screens, hide the drawer from Scaffold (sidebar is used instead)
+                // On small screens, use the provided drawer
+                drawer: isLargeScreen ? null : widget.drawer,
+                extendBodyBehindAppBar: widget.extendBodyBehindAppBar,
+                // Increase drawer edge drag width to 25% of screen width for easier gesture
+                drawerEdgeDragWidth: isLargeScreen
+                    ? 0
+                    : constraints.maxWidth * 0.25,
+                // Add haptic feedback when drawer state changes
+                onDrawerChanged: (isOpen) {
+                  if (isOpen) {
+                    HapticFeedback.lightImpact();
+                  }
+                },
+                floatingActionButton: widget.floatingActionButton,
+                bottomNavigationBar: widget.bottomNavigationBar,
+                body: Column(
+                  children: [
+                    // GLOBAL DOWNLOAD HEADER
+                    GlobalDownloadProgressWidget(topInset: topHeaderInset),
 
-                      // Show offline banner when in offline mode
-                      if (isOfflineMode) _buildOfflineBanner(context),
-                      Expanded(
-                        child: LayoutBuilder(
-                          builder: (context, innerConstraints) {
-                            // Safety check for extremely small windows - show compact fallback
-                            if (innerConstraints.maxWidth < 80 ||
-                                innerConstraints.maxHeight < 80) {
-                              return Container(
-                                color: Theme.of(context).colorScheme.surface,
-                                child: Center(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.open_in_full,
-                                        size: 24,
+                    // Show offline banner when in offline mode
+                    if (isOfflineMode) _buildOfflineBanner(context),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, innerConstraints) {
+                          // Safety check for extremely small windows - show compact fallback
+                          if (innerConstraints.maxWidth < 80 ||
+                              innerConstraints.maxHeight < 80) {
+                            return Container(
+                              color: Theme.of(context).colorScheme.surface,
+                              child: Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.open_in_full,
+                                      size: 24,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.5),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      AppLocalizations.of(context)!.resize,
+                                      style: TextStyle(
+                                        fontSize: 10,
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurface
                                             .withValues(alpha: 0.5),
                                       ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        AppLocalizations.of(context)!.resize,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withValues(alpha: 0.5),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            }
-                            return SafeArea(
-                              left: false,
-                              right: false,
-                              top: false,
-                              bottom: true,
-                              child: widget.body,
+                              ),
                             );
-                          },
-                        ),
+                          }
+                          return SafeArea(
+                            left: false,
+                            right: false,
+                            top: false,
+                            bottom: true,
+                            child: widget.body,
+                          );
+                        },
                       ),
-                    ],
-                  ),
-                );
+                    ),
+                  ],
+                ),
+              );
 
-                // Desktop pin: the same drawer widget, no Drawer wrapper
-                // (M3 hard-codes a 16px trailing curve), wrapped in a
-                // transparent Material — without it, texts inherit
-                // WidgetsApp's fallback style (double-yellow underline)
-                // for every unset decoration field.
-                if (isLargeScreen) {
-                  return Row(
-                    children: [
-                      const SizedBox(
-                        width: 300,
-                        child: Material(
-                          type: MaterialType.transparency,
-                          child: AppDrawerContent(isDrawer: false),
-                        ),
+              // Desktop pin: the same drawer widget, no Drawer wrapper
+              // (M3 hard-codes a 16px trailing curve), wrapped in a
+              // transparent Material — without it, texts inherit
+              // WidgetsApp's fallback style (double-yellow underline)
+              // for every unset decoration field.
+              if (isLargeScreen) {
+                return Row(
+                  children: [
+                    const SizedBox(
+                      width: 300,
+                      child: Material(
+                        type: MaterialType.transparency,
+                        child: AppDrawerContent(isDrawer: false),
                       ),
-                      Expanded(child: scaffold),
-                    ],
-                  );
-                }
-                return scaffold;
-              },
-            );
-          },
-        ));
+                    ),
+                    Expanded(child: scaffold),
+                  ],
+                );
+              }
+              return scaffold;
+            },
+          );
+        },
+      ),
+    );
   }
 
   // Build app bar with offline indicator badge
   // Shows orange badge when offline, normal appearance when online
   AppBar _buildAppBarWithOfflineIndicator(
-      BuildContext context, bool isOfflineMode) {
+    BuildContext context,
+    bool isOfflineMode,
+  ) {
     return AppBar(
       title: Text(widget.title),
-      backgroundColor:
-          isOfflineMode ? Theme.of(context).colorScheme.errorContainer : null,
+      backgroundColor: isOfflineMode
+          ? Theme.of(context).colorScheme.errorContainer
+          : null,
       actions: [
         // Show offline badge in app bar when in offline mode
         if (isOfflineMode) _buildOfflineBadge(context),
@@ -237,8 +242,10 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
-        border:
-            Border.all(color: Theme.of(context).colorScheme.error, width: 1),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.error,
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -267,13 +274,11 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color:
-            Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.1),
+        color: Theme.of(context).colorScheme.errorContainer
+            .withValues(alpha: 0.1),
         border: Border(
           bottom: BorderSide(
-            color: Theme.of(context)
-                .colorScheme
-                .errorContainer
+            color: Theme.of(context).colorScheme.errorContainer
                 .withValues(alpha: 0.3),
             width: 1,
           ),
@@ -329,7 +334,9 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
                 side: BorderSide(
-                    color: Theme.of(context).colorScheme.outline, width: 1),
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1,
+                ),
               ),
             ),
           ),
@@ -353,7 +360,8 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                      Theme.of(context).colorScheme.onPrimary),
+                    Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -382,8 +390,10 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle,
-                    color: Theme.of(context).colorScheme.onPrimary),
+                Icon(
+                  Icons.check_circle,
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
                 const SizedBox(width: 12),
                 Text(AppLocalizations.of(context)!.backOnline),
               ],
@@ -398,8 +408,10 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.wifi_off,
-                    color: Theme.of(context).colorScheme.onError),
+                Icon(
+                  Icons.wifi_off,
+                  color: Theme.of(context).colorScheme.onError,
+                ),
                 const SizedBox(width: 12),
                 Text(AppLocalizations.of(context)!.stillNoInternet),
               ],
@@ -415,8 +427,10 @@ class _AppScaffoldWithOfflineState extends State<AppScaffoldWithOffline> {
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.error_outline,
-                  color: Theme.of(context).colorScheme.onError),
+              Icon(
+                Icons.error_outline,
+                color: Theme.of(context).colorScheme.onError,
+              ),
               const SizedBox(width: 12),
               Text(AppLocalizations.of(context)!.unableToCheck),
             ],
@@ -465,11 +479,11 @@ mixin OfflineAwareMixin<T extends StatefulWidget> on State<T> {
   void initState() {
     super.initState();
     // Listen to offline mode changes
-    _offlineSubscription = AppStateManager().offlineModeStream.listen(
-      (isOffline) {
-        onOfflineModeChanged(isOffline);
-      },
-    );
+    _offlineSubscription = AppStateManager().offlineModeStream.listen((
+      isOffline,
+    ) {
+      onOfflineModeChanged(isOffline);
+    });
   }
 
   @override
@@ -497,8 +511,10 @@ mixin OfflineAwareMixin<T extends StatefulWidget> on State<T> {
         SnackBar(
           content: Row(
             children: [
-              Icon(Icons.offline_bolt,
-                  color: Theme.of(context).colorScheme.onError),
+              Icon(
+                Icons.offline_bolt,
+                color: Theme.of(context).colorScheme.onError,
+              ),
               const SizedBox(width: 12),
               Expanded(child: Text(message)),
             ],

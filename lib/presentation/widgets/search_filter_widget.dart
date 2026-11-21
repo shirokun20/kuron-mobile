@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../domain/entities/search_filter.dart';
@@ -306,9 +307,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               tooltip: _isExpanded
                   ? (AppLocalizations.of(context)?.hideFiltersTooltip ??
-                      AppLocalizations.of(context)!.hideFilters)
+                        AppLocalizations.of(context)!.hideFilters)
                   : (AppLocalizations.of(context)?.showMoreFiltersTooltip ??
-                      AppLocalizations.of(context)!.showMoreFilters),
+                        AppLocalizations.of(context)!.showMoreFilters),
             ),
           ],
         ],
@@ -325,9 +326,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
           // Sort and Popular toggle
           Row(
             children: [
-              Expanded(
-                child: _buildSortDropdown(),
-              ),
+              Expanded(child: _buildSortDropdown()),
               const SizedBox(width: 12),
               _buildPopularToggle(),
             ],
@@ -338,13 +337,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
           // Language and Category
           Row(
             children: [
-              Expanded(
-                child: _buildLanguageDropdown(),
-              ),
+              Expanded(child: _buildLanguageDropdown()),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildCategoryDropdown(),
-              ),
+              Expanded(child: _buildCategoryDropdown()),
             ],
           ),
 
@@ -366,8 +361,8 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         decoration: BoxDecoration(
           border: Border(
             top: BorderSide(
-              color:
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.5),
+              color: Theme.of(context).colorScheme.outline
+                  .withValues(alpha: 0.5),
               width: 1,
             ),
           ),
@@ -421,18 +416,12 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       dropdownColor: Theme.of(context).colorScheme.surfaceContainer,
       style: TextStyleConst.bodyMedium,
       items: SortOption.values.map((option) {
-        return DropdownMenuItem(
-          value: option,
-          child: Text(option.displayName),
-        );
+        return DropdownMenuItem(value: option, child: Text(option.displayName));
       }).toList(),
       onChanged: (value) {
         if (value != null) {
@@ -449,8 +438,8 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
       onSelected: (selected) {
         widget.onFilterChanged(widget.filter.copyWith(popular: selected));
       },
-      selectedColor:
-          Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+      selectedColor: Theme.of(context).colorScheme.primary
+          .withValues(alpha: 0.2),
       checkmarkColor: Theme.of(context).colorScheme.primary,
       labelStyle: TextStyleConst.bodySmall.copyWith(
         color: widget.filter.popular
@@ -469,10 +458,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       dropdownColor: Theme.of(context).colorScheme.surfaceContainer,
       style: TextStyleConst.bodyMedium,
@@ -503,10 +489,7 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
       dropdownColor: Theme.of(context).colorScheme.surfaceContainer,
       style: TextStyleConst.bodyMedium,
@@ -754,8 +737,9 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
           spacing: 8,
           runSpacing: 4,
           children: widget.popularTags.take(10).map((tag) {
-            final isIncluded = widget.filter.tags
-                .any((item) => item.value == tag && !item.isExcluded);
+            final isIncluded = widget.filter.tags.any(
+              (item) => item.value == tag && !item.isExcluded,
+            );
             return FilterChip(
               label: Text(tag),
               selected: isIncluded,
@@ -780,12 +764,13 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
                     .toList();
 
                 widget.onFilterChanged(
-                  widget.filter
-                      .copyWith(tags: [...includeTags, ...excludeTags]),
+                  widget.filter.copyWith(
+                    tags: [...includeTags, ...excludeTags],
+                  ),
                 );
               },
-              selectedColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              selectedColor: Theme.of(context).colorScheme.primary
+                  .withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).colorScheme.primary,
               labelStyle: TextStyleConst.bodySmall.copyWith(
                 color: isIncluded

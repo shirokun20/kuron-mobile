@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../cubits/network/network_cubit.dart';
@@ -26,8 +27,9 @@ class OfflineIndicatorWidget extends StatelessWidget {
         }
 
         final isOffline = state is! NetworkConnected;
-        final connectionType =
-            state is NetworkConnected ? state.connectionType : null;
+        final connectionType = state is NetworkConnected
+            ? state.connectionType
+            : null;
 
         return AnimatedContainer(
           duration: DesignTokens.durationNormal,
@@ -38,8 +40,10 @@ class OfflineIndicatorWidget extends StatelessWidget {
           decoration: BoxDecoration(
             color: isOffline
                 ? Theme.of(context).colorScheme.error.withValues(alpha: 0.2)
-                : _getConnectionColor(context, connectionType)
-                    .withValues(alpha: 0.2),
+                : _getConnectionColor(
+                    context,
+                    connectionType,
+                  ).withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(compact ? 4 : 6),
             border: Border.all(
               color: isOffline
@@ -66,8 +70,8 @@ class OfflineIndicatorWidget extends StatelessWidget {
                   isOffline
                       ? AppLocalizations.of(context)!.offlineStatus
                       : (connectionType == NetworkConnectionType.other
-                          ? AppLocalizations.of(context)!.onlineStatus
-                          : _getConnectionText(connectionType)),
+                            ? AppLocalizations.of(context)!.onlineStatus
+                            : _getConnectionText(connectionType)),
                   style: compact
                       ? TextStyleConst.overline.copyWith(
                           color: isOffline
@@ -146,10 +150,7 @@ class CompactOfflineIndicator extends StatelessWidget {
 
 // Full offline indicator with text
 class FullOfflineIndicator extends StatelessWidget {
-  const FullOfflineIndicator({
-    super.key,
-    this.showWhenOnline = false,
-  });
+  const FullOfflineIndicator({super.key, this.showWhenOnline = false});
 
   final bool showWhenOnline;
 
@@ -182,8 +183,8 @@ class OfflineBanner extends StatelessWidget {
             color: Theme.of(context).colorScheme.errorContainer,
             border: Border(
               bottom: BorderSide(
-                color:
-                    Theme.of(context).colorScheme.error.withValues(alpha: 0.3),
+                color: Theme.of(context).colorScheme.error
+                    .withValues(alpha: 0.3),
                 width: 1,
               ),
             ),
@@ -272,11 +273,9 @@ class OfflineModeToggle extends StatelessWidget {
                   isOfflineMode
                       ? AppLocalizations.of(context)!.usingDownloadedContentOnly
                       : AppLocalizations.of(context)!
-                          .onlineModeWithNetworkAccess,
+                            .onlineModeWithNetworkAccess,
                   style: TextStyleConst.bodySmall.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
+                    color: Theme.of(context).colorScheme.onSurfaceVariant
                         .withValues(alpha: 0.7),
                   ),
                 ),
@@ -288,8 +287,9 @@ class OfflineModeToggle extends StatelessWidget {
             onChanged: onToggle,
             activeThumbColor: Theme.of(context).colorScheme.tertiary,
             inactiveThumbColor: Theme.of(context).colorScheme.onSurfaceVariant,
-            inactiveTrackColor:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
+            inactiveTrackColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
           ),
         ],
       ),

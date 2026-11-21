@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -277,16 +277,15 @@ class _BannerSlide extends StatelessWidget {
                       color: theme.colorScheme.surfaceContainerHighest,
                       child: Icon(
                         Icons.image_outlined,
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.5),
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
                       ),
                     ),
                   ),
                 )
               else
-                Container(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                ),
+                Container(color: theme.colorScheme.surfaceContainerHighest),
               // Legibility scrim (functional black gradient).
               const DecoratedBox(
                 decoration: BoxDecoration(
@@ -412,11 +411,7 @@ class _ReasonChip extends StatelessWidget {
 
 /// Dots indicator below the carousel (never over the art).
 class BannerDots extends StatelessWidget {
-  const BannerDots({
-    super.key,
-    required this.count,
-    required this.active,
-  });
+  const BannerDots({super.key, required this.count, required this.active});
 
   final int count;
   final int active;

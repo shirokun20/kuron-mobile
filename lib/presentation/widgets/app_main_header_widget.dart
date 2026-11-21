@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 import '../../core/constants/text_style_const.dart';
@@ -68,9 +68,7 @@ class AppMainHeaderWidget extends StatelessWidget
                               Text(
                                 '${stats['totalContent']} items',
                                 style: TextStyleConst.bodySmall.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
+                                  color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.7),
                                   fontSize: 10,
                                 ),
@@ -108,8 +106,10 @@ class AppMainHeaderWidget extends StatelessWidget
                   onExport != null)
                 PopupMenuButton<String>(
                   color: Theme.of(context).colorScheme.surfaceContainer,
-                  icon: Icon(Icons.more_vert,
-                      color: Theme.of(context).colorScheme.onSurface),
+                  icon: Icon(
+                    Icons.more_vert,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                   onSelected: (String item) {
                     switch (item) {
                       case 'refresh':
@@ -133,15 +133,17 @@ class AppMainHeaderWidget extends StatelessWidget
                           value: 'refresh',
                           child: Row(
                             children: [
-                              Icon(Icons.sync,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
+                              Icon(
+                                Icons.sync,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 AppLocalizations.of(context)!.syncRefresh,
                                 style: TextStyleConst.bodyMedium.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                 ),
                               ),
                             ],
@@ -152,15 +154,17 @@ class AppMainHeaderWidget extends StatelessWidget
                           value: 'import',
                           child: Row(
                             children: [
-                              Icon(Icons.create_new_folder_outlined,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
+                              Icon(
+                                Icons.create_new_folder_outlined,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 AppLocalizations.of(context)!.importFromBackup,
                                 style: TextStyleConst.bodyMedium.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                 ),
                               ),
                             ],
@@ -171,15 +175,17 @@ class AppMainHeaderWidget extends StatelessWidget
                           value: 'import_zip',
                           child: Row(
                             children: [
-                              Icon(Icons.folder_zip,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
+                              Icon(
+                                Icons.folder_zip,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 AppLocalizations.of(context)!.importZipFile,
                                 style: TextStyleConst.bodyMedium.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                 ),
                               ),
                             ],
@@ -190,15 +196,17 @@ class AppMainHeaderWidget extends StatelessWidget
                           value: 'export',
                           child: Row(
                             children: [
-                              Icon(Icons.file_upload,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface),
+                              Icon(
+                                Icons.file_upload,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 AppLocalizations.of(context)!.exportLibrary,
                                 style: TextStyleConst.bodyMedium.copyWith(
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurface,
                                 ),
                               ),
                             ],
@@ -210,22 +218,23 @@ class AppMainHeaderWidget extends StatelessWidget
             ]
           : [
               IconButton(
-                onPressed: onSearchPressed ??
+                onPressed:
+                    onSearchPressed ??
                     () {
                       // Navigate to dedicated SearchScreen
                       AppRouter.goToSearch(context);
                     },
                 color: Theme.of(context).colorScheme.onSurface,
-                icon: const Icon(
-                  Icons.search,
-                ),
+                icon: const Icon(Icons.search),
                 tooltip: l10n.search,
               ),
               const RandomGalleryButton(),
               PopupMenuButton<String>(
                 color: Theme.of(context).colorScheme.surfaceContainer,
-                icon: Icon(Icons.more_vert,
-                    color: Theme.of(context).colorScheme.onSurface),
+                icon: Icon(
+                  Icons.more_vert,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 onSelected: (String item) {
                   switch (item) {
                     case 'opob':
@@ -238,7 +247,9 @@ class AppMainHeaderWidget extends StatelessWidget
                       if (sourceId != null) {
                         final remoteConfig = getIt<RemoteConfigService>();
                         if (!remoteConfig.isFeatureEnabled(
-                            sourceId!, (f) => f.download)) {
+                          sourceId!,
+                          (f) => f.download,
+                        )) {
                           _showFeatureDisabledDialog(context);
                           return;
                         }

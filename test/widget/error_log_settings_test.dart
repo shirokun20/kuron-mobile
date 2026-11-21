@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_contract.dart';
@@ -47,7 +47,9 @@ void main() {
     );
   }
 
-  testWidgets('displays toggle switch with current logging state', (tester) async {
+  testWidgets('displays toggle switch with current logging state', (
+    tester,
+  ) async {
     when(() => store.isEnabled()).thenAnswer((_) async => false);
     when(() => store.entries(limit: any(named: 'limit')))
         .thenAnswer((_) async => <ErrorLogEntry>[]);
@@ -79,11 +81,17 @@ void main() {
 
     expect(find.text('nhentai'), findsOneWidget);
     expect(find.text('HTTP 502'), findsOneWidget);
-    expect(find.text('getChapterImages — Bad Gateway from upstream'), findsOneWidget);
+    expect(
+      find.text('getChapterImages — Bad Gateway from upstream'),
+      findsOneWidget,
+    );
     expect(find.text('/api/gallery/123/images'), findsOneWidget);
 
     expect(find.text('komikindo'), findsOneWidget);
-    expect(find.text('fetchDetail — SocketException: Connection timed out'), findsOneWidget);
+    expect(
+      find.text('fetchDetail — SocketException: Connection timed out'),
+      findsOneWidget,
+    );
     expect(find.text('/manga/one-piece'), findsOneWidget);
   });
 
@@ -144,11 +152,13 @@ void main() {
         .thenAnswer((_) async => 'EXPORTED_LOG_STRING');
 
     String? exported;
-    await tester.pumpWidget(buildTestWidget(
-      textExporter: (text) async {
-        exported = text;
-      },
-    ));
+    await tester.pumpWidget(
+      buildTestWidget(
+        textExporter: (text) async {
+          exported = text;
+        },
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.file_upload_outlined));
@@ -158,17 +168,21 @@ void main() {
     expect(exported, 'EXPORTED_LOG_STRING');
   });
 
-  testWidgets('tapping Lapor button on entry triggers onReport callback', (tester) async {
+  testWidgets('tapping Lapor button on entry triggers onReport callback', (
+    tester,
+  ) async {
     when(() => store.isEnabled()).thenAnswer((_) async => true);
     when(() => store.entries(limit: any(named: 'limit')))
         .thenAnswer((_) async => [sampleEntries.first]);
 
     ErrorLogEntry? reported;
-    await tester.pumpWidget(buildTestWidget(
-      onReport: (context, entry) {
-        reported = entry;
-      },
-    ));
+    await tester.pumpWidget(
+      buildTestWidget(
+        onReport: (context, entry) {
+          reported = entry;
+        },
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(OutlinedButton, 'Lapor'));

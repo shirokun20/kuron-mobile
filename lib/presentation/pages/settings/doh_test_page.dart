@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
@@ -40,16 +40,17 @@ class _DohTestPageState extends State<DohTestPage> {
         url: 'https://nhentai.net/api/v2/galleries/random',
         method: 'GET',
         headers: {
-          'User-Agent':
-              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
       );
 
       final statusCode = response['statusCode'] as int;
 
       if (statusCode == 200) {
-        setState(() => _status =
-            '✓ Success! Status: $statusCode\nProvider: ${DohProvider.getName(_selectedProvider)}');
+        setState(
+          () => _status =
+              '✓ Success! Status: $statusCode\nProvider: ${DohProvider.getName(_selectedProvider)}',
+        );
       } else {
         setState(() => _status = '✗ Failed. Status: $statusCode');
       }
@@ -70,13 +71,14 @@ class _DohTestPageState extends State<DohTestPage> {
       final bytes = await KuronNative.instance.downloadBinary(
         url: 'https://t.nhentai.net/galleries/123456/thumb.jpg',
         headers: {
-          'User-Agent':
-              'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'User-Agent': 'AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
       );
 
-      setState(() => _status =
-          '✓ Downloaded ${bytes.length} bytes\nProvider: ${DohProvider.getName(_selectedProvider)}');
+      setState(
+        () => _status =
+            '✓ Downloaded ${bytes.length} bytes\nProvider: ${DohProvider.getName(_selectedProvider)}',
+      );
     } catch (e) {
       setState(() => _status = '✗ Download failed: $e');
     } finally {
@@ -93,8 +95,10 @@ class _DohTestPageState extends State<DohTestPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('DNS Provider',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'DNS Provider',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             ...DohProvider.all.map((provider) {
               final isSelected = _selectedProvider == provider;
@@ -111,18 +115,23 @@ class _DohTestPageState extends State<DohTestPage> {
               );
             }),
             const SizedBox(height: 24),
-            Text('Test Results',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Test Results',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border:
-                    Border.all(color: Theme.of(context).colorScheme.outline),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
               ),
-              child: Text(_status,
-                  style: const TextStyle(fontFamily: 'monospace')),
+              child: Text(
+                _status,
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
             ),
             const SizedBox(height: 24),
             SizedBox(

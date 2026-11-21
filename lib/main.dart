@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:go_router/go_router.dart';
@@ -40,8 +40,7 @@ void main() async {
   // Desktop (macOS/Windows/Linux): ukuran awal 1440x900 sesuai frame design
   // FigCraft, min 1024 agar layout mobile tidak remuk. Judul window TIDAK
   // di-set di sini — ikut PRODUCT_NAME native (Kuron / Kuron Dev per flavor).
-  if (!kIsWeb &&
-      (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
+  if (!kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux)) {
     try {
       final window = WindowManager.instance.getCurrent();
       if (window != null) {
@@ -79,8 +78,11 @@ void main() async {
     if (msg.contains('Invalid image data')) {
       return;
     }
-    Logger().e('🔥 Flutter Error: ${details.exception}',
-        error: details.exception, stackTrace: details.stack);
+    Logger().e(
+      '🔥 Flutter Error: ${details.exception}',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
   };
 
   // Catch errors from platform (including Impeller/Vulkan)
@@ -113,11 +115,7 @@ void main() async {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 48,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
               const SizedBox(height: 16),
               const Text(
                 'Rendering Error',
@@ -144,6 +142,7 @@ void main() async {
 
   runApp(MyApp(launchPayload: _pendingNotifPayload));
 }
+
 bool _deferredInitExecuted = false;
 
 Future<void> _deferredInit() async {
@@ -228,9 +227,10 @@ class _LaunchPayloadNavigatorState extends State<_LaunchPayloadNavigator> {
   void _setupNotificationLocalization() {
     final l10n = AppLocalizations.of(context);
     if (l10n == null) return;
-    getIt<NotificationService>().setLocalizationCallback((String key,
-            {Map<String, dynamic>? args}) =>
-        localizeNotification(l10n, key, args) ?? '');
+    getIt<NotificationService>().setLocalizationCallback(
+      (String key, {Map<String, dynamic>? args}) =>
+          localizeNotification(l10n, key, args) ?? '',
+    );
   }
 
   @override
@@ -256,77 +256,83 @@ class MyApp extends StatelessWidget {
         child: LifecycleWatcher(
           child: BlocBuilder<ThemeCubit, ThemeState>(
             builder: (context, themeState) {
-            return BlocBuilder<SettingsCubit, SettingsState>(
-              builder: (context, settingsState) {
-                // Get locale from settings
-                final locale = _getLocaleFromSettings(settingsState);
+              return BlocBuilder<SettingsCubit, SettingsState>(
+                builder: (context, settingsState) {
+                  // Get locale from settings
+                  final locale = _getLocaleFromSettings(settingsState);
 
-                Logger().i(
-                    '🎨 MaterialApp rebuilt with theme: ${themeState.currentTheme}, mode: ${themeState.themeMode}, brightness: ${themeState.themeData.brightness}');
-                Logger().i(
-                    '🌐 MaterialApp rebuilt with locale: ${locale.languageCode}');
+                  Logger().i(
+                    '🎨 MaterialApp rebuilt with theme: ${themeState.currentTheme}, mode: ${themeState.themeMode}, brightness: ${themeState.themeData.brightness}',
+                  );
+                  Logger().i(
+                    '🌐 MaterialApp rebuilt with locale: ${locale.languageCode}',
+                  );
 
-                return MaterialApp.router(
-                  title: 'Kuron',
-                  debugShowCheckedModeBanner: false,
-                  routerConfig: AppRouter.router,
-                  theme: themeState.themeData,
-                  themeMode: themeState.themeMode,
-                  locale: locale,
-                  localizationsDelegates:
-                      AppLocalizations.localizationsDelegates,
-                  supportedLocales: AppLocalizations.supportedLocales,
-                  builder: (context, child) {
-                    // Show platform warning for non-Android platforms
-                    if (kIsWeb ||
-                        (!kIsWeb && !Platform.isAndroid && !Platform.isMacOS)) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        PlatformNotSupportedDialog.show(context);
-                      });
-                    }
-                    final child_ = Stack(
-                      children: [
-                        AppPrivacyOverlayGate(
-                          child: child ?? const SizedBox.shrink(),
-                        ),
-                        _LaunchPayloadNavigator(payload: launchPayload),
-                      ],
-                    );
-                    if (themeState.currentTheme != 'note' &&
-                        themeState.currentTheme != 'note_dark') {
-                      return child_;
-                    }
-                    return ColorFiltered(
-                      colorFilter: const ColorFilter.matrix(<double>[
-                        0.299,
-                        0.587,
-                        0.114,
-                        0,
-                        0,
-                        0.299,
-                        0.587,
-                        0.114,
-                        0,
-                        0,
-                        0.299,
-                        0.587,
-                        0.114,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                        1,
-                        0,
-                      ]),
-                      child: child_,
-                    );
-                  },
-                );
-              },
-            );
-          },
-        ),
+                  return MaterialApp.router(
+                    title: 'Kuron',
+                    debugShowCheckedModeBanner: false,
+                    routerConfig: AppRouter.router,
+                    theme: themeState.themeData,
+                    themeMode: themeState.themeMode,
+                    locale: locale,
+                    localizationsDelegates: [
+                      ...AppLocalizations.localizationsDelegates,
+                      ...GlobalMaterialLocalizations.delegates,
+                    ],
+                    supportedLocales: AppLocalizations.supportedLocales,
+                    builder: (context, child) {
+                      // Show platform warning for non-Android platforms
+                      if (kIsWeb ||
+                          (!kIsWeb &&
+                              !Platform.isAndroid &&
+                              !Platform.isMacOS)) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          PlatformNotSupportedDialog.show(context);
+                        });
+                      }
+                      final child_ = Stack(
+                        children: [
+                          AppPrivacyOverlayGate(
+                            child: child ?? const SizedBox.shrink(),
+                          ),
+                          _LaunchPayloadNavigator(payload: launchPayload),
+                        ],
+                      );
+                      if (themeState.currentTheme != 'note' &&
+                          themeState.currentTheme != 'note_dark') {
+                        return child_;
+                      }
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          0.299,
+                          0.587,
+                          0.114,
+                          0,
+                          0,
+                          0.299,
+                          0.587,
+                          0.114,
+                          0,
+                          0,
+                          0.299,
+                          0.587,
+                          0.114,
+                          0,
+                          0,
+                          0,
+                          0,
+                          0,
+                          1,
+                          0,
+                        ]),
+                        child: child_,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
     );

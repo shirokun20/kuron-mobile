@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -134,15 +136,14 @@ void main() {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: [Locale('en')],
-        home: Scaffold(
-          body: OfflineContentBody(),
-        ),
+        home: Scaffold(body: OfflineContentBody()),
       ),
     );
   }
 
-  testWidgets('Infinite scroll triggers loadMoreContent',
-      (WidgetTester tester) async {
+  testWidgets('Infinite scroll triggers loadMoreContent', (
+    WidgetTester tester,
+  ) async {
     // Arrange
     // Generate enough items to ensure scrolling is possible
     final List<ContentGroup> items = List.generate(
@@ -175,15 +176,17 @@ void main() {
     );
 
     // Initial state: Loaded with more pages available
-    when(() => mockOfflineSearchCubit.state).thenReturn(OfflineSearchLoaded(
-      query: '',
-      results: items,
-      totalResults: 100,
-      currentPage: 1,
-      totalPages: 5,
-      hasMore: true,
-      isLoadingMore: false,
-    ));
+    when(() => mockOfflineSearchCubit.state).thenReturn(
+      OfflineSearchLoaded(
+        query: '',
+        results: items,
+        totalResults: 100,
+        currentPage: 1,
+        totalPages: 5,
+        hasMore: true,
+        isLoadingMore: false,
+      ),
+    );
 
     // Stub loadMoreContent
     when(() => mockOfflineSearchCubit.loadMoreContent())

@@ -1,10 +1,10 @@
 name: nhasixapp
 description: "Kuron — Manga reader with offline support, multi-source search, AI translation, and privacy tools."
 publish_to: "none"
-version: 0.9.29+39
+version: 0.10.0+40
 
 environment:
-  sdk: ^3.13.0
+  sdk: ^3.14.0
   
 # Platform builds (Android + macOS desktop)
 platforms:
@@ -84,7 +84,7 @@ dependencies:
   local_auth: ^3.0.2
 
   # Desktop window (macOS/Windows/Linux only; guarded by Platform in main)
-  window_manager: ^0.6.0
+  window_manager: ^0.7.0
 
   # Utilities
   logger: ^2.6.2
@@ -103,6 +103,8 @@ dependencies:
   kuron_special:
     path: packages/kuron_special
   cookie_jar: ^4.0.9
+  material_ui: ^1.11.1
+  cupertino_ui: ^1.1.7
 
 dev_dependencies:
   flutter_test:

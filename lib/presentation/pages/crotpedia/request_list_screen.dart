@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -99,9 +99,9 @@ class _RequestListBodyState extends State<_RequestListBody> {
           }
           return RefreshIndicator(
             onRefresh: () async {
-              await context
-                  .read<CrotpediaFeatureCubit>()
-                  .loadRequestList(page: 1);
+              await context.read<CrotpediaFeatureCubit>().loadRequestList(
+                page: 1,
+              );
             },
             child: ListView.builder(
               controller: _scrollController,
@@ -139,8 +139,11 @@ class _RequestListBodyState extends State<_RequestListBody> {
       final int seriesIndex = segments.indexOf('series');
       if (seriesIndex != -1 && seriesIndex + 1 < segments.length) {
         final slug = segments[seriesIndex + 1];
-        AppRouter.goToContentDetail(context, slug,
-            sourceId: SourceType.crotpedia.id);
+        AppRouter.goToContentDetail(
+          context,
+          slug,
+          sourceId: SourceType.crotpedia.id,
+        );
       }
     } catch (e) {
       getIt<Logger>().e('Request list navigation failed', error: e);
@@ -231,11 +234,14 @@ class _RequestCard extends StatelessWidget {
                           children: genres.values.take(5).map((genre) {
                             return Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: colorScheme.secondaryContainer,
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusMd),
+                                  DesignTokens.radiusMd,
+                                ),
                               ),
                               child: Text(
                                 genre,
@@ -324,15 +330,17 @@ class _RequestCardShimmer extends StatelessWidget {
                     ShimmerBox(
                       height: 16,
                       width: double.infinity,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     const SizedBox(height: 6),
                     ShimmerBox(
                       height: 16,
                       width: 140,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     Wrap(
@@ -343,8 +351,9 @@ class _RequestCardShimmer extends StatelessWidget {
                         (i) => ShimmerBox(
                           height: 24,
                           width: 60 + (i * 10).toDouble(),
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
                         ),
                       ),
                     ),

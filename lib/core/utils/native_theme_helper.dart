@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/presentation/cubits/theme/theme_cubit.dart';
 import 'package:nhasixapp/core/constants/colors_const.dart';
@@ -31,7 +31,8 @@ class NativeThemeHelper {
       final theme = getIt<ThemeCubit>().state.themeData;
       final kuronColors = theme.extension<KuronColors>();
       return _colorToHex(
-          kuronColors?.readerBg ?? theme.scaffoldBackgroundColor);
+        kuronColors?.readerBg ?? theme.scaffoldBackgroundColor,
+      );
     } catch (_) {
       return null;
     }

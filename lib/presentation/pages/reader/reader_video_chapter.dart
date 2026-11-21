@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_core/kuron_core.dart' show ChapterData;
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
@@ -46,8 +46,7 @@ int readerVideoSlot({
   required int pageCount,
   required bool hasVideoStrip,
   int? videoIndex,
-}) =>
-    hasVideoStrip ? (videoIndex ?? pageCount) : -1;
+}) => hasVideoStrip ? (videoIndex ?? pageCount) : -1;
 
 /// Map a list item index to the page it shows, skipping the card.
 int readerPageIndexFor(int itemIndex, int videoAt) =>
@@ -104,8 +103,13 @@ Future<void> openChapterStream(
 /// machinery that does not exist. Save is offered for these alone.
 bool isDirectFileStream(String url) {
   final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
-  return const ['.mp4', '.webm', '.mov', '.m4v', '.mkv']
-      .any((extension) => path.endsWith(extension));
+  return const [
+    '.mp4',
+    '.webm',
+    '.mov',
+    '.m4v',
+    '.mkv',
+  ].any((extension) => path.endsWith(extension));
 }
 
 /// Save a chapter's video to the public Downloads folder.
@@ -130,7 +134,9 @@ Future<void> saveChapterVideo(
     Logger().w('video chapter download failed: $e');
     if (context.mounted) {
       CoreSnackbar.showError(
-          context, l10n?.downloadFailed ?? 'Download failed');
+        context,
+        l10n?.downloadFailed ?? 'Download failed',
+      );
     }
   }
 }
@@ -138,8 +144,10 @@ Future<void> saveChapterVideo(
 /// Filename for a saved video: the chapter title when it has one, the URL's own
 /// last segment otherwise — never a host's generic `video.mp4`.
 String videoFileName({String? title, required String url}) {
-  final heading =
-      (title?.trim() ?? '').replaceAll(RegExp(r'[\\/:*?"<>|\r\n]'), '');
+  final heading = (title?.trim() ?? '').replaceAll(
+    RegExp(r'[\\/:*?"<>|\r\n]'),
+    '',
+  );
   final base = heading.isEmpty ? 'video' : heading;
   final extension =
       Uri.tryParse(url)?.path.split('.').last.toLowerCase() ?? 'mp4';
@@ -189,10 +197,10 @@ class ReaderVideoChapter extends StatelessWidget {
               ),
               onSave: isDirectFileStream(chapterData.videoUrls.first)
                   ? () => saveChapterVideo(
-                        context,
-                        chapterData.videoUrls.first,
-                        title: cubit.state.content?.title,
-                      )
+                      context,
+                      chapterData.videoUrls.first,
+                      title: cubit.state.content?.title,
+                    )
                   : null,
             ),
           ),
@@ -211,11 +219,7 @@ class ReaderVideoChapter extends StatelessWidget {
 /// One row, one focal accent, no gradient: the play tile already says what
 /// happens on tap, and the chevron says it opens something.
 class ReaderVideoStrip extends StatelessWidget {
-  const ReaderVideoStrip({
-    super.key,
-    required this.chapterData,
-    this.title,
-  });
+  const ReaderVideoStrip({super.key, required this.chapterData, this.title});
 
   final ChapterData chapterData;
 
@@ -256,8 +260,9 @@ class ReaderVideoStrip extends StatelessWidget {
                       l10n?.readerVideoPlay ?? 'Play video',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyleConst.contentTitle
-                          .copyWith(color: cs.onSurface),
+                      style: TextStyleConst.contentTitle.copyWith(
+                        color: cs.onSurface,
+                      ),
                     ),
                     if (streamCount > 1) ...[
                       const SizedBox(height: DesignTokens.spaceXs),
@@ -266,8 +271,9 @@ class ReaderVideoStrip extends StatelessWidget {
                             '$streamCount streams available',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyleConst.bodySmall
-                            .copyWith(color: cs.onSurfaceVariant),
+                        style: TextStyleConst.bodySmall.copyWith(
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ],
@@ -284,11 +290,7 @@ class ReaderVideoStrip extends StatelessWidget {
                   color: cs.onSurfaceVariant,
                   tooltip: l10n?.readerVideoSave ?? 'Save video',
                 ),
-              Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: cs.onSurfaceVariant,
-              ),
+              Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
             ],
           ),
         ),
@@ -370,8 +372,9 @@ class VideoPosterCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style:
-                      TextStyleConst.headingSmall.copyWith(color: cs.onSurface),
+                  style: TextStyleConst.headingSmall.copyWith(
+                    color: cs.onSurface,
+                  ),
                 ),
                 const SizedBox(height: DesignTokens.spaceXl),
               ],
@@ -403,8 +406,9 @@ class VideoPosterCard extends StatelessWidget {
                   l10n?.readerVideoStreamCount(streamCount) ??
                       '$streamCount streams available',
                   textAlign: TextAlign.center,
-                  style: TextStyleConst.bodySmall
-                      .copyWith(color: cs.onSurfaceVariant),
+                  style: TextStyleConst.bodySmall.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
                 ),
               ],
             ],

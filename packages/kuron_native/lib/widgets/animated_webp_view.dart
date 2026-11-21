@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
+
 import '../kuron_native.dart';
 
 // Native Android animated-WebP viewer backed by [AnimatedImageDrawable].
@@ -78,7 +79,8 @@ class AnimatedWebPView extends StatefulWidget {
     BuildContext context,
     int receivedBytes,
     int? totalBytes,
-  )? loadingBuilder;
+  )?
+  loadingBuilder;
 
   // Widget shown while the thumbnail is loading or on non-Android platforms.
   final Widget fallback;
@@ -119,8 +121,7 @@ class AnimatedWebPView extends StatefulWidget {
   static bool shouldRenderPlayingForTesting({
     required bool isPlaying,
     required bool userPaused,
-  }) =>
-      isPlaying && !userPaused;
+  }) => isPlaying && !userPaused;
 
   // Whether the play/pause badge is shown. Static-only renders (offline
   // static images via native BitmapFactory) are not animations: no badge.
@@ -187,10 +188,10 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
   static int _nextRequestId = 0;
 
   bool get _shouldAutoPlay => AnimatedWebPView.shouldAutoPlayForTesting(
-        autoPlay: widget.autoPlay,
-        pageNumber: widget.pageNumber,
-        visiblePageNumber: widget.visiblePageNotifier?.value,
-      );
+    autoPlay: widget.autoPlay,
+    pageNumber: widget.pageNumber,
+    visiblePageNumber: widget.visiblePageNotifier?.value,
+  );
 
   bool get _hasPreparedPlaybackSource =>
       _webpCachePath != null ||
@@ -472,8 +473,7 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
           child: IconButton(
             iconSize: 16,
             padding: EdgeInsets.zero,
-            constraints:
-                const BoxConstraints.tightFor(width: 28, height: 28),
+            constraints: const BoxConstraints.tightFor(width: 28, height: 28),
             color: Colors.white,
             icon: Icon(renderPlaying ? Icons.pause : Icons.play_arrow),
             onPressed: () {
@@ -495,14 +495,13 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
     final Widget background = _thumbnailPath != null
         ? Image.file(File(_thumbnailPath!), fit: BoxFit.contain)
         : widget.loadingBuilder?.call(
-              context,
-              _thumbnailDownloadedBytes,
-              _thumbnailTotalBytes,
-            ) ??
-            widget.fallback;
+                context,
+                _thumbnailDownloadedBytes,
+                _thumbnailTotalBytes,
+              ) ??
+              widget.fallback;
 
-    final renderPlaying =
-        AnimatedWebPView.shouldRenderPlayingForTesting(
+    final renderPlaying = AnimatedWebPView.shouldRenderPlayingForTesting(
       isPlaying: _isPlaying,
       userPaused: _userPaused,
     );
@@ -548,8 +547,8 @@ class _AnimatedWebPViewState extends State<AnimatedWebPView>
                 'grayscale': widget.grayscale,
               },
               creationParamsCodec: const StandardMessageCodec(),
-              gestureRecognizers: const <Factory<
-                  OneSequenceGestureRecognizer>>{},
+              gestureRecognizers:
+                  const <Factory<OneSequenceGestureRecognizer>>{},
             ),
           ),
           if (showBadge) _buildPauseBadge(true),

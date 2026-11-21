@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -42,15 +42,18 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
         child: Column(
           children: [
             const Spacer(flex: 2),
-            Icon(Icons.lock_outline,
-                size: 48, color: theme.colorScheme.primary),
+            Icon(
+              Icons.lock_outline,
+              size: 48,
+              color: theme.colorScheme.primary,
+            ),
             const SizedBox(height: 16),
             Text(
               _isConfirmPhase
                   ? l10n.confirmPin
                   : widget.mode == PinSetupMode.change
-                      ? l10n.enterNewPin
-                      : l10n.setupPin,
+                  ? l10n.enterNewPin
+                  : l10n.setupPin,
               style: TextStyleConst.headingMedium.copyWith(
                 color: theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w700,
@@ -188,8 +191,9 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
 
   Widget _buildRow(ThemeData theme, List<String> digits) {
     return Row(
-      children:
-          digits.map((d) => Expanded(child: _buildKey(theme, d))).toList(),
+      children: digits
+          .map((d) => Expanded(child: _buildKey(theme, d)))
+          .toList(),
     );
   }
 
@@ -205,9 +209,10 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
           child: Container(
             height: 64,
             alignment: Alignment.center,
-            child: Text(label,
-                style:
-                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ),
@@ -226,8 +231,11 @@ class _PinSetupScreenState extends State<PinSetupScreen> {
             child: Container(
               height: 64,
               alignment: Alignment.center,
-              child: Icon(Icons.backspace_outlined,
-                  color: theme.colorScheme.onSurfaceVariant, size: 24),
+              child: Icon(
+                Icons.backspace_outlined,
+                color: theme.colorScheme.onSurfaceVariant,
+                size: 24,
+              ),
             ),
           ),
         ),

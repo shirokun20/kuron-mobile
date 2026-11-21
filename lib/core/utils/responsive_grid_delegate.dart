@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import '../../presentation/cubits/settings/settings_cubit.dart';
 
 // Helper class for creating responsive grid delegates based on user settings
@@ -55,8 +56,9 @@ class ResponsiveGridDelegate {
 
     // Clamp columns: must be at least 1, and no more than what fits physically
     // But prioritize user setting if it's reasonable (<= maxColumnsByWidth)
-    final int columns =
-        maxColumnsByWidth > 0 ? userColumns.clamp(1, maxColumnsByWidth) : 1;
+    final int columns = maxColumnsByWidth > 0
+        ? userColumns.clamp(1, maxColumnsByWidth)
+        : 1;
 
     // Use minimum 1 column even if width is tiny (to avoid 0 columns error)
     final int finalColumns = columns > 0 ? columns : 1;
@@ -103,8 +105,9 @@ class ResponsiveGridDelegate {
     }
 
     final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
-    final int columns =
-        maxColumnsByWidth > 0 ? userColumns.clamp(1, maxColumnsByWidth) : 1;
+    final int columns = maxColumnsByWidth > 0
+        ? userColumns.clamp(1, maxColumnsByWidth)
+        : 1;
 
     final int finalColumns = columns > 0 ? columns : 1;
 
@@ -120,10 +123,7 @@ class ResponsiveGridDelegate {
   ///
   // [context] - BuildContext for accessing MediaQuery
   // [settingsCubit] - SettingsCubit for accessing user column preferences
-  static int getColumnCount(
-    BuildContext context,
-    SettingsCubit settingsCubit,
-  ) {
+  static int getColumnCount(BuildContext context, SettingsCubit settingsCubit) {
     final mediaQuery = MediaQuery.of(context);
     final isPortrait = mediaQuery.orientation == Orientation.portrait;
     final int userColumns = settingsCubit.getColumnsForOrientation(isPortrait);
@@ -140,8 +140,9 @@ class ResponsiveGridDelegate {
 
     final int maxColumnsByWidth = (effectiveWidth / minItemWidth).floor();
 
-    final int columns =
-        maxColumnsByWidth > 0 ? userColumns.clamp(1, maxColumnsByWidth) : 1;
+    final int columns = maxColumnsByWidth > 0
+        ? userColumns.clamp(1, maxColumnsByWidth)
+        : 1;
 
     return columns > 0 ? columns : 1;
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -37,10 +37,10 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
   void initState() {
     super.initState();
     context.read<TagDetailCubit>().loadTagDetail(
-          tagType: widget.tagType,
-          slug: widget.slug,
-          sourceId: widget.sourceId,
-        );
+      tagType: widget.tagType,
+      slug: widget.slug,
+      sourceId: widget.sourceId,
+    );
   }
 
   @override
@@ -53,16 +53,23 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
       child: BlocBuilder<TagDetailCubit, TagDetailState>(
         builder: (context, state) {
           return AppScaffoldWithOffline(
-            title:
-                state is TagDetailLoaded ? state.tagDetail.name : widget.slug,
+            title: state is TagDetailLoaded
+                ? state.tagDetail.name
+                : widget.slug,
             body: switch (state) {
-              TagDetailInitial() ||
-              TagDetailLoading() =>
-                const Center(child: CircularProgressIndicator()),
-              TagDetailLoaded(tagDetail: final tag) =>
-                _buildContent(tag, colorScheme, l10n),
-              TagDetailError(message: final msg) =>
-                _buildErrorState(msg, colorScheme, l10n),
+              TagDetailInitial() || TagDetailLoading() => const Center(
+                child: CircularProgressIndicator(),
+              ),
+              TagDetailLoaded(tagDetail: final tag) => _buildContent(
+                tag,
+                colorScheme,
+                l10n,
+              ),
+              TagDetailError(message: final msg) => _buildErrorState(
+                msg,
+                colorScheme,
+                l10n,
+              ),
             },
           );
         },
@@ -71,7 +78,10 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
   }
 
   Widget _buildErrorState(
-      String message, ColorScheme colorScheme, AppLocalizations? l10n) {
+    String message,
+    ColorScheme colorScheme,
+    AppLocalizations? l10n,
+  ) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -88,17 +98,16 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: () => context.read<TagDetailCubit>().loadTagDetail(
-                    tagType: widget.tagType,
-                    slug: widget.slug,
-                    sourceId: widget.sourceId,
-                  ),
+                tagType: widget.tagType,
+                slug: widget.slug,
+                sourceId: widget.sourceId,
+              ),
               icon: const Icon(Icons.refresh),
               label: Text(l10n?.retry ?? 'Retry'),
             ),
@@ -109,7 +118,10 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
   }
 
   Widget _buildContent(
-      TagDetailEntity tag, ColorScheme colorScheme, AppLocalizations? l10n) {
+    TagDetailEntity tag,
+    ColorScheme colorScheme,
+    AppLocalizations? l10n,
+  ) {
     final theme = Theme.of(context);
 
     return SingleChildScrollView(
@@ -152,8 +164,8 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
                     ),
                     _buildBadge(
                       icon: Icons.numbers,
-                      label:
-                          AppLocalizations.of(context)!.nGalleries(tag.count),
+                      label: AppLocalizations.of(context)!
+                          .nGalleries(tag.count),
                       colorScheme: colorScheme,
                     ),
                   ],
@@ -223,15 +235,24 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            _buildMetaRow(AppLocalizations.of(context)!.tagId,
-                tag.id.toString(), colorScheme),
+            _buildMetaRow(
+              AppLocalizations.of(context)!.tagId,
+              tag.id.toString(),
+              colorScheme,
+            ),
             const Divider(height: 18),
             _buildMetaRow(
-                AppLocalizations.of(context)!.slug, tag.slug, colorScheme),
+              AppLocalizations.of(context)!.slug,
+              tag.slug,
+              colorScheme,
+            ),
             if (tag.url != null && tag.url!.trim().isNotEmpty) ...[
               const Divider(height: 18),
               _buildMetaRow(
-                  AppLocalizations.of(context)!.path, tag.url!, colorScheme),
+                AppLocalizations.of(context)!.path,
+                tag.url!,
+                colorScheme,
+              ),
             ],
           ],
         ),
@@ -255,10 +276,7 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            value,
-            style: TextStyle(color: colorScheme.onSurface),
-          ),
+          child: Text(value, style: TextStyle(color: colorScheme.onSurface)),
         ),
       ],
     );
@@ -274,9 +292,8 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context).textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             child,
@@ -286,10 +303,11 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
     );
   }
 
-  Widget _buildBadge(
-      {required IconData icon,
-      required String label,
-      required ColorScheme colorScheme}) {
+  Widget _buildBadge({
+    required IconData icon,
+    required String label,
+    required ColorScheme colorScheme,
+  }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -298,11 +316,7 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(label),
-        ],
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
       ),
     );
   }
@@ -313,8 +327,9 @@ class _TagDetailScreenState extends State<TagDetailScreen> {
   }
 
   void _searchWithTag(TagDetailEntity tag) {
-    final rawConfig =
-        getIt<RemoteConfigService>().getRawConfig(widget.sourceId);
+    final rawConfig = getIt<RemoteConfigService>().getRawConfig(
+      widget.sourceId,
+    );
     final searchConfig = rawConfig?['searchConfig'] as Map?;
     final tokenTemplates = searchConfig?['queryTokenTemplates'] as Map?;
     final includeTemplate =

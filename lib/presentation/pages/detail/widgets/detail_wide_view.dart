@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/core/utils/app_animations.dart';
@@ -83,115 +83,115 @@ class _DetailWideViewState extends State<DetailWideView> {
         children: [
           if (widget.isOfflineMode)
             Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            color: colorScheme.secondaryContainer,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: colorScheme.secondaryContainer,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.wifi_off,
+                    color: colorScheme.onSecondaryContainer,
+                    size: 16,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      l10n.youAreOffline,
+                      style: TextStyleConst.bodySmall.copyWith(
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: widget.onGoOnline,
+                    child: Text(
+                      l10n.goOnline,
+                      style: TextStyleConst.labelMedium.copyWith(
+                        color: colorScheme.onSecondaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border(
+                bottom: BorderSide(color: colorScheme.outlineVariant),
+              ),
+            ),
             child: Row(
               children: [
-                Icon(
-                  Icons.wifi_off,
-                  color: colorScheme.onSecondaryContainer,
-                  size: 16,
+                IconButton(
+                  icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+                  onPressed: widget.onBack,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    l10n.youAreOffline,
-                    style: TextStyleConst.bodySmall.copyWith(
-                      color: colorScheme.onSecondaryContainer,
+                const Spacer(),
+                ...widget.appBarActions,
+              ],
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: _railWidth,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _CoverCard(
+                          headerImageUrl: widget.headerImageUrl,
+                          contentId: widget.contentId,
+                          pageNumber: widget.pageNumber,
+                          imageHeaders: widget.imageHeaders,
+                          blurOverlay: widget.blurOverlay,
+                        ),
+                        const SizedBox(height: DesignTokens.spaceLg),
+                        ...widget.infoWidgets,
+                      ],
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: widget.onGoOnline,
-                  child: Text(
-                    l10n.goOnline,
-                    style: TextStyleConst.labelMedium.copyWith(
-                      color: colorScheme.onSecondaryContainer,
+                _DragDivider(
+                  onDelta: (dx) => setState(() {
+                    _railWidth = (_railWidth + dx).clamp(
+                      DetailWideView.minRailWidth,
+                      DetailWideView.maxRailWidth,
+                    );
+                  }),
+                  onReset: () => setState(() {
+                    _railWidth = DetailWideView.railWidth;
+                  }),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    controller: widget.rightScrollController,
+                    padding: const EdgeInsets.all(24),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: DetailWideView.maxContentWidth,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: widget.contentWidgets,
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
-        Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(color: colorScheme.outlineVariant),
-            ),
-          ),
-          child: Row(
-            children: [
-              IconButton(
-                icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-                onPressed: widget.onBack,
-              ),
-              const Spacer(),
-              ...widget.appBarActions,
-            ],
-          ),
-        ),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: _railWidth,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _CoverCard(
-                        headerImageUrl: widget.headerImageUrl,
-                        contentId: widget.contentId,
-                        pageNumber: widget.pageNumber,
-                        imageHeaders: widget.imageHeaders,
-                        blurOverlay: widget.blurOverlay,
-                      ),
-                      const SizedBox(height: DesignTokens.spaceLg),
-                      ...widget.infoWidgets,
-                    ],
-                  ),
-                ),
-              ),
-              _DragDivider(
-                onDelta: (dx) => setState(() {
-                  _railWidth = (_railWidth + dx).clamp(
-                    DetailWideView.minRailWidth,
-                    DetailWideView.maxRailWidth,
-                  );
-                }),
-                onReset: () => setState(() {
-                  _railWidth = DetailWideView.railWidth;
-                }),
-              ),
-              Expanded(
-                child: SingleChildScrollView(
-                  controller: widget.rightScrollController,
-                  padding: const EdgeInsets.all(24),
-                  child: Align(
-                    alignment: Alignment.topLeft,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: DetailWideView.maxContentWidth,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: widget.contentWidgets,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    )
+        ],
+      ),
     );
   }
 }
@@ -200,10 +200,7 @@ class _DetailWideViewState extends State<DetailWideView> {
 /// Horizontal drag resizes the rail (clamped by the caller); double-tap
 /// resets it. 9dp hit area, 1dp visible line, resize cursor on desktop.
 class _DragDivider extends StatelessWidget {
-  const _DragDivider({
-    required this.onDelta,
-    required this.onReset,
-  });
+  const _DragDivider({required this.onDelta, required this.onReset});
 
   final ValueChanged<double> onDelta;
   final VoidCallback onReset;
@@ -221,10 +218,7 @@ class _DragDivider extends StatelessWidget {
           width: 9,
           color: Colors.transparent,
           alignment: Alignment.center,
-          child: Container(
-            width: 1,
-            color: colorScheme.outlineVariant,
-          ),
+          child: Container(width: 1, color: colorScheme.outlineVariant),
         ),
       ),
     );
@@ -301,10 +295,7 @@ class _CoverCard extends StatelessWidget {
 /// Loading placeholder matching [DetailWideView]: cover shimmer left,
 /// body shimmer right.
 class DetailWideLoadingView extends StatelessWidget {
-  const DetailWideLoadingView({
-    super.key,
-    required this.onBack,
-  });
+  const DetailWideLoadingView({super.key, required this.onBack});
 
   final VoidCallback onBack;
 
@@ -312,13 +303,13 @@ class DetailWideLoadingView extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     Widget box(double h, double w) => Container(
-          height: h,
-          width: w,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        );
+      height: h,
+      width: w,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+    );
     return SafeArea(
       top: true,
       bottom: false,
@@ -326,84 +317,84 @@ class DetailWideLoadingView extends StatelessWidget {
       right: false,
       child: Column(
         children: [
-        Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            border: Border(
-              bottom: BorderSide(color: colorScheme.outlineVariant),
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              border: Border(
+                bottom: BorderSide(color: colorScheme.outlineVariant),
+              ),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
+              onPressed: onBack,
             ),
           ),
-          child: IconButton(
-            icon: Icon(Icons.arrow_back, color: colorScheme.onSurface),
-            onPressed: onBack,
-          ),
-        ),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: DetailWideView.railWidth,
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AspectRatio(
-                        aspectRatio: 3 / 4,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(
-                              DesignTokens.radiusXl,
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: DetailWideView.railWidth,
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 3 / 4,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusXl,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      box(24, double.infinity),
-                      const SizedBox(height: 12),
-                      box(16, 180),
-                    ],
+                        const SizedBox(height: 16),
+                        box(24, double.infinity),
+                        const SizedBox(height: 12),
+                        box(16, 180),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Container(width: 1, color: colorScheme.outlineVariant),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      box(24, 220),
-                      const SizedBox(height: 16),
-                      ...List.generate(
-                        5,
-                        (_) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Row(
-                            children: [
-                              box(16, 120),
-                              const SizedBox(width: 16),
-                              Expanded(child: box(16, double.infinity)),
-                            ],
+                Container(width: 1, color: colorScheme.outlineVariant),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        box(24, 220),
+                        const SizedBox(height: 16),
+                        ...List.generate(
+                          5,
+                          (_) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              children: [
+                                box(16, 120),
+                                const SizedBox(width: 16),
+                                Expanded(child: box(16, double.infinity)),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      ],
-    )
+        ],
+      ),
     );
   }
 }

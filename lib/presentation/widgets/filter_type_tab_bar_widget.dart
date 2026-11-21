@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../domain/entities/entities.dart';
 
@@ -25,10 +26,7 @@ class FilterTypeTabBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline,
-            width: 1,
-          ),
+          bottom: BorderSide(color: colorScheme.outline, width: 1),
         ),
       ),
       child: TabBar(
@@ -47,9 +45,7 @@ class FilterTypeTabBar extends StatelessWidget {
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         tabs: filterTypes
-            .map((type) => Tab(
-                  text: TagType.getDisplayName(type),
-                ))
+            .map((type) => Tab(text: TagType.getDisplayName(type)))
             .toList(),
       ),
     );
@@ -79,10 +75,7 @@ class FilterTypeTabBarModern extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline,
-            width: 1,
-          ),
+          bottom: BorderSide(color: colorScheme.outline, width: 1),
         ),
       ),
       child: ListView.builder(
@@ -130,10 +123,7 @@ class FilterTypeTab extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: DesignTokens.durationPageTurn,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 8,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
               ? colorScheme.primary
@@ -249,10 +239,7 @@ class FilterTypeChipBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline,
-            width: 1,
-          ),
+          bottom: BorderSide(color: colorScheme.outline, width: 1),
         ),
       ),
       child: ListView.builder(

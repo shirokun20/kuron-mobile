@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 /// Full-screen one-time tutorial overlay explaining the AI-translate toolbar.
@@ -47,12 +47,18 @@ class ReaderAiTutorialOverlay extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.touch_app,
-                              size: 14, color: theme.colorScheme.outline),
+                          Icon(
+                            Icons.touch_app,
+                            size: 14,
+                            color: theme.colorScheme.outline,
+                          ),
                           const SizedBox(width: 4),
-                          Text(l10n.aiTutorialHint,
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: theme.colorScheme.outline)),
+                          Text(
+                            l10n.aiTutorialHint,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.outline,
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 20),
@@ -125,9 +131,12 @@ class _TutorialRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title,
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w600)),
+              Text(
+                title,
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 2),
               Text(desc, style: theme.textTheme.bodySmall),
             ],

@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/domain/entities/kuro_mood.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 
@@ -89,8 +89,8 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
         // floaty 3s x2 (happy + ghost only).
         final floatY =
             (widget.mood == KuroMood.happy || widget.mood == KuroMood.ghost)
-                ? -12 * (0.5 - 0.5 * math.cos(t * math.pi * 4))
-                : 0.0;
+            ? -12 * (0.5 - 0.5 * math.cos(t * math.pi * 4))
+            : 0.0;
         // sob-shake for cry moods (3 cycle/loop, sudah nutup).
         final sobX = _needsCry ? 3 * math.sin(c * math.pi * 6) : 0.0;
         // tsundere glance: stare right, flick back at the end.
@@ -98,8 +98,8 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
         final glanceX = widget.mood == KuroMood.tsundere
             ? (t < 0.3 ? 0.0 : (t < 0.8 ? 8.0 : -2.0))
             : widget.mood == KuroMood.waiting
-                ? 5.0 * math.sin(t * math.pi * 2)
-                : 0.0;
+            ? 5.0 * math.sin(t * math.pi * 2)
+            : 0.0;
 
         Widget body = CustomPaint(
           size: Size.square(widget.size),
@@ -140,10 +140,7 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
   // tearfall: fade in by 20%, fall 26px, fade out by 100%.
   static ({double dy, double opacity}) _tear(double p) {
     if (p <= 0 || p >= 1) return (dy: 0, opacity: 0);
-    return (
-      dy: -2 + 28 * p,
-      opacity: p < 0.2 ? p / 0.2 : 1 - (p - 0.2) / 0.8,
-    );
+    return (dy: -2 + 28 * p, opacity: p < 0.2 ? p / 0.2 : 1 - (p - 0.2) / 0.8);
   }
 }
 
@@ -211,10 +208,11 @@ class _KuroPainter extends CustomPainter {
         ..close();
       canvas.drawPath(ear, bodyPaint);
       canvas.drawPath(
-          ear,
-          ink
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4);
+        ear,
+        ink
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4,
+      );
       ink.style = PaintingStyle.fill;
       // inner ear pink (prototipe A/B/D/E; ghost tanpa pink)
       if (!isGhost) {
@@ -247,12 +245,13 @@ class _KuroPainter extends CustomPainter {
         ..close();
       canvas.drawPath(hood, bodyPaint);
       canvas.drawPath(
-          hood,
-          Paint()
-            ..color = Colors.black
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 4
-            ..strokeJoin = StrokeJoin.round);
+        hood,
+        Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 4
+          ..strokeJoin = StrokeJoin.round,
+      );
     }
     // kepala near-circle (120x116) ikut referensi splash; dulu 128x112 pipih.
     final head = RRect.fromLTRBR(
@@ -264,11 +263,12 @@ class _KuroPainter extends CustomPainter {
     );
     canvas.drawRRect(head, Paint()..color = _ink);
     canvas.drawRRect(
-        head,
-        Paint()
-          ..color = Colors.black
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 4);
+      head,
+      Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4,
+    );
     if (isGhost) {
       canvas.drawOval(
         const Rect.fromLTWH(58, 65, 84, 80),
@@ -327,9 +327,15 @@ class _KuroPainter extends CustomPainter {
         canvas.drawLine(Offset(cx + 8, 98), Offset(cx - 8, 110), shut);
         final dir = cx < 100 ? -1.0 : 1.0; // wrinkle di sudut luar mata
         canvas.drawLine(
-            Offset(cx + dir * 12, 100), Offset(cx + dir * 18, 97), wrinkle);
+          Offset(cx + dir * 12, 100),
+          Offset(cx + dir * 18, 97),
+          wrinkle,
+        );
         canvas.drawLine(
-            Offset(cx + dir * 12, 108), Offset(cx + dir * 18, 111), wrinkle);
+          Offset(cx + dir * 12, 108),
+          Offset(cx + dir * 18, 111),
+          wrinkle,
+        );
       }
       return;
     }
@@ -342,8 +348,9 @@ class _KuroPainter extends CustomPainter {
       canvas.translate(cx, 106);
       canvas.scale(1, eyeScale);
       canvas.drawOval(
-          Rect.fromCenter(center: Offset.zero, width: rx * 2, height: ry * 2),
-          w);
+        Rect.fromCenter(center: Offset.zero, width: rx * 2, height: ry * 2),
+        w,
+      );
       // half-lid: tutup 40% atas mata pakai warna kepala -> tatapan jutek
       // setengah merem (tetap keliatan di kepala hitam karena nutup putih).
       if (isTsun) {
@@ -357,7 +364,10 @@ class _KuroPainter extends CustomPainter {
       // turun; ghost/tsundere tidak (punya tatapan sendiri).
       final down = (!small && !isTsun) ? 3.0 : 0.0;
       canvas.drawCircle(
-          Offset(px + 1, 4 + down), small ? 7.0 : (isTsun ? 6.5 : 9.0), pupil);
+        Offset(px + 1, 4 + down),
+        small ? 7.0 : (isTsun ? 6.5 : 9.0),
+        pupil,
+      );
       canvas.drawCircle(Offset(px + 3, 1 + down), 3, w);
       canvas.restore();
     }
@@ -419,8 +429,11 @@ class _KuroPainter extends CustomPainter {
         canvas.drawPath(p, line..strokeWidth = 3);
       case KuroMood.waiting:
         // garis datar netral: sabar menunggu, bukan senang/pout.
-        canvas.drawLine(const Offset(92, 140), const Offset(108, 140),
-            line..strokeWidth = 3);
+        canvas.drawLine(
+          const Offset(92, 140),
+          const Offset(108, 140),
+          line..strokeWidth = 3,
+        );
     }
     if (mood != KuroMood.cry &&
         mood != KuroMood.frozenCry &&
@@ -496,11 +509,14 @@ class _KuroPainter extends CustomPainter {
     for (final (d, r, o) in [
       (0.0, 6.0, 0.8),
       (10.0, 4.0, 0.6),
-      (17.0, 2.5, 0.4)
+      (17.0, 2.5, 0.4),
     ]) {
       bubble.color = Colors.white.withValues(alpha: o * (0.5 + 0.5 * huff));
       canvas.drawCircle(
-          Offset(134 + d * 1.2, 140 - d), r * (0.8 + 0.4 * huff), bubble);
+        Offset(134 + d * 1.2, 140 - d),
+        r * (0.8 + 0.4 * huff),
+        bubble,
+      );
     }
   }
 
@@ -514,21 +530,23 @@ class _KuroPainter extends CustomPainter {
     ];
     for (final (a, b) in arms) {
       canvas.drawLine(
-          a,
-          b,
-          Paint()
-            ..color = Colors.black
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 22
-            ..strokeCap = StrokeCap.round);
+        a,
+        b,
+        Paint()
+          ..color = Colors.black
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 22
+          ..strokeCap = StrokeCap.round,
+      );
       canvas.drawLine(
-          a,
-          b,
-          Paint()
-            ..color = _hood
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 16
-            ..strokeCap = StrokeCap.round);
+        a,
+        b,
+        Paint()
+          ..color = _hood
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 16
+          ..strokeCap = StrokeCap.round,
+      );
     }
     // paws: lingkaran + outline, di ujung dalam tiap lengan (dekat siku lawan).
     for (final paw in [const Offset(98, 160), const Offset(102, 160)]) {
@@ -588,8 +606,8 @@ class KuroLoading extends StatelessWidget {
             Text(
               message!,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
+                color: colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -618,8 +636,9 @@ class KuroThumbPlaceholder extends StatelessWidget {
         children: [
           KuronShimmer(
             baseColor: colorScheme.surfaceContainerHighest,
-            highlightColor:
-                colorScheme.surfaceContainerHighest.withValues(alpha: 0.8),
+            highlightColor: colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.8,
+            ),
             child: Container(color: colorScheme.surfaceContainerHighest),
           ),
           const Center(

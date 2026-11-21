@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -17,7 +17,10 @@ import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
 // ======================================================================
 
 Widget buildSettingsSectionHeader(
-    IconData icon, String title, ThemeData theme) {
+  IconData icon,
+  String title,
+  ThemeData theme,
+) {
   return Padding(
     padding: const EdgeInsets.only(left: 4),
     child: Row(
@@ -50,7 +53,8 @@ Widget buildSettingsCard(List<Widget> children, ThemeData theme) {
     elevation: DesignTokens.elevationNone,
     color: theme.colorScheme.surfaceContainer,
     shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusXl)),
+      borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+    ),
     child: Material(
       // Restore ink-splash rendering for ListTiles inside the card.
       type: MaterialType.transparency,
@@ -181,8 +185,9 @@ Widget buildSettingsActionTile({
     trailing: FilledButton(
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        backgroundColor:
-            isDestructive ? theme.colorScheme.error : theme.colorScheme.primary,
+        backgroundColor: isDestructive
+            ? theme.colorScheme.error
+            : theme.colorScheme.primary,
         foregroundColor: isDestructive
             ? theme.colorScheme.onError
             : theme.colorScheme.onPrimary,
@@ -261,11 +266,7 @@ Widget buildHealthDot(
   return SizedBox(
     width: 24,
     height: 24,
-    child: Icon(
-      Icons.circle,
-      size: 12,
-      color: color,
-    ),
+    child: Icon(Icons.circle, size: 12, color: color),
   );
 }
 
@@ -282,10 +283,7 @@ Widget buildDisguiseModeTile(
     builder: (context, state) {
       final isLoading = state is SettingsLoaded && state.isUpdatingDisguiseMode;
       return ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 4,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         title: Text(
           l10n.disguiseMode,
           style: TextStyleConst.bodyLarge.copyWith(
@@ -340,10 +338,7 @@ Widget buildDisguiseModeTile(
                 value: 'calculator',
                 child: Text(l10n.disguiseCalculator),
               ),
-              DropdownMenuItem(
-                value: 'notes',
-                child: Text(l10n.disguiseNotes),
-              ),
+              DropdownMenuItem(value: 'notes', child: Text(l10n.disguiseNotes)),
               DropdownMenuItem(
                 value: 'weather',
                 child: Text(l10n.disguiseWeather),
@@ -389,11 +384,11 @@ Widget buildDnsStatusCard(
       subtitle: Text(
         deviceActive
             ? (deviceServerName != null
-                ? l10n.dnsPrivateDnsStrict(deviceServerName)
-                : l10n.dnsPrivateDnsOpportunistic)
+                  ? l10n.dnsPrivateDnsStrict(deviceServerName)
+                  : l10n.dnsPrivateDnsOpportunistic)
             : (deviceReason == 'API_29_REQUIRED'
-                ? l10n.dnsPrivateDnsRequirements
-                : l10n.dnsPrivateDnsOff),
+                  ? l10n.dnsPrivateDnsRequirements
+                  : l10n.dnsPrivateDnsOff),
         style: TextStyleConst.bodySmall.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
@@ -401,10 +396,11 @@ Widget buildDnsStatusCard(
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: (deviceActive
-                  ? AppColors.success
-                  : theme.colorScheme.surfaceContainerHighest)
-              .withValues(alpha: 0.15),
+          color:
+              (deviceActive
+                      ? AppColors.success
+                      : theme.colorScheme.surfaceContainerHighest)
+                  .withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
         ),
         child: Text(
@@ -476,10 +472,7 @@ Widget buildStorageSection(
             horizontal: 16,
             vertical: 4,
           ),
-          leading: Icon(
-            Icons.folder_open,
-            color: theme.colorScheme.primary,
-          ),
+          leading: Icon(Icons.folder_open, color: theme.colorScheme.primary),
           title: Text(
             l10n.downloadDirectory,
             style: TextStyleConst.bodyLarge.copyWith(
@@ -496,10 +489,7 @@ Widget buildStorageSection(
             overflow: TextOverflow.ellipsis,
           ),
           trailing: IconButton(
-            icon: Icon(
-              Icons.edit_outlined,
-              color: theme.colorScheme.primary,
-            ),
+            icon: Icon(Icons.edit_outlined, color: theme.colorScheme.primary),
             tooltip: l10n.changeDirectory,
             onPressed: () async {
               final newPath = await StorageSettings.pickAndSaveCustomRoot(
@@ -508,9 +498,7 @@ Widget buildStorageSection(
               if (newPath != null && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      l10n.downloadDirectoryUpdated,
-                    ),
+                    content: Text(l10n.downloadDirectoryUpdated),
                     backgroundColor: AppColors.success,
                   ),
                 );
@@ -526,10 +514,7 @@ Widget buildStorageSection(
               horizontal: 16,
               vertical: 4,
             ),
-            leading: Icon(
-              Icons.refresh,
-              color: theme.colorScheme.error,
-            ),
+            leading: Icon(Icons.refresh, color: theme.colorScheme.error),
             title: Text(
               l10n.resetToDefault,
               style: TextStyleConst.bodyLarge.copyWith(
@@ -548,8 +533,10 @@ Widget buildStorageSection(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: theme.colorScheme.surface,
-                  title: Text(l10n.resetToDefault,
-                      style: TextStyle(color: theme.colorScheme.onSurface)),
+                  title: Text(
+                    l10n.resetToDefault,
+                    style: TextStyle(color: theme.colorScheme.onSurface),
+                  ),
                   content: Text(
                     l10n.confirmResetStorageDirectory,
                     style: TextStyle(color: theme.colorScheme.onSurface),
@@ -575,11 +562,7 @@ Widget buildStorageSection(
                 await StorageSettings.clearCustomRoot();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        l10n.downloadDirectoryReset,
-                      ),
-                    ),
+                    SnackBar(content: Text(l10n.downloadDirectoryReset)),
                   );
                   onRefresh(); // Refresh UI
                 }
@@ -639,7 +622,8 @@ Widget buildResetButton(
       foregroundColor: theme.colorScheme.onError,
       minimumSize: const Size(double.infinity, 50),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+      ),
     ),
   );
 }

@@ -1,17 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
+
 import 'anomaly_detail_screen.dart';
 import 'anomaly_store_contract.dart';
 
 /// Screen listing all recorded source anomalies.
 class AnomalyListScreen extends StatefulWidget {
-  const AnomalyListScreen({
-    super.key,
-    required this.store,
-    this.onReport,
-  });
+  const AnomalyListScreen({super.key, required this.store, this.onReport});
 
   final AnomalyStoreContract store;
   final void Function(BuildContext context, AnomalyRecord record)? onReport;
@@ -63,7 +60,8 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(loc?.anomalyDeleteTitle ?? 'Hapus Anomali'),
         content: Text(
-            '${loc?.delete ?? 'Hapus'} "${record.sourceId} - ${record.feature}"?'),
+          '${loc?.delete ?? 'Hapus'} "${record.sourceId} - ${record.feature}"?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -86,9 +84,8 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
         await _loadRecords();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal menghapus: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Gagal menghapus: $e')));
         }
       }
     }
@@ -103,7 +100,9 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
       appBar: AppBar(
         title: Text(
           'Anomali Source',
-          style: TextStyleConst.titleLarge.copyWith(color: colorScheme.onSurface),
+          style: TextStyleConst.titleLarge.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         elevation: DesignTokens.elevationNone,
@@ -132,11 +131,17 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Gagal memuat anomali',
-                style: TextStyleConst.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyleConst.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(_errorMessage!, textAlign: TextAlign.center),
@@ -233,10 +238,17 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+                      color: colorScheme.primaryContainer.withValues(
+                        alpha: 0.4,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     child: Text(
                       record.sourceId,
@@ -248,11 +260,16 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: (isEligible ? Colors.green : Colors.orange)
                           .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     child: Text(
                       isEligible ? 'Eligible' : 'Pending (1×)',
@@ -273,7 +290,11 @@ class _AnomalyListScreenState extends State<AnomalyListScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: Icon(Icons.delete_outline, size: 20, color: colorScheme.error),
+                    icon: Icon(
+                      Icons.delete_outline,
+                      size: 20,
+                      color: colorScheme.error,
+                    ),
                     tooltip: 'Hapus Record',
                     visualDensity: VisualDensity.compact,
                     onPressed: () => _deleteRecord(record),

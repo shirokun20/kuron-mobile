@@ -26,18 +26,18 @@ import '../support/config_test_harness.dart';
 
 const _timeout = Timeout(Duration(seconds: 90));
 
-
-
 GenericScraperAdapter _adapter(Map<String, Object?> config) {
   final baseUrl = config['baseUrl'] as String;
   return GenericScraperAdapter(
-    dio: Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
-      headers: ((config['network'] as Map?)?['headers'] as Map?)
-          ?.cast<String, dynamic>(),
-    )),
+    dio: Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+        headers: ((config['network'] as Map?)?['headers'] as Map?)
+            ?.cast<String, dynamic>(),
+      ),
+    ),
     urlBuilder: GenericUrlBuilder(baseUrl: baseUrl),
     parser: GenericHtmlParser(logger: Logger(level: Level.off)),
     logger: Logger(level: Level.off),
@@ -60,8 +60,9 @@ Future<AdapterDetailResult> _fetchDetailRetry(
   AdapterDetailResult? last;
   for (var attempt = 0; attempt < 3; attempt++) {
     try {
-      final detail =
-          await adapter.fetchDetail(id, config).timeout(const Duration(seconds: 20));
+      final detail = await adapter
+          .fetchDetail(id, config)
+          .timeout(const Duration(seconds: 20));
       if (detail.content.title.isNotEmpty && detail.imageUrls.isNotEmpty) {
         return detail;
       }
@@ -77,13 +78,11 @@ Future<AdapterDetailResult> _fetchDetailRetry(
   return last;
 }
 
-Future<void> _expectImage200(
-  String url,
-  Map<String, Object?> config,
-) async {
-  final headers = (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
-          (config['network'] as Map?)?['headers'] as Map?)
-      ?.cast<String, dynamic>();
+Future<void> _expectImage200(String url, Map<String, Object?> config) async {
+  final headers =
+      (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
+              (config['network'] as Map?)?['headers'] as Map?)
+          ?.cast<String, dynamic>();
   final client = HttpClient();
   final req = await client.openUrl('GET', Uri.parse(url));
   headers?.forEach((k, v) => req.headers.set(k, v));
@@ -118,9 +117,7 @@ const _tagSlugs = <String, String>{
 // /tag/ (character, series). The engine must route type='tag' includeTags to
 // tagSearch and everything else to genreSearch. Regression for the blank
 // page on tapping Character/Appear-In chips (e.g. /tag/sparkle/).
-const _plainTagSlugs = <String, String>{
-  'cosplaytele': 'sparkle',
-};
+const _plainTagSlugs = <String, String>{'cosplaytele': 'sparkle'};
 
 void _runSourceTests(String sourceId) {
   group('$sourceId live 5-screen', () {
@@ -143,17 +140,21 @@ void _runSourceTests(String sourceId) {
       expect(result.items.first.coverUrl, isNotEmpty);
     }, timeout: _timeout);
 
-    test('search screen returns results',
-        skip: _searchDisabled.contains(sourceId)
-            ? '$sourceId search blocked server-side'
-            : null, () async {
-      final query = _searchQueries[sourceId] ?? 'a';
-      final result = await adapter.search(
-        SearchFilter(query: query, page: 1),
-        config,
-      );
-      expect(result.items, isNotEmpty, reason: 'search "$query"');
-    }, timeout: _timeout);
+    test(
+      'search screen returns results',
+      skip: _searchDisabled.contains(sourceId)
+          ? '$sourceId search blocked server-side'
+          : null,
+      () async {
+        final query = _searchQueries[sourceId] ?? 'a';
+        final result = await adapter.search(
+          SearchFilter(query: query, page: 1),
+          config,
+        );
+        expect(result.items, isNotEmpty, reason: 'search "$query"');
+      },
+      timeout: _timeout,
+    );
 
     test('page 2 returns distinct items', () async {
       final p1 = await adapter.search(
@@ -205,8 +206,11 @@ void _runSourceTests(String sourceId) {
       final id = home.items.first.id;
       final detail = await _fetchDetailRetry(adapter, id, config);
       expect(detail.content.title, isNotEmpty, reason: 'detail title for $id');
-      expect(detail.imageUrls, isNotEmpty,
-          reason: 'detail has reader images for $id');
+      expect(
+        detail.imageUrls,
+        isNotEmpty,
+        reason: 'detail has reader images for $id',
+      );
     }, timeout: _timeout);
 
     test('reader screen first image is HTTP 200', () async {
@@ -214,10 +218,16 @@ void _runSourceTests(String sourceId) {
         const SearchFilter(query: '', page: 1),
         config,
       );
-      final detail =
-          await _fetchDetailRetry(adapter, home.items.first.id, config);
-      expect(detail.imageUrls, isNotEmpty,
-          reason: 'reader images for ${home.items.first.id}');
+      final detail = await _fetchDetailRetry(
+        adapter,
+        home.items.first.id,
+        config,
+      );
+      expect(
+        detail.imageUrls,
+        isNotEmpty,
+        reason: 'reader images for ${home.items.first.id}',
+      );
       await _expectImage200(detail.imageUrls.first, config);
     }, timeout: _timeout);
   });
@@ -244,15 +254,28 @@ void _runSourceTests(String sourceId) {
       );
       final urls = content!.images;
       expect(urls, isNotEmpty, reason: 'gallery images');
-      final nonGallery =
-          urls.where((u) => !u.contains('Machi-cosplay-Sparkle')).toList();
-      expect(nonGallery, isEmpty,
-          reason: 'crp_related thumbs leaked into reader: $nonGallery');
+      final nonGallery = urls
+          .where((u) => !u.contains('Machi-cosplay-Sparkle'))
+          .toList();
+      expect(
+        nonGallery,
+        isEmpty,
+        reason: 'crp_related thumbs leaked into reader: $nonGallery',
+      );
     }, timeout: _timeout);
   });
 }
 
 void main() {
+  // Real-site probes are opt-in: default `flutter test` never hits the network.
+  if (Platform.environment['LIVE'] != '1') {
+    group('keiyoushi_phase2_live_test live (opt-in)', () {
+      test('skipped by default', () {
+        markTestSkipped('set LIVE=1 to run live-network tests');
+      });
+    });
+    return;
+  }
   const sources = [
     'misskon',
     'cosplaytele',

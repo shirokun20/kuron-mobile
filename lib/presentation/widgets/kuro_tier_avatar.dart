@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/domain/entities/reader_badge.dart';
 
 // Dedicated tier avatar: same black-cat base for every tier, one accessory
@@ -184,7 +184,9 @@ class _KuroTierAvatarPainter extends CustomPainter {
     for (final x in [36.0, 140.0]) {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-            Rect.fromLTWH(x, 96, 24, 44), const Radius.circular(10)),
+          Rect.fromLTWH(x, 96, 24, 44),
+          const Radius.circular(10),
+        ),
         Paint()..color = _pad,
       );
     }

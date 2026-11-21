@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/design_tokens.dart';
 import '../../core/constants/text_style_const.dart';
@@ -44,27 +44,21 @@ class FilterDataSearchWidget extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hintText,
           hintStyle: TextStyleConst.bodyLarge.copyWith(
-            color: Theme.of(context)
-                .colorScheme
-                .onSurfaceVariant
+            color: Theme.of(context).colorScheme.onSurfaceVariant
                 .withValues(alpha: 0.6),
           ),
           prefixIcon: Icon(
             Icons.search,
             color: focusNode.hasFocus
                 ? Theme.of(context).colorScheme.primary
-                : Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.6),
+                : Theme.of(context).colorScheme.onSurfaceVariant
+                      .withValues(alpha: 0.6),
           ),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
                   icon: Icon(
                     Icons.clear,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
+                    color: Theme.of(context).colorScheme.onSurfaceVariant
                         .withValues(alpha: 0.6),
                   ),
                   onPressed: () {
@@ -128,7 +122,8 @@ class _FilterDataSearchWithSuggestionsState
 
   void _onFocusChanged() {
     setState(() {
-      _showSuggestions = widget.focusNode.hasFocus &&
+      _showSuggestions =
+          widget.focusNode.hasFocus &&
           widget.suggestions.isNotEmpty &&
           widget.controller.text.isNotEmpty;
     });
@@ -137,7 +132,8 @@ class _FilterDataSearchWithSuggestionsState
   void _onChanged(String value) {
     widget.onChanged(value);
     setState(() {
-      _showSuggestions = widget.focusNode.hasFocus &&
+      _showSuggestions =
+          widget.focusNode.hasFocus &&
           widget.suggestions.isNotEmpty &&
           value.isNotEmpty;
     });
@@ -197,9 +193,7 @@ class _FilterDataSearchWithSuggestionsState
             leading: Icon(
               Icons.search,
               size: 20,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
+              color: Theme.of(context).colorScheme.onSurface
                   .withValues(alpha: 0.7),
             ),
             title: Text(

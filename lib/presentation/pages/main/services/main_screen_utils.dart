@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -36,8 +36,8 @@ class MainScreenUtils {
       if (pair.isEmpty) continue;
       final eqIdx = pair.indexOf('=');
       if (eqIdx > 0) {
-        final key =
-            Uri.decodeComponent(pair.substring(0, eqIdx)).replaceAll('[]', '');
+        final key = Uri.decodeComponent(pair.substring(0, eqIdx))
+            .replaceAll('[]', '');
         final val = Uri.decodeQueryComponent(pair.substring(eqIdx + 1));
         if (key == 'query' || key == 'q' || key == 'keyword') {
           decodedParts.add(val);
@@ -69,10 +69,12 @@ class MainScreenUtils {
     ) {
       if (items.isEmpty) return;
 
-      final include =
-          items.where((item) => !item.isExcluded).map((e) => e.value);
-      final exclude =
-          items.where((item) => item.isExcluded).map((e) => e.value);
+      final include = items
+          .where((item) => !item.isExcluded)
+          .map((e) => e.value);
+      final exclude = items
+          .where((item) => item.isExcluded)
+          .map((e) => e.value);
 
       if (include.isNotEmpty) {
         parts.add('$includeLabel: ${include.join(', ')}');
@@ -157,8 +159,10 @@ class MainScreenUtils {
       final options = rawOptions?.cast<Map<String, dynamic>>();
       if (options == null) return fallbackSortApiValue;
 
-      final byName =
-          options.firstWhere((o) => o['value'] == sortName, orElse: () => {});
+      final byName = options.firstWhere(
+        (o) => o['value'] == sortName,
+        orElse: () => {},
+      );
       if (byName.isNotEmpty && byName['apiValue'] != null) {
         return byName['apiValue'] as String;
       }
@@ -195,8 +199,9 @@ class MainScreenUtils {
       if (cleaned.endsWith('?') || cleaned.endsWith('&')) {
         cleaned = cleaned.substring(0, cleaned.length - 1);
       }
-      cleaned =
-          cleaned.replaceAllMapped(RegExp(r'[?&]([^=]+)=(?=[&]|$)'), (match) {
+      cleaned = cleaned.replaceAllMapped(RegExp(r'[?&]([^=]+)=(?=[&]|$)'), (
+        match,
+      ) {
         return cleaned.indexOf(match.group(0)!) == cleaned.indexOf('?')
             ? '?'
             : '';

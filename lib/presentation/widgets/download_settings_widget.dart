@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
@@ -73,8 +73,9 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
                   children: [
                     // Concurrent downloads
                     _buildSectionTitle(
-                        AppLocalizations.of(context)?.performanceSection ??
-                            AppLocalizations.of(context)!.performance),
+                      AppLocalizations.of(context)?.performanceSection ??
+                          AppLocalizations.of(context)!.performance,
+                    ),
                     _buildConcurrentDownloadsSlider(),
                     const SizedBox(height: 16),
 
@@ -84,8 +85,9 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
 
                     // Auto retry settings
                     _buildSectionTitle(
-                        AppLocalizations.of(context)?.autoRetrySection ??
-                            AppLocalizations.of(context)!.autoRetry),
+                      AppLocalizations.of(context)?.autoRetrySection ??
+                          AppLocalizations.of(context)!.autoRetry,
+                    ),
                     _buildAutoRetrySwitch(),
                     if (_settings.autoRetry) ...[
                       const SizedBox(height: 8),
@@ -95,8 +97,9 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
 
                     // Network settings
                     _buildSectionTitle(
-                        AppLocalizations.of(context)?.networkSection ??
-                            AppLocalizations.of(context)!.network),
+                      AppLocalizations.of(context)?.networkSection ??
+                          AppLocalizations.of(context)!.network,
+                    ),
                     _buildWifiOnlySwitch(),
                     const SizedBox(height: 16),
                     _buildTimeoutSlider(),
@@ -104,8 +107,9 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
 
                     // Notifications
                     _buildSectionTitle(
-                        AppLocalizations.of(context)?.notificationsSection ??
-                            AppLocalizations.of(context)!.notifications),
+                      AppLocalizations.of(context)?.notificationsSection ??
+                          AppLocalizations.of(context)!.notifications,
+                    ),
                     _buildNotificationsSwitch(),
                     const SizedBox(height: 32),
                   ],
@@ -123,9 +127,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
                   child: TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
-                      foregroundColor: Theme.of(context)
-                          .colorScheme
-                          .onSurface
+                      foregroundColor: Theme.of(context).colorScheme.onSurface
                           .withValues(alpha: 0.7),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
@@ -201,8 +203,8 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
           max: 10,
           divisions: 9,
           activeColor: Theme.of(context).colorScheme.primary,
-          inactiveColor:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+          inactiveColor: Theme.of(context).colorScheme.onSurface
+              .withValues(alpha: 0.2),
           onChanged: (value) {
             setState(() {
               _settings = _settings.copyWith(
@@ -215,8 +217,8 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
           AppLocalizations.of(context)?.concurrentDownloadsWarning ??
               AppLocalizations.of(context)!.higherValuesBandwidth,
           style: TextStyleConst.bodySmall.copyWith(
-            color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.6),
           ),
         ),
       ],
@@ -239,38 +241,48 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-              borderSide:
-                  BorderSide(color: Theme.of(context).colorScheme.outline),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-              borderSide:
-                  BorderSide(color: Theme.of(context).colorScheme.outline),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-              borderSide:
-                  BorderSide(color: Theme.of(context).colorScheme.primary),
+              borderSide: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
           ),
           dropdownColor: Theme.of(context).colorScheme.surface,
-          style: TextStyleConst.bodyMedium
-              .copyWith(color: Theme.of(context).colorScheme.onSurface),
+          style: TextStyleConst.bodyMedium.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
           items: [
             DropdownMenuItem(
-                value: 'low',
-                child: Text(AppLocalizations.of(context)!.lowQuality)),
+              value: 'low',
+              child: Text(AppLocalizations.of(context)!.lowQuality),
+            ),
             DropdownMenuItem(
-                value: 'medium',
-                child: Text(AppLocalizations.of(context)!.mediumQuality)),
+              value: 'medium',
+              child: Text(AppLocalizations.of(context)!.mediumQuality),
+            ),
             DropdownMenuItem(
-                value: 'high',
-                child: Text(AppLocalizations.of(context)!.highQuality)),
+              value: 'high',
+              child: Text(AppLocalizations.of(context)!.highQuality),
+            ),
             DropdownMenuItem(
-                value: 'original',
-                child: Text(AppLocalizations.of(context)!.originalQuality)),
+              value: 'original',
+              child: Text(AppLocalizations.of(context)!.originalQuality),
+            ),
           ],
           onChanged: (value) {
             if (value != null) {
@@ -302,9 +314,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
                 AppLocalizations.of(context)?.autoRetryDescription ??
                     AppLocalizations.of(context)!.autoRetryDescription,
                 style: TextStyleConst.bodySmall.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
+                  color: Theme.of(context).colorScheme.onSurface
                       .withValues(alpha: 0.6),
                 ),
               ),
@@ -353,8 +363,8 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
           max: 10,
           divisions: 9,
           activeColor: Theme.of(context).colorScheme.primary,
-          inactiveColor:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+          inactiveColor: Theme.of(context).colorScheme.onSurface
+              .withValues(alpha: 0.2),
           onChanged: (value) {
             setState(() {
               _settings = _settings.copyWith(retryAttempts: value.toInt());
@@ -382,9 +392,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
                 AppLocalizations.of(context)?.wifiOnlyDescription ??
                     AppLocalizations.of(context)!.wifiOnlyDownload,
                 style: TextStyleConst.bodySmall.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
+                  color: Theme.of(context).colorScheme.onSurface
                       .withValues(alpha: 0.6),
                 ),
               ),
@@ -433,8 +441,8 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
           max: 30,
           divisions: 29,
           activeColor: Theme.of(context).colorScheme.primary,
-          inactiveColor:
-              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2),
+          inactiveColor: Theme.of(context).colorScheme.onSurface
+              .withValues(alpha: 0.2),
           onChanged: (value) {
             setState(() {
               _settings = _settings.copyWith(
@@ -465,9 +473,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
                 AppLocalizations.of(context)?.enableNotificationsDescription ??
                     AppLocalizations.of(context)!.showNotificationsProgress,
                 style: TextStyleConst.bodySmall.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
+                  color: Theme.of(context).colorScheme.onSurface
                       .withValues(alpha: 0.6),
                 ),
               ),

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -54,13 +54,11 @@ class ContentByTagScreen extends StatefulWidget {
     required bool hasTagRoute,
   }) {
     final normalized = tagQuery.trim().toLowerCase();
-    if (!hasTagRoute ||
-        normalized.isEmpty ||
-        normalized.startsWith('raw:')) {
+    if (!hasTagRoute || normalized.isEmpty || normalized.startsWith('raw:')) {
       return (tags: const [], artists: const []);
     }
-    final creatorMatch =
-        RegExp(r'^(author|artist):(.*)$').firstMatch(normalized);
+    final creatorMatch = RegExp(r'^(author|artist):(.*)$')
+        .firstMatch(normalized);
     if (creatorMatch != null && creatorMatch.group(2)!.trim().isNotEmpty) {
       return (
         tags: const [],
@@ -68,21 +66,18 @@ class ContentByTagScreen extends StatefulWidget {
           FilterItem.include(
             creatorMatch.group(2)!.trim().replaceAll(' ', '-'),
             tagType: creatorMatch.group(1),
-          )
+          ),
         ],
       );
     }
     if (!normalized.contains(':')) {
       return (
-        tags: [
-          FilterItem.include(normalized.replaceAll(' ', '-'))
-        ],
+        tags: [FilterItem.include(normalized.replaceAll(' ', '-'))],
         artists: const [],
       );
     }
     return (tags: const [], artists: const []);
   }
-
 }
 
 class _ContentByTagScreenState extends State<ContentByTagScreen> {
@@ -106,8 +101,9 @@ class _ContentByTagScreenState extends State<ContentByTagScreen> {
       if (idx > 0) {
         final key = query.substring(0, idx).replaceAll('[]', '');
         final value = query.substring(idx + 1);
-        final shortValue =
-            value.length > 16 ? '${value.substring(0, 16)}...' : value;
+        final shortValue = value.length > 16
+            ? '${value.substring(0, 16)}...'
+            : value;
         return '$key: $shortValue';
       }
       return AppLocalizations.of(context)!.filteredResults;
@@ -149,9 +145,10 @@ class _ContentByTagScreenState extends State<ContentByTagScreen> {
           : getIt<RemoteConfigService>().getRawConfig(sourceId);
       final urlPatterns =
           ((rawConfig?['scraper'] as Map<String, dynamic>?)?['urlPatterns']
-                  as Map<String, dynamic>?) ??
-              const <String, dynamic>{};
-      final hasTagRoute = urlPatterns.containsKey('tagSearch') ||
+              as Map<String, dynamic>?) ??
+          const <String, dynamic>{};
+      final hasTagRoute =
+          urlPatterns.containsKey('tagSearch') ||
           urlPatterns.containsKey('genreSearch') ||
           urlPatterns.containsKey('authorSearch') ||
           urlPatterns.containsKey('artistSearch') ||
@@ -438,35 +435,40 @@ class _ContentByTagScreenState extends State<ContentByTagScreen> {
 
       for (final tagFilter in filter.tags.where((t) => t.isExcluded)) {
         if (content.tags.any(
-            (tag) => tag.name.toLowerCase() == tagFilter.value.toLowerCase())) {
+          (tag) => tag.name.toLowerCase() == tagFilter.value.toLowerCase(),
+        )) {
           return true;
         }
       }
 
       for (final groupFilter in filter.groups.where((g) => g.isExcluded)) {
-        if (content.groups.any((group) =>
-            group.toLowerCase() == groupFilter.value.toLowerCase())) {
+        if (content.groups.any(
+          (group) => group.toLowerCase() == groupFilter.value.toLowerCase(),
+        )) {
           return true;
         }
       }
 
       for (final charFilter in filter.characters.where((c) => c.isExcluded)) {
         if (content.characters.any(
-            (char) => char.toLowerCase() == charFilter.value.toLowerCase())) {
+          (char) => char.toLowerCase() == charFilter.value.toLowerCase(),
+        )) {
           return true;
         }
       }
 
       for (final parodFilter in filter.parodies.where((p) => p.isExcluded)) {
-        if (content.parodies.any((parod) =>
-            parod.toLowerCase() == parodFilter.value.toLowerCase())) {
+        if (content.parodies.any(
+          (parod) => parod.toLowerCase() == parodFilter.value.toLowerCase(),
+        )) {
           return true;
         }
       }
 
       for (final artistFilter in filter.artists.where((a) => a.isExcluded)) {
-        if (content.artists.any((artist) =>
-            artist.toLowerCase() == artistFilter.value.toLowerCase())) {
+        if (content.artists.any(
+          (artist) => artist.toLowerCase() == artistFilter.value.toLowerCase(),
+        )) {
           return true;
         }
       }
@@ -589,7 +591,10 @@ class _ContentByTagScreenState extends State<ContentByTagScreen> {
   }
 
   void _addTypedQueryTokens(
-      Set<String> tokens, String rawType, String rawValue) {
+    Set<String> tokens,
+    String rawType,
+    String rawValue,
+  ) {
     final type = TagBlacklistUtils.normalizeEntry(rawType);
     final value = TagBlacklistUtils.normalizeEntry(rawValue);
     if (type.isEmpty || value.isEmpty) {

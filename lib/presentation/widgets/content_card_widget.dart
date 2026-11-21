@@ -1,19 +1,24 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/colors_const.dart' show AppColors, KuronColors;
 import '../../core/constants/text_style_const.dart';
+
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/language_service.dart';
 import 'package:nhasixapp/core/utils/tag_color_palette.dart';
 import 'package:kuron_core/kuron_core.dart';
+
 import '../../l10n/app_localizations.dart';
 
 import 'progressive_image_widget.dart';
+
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
+
 import 'highlighted_text_widget.dart';
+
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
 // Enhanced content card widget with image caching and improved UI
@@ -74,7 +79,7 @@ class ContentCard extends StatelessWidget {
   final bool blurThumbnails; // NEW: global blur setting
   final bool isBlurred; // NEW: for blur excluded content
   final String?
-      offlineDownloadDate; // NEW: formatted download date (e.g., "Nov 27, 2025")
+  offlineDownloadDate; // NEW: formatted download date (e.g., "Nov 27, 2025")
   final String? offlineSize; // NEW: formatted file size (e.g., "45.2 MB")
   final String? highlightQuery; // NEW: text to highlight in title
   final bool preferStaticCover;
@@ -96,24 +101,15 @@ class ContentCard extends StatelessWidget {
     final showHighlightBorder = isHighlighted && !isRead && !isOffline;
     BoxBorder? borderDecoration;
     if (isRead && isOffline) {
-      borderDecoration = Border.all(
-        color: Colors.transparent,
-        width: 0,
-      );
+      borderDecoration = Border.all(color: Colors.transparent, width: 0);
     } else if (isRead) {
-      borderDecoration = Border.all(
-        color: readGoldColor,
-        width: 1.5,
-      );
+      borderDecoration = Border.all(color: readGoldColor, width: 1.5);
     } else if (isOffline) {
       borderDecoration = Border(
         left: BorderSide(color: offlineColor, width: 1.5),
       );
     } else if (showHighlightBorder) {
-      borderDecoration = Border.all(
-        color: AppColors.brandCoral,
-        width: 1.5,
-      );
+      borderDecoration = Border.all(color: AppColors.brandCoral, width: 1.5);
     } else {
       borderDecoration = Border.all(
         color: cardBorderColor,
@@ -146,10 +142,11 @@ class ContentCard extends StatelessWidget {
           InkWell(
             onTap: onTap,
             onLongPress: onLongPress,
-            splashColor:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-            highlightColor:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
+            splashColor: Theme.of(context).colorScheme.primary
+                .withValues(alpha: 0.1),
+            highlightColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
             borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
             child: AspectRatio(
               aspectRatio: aspectRatio,
@@ -208,18 +205,14 @@ class ContentCard extends StatelessWidget {
                                 Icon(
                                   Icons.storage,
                                   size: 11,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .primary
+                                  color: Theme.of(context).colorScheme.primary
                                       .withValues(alpha: 0.7),
                                 ),
                                 const SizedBox(width: 3),
                                 Text(
                                   offlineSize!,
                                   style: TextStyleConst.labelSmall.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary
+                                    color: Theme.of(context).colorScheme.primary
                                         .withValues(alpha: 0.7),
                                     fontSize: 10,
                                   ),
@@ -252,7 +245,8 @@ class ContentCard extends StatelessWidget {
                                     .colorScheme
                                     .surfaceContainerHighest,
                                 valueColor: AlwaysStoppedAnimation<Color>(
-                                    Theme.of(context).colorScheme.primary),
+                                  Theme.of(context).colorScheme.primary,
+                                ),
                                 minHeight: 3,
                               ),
                             ),
@@ -311,7 +305,8 @@ class ContentCard extends StatelessWidget {
       return const [];
     }
 
-    final readColor = Theme.of(context).extension<KuronColors>()?.readGold ??
+    final readColor =
+        Theme.of(context).extension<KuronColors>()?.readGold ??
         AppColors.readGold;
     final offlineColor = Theme.of(context).colorScheme.tertiary;
     final badges = <Widget>[];
@@ -370,8 +365,7 @@ class ContentCard extends StatelessWidget {
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(DesignTokens.radiusXl),
                   ),
-                  showOfflineIndicator:
-                      false, // Disable to prevent duplicate with ContentCard's own indicator
+                  showOfflineIndicator: false, // Disable to prevent duplicate with ContentCard's own indicator
                   httpHeaders: headers,
                   preferStaticPreview: preferStaticCover,
                 )
@@ -529,14 +523,15 @@ class ContentCard extends StatelessWidget {
                       filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surface
+                          color: Theme.of(context).colorScheme.surface
                               .withValues(alpha: 0.6),
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                         child: Text(
                           '${content.pageCount}${AppLocalizations.of(context)?.pages ?? 'p'}',
@@ -557,9 +552,7 @@ class ContentCard extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surface
+                    color: Theme.of(context).colorScheme.surface
                         .withValues(alpha: 0.8),
                     shape: BoxShape.circle,
                   ),
@@ -708,27 +701,29 @@ class ContentCard extends StatelessWidget {
         spacing: 4,
         runSpacing: 2,
         children: visibleTags
-            .map((tag) => Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color:
-                        _getTagColor(context, tag.type).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                    border: Border.all(
-                      color: _getTagColor(context, tag.type)
-                          .withValues(alpha: 0.5),
-                      width: 0.5,
-                    ),
+            .map(
+              (tag) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: _getTagColor(context, tag.type).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                  border: Border.all(
+                    color: _getTagColor(
+                      context,
+                      tag.type,
+                    ).withValues(alpha: 0.5),
+                    width: 0.5,
                   ),
-                  child: Text(
-                    tag.name,
-                    style: TextStyleConst.contentTag.copyWith(
-                      color: _getTagColor(context, tag.type),
-                      fontSize: 9,
-                    ),
+                ),
+                child: Text(
+                  tag.name,
+                  style: TextStyleConst.contentTag.copyWith(
+                    color: _getTagColor(context, tag.type),
+                    fontSize: 9,
                   ),
-                ))
+                ),
+              ),
+            )
             .toList(),
       ),
     );
@@ -752,9 +747,7 @@ class ContentCard extends StatelessWidget {
               Builder(
                 builder: (context) => Text(
                   _formatUploadDate(content.uploadDate, context),
-                  style: TextStyleConst.caption.copyWith(
-                    fontSize: 10,
-                  ),
+                  style: TextStyleConst.caption.copyWith(fontSize: 10),
                 ),
               ),
 
@@ -809,12 +802,13 @@ class ContentCard extends StatelessWidget {
         final normalizedLanguage = content.language.toLowerCase().trim();
         final hasLanguage =
             normalizedLanguage.isNotEmpty && normalizedLanguage != 'unknown';
-        final flagEmoji =
-            hasLanguage ? languageService.flagEmoji(normalizedLanguage) : null;
+        final flagEmoji = hasLanguage
+            ? languageService.flagEmoji(normalizedLanguage)
+            : null;
         final languageBadge = hasLanguage
             ? (normalizedLanguage.length >= 2
-                ? normalizedLanguage.substring(0, 2).toUpperCase()
-                : normalizedLanguage.toUpperCase())
+                  ? normalizedLanguage.substring(0, 2).toUpperCase()
+                  : normalizedLanguage.toUpperCase())
             : '--';
         final languageLabel = hasLanguage
             ? languageService.displayName(normalizedLanguage)
@@ -828,9 +822,7 @@ class ContentCard extends StatelessWidget {
               style: TextStyleConst.caption.copyWith(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
+                color: Theme.of(context).colorScheme.onSurface
                     .withValues(alpha: 0.8),
               ),
             ),
@@ -855,7 +847,9 @@ class ContentCard extends StatelessWidget {
       return loc.daysAgo(difference.inDays, difference.inDays == 1 ? '' : 's');
     } else if (difference.inHours > 0) {
       return loc.hoursAgo(
-          difference.inHours, difference.inHours == 1 ? '' : 's');
+        difference.inHours,
+        difference.inHours == 1 ? '' : 's',
+      );
     } else {
       return loc.justNow;
     }
@@ -974,15 +968,21 @@ class _SegmentedStatusBorderPainter extends CustomPainter {
     }
 
     void drawArc(
-        Color? color, Rect rect, double startAngle, double sweepAngle) {
+      Color? color,
+      Rect rect,
+      double startAngle,
+      double sweepAngle,
+    ) {
       if (color == null || cornerRadius <= 0) return;
       canvas.drawArc(rect, startAngle, sweepAngle, false, paintFor(color));
     }
 
     final topLeftRect = cornerRect(left, top);
     final topRightRect = cornerRect(right - cornerRadius * 2, top);
-    final bottomRightRect =
-        cornerRect(right - cornerRadius * 2, bottom - cornerRadius * 2);
+    final bottomRightRect = cornerRect(
+      right - cornerRadius * 2,
+      bottom - cornerRadius * 2,
+    );
     final bottomLeftRect = cornerRect(left, bottom - cornerRadius * 2);
 
     drawArc(topColor, topLeftRect, math.pi, -math.pi / 2);
@@ -1089,8 +1089,9 @@ class CompactContentCard extends StatelessWidget {
                     height: 80,
                     placeholder: const KuroThumbPlaceholder(),
                     errorWidget: Container(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
                       child: Icon(
                         Icons.broken_image,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1135,8 +1136,9 @@ class CompactContentCard extends StatelessWidget {
                         Text(
                           '${content.pageCount} ${AppLocalizations.of(context)?.pages ?? 'pages'}',
                           style: TextStyleConst.caption.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -1150,8 +1152,9 @@ class CompactContentCard extends StatelessWidget {
                               color: Theme.of(context)
                                   .colorScheme
                                   .surfaceContainerHighest,
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusSm),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusSm,
+                              ),
                             ),
                             child: Text(
                               content.language.toUpperCase(),

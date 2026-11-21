@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -158,8 +158,9 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
 
   Widget _buildRow(ThemeData theme, List<String> digits) {
     return Row(
-      children:
-          digits.map((d) => Expanded(child: _buildKey(theme, d))).toList(),
+      children: digits
+          .map((d) => Expanded(child: _buildKey(theme, d)))
+          .toList(),
     );
   }
 
@@ -175,9 +176,10 @@ class _PinEntryScreenState extends State<PinEntryScreen> {
           child: Container(
             height: 64,
             alignment: Alignment.center,
-            child: Text(label,
-                style:
-                    const TextStyle(fontSize: 26, fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
       ),

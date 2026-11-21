@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
@@ -34,9 +34,13 @@ void main() {
     when(() => logger.i(any())).thenAnswer((_) {});
     when(() => logger.d(any())).thenAnswer((_) {});
     when(() => logger.w(any())).thenAnswer((_) {});
-    when(() => logger.e(any(),
+    when(
+      () => logger.e(
+        any(),
         error: any(named: 'error'),
-        stackTrace: any(named: 'stackTrace'))).thenAnswer((_) {});
+        stackTrace: any(named: 'stackTrace'),
+      ),
+    ).thenAnswer((_) {});
     when(() => repository.getPinEnabled()).thenAnswer((_) async => false);
     when(() => repository.getPinHash()).thenAnswer((_) async => null);
     when(() => repository.getBiometricEnabled()).thenAnswer((_) async => false);

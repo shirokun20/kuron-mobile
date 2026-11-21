@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:nhasixapp/core/constants/colors_const.dart';
 
@@ -60,10 +60,7 @@ class TagColorPalette {
     Color(0xFFB8776D),
   ];
 
-  static Color resolve(
-    String tagType, {
-    required Brightness brightness,
-  }) {
+  static Color resolve(String tagType, {required Brightness brightness}) {
     final normalized = tagType.trim().toLowerCase();
     if (normalized.isEmpty) {
       return brightness == Brightness.dark

@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
@@ -33,8 +33,9 @@ const List<String> _androidCopies = [
 const List<int> _pngSignature = [0x89, 0x50, 0x4E, 0x47];
 
 void main() {
-  testWidgets('export every launcher-widget mood to PNG',
-      (WidgetTester tester) async {
+  testWidgets('export every launcher-widget mood to PNG', (
+    WidgetTester tester,
+  ) async {
     final assetDir = Directory('assets/widget');
     final androidDir = Directory('android/app/src/main/res/drawable-nodpi');
     assetDir.createSync(recursive: true);
@@ -70,24 +71,32 @@ void main() {
       // Settle the frame so blink/cry poses are painted, not mid-tick.
       await tester.pump(const Duration(milliseconds: 100));
 
-      final boundary =
-          tester.renderObject<RenderRepaintBoundary>(find.byKey(key));
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(key),
+      );
 
       // `toImage()` schedules real raster work that never completes inside the
       // fake-async test zone, so it MUST run under `runAsync`.
       final bytes = await tester.runAsync<Uint8List>(() async {
         final ui.Image image = await boundary.toImage(pixelRatio: 2.0);
-        final ByteData? data =
-            await image.toByteData(format: ui.ImageByteFormat.png);
+        final ByteData? data = await image.toByteData(
+          format: ui.ImageByteFormat.png,
+        );
         image.dispose();
         return data!.buffer.asUint8List();
       });
       expect(bytes, isNotNull);
 
-      expect(bytes!.length, greaterThan(500),
-          reason: '$name.png looks like a blank render');
-      expect(bytes.take(4).toList(), _pngSignature,
-          reason: '$name.png is not a PNG');
+      expect(
+        bytes!.length,
+        greaterThan(500),
+        reason: '$name.png looks like a blank render',
+      );
+      expect(
+        bytes.take(4).toList(),
+        _pngSignature,
+        reason: '$name.png is not a PNG',
+      );
 
       File('${assetDir.path}/$name.png').writeAsBytesSync(bytes);
       if (_androidCopies.contains(name)) {
@@ -100,18 +109,30 @@ void main() {
     for (final name in _exports.values) {
       final file = File('${assetDir.path}/$name.png');
       expect(file.existsSync(), isTrue, reason: 'missing ${file.path}');
-      expect(file.lengthSync(), greaterThan(500),
-          reason: 'too small: ${file.path}');
-      expect(file.readAsBytesSync().take(4).toList(), _pngSignature,
-          reason: 'bad signature: ${file.path}');
+      expect(
+        file.lengthSync(),
+        greaterThan(500),
+        reason: 'too small: ${file.path}',
+      );
+      expect(
+        file.readAsBytesSync().take(4).toList(),
+        _pngSignature,
+        reason: 'bad signature: ${file.path}',
+      );
     }
     for (final name in _androidCopies) {
       final file = File('${androidDir.path}/$name.png');
       expect(file.existsSync(), isTrue, reason: 'missing ${file.path}');
-      expect(file.lengthSync(), greaterThan(500),
-          reason: 'too small: ${file.path}');
-      expect(file.readAsBytesSync().take(4).toList(), _pngSignature,
-          reason: 'bad signature: ${file.path}');
+      expect(
+        file.lengthSync(),
+        greaterThan(500),
+        reason: 'too small: ${file.path}',
+      );
+      expect(
+        file.readAsBytesSync().take(4).toList(),
+        _pngSignature,
+        reason: 'bad signature: ${file.path}',
+      );
     }
   });
 }

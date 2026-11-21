@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
@@ -14,8 +14,10 @@ class MockAppLockRepository extends Mock implements AppLockRepository {}
 
 class MockLogger extends Mock implements Logger {}
 
-Widget buildTestApp(AppLockCubit cubit,
-    {Widget child = const SizedBox(key: Key('child'))}) {
+Widget buildTestApp(
+  AppLockCubit cubit, {
+  Widget child = const SizedBox(key: Key('child')),
+}) {
   return MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
@@ -37,9 +39,13 @@ void main() {
     when(() => logger.i(any())).thenAnswer((_) {});
     when(() => logger.d(any())).thenAnswer((_) {});
     when(() => logger.w(any())).thenAnswer((_) {});
-    when(() => logger.e(any(),
+    when(
+      () => logger.e(
+        any(),
         error: any(named: 'error'),
-        stackTrace: any(named: 'stackTrace'))).thenAnswer((_) {});
+        stackTrace: any(named: 'stackTrace'),
+      ),
+    ).thenAnswer((_) {});
   });
 
   tearDown(() async {

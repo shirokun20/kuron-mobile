@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:mocktail/mocktail.dart';
@@ -18,86 +19,82 @@ void main() {
     getIt.registerSingleton<RemoteConfigService>(mockConfig);
   });
 
-  Chapter chapter(String id, String title, String language) => Chapter(
-        id: id,
-        title: title,
-        url: '/$id',
-        language: language,
-      );
+  Chapter chapter(String id, String title, String language) =>
+      Chapter(id: id, title: title, url: '/$id', language: language);
 
   Content content(List<Chapter> chapters) => Content(
-        id: 'series',
-        sourceId: 'mangadex',
-        title: 'Series',
-        coverUrl: '',
-        tags: const [],
-        artists: const [],
-        characters: const [],
-        parodies: const [],
-        groups: const [],
-        language: 'en',
-        pageCount: 0,
-        imageUrls: const [],
-        uploadDate: DateTime(2026),
-        chapters: chapters,
-      );
+    id: 'series',
+    sourceId: 'mangadex',
+    title: 'Series',
+    coverUrl: '',
+    tags: const [],
+    artists: const [],
+    characters: const [],
+    parodies: const [],
+    groups: const [],
+    language: 'en',
+    pageCount: 0,
+    imageUrls: const [],
+    uploadDate: DateTime(2026),
+    chapters: chapters,
+  );
 
   String label(String key) => switch (key) {
-        'en' => 'English',
-        'id' => 'Indonesian',
-        'es' => 'Spanish',
-        'es-la' => 'Spanish',
-        'pt' => 'Portuguese',
-        'pt-br' => 'Portuguese',
-        _ => 'Language',
-      };
+    'en' => 'English',
+    'id' => 'Indonesian',
+    'es' => 'Spanish',
+    'es-la' => 'Spanish',
+    'pt' => 'Portuguese',
+    'pt-br' => 'Portuguese',
+    _ => 'Language',
+  };
 
   Widget wrap(Widget child) => MaterialApp(
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-        ],
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(body: SingleChildScrollView(child: child)),
-      );
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+    ],
+    supportedLocales: AppLocalizations.supportedLocales,
+    home: Scaffold(body: SingleChildScrollView(child: child)),
+  );
 
   Widget section(Content content) => wrap(
-        DetailChapterSection(
-          content: content,
-          chapterHistory: const {},
-          onChapterTap: (_) {},
-          onViewAll: (_) {},
-          formatDate: (_) => 'today',
-          formatLanguageLabel: label,
-          canDownload: false,
-        ),
-      );
+    DetailChapterSection(
+      content: content,
+      chapterHistory: const {},
+      onChapterTap: (_) {},
+      onViewAll: (_) {},
+      formatDate: (_) => 'today',
+      formatLanguageLabel: label,
+      canDownload: false,
+    ),
+  );
 
   Widget loadingSection(Content content) => wrap(
-        DetailChapterSection(
-          content: content,
-          chapterHistory: const {},
-          onChapterTap: (_) {},
-          onViewAll: (_) {},
-          formatDate: (_) => 'today',
-          formatLanguageLabel: label,
-          canDownload: false,
-          availableLanguageKeys: const ['en', 'es'],
-          selectedLanguageKey: 'es',
-          isLoadingSelectedLanguage: true,
-        ),
-      );
+    DetailChapterSection(
+      content: content,
+      chapterHistory: const {},
+      onChapterTap: (_) {},
+      onViewAll: (_) {},
+      formatDate: (_) => 'today',
+      formatLanguageLabel: label,
+      canDownload: false,
+      availableLanguageKeys: const ['en', 'es'],
+      selectedLanguageKey: 'es',
+      isLoadingSelectedLanguage: true,
+    ),
+  );
 
   Widget relatedSection(List<Content> items) => wrap(
-        DetailRelatedSection(
-          title: 'More Like This',
-          items: items,
-          onTap: (_) {},
-          shouldBlurCover: (_) => false,
-          resolveHeaders: (_) => null,
-        ),
-      );
+    DetailRelatedSection(
+      title: 'More Like This',
+      items: items,
+      onTap: (_) {},
+      shouldBlurCover: (_) => false,
+      resolveHeaders: (_) => null,
+    ),
+  );
 
   testWidgets('shows language chips and switches preview lane', (tester) async {
     await tester.pumpWidget(

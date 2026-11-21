@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/domain/entities/history.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -53,10 +53,11 @@ ChapterContinueTarget? resolveChapterContinueTarget({
   if (chapterHistory == null || chapterHistory.isEmpty) return null;
 
   final byId = {for (final chapter in chapters) chapter.id: chapter};
-  final entries = chapterHistory.entries
-      .where((entry) => (entry.value.chapterId ?? '').isNotEmpty)
-      .toList()
-    ..sort((a, b) => b.value.lastViewed.compareTo(a.value.lastViewed));
+  final entries =
+      chapterHistory.entries
+          .where((entry) => (entry.value.chapterId ?? '').isNotEmpty)
+          .toList()
+        ..sort((a, b) => b.value.lastViewed.compareTo(a.value.lastViewed));
 
   for (final entry in entries) {
     final history = entry.value;
@@ -65,21 +66,24 @@ ChapterContinueTarget? resolveChapterContinueTarget({
     if (known != null && !known.isReadableInApp) continue;
 
     final totalPages = history.totalPages;
-    final finished = history.isCompleted ||
+    final finished =
+        history.isCompleted ||
         (totalPages > 0 && history.lastPage >= totalPages);
     var page = finished ? 1 : history.lastPage;
     if (totalPages > 0) page = page.clamp(1, totalPages).toInt();
     if (page < 1) page = 1;
 
     // Number parsed from the chapter name (or its slug) for the button title.
-    final currentNumber = chapterNumberFromName(
+    final currentNumber =
+        chapterNumberFromName(
           known?.title ?? history.chapterTitle ?? chapterId,
         ) ??
         (known == null ? null : chapterNumberFromName(known.url));
 
     if (!finished) {
       return ChapterContinueTarget(
-        chapter: known ??
+        chapter:
+            known ??
             Chapter(
               id: chapterId,
               title: history.chapterTitle ?? chapterId,
@@ -120,7 +124,8 @@ ChapterContinueTarget? resolveChapterContinueTarget({
 
     // No numbered chapter list: keep the button usable as a plain restart.
     return ChapterContinueTarget(
-      chapter: known ??
+      chapter:
+          known ??
           Chapter(
             id: chapterId,
             title: history.chapterTitle ?? chapterId,
@@ -147,7 +152,8 @@ List<(Chapter, double)> _orderedReadableChapters(List<Chapter> chapters) {
   for (final chapter in chapters) {
     if (!chapter.isReadableInApp) continue;
     final number =
-        chapterNumberFromName(chapter.title) ?? chapterNumberFromName(chapter.url);
+        chapterNumberFromName(chapter.title) ??
+        chapterNumberFromName(chapter.url);
     if (number == null) continue;
     ordered.add((chapter, number));
   }
@@ -174,7 +180,10 @@ class _ChapterContinueFabState extends State<ChapterContinueFab> {
 
   Offset _clamp(Offset position, BoxConstraints constraints, EdgeInsets inset) {
     final minLeft = 8.0;
-    final maxLeft = (constraints.maxWidth - _fabWidth - 8).clamp(minLeft, double.infinity);
+    final maxLeft = (constraints.maxWidth - _fabWidth - 8).clamp(
+      minLeft,
+      double.infinity,
+    );
     final minTop = 8.0 + inset.top;
     final maxTop = (constraints.maxHeight - _fabHeight - 8 - inset.bottom)
         .clamp(minTop, double.infinity);
@@ -197,7 +206,11 @@ class _ChapterContinueFabState extends State<ChapterContinueFab> {
           constraints.maxWidth - _fabWidth - 16,
           constraints.maxHeight - _fabHeight - 16 - inset.bottom,
         );
-        final position = _clamp(_position ?? defaultPosition, constraints, inset);
+        final position = _clamp(
+          _position ?? defaultPosition,
+          constraints,
+          inset,
+        );
 
         return Stack(
           children: [
@@ -207,15 +220,20 @@ class _ChapterContinueFabState extends State<ChapterContinueFab> {
               child: GestureDetector(
                 onTap: widget.onTap,
                 onPanUpdate: (details) => setState(
-                  () => _position = _clamp(position + details.delta, constraints, inset),
+                  () => _position = _clamp(
+                    position + details.delta,
+                    constraints,
+                    inset,
+                  ),
                 ),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: theme.colorScheme.primary
-                            .withValues(alpha: 0.45),
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.45,
+                        ),
                         blurRadius: 18,
                         spreadRadius: 1,
                       ),

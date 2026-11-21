@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 
@@ -127,8 +127,9 @@ class DetailErrorView extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainer,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusLg),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusLg,
+                        ),
                         border: Border.all(
                           color: colorScheme.outline,
                           width: 1,
@@ -160,7 +161,8 @@ class DetailErrorView extends StatelessWidget {
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusMd),
+                                  DesignTokens.radiusMd,
+                                ),
                               ),
                             ),
                           ),
@@ -179,7 +181,8 @@ class DetailErrorView extends StatelessWidget {
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusMd),
+                                  DesignTokens.radiusMd,
+                                ),
                               ),
                             ),
                           ),
@@ -197,8 +200,9 @@ class DetailErrorView extends StatelessWidget {
                               vertical: 12,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMd),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusMd,
+                              ),
                             ),
                           ),
                         ),

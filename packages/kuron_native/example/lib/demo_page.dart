@@ -4,10 +4,12 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:math';
 import 'dart:ui' as ui;
+
 import 'package:image/image.dart' as img;
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:kuron_native/kuron_native.dart';
+
 import 'models/ai_provider_config.dart';
 import 'models/page_translation.dart';
 import 'widgets/translation_style_picker.dart';

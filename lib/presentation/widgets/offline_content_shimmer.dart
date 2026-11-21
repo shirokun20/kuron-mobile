@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
@@ -12,8 +12,9 @@ class OfflineContentShimmer extends StatelessWidget {
 
     return KuronShimmer(
       baseColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
-      highlightColor:
-          colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
+      highlightColor: colorScheme.surfaceContainerHighest.withValues(
+        alpha: 0.1,
+      ),
       child: Container(
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
@@ -88,10 +89,7 @@ class OfflineContentShimmer extends StatelessWidget {
 class OfflineContentGridShimmer extends StatelessWidget {
   final int itemCount;
 
-  const OfflineContentGridShimmer({
-    super.key,
-    this.itemCount = 6,
-  });
+  const OfflineContentGridShimmer({super.key, this.itemCount = 6});
 
   @override
   Widget build(BuildContext context) {

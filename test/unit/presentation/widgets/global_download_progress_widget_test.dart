@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mocktail/mocktail.dart';
@@ -29,17 +29,13 @@ void main() {
     );
   }
 
-  testWidgets('renders SizedBox.shrink when no downloads active',
-      (tester) async {
+  testWidgets('renders SizedBox.shrink when no downloads active', (
+    tester,
+  ) async {
     when(() => mockDownloadBloc.state).thenReturn(
-      const DownloadLoaded(
-        downloads: [],
-        settings: DownloadSettings(),
-      ),
+      const DownloadLoaded(downloads: [], settings: DownloadSettings()),
     );
-    when(() => mockDownloadBloc.stream).thenAnswer(
-      (_) => const Stream.empty(),
-    );
+    when(() => mockDownloadBloc.stream).thenAnswer((_) => const Stream.empty());
 
     await tester.pumpWidget(buildWidget(topInset: 76.0));
     await tester.pump();
@@ -51,8 +47,9 @@ void main() {
     expect(descendantMaterial, findsNothing);
   });
 
-  testWidgets('applies topInset padding when download is active',
-      (tester) async {
+  testWidgets('applies topInset padding when download is active', (
+    tester,
+  ) async {
     final activeDownload = DownloadStatus(
       contentId: 'test-1',
       title: 'Active Download Test',
@@ -67,9 +64,7 @@ void main() {
         settings: const DownloadSettings(),
       ),
     );
-    when(() => mockDownloadBloc.stream).thenAnswer(
-      (_) => const Stream.empty(),
-    );
+    when(() => mockDownloadBloc.stream).thenAnswer((_) => const Stream.empty());
 
     await tester.pumpWidget(buildWidget(topInset: 84.0));
     await tester.pumpAndSettle();

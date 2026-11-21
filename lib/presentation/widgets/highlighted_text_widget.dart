@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // A reusable widget that highlights matching text within a string.
 ///
@@ -35,17 +35,13 @@ class HighlightedText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (highlight.isEmpty) {
-      return Text(
-        text,
-        style: style,
-        maxLines: maxLines,
-        overflow: overflow,
-      );
+      return Text(text, style: style, maxLines: maxLines, overflow: overflow);
     }
 
     final colorScheme = Theme.of(context).colorScheme;
 
-    final effectiveHighlightStyle = highlightStyle ??
+    final effectiveHighlightStyle =
+        highlightStyle ??
         (style ?? DefaultTextStyle.of(context).style).copyWith(
           backgroundColor: colorScheme.primary.withValues(alpha: 0.2),
           fontWeight: FontWeight.w700,
@@ -84,10 +80,12 @@ class HighlightedText extends StatelessWidget {
       }
 
       // Add matched text with highlight style (preserve original casing)
-      spans.add(TextSpan(
-        text: text.substring(index, index + highlight.length),
-        style: effectiveHighlightStyle,
-      ));
+      spans.add(
+        TextSpan(
+          text: text.substring(index, index + highlight.length),
+          style: effectiveHighlightStyle,
+        ),
+      );
 
       start = index + highlight.length;
     }

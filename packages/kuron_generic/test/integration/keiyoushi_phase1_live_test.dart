@@ -25,18 +25,18 @@ import '../support/config_test_harness.dart';
 
 const _timeout = Timeout(Duration(seconds: 90));
 
-
-
 GenericScraperAdapter _adapter(Map<String, Object?> config) {
   final baseUrl = config['baseUrl'] as String;
   return GenericScraperAdapter(
-    dio: Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
-      headers: ((config['network'] as Map?)?['headers'] as Map?)
-          ?.cast<String, dynamic>(),
-    )),
+    dio: Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+        headers: ((config['network'] as Map?)?['headers'] as Map?)
+            ?.cast<String, dynamic>(),
+      ),
+    ),
     urlBuilder: GenericUrlBuilder(baseUrl: baseUrl),
     parser: GenericHtmlParser(logger: Logger(level: Level.off)),
     logger: Logger(level: Level.off),
@@ -44,13 +44,11 @@ GenericScraperAdapter _adapter(Map<String, Object?> config) {
   );
 }
 
-Future<void> _expectImage200(
-  String url,
-  Map<String, Object?> config,
-) async {
-  final headers = (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
-          (config['network'] as Map?)?['headers'] as Map?)
-      ?.cast<String, dynamic>();
+Future<void> _expectImage200(String url, Map<String, Object?> config) async {
+  final headers =
+      (((config['network'] as Map?)?['imageHeaders'] as Map?) ??
+              (config['network'] as Map?)?['headers'] as Map?)
+          ?.cast<String, dynamic>();
   final client = HttpClient();
   final req = await client.openUrl('GET', Uri.parse(url));
   headers?.forEach((k, v) => req.headers.set(k, v));
@@ -59,8 +57,11 @@ Future<void> _expectImage200(
   client.close();
   expect(res.statusCode, 200, reason: '$url status');
   expect(bytes.length, greaterThan(1000), reason: '$url body too small');
-  expect(res.headers.value('content-type'), contains('image'),
-      reason: '$url content-type');
+  expect(
+    res.headers.value('content-type'),
+    contains('image'),
+    reason: '$url content-type',
+  );
 }
 
 // One gallery/manga id per source, verified live during config authoring.
@@ -107,7 +108,10 @@ void _runSourceTests(String sourceId) {
     test('tag screen returns results', () async {
       final tagSlug = switch (sourceId) {
         'mangaread' || 'manhwareads' => 'romance',
-        'komikindo' || 'ngomik' || 'sektedoujin' || 'mihentai' ||
+        'komikindo' ||
+        'ngomik' ||
+        'sektedoujin' ||
+        'mihentai' ||
         'komikdewasa' => 'action',
         _ => 'big-breasts',
       };
@@ -130,7 +134,8 @@ void _runSourceTests(String sourceId) {
       final id = home.items.first.id;
       final detail = await adapter.fetchDetail(id, config);
       expect(detail.content.title, isNotEmpty, reason: 'detail title for $id');
-      final hasPages = detail.content.pageCount > 0 ||
+      final hasPages =
+          detail.content.pageCount > 0 ||
           detail.imageUrls.isNotEmpty ||
           (detail.content.chapters?.isNotEmpty ?? false);
       expect(hasPages, isTrue, reason: 'detail has pages or chapters');
@@ -169,8 +174,11 @@ void _runSourceTests(String sourceId) {
             // This chapter's files are 0-byte server-side; try the next one.
           }
         }
-        expect(chapterData, isNotNull,
-            reason: 'a servable chapter within first 3');
+        expect(
+          chapterData,
+          isNotNull,
+          reason: 'a servable chapter within first 3',
+        );
         return;
       }
 
@@ -184,12 +192,16 @@ void _runSourceTests(String sourceId) {
 }
 
 void main() {
-  const gallerySources = [
-    'hentaiera',
-    'hentaizap',
-    'hentaienvy',
-    'asmhentai',
-  ];
+  // Real-site probes are opt-in: default `flutter test` never hits the network.
+  if (Platform.environment['LIVE'] != '1') {
+    group('keiyoushi_phase1_live_test live (opt-in)', () {
+      test('skipped by default', () {
+        markTestSkipped('set LIVE=1 to run live-network tests');
+      });
+    });
+    return;
+  }
+  const gallerySources = ['hentaiera', 'hentaizap', 'hentaienvy', 'asmhentai'];
   const mangaSources = [
     'komikindo',
     'ngomik',

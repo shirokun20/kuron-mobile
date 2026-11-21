@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -36,10 +36,7 @@ class _ReaderPdfScreenState extends State<ReaderPdfScreen> {
   Future<void> _launchNativePdf() async {
     try {
       final nativeService = GetIt.I<NativePdfService>();
-      await nativeService.openPdf(
-        path: widget.filePath,
-        title: widget.title,
-      );
+      await nativeService.openPdf(path: widget.filePath, title: widget.title);
       // After native viewer opens, we can pop this screen so when user returns
       // they go back to the previous screen (e.g. Offline list)
       if (mounted) {
@@ -50,8 +47,10 @@ class _ReaderPdfScreenState extends State<ReaderPdfScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  AppLocalizations.of(context)!.failedToOpenPdf(e.toString()))),
+            content: Text(
+              AppLocalizations.of(context)!.failedToOpenPdf(e.toString()),
+            ),
+          ),
         );
         context.pop();
       }
@@ -63,9 +62,7 @@ class _ReaderPdfScreenState extends State<ReaderPdfScreen> {
     // Show Kuro waiting while native activity launches
     return const Scaffold(
       backgroundColor: Colors.black,
-      body: Center(
-        child: KuroLoading(size: 96),
-      ),
+      body: Center(child: KuroLoading(size: 96)),
     );
   }
 }

@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/text_style_const.dart';
 import '../../domain/entities/entities.dart';
+
 import 'package:nhasixapp/core/constants/colors_const.dart' show AppColors;
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -60,8 +61,10 @@ class SelectedFilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isExclude = filterItem.isExcluded;
-    final colors =
-        _selectedFilterColors(isExclude: isExclude, context: context);
+    final colors = _selectedFilterColors(
+      isExclude: isExclude,
+      context: context,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -105,11 +108,7 @@ class SelectedFilterChip extends StatelessWidget {
             onTap: onRemove,
             child: Padding(
               padding: const EdgeInsets.only(right: 8, left: 2),
-              child: Icon(
-                Icons.close_rounded,
-                size: 14,
-                color: colors.accent,
-              ),
+              child: Icon(Icons.close_rounded, size: 14, color: colors.accent),
             ),
           ),
         ],
@@ -128,8 +127,8 @@ class SelectedFilterChip extends StatelessWidget {
     final foreground = isExclude
         ? (isDark ? AppColors.error.withValues(alpha: 0.8) : AppColors.error)
         : (isDark
-            ? AppColors.success.withValues(alpha: 0.8)
-            : AppColors.success);
+              ? AppColors.success.withValues(alpha: 0.8)
+              : AppColors.success);
 
     return _SelectedFilterColors(
       accent: accent,
@@ -165,16 +164,15 @@ class SelectedFiltersWidgetCompact extends StatelessWidget {
       spacing: 8,
       runSpacing: 4,
       children: [
-        ...visibleFilters.map((filter) => SelectedFilterChipCompact(
-              filterItem: filter,
-              onRemove: () => onRemove(filter.value),
-            )),
+        ...visibleFilters.map(
+          (filter) => SelectedFilterChipCompact(
+            filterItem: filter,
+            onRemove: () => onRemove(filter.value),
+          ),
+        ),
         if (remainingCount > 0)
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
@@ -208,10 +206,7 @@ class SelectedFilterChipCompact extends StatelessWidget {
       decoration: BoxDecoration(
         color: _getChipColor(context),
         borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-        border: Border.all(
-          color: _getBorderColor(context),
-          width: 1,
-        ),
+        border: Border.all(color: _getBorderColor(context), width: 1),
       ),
       child: IntrinsicWidth(
         child: Row(
@@ -230,10 +225,7 @@ class SelectedFilterChipCompact extends StatelessWidget {
             // Filter text
             Flexible(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
                 child: Text(
                   filterItem.tagName ?? filterItem.value,
                   style: TextStyleConst.bodySmall.copyWith(

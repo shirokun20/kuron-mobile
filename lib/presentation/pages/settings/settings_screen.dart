@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:nhasixapp/core/services/source_installer_service.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +15,7 @@ import 'package:nhasixapp/core/routing/app_router.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/network/source_health_monitor.dart';
+
 import '../../../domain/entities/user_preferences.dart';
 import '../../../core/utils/source_version_utils.dart';
 import '../../../core/services/tag_blacklist_service.dart';
@@ -243,8 +244,12 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildTagBlacklistSection(context, prefs, theme,
-              tagBlacklistService: _tagBlacklistService),
+          buildTagBlacklistSection(
+            context,
+            prefs,
+            theme,
+            tagBlacklistService: _tagBlacklistService,
+          ),
 
           SizedBox(height: DesignTokens.spaceXl),
 
@@ -257,14 +262,21 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildStorageSection(context, theme, l10n,
-              onRefresh: () => setState(() {})),
+          buildStorageSection(
+            context,
+            theme,
+            l10n,
+            onRefresh: () => setState(() {}),
+          ),
 
           SizedBox(height: DesignTokens.spaceXl),
 
           // Download Settings Card
           buildSettingsSectionHeader(
-              Icons.download_outlined, 'DOWNLOAD', theme),
+            Icons.download_outlined,
+            'DOWNLOAD',
+            theme,
+          ),
           SizedBox(height: DesignTokens.spaceMd),
           buildSettingsInfoBanner(
             l10n.imageQualityDescription,
@@ -278,7 +290,10 @@ class _SettingsScreenState extends State<SettingsScreen>
 
           // Reader Settings Card
           buildSettingsSectionHeader(
-              Icons.auto_stories_outlined, 'READER', theme),
+            Icons.auto_stories_outlined,
+            'READER',
+            theme,
+          ),
           SizedBox(height: DesignTokens.spaceMd),
           buildSettingsInfoBanner(
             l10n.autoCleanupDescription,
@@ -306,10 +321,10 @@ class _SettingsScreenState extends State<SettingsScreen>
                   final String label = h < 24
                       ? '${h}h'
                       : h == 24
-                          ? l10n.oneDay
-                          : h == 48
-                              ? l10n.twoDays
-                              : l10n.oneWeek;
+                      ? l10n.oneDay
+                      : h == 48
+                      ? l10n.twoDays
+                      : l10n.oneWeek;
                   return DropdownMenuItem(value: h, child: Text(label));
                 }).toList(),
                 onChanged: (v) => context
@@ -384,21 +399,19 @@ class _SettingsScreenState extends State<SettingsScreen>
             theme,
           ),
           SizedBox(height: DesignTokens.spaceMd),
-          buildSettingsCard([
-            buildDisguiseModeTile(prefs, theme, l10n),
-          ], theme),
+          buildSettingsCard([buildDisguiseModeTile(prefs, theme, l10n)], theme),
 
           SizedBox(height: DesignTokens.spaceXl),
 
           // DNS Status Section
-          buildSettingsSectionHeader(
-            Icons.dns_outlined,
-            'DNS',
-            theme,
-          ),
+          buildSettingsSectionHeader(Icons.dns_outlined, 'DNS', theme),
           SizedBox(height: DesignTokens.spaceMd),
-          buildDnsStatusCard(context, theme, l10n,
-              deviceDnsState: _deviceDnsState),
+          buildDnsStatusCard(
+            context,
+            theme,
+            l10n,
+            deviceDnsState: _deviceDnsState,
+          ),
 
           SizedBox(height: DesignTokens.spaceXl),
 
@@ -417,12 +430,15 @@ class _SettingsScreenState extends State<SettingsScreen>
           buildSettingsCard([
             if (kDebugMode) ...[
               ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 leading: const Icon(Icons.dns_outlined),
                 title: const Text('DoH Test'),
-                subtitle:
-                    const Text('Test DNS-over-HTTPS resolver and responses'),
+                subtitle: const Text(
+                  'Test DNS-over-HTTPS resolver and responses',
+                ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => AppRouter.goToDohTest(context),
               ),
@@ -465,9 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             actionLabel: AppLocalizations.of(context)!.aiOpen,
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute<void>(
-                builder: (_) => const AiSettingsScreen(),
-              ),
+              MaterialPageRoute<void>(builder: (_) => const AiSettingsScreen()),
             ),
             theme: theme,
           ),

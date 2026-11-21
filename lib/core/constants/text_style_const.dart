@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Text style constants for consistent typography throughout the app
 // NOTE: Text colors are intentionally NOT specified here - they should be
@@ -8,11 +8,7 @@ class TextStyleConst {
   // ===== WEIGHT-BASED STYLES =====
 
   static TextStyle styleLight({double size = 14}) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: FontWeight.w300,
-      height: 1.4,
-    );
+    return TextStyle(fontSize: size, fontWeight: FontWeight.w300, height: 1.4);
   }
 
   static TextStyle styleRegular({double size = 14}) {
@@ -24,35 +20,19 @@ class TextStyleConst {
   }
 
   static TextStyle styleMedium({double size = 14}) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: FontWeight.w500,
-      height: 1.4,
-    );
+    return TextStyle(fontSize: size, fontWeight: FontWeight.w500, height: 1.4);
   }
 
   static TextStyle styleSemiBold({double size = 14}) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: FontWeight.w600,
-      height: 1.4,
-    );
+    return TextStyle(fontSize: size, fontWeight: FontWeight.w600, height: 1.4);
   }
 
   static TextStyle styleBold({double size = 14}) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: FontWeight.w700,
-      height: 1.4,
-    );
+    return TextStyle(fontSize: size, fontWeight: FontWeight.w700, height: 1.4);
   }
 
   static TextStyle styleExtraBold({double size = 14}) {
-    return TextStyle(
-      fontSize: size,
-      fontWeight: FontWeight.w800,
-      height: 1.4,
-    );
+    return TextStyle(fontSize: size, fontWeight: FontWeight.w800, height: 1.4);
   }
 
   // ===== SEMANTIC STYLES (inherit color from theme) =====
@@ -112,7 +92,8 @@ class TextStyleConst {
   // Get text style with opacity
   static TextStyle withOpacity(TextStyle baseStyle, double opacity) {
     return baseStyle.copyWith(
-        color: baseStyle.color?.withValues(alpha: opacity));
+      color: baseStyle.color?.withValues(alpha: opacity),
+    );
   }
 
   // ===== MATERIAL DESIGN 3 TEXT STYLES =====

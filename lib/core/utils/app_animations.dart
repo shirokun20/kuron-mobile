@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import 'dart:collection';
+
 import 'package:go_router/go_router.dart';
 
 // Types of route transitions
@@ -27,12 +29,7 @@ enum RouteKind {
 }
 
 // Types of staggered animations
-enum StaggeredAnimationType {
-  fade,
-  scale,
-  slide,
-  fadeSlide,
-}
+enum StaggeredAnimationType { fade, scale, slide, fadeSlide }
 
 // Standardized Animation System for Consistent UI Transitions
 ///
@@ -113,9 +110,10 @@ class AppAnimations {
     Curve curve = easeInOut,
   }) {
     return SlideTransition(
-      position: Tween<Offset>(begin: begin, end: end).animate(
-        CurvedAnimation(parent: animation, curve: curve),
-      ),
+      position: Tween<Offset>(
+        begin: begin,
+        end: end,
+      ).animate(CurvedAnimation(parent: animation, curve: curve)),
       child: child,
     );
   }
@@ -130,9 +128,10 @@ class AppAnimations {
     Curve curve = easeInOut,
   }) {
     return SlideTransition(
-      position: Tween<Offset>(begin: begin, end: end).animate(
-        CurvedAnimation(parent: animation, curve: curve),
-      ),
+      position: Tween<Offset>(
+        begin: begin,
+        end: end,
+      ).animate(CurvedAnimation(parent: animation, curve: curve)),
       child: FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: curve),
         child: child,
@@ -156,10 +155,16 @@ class AppAnimations {
         switch (type) {
           case RouteTransitionType.fade:
             return fadeTransition(
-                child: child, animation: animation, curve: curve);
+              child: child,
+              animation: animation,
+              curve: curve,
+            );
           case RouteTransitionType.scale:
             return scaleTransition(
-                child: child, animation: animation, curve: curve);
+              child: child,
+              animation: animation,
+              curve: curve,
+            );
           case RouteTransitionType.slideLeft:
             return slideTransition(
               child: child,
@@ -190,7 +195,10 @@ class AppAnimations {
             );
           case RouteTransitionType.fadeSlide:
             return fadeSlideTransition(
-                child: child, animation: animation, curve: curve);
+              child: child,
+              animation: animation,
+              curve: curve,
+            );
         }
       },
     );
@@ -214,8 +222,9 @@ class AppAnimations {
         ? RouteTransitionType.fade
         : (kind != null ? typeForKind(kind) : type);
     final resolvedDuration = disableAnimations ? Duration.zero : duration;
-    final resolvedReverseDuration =
-        disableAnimations ? Duration.zero : reverseDuration;
+    final resolvedReverseDuration = disableAnimations
+        ? Duration.zero
+        : reverseDuration;
     return CustomTransitionPage<T>(
       key: key ?? ValueKey(name),
       name: name,
@@ -538,27 +547,15 @@ class _StaggeredAnimationWidgetState extends State<StaggeredAnimationWidget>
   Widget build(BuildContext context) {
     switch (widget.type) {
       case StaggeredAnimationType.fade:
-        return FadeTransition(
-          opacity: _animation,
-          child: widget.child,
-        );
+        return FadeTransition(opacity: _animation, child: widget.child);
       case StaggeredAnimationType.scale:
-        return ScaleTransition(
-          scale: _animation,
-          child: widget.child,
-        );
+        return ScaleTransition(scale: _animation, child: widget.child);
       case StaggeredAnimationType.slide:
-        return SlideTransition(
-          position: _slideAnimation,
-          child: widget.child,
-        );
+        return SlideTransition(position: _slideAnimation, child: widget.child);
       case StaggeredAnimationType.fadeSlide:
         return SlideTransition(
           position: _slideAnimation,
-          child: FadeTransition(
-            opacity: _animation,
-            child: widget.child,
-          ),
+          child: FadeTransition(opacity: _animation, child: widget.child),
         );
     }
   }
@@ -582,7 +579,8 @@ class AppHeroHelper {
     return Hero(
       tag: tag,
       transitionOnUserGestures: true,
-      createRectTween: createRectTween ??
+      createRectTween:
+          createRectTween ??
           (begin, end) {
             return RectTween(begin: begin, end: end);
           },
@@ -599,13 +597,11 @@ class AppHeroHelper {
     return Hero(
       tag: tag,
       transitionOnUserGestures: true,
-      child: Material(
-        type: MaterialType.transparency,
-        child: image,
-      ),
+      child: Material(type: MaterialType.transparency, child: image),
     );
   }
 }
+
 class _CappedSet<E> extends SetBase<E> {
   final int maxCapacity;
   final LinkedHashSet<E> _inner = LinkedHashSet<E>();

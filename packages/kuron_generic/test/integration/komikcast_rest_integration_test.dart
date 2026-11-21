@@ -58,12 +58,8 @@ const _config = {
           'page': '{page}',
         },
       },
-      'detail': {
-        'path': '/series/{id}',
-      },
-      'images': {
-        'path': '/series/{id}/chapters/{chapter}',
-      },
+      'detail': {'path': '/series/{id}'},
+      'images': {'path': '/series/{id}/chapters/{chapter}'},
     },
     'list': {
       'items': r'$.data[*]',
@@ -84,10 +80,7 @@ const _config = {
         'description': {'selector': r'$.data.data.synopsis'},
         'coverUrl': {'selector': r'$.data.data.coverImage'},
         'status': {'selector': r'$.data.data.status'},
-        'tags': {
-          'selector': r'$.data.data.genres[*].data.name',
-          'multi': true,
-        },
+        'tags': {'selector': r'$.data.data.genres[*].data.name', 'multi': true},
         'pageCount': {'selector': r'$.data.data.totalChapters'},
       },
       'chapters': {
@@ -207,16 +200,12 @@ void main() {
     });
 
     test('search uses endpoint params and parses pagination', () async {
-      final expectedUrl =
-          const GenericUrlBuilder(baseUrl: _baseUrl).buildSearchUrl(
-        _searchTemplate,
-        const SearchFilter(
-          query: 'atm',
-          page: 2,
-          sort: SortOption.newest,
-        ),
-        sortValue: 'latest',
-      );
+      final expectedUrl = const GenericUrlBuilder(baseUrl: _baseUrl)
+          .buildSearchUrl(
+            _searchTemplate,
+            const SearchFilter(query: 'atm', page: 2, sort: SortOption.newest),
+            sortValue: 'newest',
+          );
 
       dioAdapter.onGet(
         expectedUrl,
@@ -224,11 +213,7 @@ void main() {
       );
 
       final result = await adapter.search(
-        const SearchFilter(
-          query: 'atm',
-          page: 2,
-          sort: SortOption.newest,
-        ),
+        const SearchFilter(query: 'atm', page: 2, sort: SortOption.newest),
         _config,
       );
 
@@ -239,10 +224,9 @@ void main() {
       expect(result.hasNextPage, isTrue);
     });
 
-    test('raw genre tag query uses tagSearch endpoint instead of text filter',
-        () async {
+    test('raw genre tag query uses tagSearch endpoint instead of text filter', () async {
       const expectedUrl =
-          '$_baseUrl/series?genreIds=Ecchi&takeChapter=2&includeMeta=true&sort=latest&sortOrder=desc&take=12&page=1';
+          '$_baseUrl/series?genreIds=Ecchi&takeChapter=2&includeMeta=true&sort=newest&sortOrder=desc&take=12&page=1';
 
       dioAdapter.onGet(
         expectedUrl,
@@ -264,7 +248,7 @@ void main() {
 
     test('raw text query fills endpoint filter placeholder', () async {
       const expectedUrl =
-          '$_baseUrl/series?takeChapter=2&includeMeta=true&sortOrder=desc&take=12&page=1&filter=title%3Dilike%3D%22neko%22%2CnativeTitle%3Dilike%3D%22neko%22&sort=popularity';
+          '$_baseUrl/series?takeChapter=2&includeMeta=true&sortOrder=desc&take=12&page=1&filter=title%3Dilike%3D%22neko%22%2CnativeTitle%3Dilike%3D%22neko%22&sort=popular';
 
       dioAdapter.onGet(
         expectedUrl,
@@ -308,7 +292,7 @@ void main() {
 
     test('stale raw sort is overridden by filter sort', () async {
       const expectedUrl =
-          '$_baseUrl/series?takeChapter=2&includeMeta=true&sortOrder=desc&take=12&page=1&filter=title%3Dilike%3D%22neko%22%2CnativeTitle%3Dilike%3D%22neko%22&sort=popularity';
+          '$_baseUrl/series?takeChapter=2&includeMeta=true&sortOrder=desc&take=12&page=1&filter=title%3Dilike%3D%22neko%22%2CnativeTitle%3Dilike%3D%22neko%22&sort=popular';
 
       dioAdapter.onGet(
         expectedUrl,
@@ -329,16 +313,11 @@ void main() {
     });
 
     test('detail parses chapters and composes chapter id for reader', () async {
-      final detailUrl =
-          const GenericUrlBuilder(baseUrl: _baseUrl).buildDetailUrl(
-        '/series/{id}',
-        _slug,
-      );
-      final chaptersUrl =
-          const GenericUrlBuilder(baseUrl: _baseUrl).buildDetailUrl(
-        '/series/{id}/chapters',
-        _slug,
-      );
+      final detailUrl = const GenericUrlBuilder(baseUrl: _baseUrl)
+          .buildDetailUrl('/series/{id}', _slug);
+      final chaptersUrl = const GenericUrlBuilder(
+        baseUrl: _baseUrl,
+      ).buildDetailUrl('/series/{id}/chapters?translatedLanguage[]=id', _slug);
 
       dioAdapter.onGet(
         detailUrl,
@@ -353,7 +332,9 @@ void main() {
       final result = await adapter.fetchDetail(_slug, _config);
 
       expect(
-          result.content.title, 'ATM Ojisan: Isekai de Mote-ki ga Tomaranai!');
+        result.content.title,
+        'ATM Ojisan: Isekai de Mote-ki ga Tomaranai!',
+      );
       expect(result.content.language, 'indonesian');
       expect(result.content.chapters, isNotNull);
       expect(result.content.chapters, hasLength(2));
@@ -362,54 +343,59 @@ void main() {
     });
 
     test(
-        'chapter images resolve composite chapter id with endpoint placeholders',
-        () async {
-      const chapterId = '$_slug/17';
-      const expectedUrl = '$_baseUrl/series/$_slug/chapters/17';
+      'chapter images resolve composite chapter id with endpoint placeholders',
+      () async {
+        const chapterId = '$_slug/17';
+        const expectedUrl = '$_baseUrl/series/$_slug/chapters/17';
 
-      dioAdapter.onGet(
-        expectedUrl,
-        (server) => server.reply(200, jsonDecode(jsonEncode(_imagesResponse))),
-      );
+        dioAdapter.onGet(
+          expectedUrl,
+          (server) =>
+              server.reply(200, jsonDecode(jsonEncode(_imagesResponse))),
+        );
 
-      final result = await adapter.fetchChapterImages(chapterId, _config);
+        final result = await adapter.fetchChapterImages(chapterId, _config);
 
-      expect(result, isNotNull);
-      expect(result!.images, hasLength(2));
-      expect(
-        result.images.first,
-        'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/001.jpg',
-      );
-    });
+        expect(result, isNotNull);
+        expect(result!.images, hasLength(2));
+        expect(
+          result.images.first,
+          'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/001.jpg',
+        );
+      },
+    );
 
-    test('chapter images supports selector object config (no map cast)',
-        () async {
-      const chapterId = '$_slug/17';
-      const expectedUrl = '$_baseUrl/series/$_slug/chapters/17';
+    test(
+      'chapter images supports selector object config (no map cast)',
+      () async {
+        const chapterId = '$_slug/17';
+        const expectedUrl = '$_baseUrl/series/$_slug/chapters/17';
 
-      dioAdapter.onGet(
-        expectedUrl,
-        (server) => server.reply(200, jsonDecode(jsonEncode(_imagesResponse))),
-      );
+        dioAdapter.onGet(
+          expectedUrl,
+          (server) =>
+              server.reply(200, jsonDecode(jsonEncode(_imagesResponse))),
+        );
 
-      final configWithObjectSelector =
-          jsonDecode(jsonEncode(_config)) as Map<String, dynamic>;
-      final api = configWithObjectSelector['api'] as Map<String, dynamic>;
-      final images = api['images'] as Map<String, dynamic>;
-      images['items'] = {'path': r'$.data.data.images[*]'};
-      images['urlPath'] = {'path': r'$'};
+        final configWithObjectSelector =
+            jsonDecode(jsonEncode(_config)) as Map<String, dynamic>;
+        final api = configWithObjectSelector['api'] as Map<String, dynamic>;
+        final images = api['images'] as Map<String, dynamic>;
+        images['items'] = {'path': r'$.data.data.images[*]'};
+        images['urlPath'] = {'path': r'$'};
 
-      final result = await adapter.fetchChapterImages(
-        chapterId,
-        configWithObjectSelector,
-      );
+        final result = await adapter.fetchChapterImages(
+          chapterId,
+          configWithObjectSelector,
+        );
 
-      expect(result, isNotNull);
-      expect(result!.images, hasLength(2));
-      expect(
-        result.images[1],
-        'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/002.jpg',
-      );
-    });
+        expect(result, isNotNull);
+        expect(result!.images, hasLength(2));
+        expect(
+          result.images[1],
+          'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/002.jpg',
+        );
+      },
+    );
   });
 }

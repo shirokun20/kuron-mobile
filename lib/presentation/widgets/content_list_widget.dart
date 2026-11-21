@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/design_tokens.dart';
@@ -46,9 +46,9 @@ class ContentListWidget extends StatefulWidget {
   final bool blurThumbnails;
   final bool Function(Content content)? shouldBlurContent; // NEW: Blur logic
   final bool Function(Content content)?
-      shouldHighlightContent; // NEW: Highlight logic
+  shouldHighlightContent; // NEW: Highlight logic
   final String? Function(Content content)?
-      highlightReason; // NEW: Highlight reason logic
+  highlightReason; // NEW: Highlight reason logic
 
   @override
   State<ContentListWidget> createState() => _ContentListWidgetState();
@@ -82,9 +82,9 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                   ? SnackBarAction(
                       label: AppLocalizations.of(context)!.retry,
                       onPressed: () {
-                        context
-                            .read<ContentBloc>()
-                            .add(const ContentRetryEvent());
+                        context.read<ContentBloc>().add(
+                          const ContentRetryEvent(),
+                        );
                       },
                     )
                   : null,
@@ -156,9 +156,7 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                 Icon(
                   Icons.inbox_outlined,
                   size: 64,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
+                  color: Theme.of(context).colorScheme.onSurface
                       .withValues(alpha: 0.6),
                 ),
                 const SizedBox(height: DesignTokens.spaceLg),
@@ -178,20 +176,22 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceXs),
-                  ...getSuggestions(state.suggestions).map((suggestion) => Text(
-                        '• $suggestion',
-                        style: TextStyleConst.bodyMedium.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      )),
+                  ...getSuggestions(state.suggestions).map(
+                    (suggestion) => Text(
+                      '• $suggestion',
+                      style: TextStyleConst.bodyMedium.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
                 ],
                 if (state.canRetry) ...[
                   const SizedBox(height: DesignTokens.spaceLg),
                   ElevatedButton(
                     onPressed: () {
-                      context
-                          .read<ContentBloc>()
-                          .add(const ContentRetryEvent());
+                      context.read<ContentBloc>().add(
+                        const ContentRetryEvent(),
+                      );
                     },
                     child: Text(l10n.tryAgain),
                   ),
@@ -227,9 +227,9 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                   const SizedBox(height: DesignTokens.spaceLg),
                   ElevatedButton(
                     onPressed: () {
-                      context
-                          .read<ContentBloc>()
-                          .add(const ContentRetryEvent());
+                      context.read<ContentBloc>().add(
+                        const ContentRetryEvent(),
+                      );
                     },
                     child: Text(AppLocalizations.of(context)!.retry),
                   ),
@@ -241,8 +241,9 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                       // Show cached content
                       // This would require additional implementation
                     },
-                    child:
-                        Text(AppLocalizations.of(context)!.showCachedContent),
+                    child: Text(
+                      AppLocalizations.of(context)!.showCachedContent,
+                    ),
                   ),
                 ],
               ],
@@ -284,9 +285,7 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                         Text(
                           '${state.totalCount} ${AppLocalizations.of(context)?.content ?? 'items'} • ${AppLocalizations.of(context)?.pageOf ?? 'Page'} ${state.currentPage} ${AppLocalizations.of(context)?.ofWord ?? 'of'} ${state.totalPages}',
                           style: TextStyleConst.bodySmall.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
+                            color: Theme.of(context).colorScheme.onSurface
                                 .withValues(alpha: 0.7),
                           ),
                         ),
@@ -297,9 +296,7 @@ class _ContentListWidgetState extends State<ContentListWidget> {
                     Text(
                       '${AppLocalizations.of(context)!.lastUpdatedLabel} ${_formatTime(state.lastUpdated!)}',
                       style: TextStyleConst.bodySmall.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
+                        color: Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: 0.5),
                       ),
                     ),
@@ -315,7 +312,7 @@ class _ContentListWidgetState extends State<ContentListWidget> {
               builder: (context) {
                 final isBlacklisted =
                     widget.shouldBlurContent?.call(state.contents.first) ??
-                        false;
+                    false;
                 return Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   child: MainFeaturedCard(
@@ -341,8 +338,9 @@ class _ContentListWidgetState extends State<ContentListWidget> {
             delegate: SliverChildBuilderDelegate(
               (context, index) {
                 // Skip index 0 on page 1 (already shown as featured)
-                final adjustedIndex =
-                    state.currentPage == 1 ? index + 1 : index;
+                final adjustedIndex = state.currentPage == 1
+                    ? index + 1
+                    : index;
                 if (adjustedIndex >= state.contents.length) {
                   return const SizedBox.shrink();
                 }
@@ -366,9 +364,7 @@ class _ContentListWidgetState extends State<ContentListWidget> {
         ),
 
         // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: DesignTokens.spaceLg),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceLg)),
       ],
     );
   }
@@ -380,8 +376,9 @@ class _ContentListWidgetState extends State<ContentListWidget> {
     if (difference.inMinutes < 1) {
       return AppLocalizations.of(context)!.justNow;
     } else if (difference.inHours < 1) {
-      return AppLocalizations.of(context)!.minutesAgo(
-          difference.inMinutes, difference.inMinutes == 1 ? '' : 's');
+      return AppLocalizations.of(
+        context,
+      )!.minutesAgo(difference.inMinutes, difference.inMinutes == 1 ? '' : 's');
     } else if (difference.inDays < 1) {
       return AppLocalizations.of(context)!
           .hoursAgo(difference.inHours, difference.inHours == 1 ? '' : 's');

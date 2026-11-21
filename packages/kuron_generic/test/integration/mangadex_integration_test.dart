@@ -25,9 +25,7 @@ const _config = {
         'enforceMultiValueParams': {
           'availableTranslatedLanguage[]': ['id', 'en', 'ja', 'zh'],
         },
-        'ensureParams': {
-          'hasAvailableChapters': 'true',
-        },
+        'ensureParams': {'hasAvailableChapters': 'true'},
       },
       'chapters': {
         'enforceMultiValueParams': {
@@ -39,12 +37,9 @@ const _config = {
       },
     },
     'endpoints': {
-      'allGalleries':
-          '/manga?limit=30&offset={offset}&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh&order[followedCount]=desc&hasAvailableChapters=true',
-      'search':
-          '/manga?title={query}&limit=30&offset={offset}&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh&hasAvailableChapters=true',
-      'detail':
-          '/manga/{id}?includes[]=cover_art&includes[]=author&includes[]=artist',
+      'allGalleries': '/manga?limit=30&offset={offset}&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh&order[followedCount]=desc&hasAvailableChapters=true',
+      'search': '/manga?title={query}&limit=30&offset={offset}&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh&hasAvailableChapters=true',
+      'detail': '/manga/{id}?includes[]=cover_art&includes[]=author&includes[]=artist',
     },
     'list': {
       'items': r'$.data[*]',
@@ -88,12 +83,9 @@ const _config = {
     },
     'detail': {
       'chapters': {
-        'endpoint':
-            '/chapter?manga={id}&limit=100&order[chapter]=desc&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic',
+        'endpoint': '/chapter?manga={id}&limit=100&order[chapter]=desc&translatedLanguage[]=all&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic',
         'items': r'$.data[*]',
-        'fallbackFields': {
-          'language': r'$.attributes.translatedLanguage',
-        },
+        'fallbackFields': {'language': r'$.attributes.translatedLanguage'},
         'fields': {
           'id': {'selector': r'$.id'},
           'chapterNum': {'selector': r'$.attributes.chapter'},
@@ -113,8 +105,7 @@ const _config = {
           'template':
               'https://mangadex.org/covers/{mangaId}/{fileName}.512.jpg',
           'mangaIdPath': r'$.data.id',
-          'filenamePath':
-              r"$.data.relationships[?(@.type=='cover_art')].attributes.fileName",
+          'filenamePath': r"$.data.relationships[?(@.type=='cover_art')].attributes.fileName",
         },
         'status': {'selector': r'$.data.attributes.status'},
         'language': {'selector': r'$.data.attributes.originalLanguage'},
@@ -248,9 +239,7 @@ const _statsResponse = {
   'statistics': {
     _mangaId: {
       'follows': 3,
-      'rating': {
-        'average': 7.5,
-      },
+      'rating': {'average': 7.5},
     },
   },
 };
@@ -382,10 +371,7 @@ const _chaptersNoVolumeResponse = {
   ],
 };
 
-const _emptyChaptersResponse = {
-  'result': 'ok',
-  'data': [],
-};
+const _emptyChaptersResponse = {'result': 'ok', 'data': []};
 
 const _atHomeMissingHashResponse = {
   'result': 'ok',
@@ -435,8 +421,7 @@ void main() {
       adapter = _buildAdapter(dio);
     });
 
-    test('search maps altTitles.en title and cover URL from relationships',
-        () async {
+    test('search maps altTitles.en title and cover URL from relationships', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga?limit=30&offset=0&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&order[followedCount]=desc&hasAvailableChapters=true&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh',
         (server) => server.reply(200, _listResponse),
@@ -456,8 +441,7 @@ void main() {
       expect(result.hasNextPage, isFalse);
     });
 
-    test('search with query uses search endpoint and offset pagination',
-        () async {
+    test('search with query uses search endpoint and offset pagination', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga?title=solo+leveling&limit=30&offset=30&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&hasAvailableChapters=true&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh',
         (server) => server.reply(200, _searchPage2Response),
@@ -477,8 +461,7 @@ void main() {
       expect(result.totalPages, 2);
     });
 
-    test('raw search preserves included/excluded tag UUIDs and modes',
-        () async {
+    test('raw search preserves included/excluded tag UUIDs and modes', () async {
       const expectedUrl =
           '$_baseUrl/manga?limit=30&offset=0&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&hasAvailableChapters=true&includedTags[]=391b0423-d847-456f-aff0-8b0cfc03066b&excludedTags[]=5920b825-4181-4a17-beeb-9918b0ff7a30&excludedTags[]=a3c67850-4684-404e-9b7f-c69850ee5da6&includedTagsMode=AND&excludedTagsMode=OR&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh';
 
@@ -489,8 +472,7 @@ void main() {
 
       final result = await adapter.search(
         const SearchFilter(
-          query:
-              'raw:includedTags[]=391b0423-d847-456f-aff0-8b0cfc03066b&excludedTags[]=5920b825-4181-4a17-beeb-9918b0ff7a30&excludedTags[]=a3c67850-4684-404e-9b7f-c69850ee5da6&includedTagsMode=AND&excludedTagsMode=OR',
+          query: 'raw:includedTags[]=391b0423-d847-456f-aff0-8b0cfc03066b&excludedTags[]=5920b825-4181-4a17-beeb-9918b0ff7a30&excludedTags[]=a3c67850-4684-404e-9b7f-c69850ee5da6&includedTagsMode=AND&excludedTagsMode=OR',
           page: 1,
         ),
         _config,
@@ -537,8 +519,7 @@ void main() {
       expect(artistResult.items.first.id, _mangaId);
     });
 
-    test('search handles missing cover relationship without crashing',
-        () async {
+    test('search handles missing cover relationship without crashing', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga?limit=30&offset=0&includes[]=cover_art&includes[]=author&includes[]=artist&contentRating[]=erotica&contentRating[]=pornographic&contentRating[]=suggestive&contentRating[]=safe&order[followedCount]=desc&hasAvailableChapters=true&availableTranslatedLanguage[]=id&availableTranslatedLanguage[]=en&availableTranslatedLanguage[]=ja&availableTranslatedLanguage[]=zh',
         (server) => server.reply(200, _listNoCoverResponse),
@@ -551,11 +532,11 @@ void main() {
       expect(result.items.first.title, 'No Cover Manga');
     });
 
-    test('search maps ja from originalLanguage without unknown fallback',
-        () async {
+    test('search maps ja from originalLanguage without unknown fallback', () async {
       final configWithoutLanguage = _cloneConfig();
-      final api = ((configWithoutLanguage['api'] as Map)['list']
-          as Map)['fields'] as Map;
+      final api =
+          ((configWithoutLanguage['api'] as Map)['list'] as Map)['fields']
+              as Map;
       api.remove('language');
 
       dioAdapter.onGet(
@@ -564,7 +545,9 @@ void main() {
       );
 
       final result = await adapter.search(
-          const SearchFilter(page: 1), configWithoutLanguage);
+        const SearchFilter(page: 1),
+        configWithoutLanguage,
+      );
 
       expect(result.items, hasLength(1));
       expect(result.items.first.id, 'ja-language-id');
@@ -582,7 +565,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersResponse),
       );
 
@@ -614,7 +597,7 @@ void main() {
         (server) => server.reply(500, {'result': 'error'}),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersResponse),
       );
 
@@ -626,8 +609,7 @@ void main() {
       expect(result.content.coverUrl, isNotEmpty);
     });
 
-    test('detail description falls back to first available language key',
-        () async {
+    test('detail description falls back to first available language key', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga/$_mangaId?includes[]=cover_art&includes[]=author&includes[]=artist',
         (server) => server.reply(200, _detailNoEnDescriptionResponse),
@@ -637,7 +619,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersResponse),
       );
 
@@ -646,8 +628,7 @@ void main() {
       expect(result.content.subTitle, 'Nur deutsche Beschreibung');
     });
 
-    test('detail chapter label falls back to Ch.X when volume missing',
-        () async {
+    test('detail chapter label falls back to Ch.X when volume missing', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga/$_mangaId?includes[]=cover_art&includes[]=author&includes[]=artist',
         (server) => server.reply(200, _detailResponse),
@@ -657,7 +638,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersNoVolumeResponse),
       );
 
@@ -667,21 +648,26 @@ void main() {
       expect(result.content.chapters!.first.title, 'Ch.15');
     });
 
-    test('reader at-home mode builds full image URLs from chapter hash',
-        () async {
-      dioAdapter.onGet(
-        '$_baseUrl/at-home/server/$_chapterId',
-        (server) => server.reply(200, _atHomeResponse),
-      );
+    test(
+      'reader at-home mode builds full image URLs from chapter hash',
+      () async {
+        dioAdapter.onGet(
+          '$_baseUrl/at-home/server/$_chapterId',
+          (server) => server.reply(200, _atHomeResponse),
+        );
 
-      final chapterData = await adapter.fetchChapterImages(_chapterId, _config);
+        final chapterData = await adapter.fetchChapterImages(
+          _chapterId,
+          _config,
+        );
 
-      expect(chapterData, isNotNull);
-      expect(chapterData!.images, [
-        'https://uploads.mangadex.org/data/abc123hash/1.jpg',
-        'https://uploads.mangadex.org/data/abc123hash/2.jpg',
-      ]);
-    });
+        expect(chapterData, isNotNull);
+        expect(chapterData!.images, [
+          'https://uploads.mangadex.org/data/abc123hash/1.jpg',
+          'https://uploads.mangadex.org/data/abc123hash/2.jpg',
+        ]);
+      },
+    );
 
     test('reader returns null when at-home response missing hash', () async {
       dioAdapter.onGet(
@@ -714,8 +700,10 @@ void main() {
       final api = (configNoImages['api'] as Map).cast<String, dynamic>();
       api.remove('images');
 
-      final chapterData =
-          await adapter.fetchChapterImages(_chapterId, configNoImages);
+      final chapterData = await adapter.fetchChapterImages(
+        _chapterId,
+        configNoImages,
+      );
 
       expect(chapterData, isNull);
     });
@@ -738,6 +726,8 @@ void main() {
     test('chapter endpoint is language-agnostic for grouped display', () async {
       final idConfig = _cloneConfig();
       idConfig['defaultLanguage'] = 'indonesian';
+      // With an explicit default language the adapter injects that single
+      // code instead of the language-agnostic `all` sentinel.
 
       dioAdapter.onGet(
         '$_baseUrl/manga/$_mangaId?includes[]=cover_art&includes[]=author&includes[]=artist',
@@ -748,7 +738,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id',
         (server) => server.reply(200, _chaptersResponse),
       );
 
@@ -758,8 +748,7 @@ void main() {
       expect(result.content.chapters, hasLength(1));
     });
 
-    test('detail chapters paginate with offset when total exceeds limit',
-        () async {
+    test('detail chapters paginate with offset when total exceeds limit', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga/$_mangaId?includes[]=cover_art&includes[]=author&includes[]=artist',
         (server) => server.reply(200, _detailResponse),
@@ -769,11 +758,11 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersPage1Response),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh&offset=100',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all&offset=100',
         (server) => server.reply(200, _chaptersPage2Response),
       );
 
@@ -786,11 +775,11 @@ void main() {
       expect(result.content.chapters![1].language, 'id');
     });
 
-    test('detail chapters stop at first page when autoPaginate is false',
-        () async {
+    test('detail chapters stop at first page when autoPaginate is false', () async {
       final firstPageOnlyConfig = _cloneConfig();
-      final chaptersCfg = (((firstPageOnlyConfig['api'] as Map)['detail']
-          as Map)['chapters'] as Map);
+      final chaptersCfg =
+          (((firstPageOnlyConfig['api'] as Map)['detail'] as Map)['chapters']
+              as Map);
       chaptersCfg['autoPaginate'] = false;
 
       dioAdapter.onGet(
@@ -802,7 +791,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersPage1Response),
       );
 
@@ -812,8 +801,7 @@ void main() {
       expect(result.content.chapters!.single.id, 'page-1-chapter-id');
     });
 
-    test('detail returns empty chapter list when API has no chapters',
-        () async {
+    test('detail returns empty chapter list when API has no chapters', () async {
       dioAdapter.onGet(
         '$_baseUrl/manga/$_mangaId?includes[]=cover_art&includes[]=author&includes[]=artist',
         (server) => server.reply(200, _detailResponse),
@@ -823,7 +811,7 @@ void main() {
         (server) => server.reply(200, _statsResponse),
       );
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _emptyChaptersResponse),
       );
 
@@ -832,13 +820,11 @@ void main() {
       expect(result.content.chapters, isEmpty);
     });
 
-    test('legacy translatedLanguage endpoint is normalized for grouping',
-        () async {
+    test('legacy translatedLanguage endpoint is normalized for grouping', () async {
       final legacyConfig = _cloneConfig();
       final detail = ((legacyConfig['api'] as Map)['detail'] as Map);
       final chapters = (detail['chapters'] as Map);
-      chapters['endpoint'] =
-          '/chapter?manga={id}&translatedLanguage[]={language}&limit=100&order[chapter]=desc';
+      chapters['endpoint'] = '/chapter?manga={id}&translatedLanguage[]={language}&limit=100&order[chapter]=desc';
       final chapterFields = (chapters['fields'] as Map);
       chapterFields.remove('language');
 
@@ -850,8 +836,11 @@ void main() {
         '$_baseUrl/statistics/manga/$_mangaId',
         (server) => server.reply(200, _statsResponse),
       );
+      // `{language}` resolves to the `all` sentinel; query rules first add
+      // contentRating, then the single-language injection appends the
+      // translatedLanguage param at the end.
       dioAdapter.onGet(
-        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&translatedLanguage[]=id&translatedLanguage[]=en&translatedLanguage[]=ja&translatedLanguage[]=zh&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic',
+        '$_baseUrl/chapter?manga=$_mangaId&limit=100&order[chapter]=desc&contentRating[]=safe&contentRating[]=suggestive&contentRating[]=erotica&contentRating[]=pornographic&translatedLanguage[]=all',
         (server) => server.reply(200, _chaptersResponse),
       );
 

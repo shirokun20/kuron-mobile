@@ -6,31 +6,33 @@
 // *decision* — the reader swaps the image pager for [ReaderVideoChapter] only
 // when the chapter has no pages at all, keeps paging images otherwise, and
 // shows a poster card until the reader taps play.
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/pages/reader/reader_video_chapter.dart';
 
 Widget _app(Widget child) => MaterialApp(
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+  localizationsDelegates: const [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+  ],
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: child),
+);
 
 void main() {
   group('isVideoChapter()', () {
     test('is false for a normal image chapter', () {
       expect(
-        isVideoChapter(const ChapterData(
-          images: ['https://cdn.example.com/p/001.jpg'],
-        )),
+        isVideoChapter(
+          const ChapterData(images: ['https://cdn.example.com/p/001.jpg']),
+        ),
         isFalse,
       );
     });
@@ -41,10 +43,12 @@ void main() {
 
     test('is true when the chapter carries an HLS stream', () {
       expect(
-        isVideoChapter(const ChapterData(
-          images: [],
-          videoUrls: ['https://cdn.example.com/hls/master.m3u8'],
-        )),
+        isVideoChapter(
+          const ChapterData(
+            images: [],
+            videoUrls: ['https://cdn.example.com/hls/master.m3u8'],
+          ),
+        ),
         isTrue,
       );
     });
@@ -55,13 +59,15 @@ void main() {
     // chapter — the reader showed a play card instead.
     test('is false for a chapter with both images and a stray stream', () {
       expect(
-        isVideoChapter(const ChapterData(
-          images: [
-            'https://cdn.example.com/p/001.jpg',
-            'https://cdn.example.com/p/002.jpg',
-          ],
-          videoUrls: ['https://ads.example.com/promo.mp4'],
-        )),
+        isVideoChapter(
+          const ChapterData(
+            images: [
+              'https://cdn.example.com/p/001.jpg',
+              'https://cdn.example.com/p/002.jpg',
+            ],
+            videoUrls: ['https://ads.example.com/promo.mp4'],
+          ),
+        ),
         isFalse,
         reason: 'real pages must win over a page-wide video match',
       );
@@ -69,12 +75,14 @@ void main() {
 
     test('is false for a long chapter with one stream among many pages', () {
       expect(
-        isVideoChapter(ChapterData(
-          images: [
-            for (var i = 1; i <= 60; i++) 'https://cdn.example.com/$i.jpg'
-          ],
-          videoUrls: const ['https://cdn.example.com/hls/master.m3u8'],
-        )),
+        isVideoChapter(
+          ChapterData(
+            images: [
+              for (var i = 1; i <= 60; i++) 'https://cdn.example.com/$i.jpg',
+            ],
+            videoUrls: const ['https://cdn.example.com/hls/master.m3u8'],
+          ),
+        ),
         isFalse,
       );
     });
@@ -87,10 +95,7 @@ void main() {
       var tapped = false;
       await tester.pumpWidget(
         _app(
-          VideoPosterCard(
-            streamCount: 2,
-            onPlay: () async => tapped = true,
-          ),
+          VideoPosterCard(streamCount: 2, onPlay: () async => tapped = true),
         ),
       );
 
@@ -112,9 +117,7 @@ void main() {
       expect(find.textContaining('streams available'), findsNothing);
     });
 
-    testWidgets('shows the chapter title when one is supplied', (
-      tester,
-    ) async {
+    testWidgets('shows the chapter title when one is supplied', (tester) async {
       await tester.pumpWidget(
         _app(
           const VideoPosterCard(

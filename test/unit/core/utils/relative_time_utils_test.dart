@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/core/utils/relative_time_utils.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -7,7 +7,12 @@ void main() {
   Widget wrap(Widget child, {String locale = 'en'}) {
     return MaterialApp(
       locale: Locale(locale),
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      localizationsDelegates: [
+        ...AppLocalizations.localizationsDelegates,
+        // material_ui's MaterialApp needs the 3.50 delegate set; the
+        // generated AppLocalizations list still carries the legacy ones.
+        ...GlobalMaterialLocalizations.delegates,
+      ],
       supportedLocales: AppLocalizations.supportedLocales,
       home: Scaffold(body: child),
     );
@@ -24,10 +29,7 @@ void main() {
     test('future hides', () {
       final now = DateTime(2026, 1, 1, 12);
       expect(
-        RelativeTimeUtils.shouldHide(
-          DateTime(2026, 1, 2),
-          now: now,
-        ),
+        RelativeTimeUtils.shouldHide(DateTime(2026, 1, 2), now: now),
         isTrue,
       );
     });
@@ -35,10 +37,7 @@ void main() {
     test('valid past does not hide', () {
       final now = DateTime(2026, 1, 10);
       expect(
-        RelativeTimeUtils.shouldHide(
-          DateTime(2026, 1, 9),
-          now: now,
-        ),
+        RelativeTimeUtils.shouldHide(DateTime(2026, 1, 9), now: now),
         isFalse,
       );
     });

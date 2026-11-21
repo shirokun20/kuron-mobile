@@ -69,8 +69,13 @@ void main() {
   ]);
 
   group('phase1 structural checks', () {
-    test('komikindo home list + ts_reader regex', () async {
+    test('komikindo home list + inherited search + reader images', () async {
+      // Current published config (config/id/komikindo-config.json, v1.0.5):
+      // the site moved off the old "Latest Update" bixbox markup to plain
+      // .animepost cards, search inherits the home list block, and the
+      // reader uses a CSS image selector (no ts_reader payload anymore).
       final Map<String, Object?> config = await loadConfigRemote('komikindo-config.json');
+      expect(config['version'], '1.0.5');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> urlPatterns =
@@ -80,26 +85,21 @@ void main() {
       final Map<String, Object?> list =
           (home['list'] as Map).cast<String, Object?>();
 
-      // Home/homePage MUST scope to the "Latest Update" bixbox: the page
-      // renders 7 bixbox sections and unscoped containers pull in Popular
-      // Today / Project Update / Recommendation items.
-      expect(list['container'],
-          'div.bixbox:contains(Latest Update) .listupd .bs .bsx');
+      expect(list['container'], '.animepost');
 
-      // Genre/archive pages render plain .bs cards (no "Latest Update"
-      // bixbox heading), so search/genreSearch must NOT pin the bixbox
-      // wrapper. Regression: genre page 2 returned zero items (2026-08-23).
       final Map<String, Object?> search =
           (urlPatterns['search'] as Map).cast<String, Object?>();
-      final Map<String, Object?> searchList =
-          (search['list'] as Map).cast<String, Object?>();
-      expect(searchList['container'], '.listupd .bsx');
+      expect(search['inherits'], 'home');
+      expect(search.containsKey('list'), isFalse);
 
       final Map<String, Object?> selectors =
           (scraper['selectors'] as Map).cast<String, Object?>();
       final Map<String, Object?> reader =
           (selectors['reader'] as Map).cast<String, Object?>();
-      expect(reader['tsReaderRegex'], contains('ts_reader'));
+      final Map<String, Object?> images =
+          (reader['images'] as Map).cast<String, Object?>();
+      expect(images['selector'], contains('.chapter-image img'));
+      expect(images['attribute'], 'src');
     });
 
     test('komikdewasa imageHeaders referer + detail pattern', () async {

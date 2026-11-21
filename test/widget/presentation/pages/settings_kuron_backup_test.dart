@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
@@ -8,15 +10,15 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/pages/settings/backup_flow.dart';
 
 Widget wrap(Widget child) => MaterialApp(
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [Locale('en')],
-      home: Scaffold(body: child),
-    );
+  localizationsDelegates: const [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+    GlobalCupertinoLocalizations.delegate,
+  ],
+  supportedLocales: const [Locale('en')],
+  home: Scaffold(body: child),
+);
 
 void main() {
   // backup_flow.dart logs via GetIt<Logger>; only the failing-import path
@@ -27,43 +29,48 @@ void main() {
     }
   });
 
-  testWidgets('restore flow: preview -> confirm -> progress -> summary',
-      (tester) async {
+  testWidgets('restore flow: preview -> confirm -> progress -> summary', (
+    tester,
+  ) async {
     var ran = false;
 
-    await tester.pumpWidget(wrap(Builder(
-      builder: (context) {
-        final labels = backupCategoryLabels(AppLocalizations.of(context)!);
-        return TextButton(
-          onPressed: () async {
-            await runBackupImportFlow(
-              context: context,
-              counts: const {
-                'favorites': 2,
-                'collections': 1,
-                'memberships': 3,
-                'history': 5,
-                'positions': 4,
-                'settings': 8,
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) {
+            final labels = backupCategoryLabels(AppLocalizations.of(context)!);
+            return TextButton(
+              onPressed: () async {
+                await runBackupImportFlow(
+                  context: context,
+                  counts: const {
+                    'favorites': 2,
+                    'collections': 1,
+                    'memberships': 3,
+                    'history': 5,
+                    'positions': 4,
+                    'settings': 8,
+                  },
+                  labels: labels,
+                  run: (onProgress) async {
+                    ran = true;
+                    onProgress('favorites', 1, 2);
+                    onProgress('favorites', 2, 2);
+                    return const {
+                      'favorites': (success: 2, skipped: 0, failed: 0),
+                      'settings': (success: 8, skipped: 0, failed: 0),
+                    };
+                  },
+                  previewTitle: 'Restore preview',
+                  resultTitle: 'Restore result',
+                );
               },
-              labels: labels,
-              run: (onProgress) async {
-                ran = true;
-                onProgress('favorites', 1, 2);
-                onProgress('favorites', 2, 2);
-                return const {
-                  'favorites': (success: 2, skipped: 0, failed: 0),
-                  'settings': (success: 8, skipped: 0, failed: 0),
-                };
-              },
-              previewTitle: 'Restore preview',
-              resultTitle: 'Restore result',
+              child: const Text('open'),
             );
           },
-          child: const Text('open'),
-        );
-      },
-    )));
+        ),
+      ),
+    );
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
@@ -91,25 +98,29 @@ void main() {
     var ran = false;
     late AppLocalizations l10n;
 
-    await tester.pumpWidget(wrap(Builder(
-      builder: (context) {
-        l10n = AppLocalizations.of(context)!;
-        return TextButton(
-          onPressed: () async {
-            await runBackupImportFlow(
-              context: context,
-              counts: const {'favorites': 2},
-              labels: backupCategoryLabels(l10n),
-              run: (onProgress) async {
-                ran = true;
-                return const {};
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) {
+            l10n = AppLocalizations.of(context)!;
+            return TextButton(
+              onPressed: () async {
+                await runBackupImportFlow(
+                  context: context,
+                  counts: const {'favorites': 2},
+                  labels: backupCategoryLabels(l10n),
+                  run: (onProgress) async {
+                    ran = true;
+                    return const {};
+                  },
+                );
               },
+              child: const Text('open'),
             );
           },
-          child: const Text('open'),
-        );
-      },
-    )));
+        ),
+      ),
+    );
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
@@ -120,19 +131,24 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('a failing restore closes the dialog and reports the error',
-      (tester) async {
-    await tester.pumpWidget(wrap(Builder(
-      builder: (context) => TextButton(
-        onPressed: () => runBackupImportFlow(
-          context: context,
-          counts: const {'favorites': 1},
-          labels: backupCategoryLabels(AppLocalizations.of(context)!),
-          run: (onProgress) async => throw StateError('boom'),
+  testWidgets('a failing restore closes the dialog and reports the error', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => runBackupImportFlow(
+              context: context,
+              counts: const {'favorites': 1},
+              labels: backupCategoryLabels(AppLocalizations.of(context)!),
+              run: (onProgress) async => throw StateError('boom'),
+            ),
+            child: const Text('open'),
+          ),
         ),
-        child: const Text('open'),
       ),
-    )));
+    );
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();

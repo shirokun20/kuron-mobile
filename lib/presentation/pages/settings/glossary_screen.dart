@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/entities/glossary.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -60,8 +60,10 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
@@ -105,18 +107,20 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                               const SizedBox(height: 8),
                               Row(
                                 children: [
-                                  Icon(Icons.menu_book_outlined,
-                                      size: 12,
-                                      color: theme.colorScheme.outline),
+                                  Icon(
+                                    Icons.menu_book_outlined,
+                                    size: 12,
+                                    color: theme.colorScheme.outline,
+                                  ),
                                   const SizedBox(width: 4),
                                   Expanded(
                                     child: Text(
                                       '${e.contentId} • ${AppLocalizations.of(context)!.glossaryPage} ${e.pageIndex}',
                                       overflow: TextOverflow.ellipsis,
-                                      style:
-                                          theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.outline,
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.outline,
+                                          ),
                                     ),
                                   ),
                                 ],
@@ -126,8 +130,10 @@ class _GlossaryScreenState extends State<GlossaryScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.delete_outline,
-                            color: theme.colorScheme.error),
+                        icon: Icon(
+                          Icons.delete_outline,
+                          color: theme.colorScheme.error,
+                        ),
                         onPressed: () async {
                           await getIt<GlossaryRepository>().delete(e.id);
                           _reload();

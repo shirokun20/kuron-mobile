@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -157,11 +157,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.refresh,
-                  size: 18,
-                  color: theme.colorScheme.primary,
-                ),
+                Icon(Icons.refresh, size: 18, color: theme.colorScheme.primary),
                 const SizedBox(width: 4),
                 Text(
                   l10n.retry,
@@ -258,12 +254,11 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
     BuildContext context,
     String messageKeyOrText, {
     int? offlineCount,
-  }) =>
-      resolveSplashMessage(
-        AppLocalizations.of(context)!,
-        messageKeyOrText,
-        offlineCount: offlineCount,
-      );
+  }) => resolveSplashMessage(
+    AppLocalizations.of(context)!,
+    messageKeyOrText,
+    offlineCount: offlineCount,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -339,8 +334,9 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color:
-                                  AppColors.brandCoral.withValues(alpha: 0.25),
+                              color: AppColors.brandCoral.withValues(
+                                alpha: 0.25,
+                              ),
                               width: 1,
                             ),
                           ),
@@ -354,14 +350,16 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                                 .surfaceContainer
                                 .withValues(alpha: 0.3),
                             border: Border.all(
-                              color:
-                                  AppColors.brandCoral.withValues(alpha: 0.3),
+                              color: AppColors.brandCoral.withValues(
+                                alpha: 0.3,
+                              ),
                               width: 2,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color:
-                                    AppColors.brandCoral.withValues(alpha: 0.2),
+                                color: AppColors.brandCoral.withValues(
+                                  alpha: 0.2,
+                                ),
                                 blurRadius: 30,
                                 spreadRadius: 4,
                               ),
@@ -427,8 +425,9 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                                 .colorScheme
                                 .surfaceContainer
                                 .withValues(alpha: 0.5),
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radius2xl),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radius2xl,
+                            ),
                           ),
                           child: Text(
                             state is SplashInitializing
@@ -493,15 +492,11 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                         width: 80,
                         height: 80,
                         decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .primaryContainer
+                          color: Theme.of(context).colorScheme.primaryContainer
                               .withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .primary
+                            color: Theme.of(context).colorScheme.primary
                                 .withValues(alpha: 0.3),
                             width: 2,
                           ),
@@ -566,8 +561,9 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                         child: Text(
                           _resolveSplashMessage(context, state.message),
                           style: TextStyleConst.bodyMedium.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -580,12 +576,15 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                             onPressed: () => _showOfflineOptionsDialog(context),
                             icon: const Icon(Icons.wifi_off),
                             label: Text(
-                                AppLocalizations.of(context)!.offlineModeLabel),
+                              AppLocalizations.of(context)!.offlineModeLabel,
+                            ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              foregroundColor:
-                                  Theme.of(context).colorScheme.onPrimary,
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 24,
                                 vertical: 12,
@@ -611,9 +610,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                               .withValues(alpha: 0.3),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .secondary
+                            color: Theme.of(context).colorScheme.secondary
                                 .withValues(alpha: 0.3),
                             width: 2,
                           ),
@@ -671,16 +668,18 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                       ),
                       SizedBox(height: DesignTokens.spaceXl),
                       ElevatedButton.icon(
-                        onPressed: () => context
-                            .read<SplashBloc>()
-                            .add(SplashRetryBypassEvent()),
+                        onPressed: () => context.read<SplashBloc>().add(
+                          SplashRetryBypassEvent(),
+                        ),
                         icon: const Icon(Icons.refresh),
                         label: Text(AppLocalizations.of(context)!.retry),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              Theme.of(context).colorScheme.primary,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onPrimary,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary,
+                          foregroundColor: Theme.of(context)
+                              .colorScheme
+                              .onPrimary,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 12,
@@ -897,8 +896,9 @@ String resolveSplashMessage(
 }) {
   final separatorIndex = token.indexOf(':');
   final key = separatorIndex == -1 ? token : token.substring(0, separatorIndex);
-  final payload =
-      separatorIndex == -1 ? '' : token.substring(separatorIndex + 1).trim();
+  final payload = separatorIndex == -1
+      ? ''
+      : token.substring(separatorIndex + 1).trim();
 
   // Every error key takes an `{error}` placeholder. Emitted without one, the
   // sentence would end in a dangling colon, so fall back to the generic.

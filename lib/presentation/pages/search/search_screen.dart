@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -12,10 +12,7 @@ import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
 class SearchScreen extends StatefulWidget {
   final String? query;
 
-  const SearchScreen({
-    super.key,
-    this.query,
-  });
+  const SearchScreen({super.key, this.query});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -34,11 +31,8 @@ class _SearchScreenState extends State<SearchScreen> {
     context.read<SourceCubit>().refreshSources();
 
     final l10n = AppLocalizations.of(context)!;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(l10n.reloadingSearchFilters),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.reloadingSearchFilters)));
   }
 
   @override
@@ -58,8 +52,9 @@ class _SearchScreenState extends State<SearchScreen> {
         builder: (context, sourceState) {
           final sourceId = sourceState.activeSource?.id ?? 'nhentai';
           final remoteConfig = getIt<RemoteConfigService>();
-          final canonicalSearchForm =
-              remoteConfig.getCanonicalSearchForm(sourceId);
+          final canonicalSearchForm = remoteConfig.getCanonicalSearchForm(
+            sourceId,
+          );
           final searchForm = remoteConfig.getSearchFormConfig(sourceId);
 
           //  all sources migrated to searchForm. Priority:
@@ -70,7 +65,8 @@ class _SearchScreenState extends State<SearchScreen> {
             return DynamicFormSearchUI(
               key: _searchUiKey(sourceId),
               config: SearchFormContractAdapter.toSearchFormConfig(
-                  canonicalSearchForm),
+                canonicalSearchForm,
+              ),
               sourceId: sourceId,
               canonicalContract: canonicalSearchForm,
               reloadSignal: _configReloadNonce,
@@ -101,9 +97,11 @@ class _SearchScreenState extends State<SearchScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off,
-                size: 48,
-                color: Theme.of(context).colorScheme.onSurfaceVariant),
+            Icon(
+              Icons.search_off,
+              size: 48,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
             const SizedBox(height: 16),
             Text(
               l10n.searchConfigUnavailable(sourceId),
@@ -111,10 +109,7 @@ class _SearchScreenState extends State<SearchScreen> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            Text(
-              l10n.checkInternetOrReload,
-              textAlign: TextAlign.center,
-            ),
+            Text(l10n.checkInternetOrReload, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => _reloadSearchUi(sourceId),

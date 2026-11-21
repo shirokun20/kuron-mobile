@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../cubits/reader/reader_cubit.dart';
 
 import 'package:nhasixapp/l10n/app_localizations.dart';
+
 import '../../../core/constants/design_tokens.dart';
 
 // End-of-Chapter Overlay Widget
@@ -77,9 +79,9 @@ class EndOfChapterOverlay extends StatelessWidget {
                         ? AppLocalizations.of(context)!.chapterComplete
                         : AppLocalizations.of(context)!.finishedReading,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
 
                   const SizedBox(height: DesignTokens.spaceSm),
@@ -88,8 +90,8 @@ class EndOfChapterOverlay extends StatelessWidget {
                   Text(
                     state.content?.title ?? '',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -106,8 +108,10 @@ class EndOfChapterOverlay extends StatelessWidget {
                         child: OutlinedButton.icon(
                           onPressed: onPreviousChapter,
                           icon: const Icon(Icons.skip_previous),
-                          label:
-                              Text(previousLabel, textAlign: TextAlign.center),
+                          label: Text(
+                            previousLabel,
+                            textAlign: TextAlign.center,
+                          ),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
@@ -139,9 +143,11 @@ class EndOfChapterOverlay extends StatelessWidget {
                     child: OutlinedButton.icon(
                       onPressed: onBackToDetail,
                       icon: const Icon(Icons.arrow_back),
-                      label: Text(isOfflineMode
-                          ? AppLocalizations.of(context)!.backToPreviousPage
-                          : AppLocalizations.of(context)!.backToDetail),
+                      label: Text(
+                        isOfflineMode
+                            ? AppLocalizations.of(context)!.backToPreviousPage
+                            : AppLocalizations.of(context)!.backToDetail,
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
@@ -156,8 +162,10 @@ class EndOfChapterOverlay extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: onGoToFirstPage,
                         icon: const Icon(Icons.vertical_align_top),
-                        label: Text(AppLocalizations.of(context)!
-                            .readerScreenGoToFirstPage),
+                        label: Text(
+                          AppLocalizations.of(context)!
+                              .readerScreenGoToFirstPage,
+                        ),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
@@ -221,18 +229,14 @@ class EndOfChapterOverlay extends StatelessWidget {
           const SizedBox(height: DesignTokens.spaceSm),
           Text(
             l10n?.readerScreenSupporter ?? 'Support Developer',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: cs.onSurface,
-                ),
+            style: Theme.of(context).textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface),
           ),
           const SizedBox(height: DesignTokens.spaceXs),
           Text(
             l10n?.readerScreenSupporterDesc ?? '',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                  height: 1.4,
-                ),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),

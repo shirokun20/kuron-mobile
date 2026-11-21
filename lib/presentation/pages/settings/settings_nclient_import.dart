@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/usecases/imports/import_nclient_backup_usecase.dart';
@@ -11,7 +11,10 @@ import 'package:nhasixapp/presentation/pages/settings/settings_theme_widgets.dar
 // ponytail: no cubit — the flow is shared with the Kuron backup restore via
 // runBackupImportFlow, so nothing here duplicates the dialog/error handling.
 Widget buildNclientImportTile(
-    BuildContext context, ThemeData theme, AppLocalizations l10n) {
+  BuildContext context,
+  ThemeData theme,
+  AppLocalizations l10n,
+) {
   return buildSettingsActionTile(
     title: l10n.nclientImport,
     subtitle: l10n.nclientImportSubtitle,
@@ -39,8 +42,11 @@ Future<void> runNclientImport(
   try {
     backup = await importer.pickAndParse();
   } catch (e, s) {
-    getIt<Logger>()
-        .e('NClient import: pickAndParse failed', error: e, stackTrace: s);
+    getIt<Logger>().e(
+      'NClient import: pickAndParse failed',
+      error: e,
+      stackTrace: s,
+    );
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(l10n.importFailed('$e'))));

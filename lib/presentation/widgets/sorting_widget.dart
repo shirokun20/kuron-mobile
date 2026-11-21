@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import '../../l10n/app_localizations.dart';
+
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/domain/entities/entities.dart';
@@ -34,8 +36,8 @@ class SortingWidget extends StatelessWidget {
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         border: Border.all(
-            color:
-                Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -84,9 +86,7 @@ class SortingWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
+                  color: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -121,27 +121,25 @@ class SortingWidget extends StatelessWidget {
                         onSortChanged(sort);
                       }
                     },
-                    backgroundColor:
-                        Theme.of(context).colorScheme.surfaceContainerHigh,
-                    selectedColor: Theme.of(context)
+                    backgroundColor: Theme.of(context)
                         .colorScheme
-                        .primary
+                        .surfaceContainerHigh,
+                    selectedColor: Theme.of(context).colorScheme.primary
                         .withValues(alpha: 0.2),
                     labelStyle: isSelected
                         ? TextStyleConst.headingSmall.copyWith(
                             color: Theme.of(context).colorScheme.primary,
                           )
                         : TextStyleConst.bodySmall.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                     side: BorderSide(
                       color: isSelected
                           ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withValues(alpha: 0.3),
+                          : Theme.of(context).colorScheme.outline
+                                .withValues(alpha: 0.3),
                       width: isSelected ? 2 : 1,
                     ),
                     elevation: isSelected ? 2 : 0,
@@ -177,8 +175,8 @@ class SortingDropdown extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
         side: BorderSide(
-            color:
-                Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+          color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -186,8 +184,8 @@ class SortingDropdown extends StatelessWidget {
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
           border: Border.all(
-              color:
-                  Theme.of(context).colorScheme.outline.withValues(alpha: 0.3)),
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

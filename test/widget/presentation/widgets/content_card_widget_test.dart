@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -36,9 +38,7 @@ Widget _wrap(Widget child) {
     ],
     supportedLocales: const [Locale('en')],
     home: Scaffold(
-      body: Center(
-        child: SizedBox(width: 240, child: child),
-      ),
+      body: Center(child: SizedBox(width: 240, child: child)),
     ),
   );
 }
@@ -60,12 +60,7 @@ void main() {
 
   testWidgets('shows read badge only for read content', (tester) async {
     await tester.pumpWidget(
-      _wrap(
-        ContentCard(
-          content: _content(),
-          readProgress: 1.0,
-        ),
-      ),
+      _wrap(ContentCard(content: _content(), readProgress: 1.0)),
     );
     await tester.pumpAndSettle();
 
@@ -73,15 +68,11 @@ void main() {
     expect(find.text('OFFLINE'), findsNothing);
   });
 
-  testWidgets('shows offline badge on the left when offline only',
-      (tester) async {
+  testWidgets('shows offline badge on the left when offline only', (
+    tester,
+  ) async {
     await tester.pumpWidget(
-      _wrap(
-        ContentCard(
-          content: _content(),
-          showDownloadBadge: true,
-        ),
-      ),
+      _wrap(ContentCard(content: _content(), showDownloadBadge: true)),
     );
     await tester.pumpAndSettle();
 
@@ -106,9 +97,13 @@ void main() {
 
     expect(offlineBadge, findsOneWidget);
     expect(readBadge, findsOneWidget);
-    expect(tester.getTopLeft(offlineBadge).dx,
-        lessThan(tester.getTopLeft(readBadge).dx));
-    expect(tester.getTopLeft(offlineBadge).dy,
-        equals(tester.getTopLeft(readBadge).dy));
+    expect(
+      tester.getTopLeft(offlineBadge).dx,
+      lessThan(tester.getTopLeft(readBadge).dx),
+    );
+    expect(
+      tester.getTopLeft(offlineBadge).dy,
+      equals(tester.getTopLeft(readBadge).dy),
+    );
   });
 }

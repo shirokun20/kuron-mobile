@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:nhasixapp/main.dart' as app;
@@ -46,7 +46,8 @@ void main() {
       }
     } else {
       debugPrint(
-          'No content found to test download flow. Skipping interaction steps.');
+        'No content found to test download flow. Skipping interaction steps.',
+      );
     }
 
     // Navigate to Library

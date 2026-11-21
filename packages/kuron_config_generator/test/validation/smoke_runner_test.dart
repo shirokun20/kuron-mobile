@@ -368,6 +368,11 @@ void main() {
     expect(content, contains("const _sourceId = 'demo';"));
     expect(content, contains('group('));
     expect(content, contains('LIVE'));
+    // Offline-safe by construction: fail-fast adapter + fixture gating.
+    expect(content, contains('HttpClientAdapter'));
+    expect(content, contains('unmocked'));
+    expect(content, contains('_canReplay(config, '));
+    expect(content, contains('markTestSkipped'));
   });
 
   group('taxonomy screen probe (conformance-loop 2.1)', () {

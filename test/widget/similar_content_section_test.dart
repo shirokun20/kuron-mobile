@@ -1,7 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -20,20 +22,20 @@ class _MockCubit extends Mock implements RecommendationCubit {}
 class _MockRegistry extends Mock implements ContentSourceRegistry {}
 
 Content _content(String id) => Content(
-      id: id,
-      sourceId: 'nhentai',
-      title: 'Title $id',
-      coverUrl: 'http://cover/$id',
-      tags: const [],
-      artists: const [],
-      characters: const [],
-      parodies: const [],
-      groups: const [],
-      language: 'english',
-      pageCount: 10,
-      imageUrls: const [],
-      uploadDate: DateTime(2026, 1, 1),
-    );
+  id: id,
+  sourceId: 'nhentai',
+  title: 'Title $id',
+  coverUrl: 'http://cover/$id',
+  tags: const [],
+  artists: const [],
+  characters: const [],
+  parodies: const [],
+  groups: const [],
+  language: 'english',
+  pageCount: 10,
+  imageUrls: const [],
+  uploadDate: DateTime(2026, 1, 1),
+);
 
 Recommendation _rec(String id) {
   final c = _content(id);
@@ -73,18 +75,20 @@ void main() {
   late StreamController<RecommendationState> states;
 
   setUpAll(() {
-    registerFallbackValue(const Recommendation(
-      contentId: 'x',
-      sourceId: 'nhentai',
-      score: 0,
-      reason: 'x',
-    ));
+    registerFallbackValue(
+      const Recommendation(
+        contentId: 'x',
+        sourceId: 'nhentai',
+        score: 0,
+        reason: 'x',
+      ),
+    );
     final registry = _MockRegistry();
     when(() => registry.getSource(any())).thenReturn(null);
     GetIt.instance.registerSingleton<ContentSourceRegistry>(registry);
-    GetIt.instance
-        .registerLazySingleton<RecommendationRefreshBus>(
-            () => RecommendationRefreshBus());
+    GetIt.instance.registerLazySingleton<RecommendationRefreshBus>(
+      () => RecommendationRefreshBus(),
+    );
   });
 
   tearDownAll(() {
@@ -98,11 +102,13 @@ void main() {
     cubit = _MockCubit();
     states = StreamController<RecommendationState>.broadcast();
     when(() => cubit.stream).thenAnswer((_) => states.stream);
-    when(() => cubit.loadSimilarContent(any(), sourceId: any(named: 'sourceId')))
-        .thenAnswer((_) async {});
-    when(() => cubit.dismissRecommendation(any(),
-            sourceId: any(named: 'sourceId')))
-        .thenAnswer((_) async {});
+    when(
+      () => cubit.loadSimilarContent(any(), sourceId: any(named: 'sourceId')),
+    ).thenAnswer((_) async {});
+    when(
+      () =>
+          cubit.dismissRecommendation(any(), sourceId: any(named: 'sourceId')),
+    ).thenAnswer((_) async {});
     when(() => cubit.markTapped(any())).thenAnswer((_) async {});
     when(() => cubit.close()).thenAnswer((_) async {});
     when(() => cubit.state).thenReturn(const RecommendationInitial());
@@ -124,14 +130,17 @@ void main() {
     expect(find.byType(KuronShimmer), findsWidgets);
   });
 
-  testWidgets('9.9 populated shows banner carousel, not small cards',
-      (tester) async {
-    when(() => cubit.state).thenReturn(RecommendationLoaded(
-      items: const [],
-      similarByContent: {
-        'c1': [_rec('s1'), _rec('s2')]
-      },
-    ));
+  testWidgets('9.9 populated shows banner carousel, not small cards', (
+    tester,
+  ) async {
+    when(() => cubit.state).thenReturn(
+      RecommendationLoaded(
+        items: const [],
+        similarByContent: {
+          'c1': [_rec('s1'), _rec('s2')],
+        },
+      ),
+    );
     await tester.pumpWidget(_harness());
     await tester.pump();
 
@@ -139,8 +148,7 @@ void main() {
     expect(find.byType(BannerDots), findsOneWidget);
     expect(find.byType(RecommendationCard), findsNothing);
     expect(find.text('Title s1'), findsOneWidget);
-    verify(() => cubit.loadSimilarContent('c1', sourceId: 'nhentai'))
-        .called(1);
+    verify(() => cubit.loadSimilarContent('c1', sourceId: 'nhentai')).called(1);
   });
 
   testWidgets('9.9 empty collapses', (tester) async {

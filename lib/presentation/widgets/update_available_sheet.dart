@@ -1,5 +1,6 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/core/services/update_service.dart';
@@ -10,10 +11,7 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 class UpdateAvailableSheet extends StatelessWidget {
   final UpdateInfo updateInfo;
 
-  const UpdateAvailableSheet({
-    super.key,
-    required this.updateInfo,
-  });
+  const UpdateAvailableSheet({super.key, required this.updateInfo});
 
   @override
   Widget build(BuildContext context) {
@@ -24,15 +22,12 @@ class UpdateAvailableSheet extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
           decoration: BoxDecoration(
-            color: Theme.of(context)
-                .scaffoldBackgroundColor
+            color: Theme.of(context).scaffoldBackgroundColor
                 .withValues(alpha: 0.7),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             border: Border(
               top: BorderSide(
-                color: Theme.of(context)
-                    .colorScheme
-                    .outlineVariant
+                color: Theme.of(context).colorScheme.outlineVariant
                     .withValues(alpha: 0.5),
                 width: 1.0,
               ),
@@ -48,9 +43,7 @@ class UpdateAvailableSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
+                    color: Theme.of(context).colorScheme.outlineVariant
                         .withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(2),
                   ),
@@ -62,15 +55,11 @@ class UpdateAvailableSheet extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primaryContainer
+                  color: Theme.of(context).colorScheme.primaryContainer
                       .withValues(alpha: 0.3),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
+                      color: Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 5,
@@ -78,10 +67,7 @@ class UpdateAvailableSheet extends StatelessWidget {
                   ],
                 ),
                 padding: const EdgeInsets.all(20),
-                child: const Text(
-                  '🚀',
-                  style: TextStyle(fontSize: 48),
-                ),
+                child: const Text('🚀', style: TextStyle(fontSize: 48)),
               ),
               const SizedBox(height: 20),
 
@@ -111,22 +97,22 @@ class UpdateAvailableSheet extends StatelessWidget {
                   Text(
                     AppLocalizations.of(context)!.newVersion,
                     style: TextStyleConst.bodyMedium.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .primary
+                      color: Theme.of(context).colorScheme.primary
                           .withValues(alpha: 0.1),
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                       border: Border.all(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
+                        color: Theme.of(context).colorScheme.primary
                             .withValues(alpha: 0.5),
                         width: 1,
                       ),
@@ -178,10 +164,7 @@ class UpdateAvailableSheet extends StatelessWidget {
                           updateInfo.content,
                           style: TextStyleConst.bodyMedium.copyWith(
                             height: 1.5,
-                            color: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.color
+                            color: Theme.of(context).textTheme.bodyMedium?.color
                                 ?.withValues(alpha: 0.8),
                           ),
                         ),
@@ -203,8 +186,9 @@ class UpdateAvailableSheet extends StatelessWidget {
                     foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     elevation: DesignTokens.elevationNone,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusXl),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusXl,
+                      ),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -221,8 +205,9 @@ class UpdateAvailableSheet extends StatelessWidget {
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 style: TextButton.styleFrom(
-                  foregroundColor:
-                      Theme.of(context).colorScheme.onSurfaceVariant,
+                  foregroundColor: Theme.of(context)
+                      .colorScheme
+                      .onSurfaceVariant,
                 ),
                 child: Text(AppLocalizations.of(context)!.maybeLater),
               ),

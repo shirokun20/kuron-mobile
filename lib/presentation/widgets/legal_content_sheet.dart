@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/legal_content_service.dart';
@@ -29,10 +29,8 @@ class LegalContentSheet extends StatefulWidget {
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => LegalContentSheet(
-        contentType: contentType,
-        locale: locale,
-      ),
+      builder: (context) =>
+          LegalContentSheet(contentType: contentType, locale: locale),
     );
   }
 
@@ -129,15 +127,10 @@ class _LegalContentSheetState extends State<LegalContentSheet> {
             ),
           ),
 
-          Divider(
-            height: 1,
-            color: theme.colorScheme.outlineVariant,
-          ),
+          Divider(height: 1, color: theme.colorScheme.outlineVariant),
 
           // Content
-          Expanded(
-            child: _buildContent(theme),
-          ),
+          Expanded(child: _buildContent(theme)),
         ],
       ),
     );
@@ -225,11 +218,7 @@ class _LegalContentSheetState extends State<LegalContentSheet> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error,
-            ),
+            Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
             const SizedBox(height: 16),
             Text(
               AppLocalizations.of(context)!.failedToLoadContent,
@@ -310,18 +299,14 @@ class _LegalContentSheetState extends State<LegalContentSheet> {
             textColor: theme.colorScheme.onSurfaceVariant,
           ),
           // Code block styling
-          PreConfig(
-            theme: isDark ? darkMarkdownTheme : lightMarkdownTheme,
-          ),
+          PreConfig(theme: isDark ? darkMarkdownTheme : lightMarkdownTheme),
           // Table styling
           TableConfig(
             headerStyle: TextStyle(
               fontWeight: FontWeight.bold,
               color: theme.colorScheme.onSurface,
             ),
-            bodyStyle: TextStyle(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+            bodyStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -331,8 +316,10 @@ class _LegalContentSheetState extends State<LegalContentSheet> {
 
 // Dark theme for code blocks
 const darkMarkdownTheme = {
-  'root':
-      TextStyle(color: Color(0xffdcdcdc), backgroundColor: Color(0xff1e1e1e)),
+  'root': TextStyle(
+    color: Color(0xffdcdcdc),
+    backgroundColor: Color(0xff1e1e1e),
+  ),
   'keyword': TextStyle(color: Color(0xff569cd6)),
   'string': TextStyle(color: Color(0xffce9178)),
   'number': TextStyle(color: Color(0xffb5cea8)),
@@ -341,8 +328,10 @@ const darkMarkdownTheme = {
 
 // Light theme for code blocks
 const lightMarkdownTheme = {
-  'root':
-      TextStyle(color: Color(0xff1e1e1e), backgroundColor: Color(0xfff5f5f5)),
+  'root': TextStyle(
+    color: Color(0xff1e1e1e),
+    backgroundColor: Color(0xfff5f5f5),
+  ),
   'keyword': TextStyle(color: Color(0xff0000ff)),
   'string': TextStyle(color: Color(0xffa31515)),
   'number': TextStyle(color: Color(0xff098658)),

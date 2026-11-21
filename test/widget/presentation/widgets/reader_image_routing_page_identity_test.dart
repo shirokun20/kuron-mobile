@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
@@ -29,7 +30,7 @@ final _minimalAnimatedWebP = Uint8List.fromList([
 
 class _ControlledPipeline extends ReaderImagePipeline {
   _ControlledPipeline({required this.repository})
-      : super(repository: repository);
+    : super(repository: repository);
 
   final ReaderImageRepository repository;
   final Map<int, Completer<ProcessedImageResult?>> preCheckCompleters = {};
@@ -69,14 +70,14 @@ class _PerPageRouteRepository implements ReaderImageRepository {
 }
 
 Widget _wrap(Widget child) => MaterialApp(
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+  localizationsDelegates: const [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ],
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: child),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -291,10 +292,7 @@ void main() {
     testWidgets(
       'Task 3.1: Native view gets current page file (no global page 1 fallback)',
       (tester) async {
-        final repo = _PerPageRouteRepository({
-          1: page1Path,
-          3: page3Path,
-        });
+        final repo = _PerPageRouteRepository({1: page1Path, 3: page3Path});
         ExtendedImageReaderWidget.nativeViewAvailableOverrideForTesting = true;
 
         // Pre-seed page 3 as heavy so it routes to native
@@ -377,10 +375,7 @@ void main() {
     testWidgets(
       'Task 3.1 scenario: page 3 routing native while cached path for page 1 exists never passes page 1 path',
       (tester) async {
-        final repo = _PerPageRouteRepository({
-          1: page1Path,
-          3: page3Path,
-        });
+        final repo = _PerPageRouteRepository({1: page1Path, 3: page3Path});
         ExtendedImageReaderWidget.nativeViewAvailableOverrideForTesting = true;
 
         // Simulate page 1 had a cached file
@@ -412,8 +407,9 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        var views =
-            tester.widgetList<AnimatedWebPView>(find.byType(AnimatedWebPView));
+        var views = tester.widgetList<AnimatedWebPView>(
+          find.byType(AnimatedWebPView),
+        );
         expect(views.first.filePath, equals(page1Path));
 
         // Update to page 3
@@ -432,8 +428,9 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        views =
-            tester.widgetList<AnimatedWebPView>(find.byType(AnimatedWebPView));
+        views = tester.widgetList<AnimatedWebPView>(
+          find.byType(AnimatedWebPView),
+        );
         expect(views.first.filePath, equals(page3Path));
         expect(views.first.filePath, isNot(equals(page1Path)));
         expect(views.first.pageNumber, equals(3));

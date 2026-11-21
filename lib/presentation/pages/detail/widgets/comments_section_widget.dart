@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
@@ -107,8 +107,9 @@ class _CommentsSectionWidgetState extends State<CommentsSectionWidget> {
   }
 
   Future<void> _refreshComposerState() async {
-    final supportsSubmission =
-        _commentsCubit.supportsCommentSubmission(widget.sourceId);
+    final supportsSubmission = _commentsCubit.supportsCommentSubmission(
+      widget.sourceId,
+    );
 
     if (!supportsSubmission) {
       if (!mounted) return;
@@ -166,8 +167,9 @@ class _CommentsSectionWidgetState extends State<CommentsSectionWidget> {
 
   Future<void> _solveCaptcha() async {
     try {
-      final bootstrap =
-          await _commentsCubit.getCaptchaBootstrap(widget.sourceId);
+      final bootstrap = await _commentsCubit.getCaptchaBootstrap(
+        widget.sourceId,
+      );
       final provider = bootstrap.captchaProvider?.trim() ?? '';
       final siteKey = bootstrap.captchaSiteKey?.trim() ?? '';
 
@@ -195,9 +197,8 @@ class _CommentsSectionWidgetState extends State<CommentsSectionWidget> {
     } catch (e) {
       if (!mounted) return;
       _showSnackBar(
-        AppLocalizations.of(context)!.failedToLoadCaptcha(
-          _normalizeErrorMessage(e),
-        ),
+        AppLocalizations.of(context)!
+            .failedToLoadCaptcha(_normalizeErrorMessage(e)),
         isError: true,
       );
     }
@@ -264,8 +265,9 @@ class _CommentsSectionWidgetState extends State<CommentsSectionWidget> {
       _showSnackBar(l10n.commentPosted);
     } catch (e) {
       final normalizedError = _normalizeErrorMessage(e);
-      final shouldClearCaptcha =
-          normalizedError.toLowerCase().contains('captcha');
+      final shouldClearCaptcha = normalizedError.toLowerCase().contains(
+        'captcha',
+      );
 
       if (!mounted) return;
 
@@ -298,8 +300,9 @@ class _CommentsSectionWidgetState extends State<CommentsSectionWidget> {
     messenger.showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? Theme.of(context).colorScheme.errorContainer : null,
+        backgroundColor: isError
+            ? Theme.of(context).colorScheme.errorContainer
+            : null,
       ),
     );
   }
@@ -363,9 +366,7 @@ class _CommentsListState extends State<_CommentsList> {
               const SizedBox(height: 8),
               Text(
                 AppLocalizations.of(context)!.noCommentsYet,
-                style: TextStyle(
-                  color: Theme.of(context).hintColor,
-                ),
+                style: TextStyle(color: Theme.of(context).hintColor),
               ),
             ],
           ),
@@ -380,8 +381,7 @@ class _CommentsListState extends State<_CommentsList> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
           child: Row(
             children: [
               Icon(
@@ -393,9 +393,9 @@ class _CommentsListState extends State<_CommentsList> {
               Text(
                 AppLocalizations.of(context)!.commentsCount(comments.length),
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ],
           ),
@@ -411,8 +411,10 @@ class _CommentsListState extends State<_CommentsList> {
         ),
         if (hasMore)
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 8.0,
+            ),
             child: Center(
               child: OutlinedButton.icon(
                 onPressed: () {

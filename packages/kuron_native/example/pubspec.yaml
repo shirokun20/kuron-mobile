@@ -3,7 +3,7 @@ description: "AI Translate Demo — ONNX bubble detection, mosaic, multi-provide
 publish_to: 'none'
 
 environment:
-  sdk: ^3.10.7
+  sdk: ^3.14.0
 resolution: workspace
 
 dependencies:
@@ -15,6 +15,7 @@ dependencies:
 
   cupertino_icons: ^2.0.0
   image: ^4.5.4
+  material_ui: ^1.11.1
 
 dev_dependencies:
   integration_test:

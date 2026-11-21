@@ -1,8 +1,10 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:nhasixapp/presentation/cubits/base/base_cubit.dart';
+
 import '../../../core/constants/colors_const.dart' show AppColors, KuronColors;
 import '../../../core/constants/design_tokens.dart';
 import '../settings/settings_cubit.dart';
@@ -16,8 +18,8 @@ class ThemeCubit extends BaseCubit<ThemeState> {
     required SettingsCubit settingsCubit,
     required super.logger,
     // ignore: prefer_initializing_formals
-  })  : _settingsCubit = settingsCubit,
-        super(initialState: ThemeState.initial()) {
+  }) : _settingsCubit = settingsCubit,
+       super(initialState: ThemeState.initial()) {
     // Listen to settings changes
     _settingsSubscription = _settingsCubit.stream.listen(_onSettingsChanged);
 
@@ -39,12 +41,14 @@ class ThemeCubit extends BaseCubit<ThemeState> {
       final preferences = settingsState.preferences;
       final themeData = _createThemeData(preferences.theme);
 
-      emit(ThemeState(
-        themeData: themeData,
-        themeMode: _getThemeMode(preferences.theme),
-        currentTheme: preferences.theme,
-        lastUpdated: DateTime.now(),
-      ));
+      emit(
+        ThemeState(
+          themeData: themeData,
+          themeMode: _getThemeMode(preferences.theme),
+          currentTheme: preferences.theme,
+          lastUpdated: DateTime.now(),
+        ),
+      );
 
       logInfo('Theme updated to: ${preferences.theme}');
     }

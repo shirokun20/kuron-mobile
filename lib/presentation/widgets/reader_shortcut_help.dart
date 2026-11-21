@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Shared reader keyboard-shortcut help, shown from the reader hint chip
 /// and from reader settings (so the info survives after the one-time chip

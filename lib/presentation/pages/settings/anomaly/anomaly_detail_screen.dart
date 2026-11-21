@@ -1,8 +1,10 @@
 import 'dart:convert';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
+
 import 'anomaly_store_contract.dart';
 
 /// Screen displaying the details of an anomaly record.
@@ -26,8 +28,10 @@ class AnomalyDetailScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(loc?.anomalyDeleteTitle ?? 'Hapus Record Anomali'),
-        content: Text(loc?.anomalyDeleteConfirm ??
-            'Apakah Anda yakin ingin menghapus record anomali ini?'),
+        content: Text(
+          loc?.anomalyDeleteConfirm ??
+              'Apakah Anda yakin ingin menghapus record anomali ini?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -64,7 +68,9 @@ class AnomalyDetailScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Detail Anomali',
-          style: TextStyleConst.titleLarge.copyWith(color: colorScheme.onSurface),
+          style: TextStyleConst.titleLarge.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         elevation: DesignTokens.elevationNone,
@@ -95,16 +101,26 @@ class AnomalyDetailScreen extends StatelessWidget {
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: (record.eligible ? Colors.green : Colors.orange)
-                              .withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                          color:
+                              (record.eligible ? Colors.green : Colors.orange)
+                                  .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
                         ),
                         child: Text(
-                          record.eligible ? 'Eligible untuk Lapor' : 'Belum Eligible',
+                          record.eligible
+                              ? 'Eligible untuk Lapor'
+                              : 'Belum Eligible',
                           style: TextStyleConst.bodySmall.copyWith(
-                            color: record.eligible ? Colors.green : Colors.orange,
+                            color: record.eligible
+                                ? Colors.green
+                                : Colors.orange,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -161,7 +177,11 @@ class AnomalyDetailScreen extends StatelessWidget {
                   _buildDetailRow('Count', '${record.count} kali', theme),
                   if (record.configVersion != null) ...[
                     _buildDivider(theme),
-                    _buildDetailRow('Config Version', record.configVersion!, theme),
+                    _buildDetailRow(
+                      'Config Version',
+                      record.configVersion!,
+                      theme,
+                    ),
                   ],
                   _buildDivider(theme),
                   _buildDetailRow(
@@ -178,7 +198,12 @@ class AnomalyDetailScreen extends StatelessWidget {
                     ),
                   ],
                   _buildDivider(theme),
-                  _buildDetailRow('Fingerprint', record.fingerprint, theme, isMonospace: true),
+                  _buildDetailRow(
+                    'Fingerprint',
+                    record.fingerprint,
+                    theme,
+                    isMonospace: true,
+                  ),
                 ],
               ),
             ),
@@ -205,10 +230,7 @@ class AnomalyDetailScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 child: SelectableText(
                   const JsonEncoder.withIndent('  ').convert(record.context),
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
                 ),
               ),
             ),
@@ -227,14 +249,19 @@ class AnomalyDetailScreen extends StatelessWidget {
                   final loc = AppLocalizations.of(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(loc?.openingGitHubReport ??
-                          'Membuka form laporan GitHub...'),
+                      content: Text(
+                        loc?.openingGitHubReport ??
+                            'Membuka form laporan GitHub...',
+                      ),
                     ),
                   );
                 }
               },
               icon: const Icon(Icons.send),
-              label: Text(AppLocalizations.of(context)?.reportToGitHub ?? 'Lapor ke GitHub'),
+              label: Text(
+                AppLocalizations.of(context)?.reportToGitHub ??
+                    'Lapor ke GitHub',
+              ),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -274,7 +301,12 @@ class AnomalyDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(String label, String value, ThemeData theme, {bool isMonospace = false}) {
+  Widget _buildDetailRow(
+    String label,
+    String value,
+    ThemeData theme, {
+    bool isMonospace = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(

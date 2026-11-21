@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -64,7 +64,8 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
       labelForKey: _languageLabel,
     );
     _selectedLanguageKey = chapterLanguages.selectedKey;
-    final loadMoreLanguageKey = chapterLanguages.selectedKey ??
+    final loadMoreLanguageKey =
+        chapterLanguages.selectedKey ??
         (chapterLanguages.lanes.length == 1
             ? chapterLanguages.lanes.first.key
             : null);
@@ -100,8 +101,9 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
             return Container(
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Column(
                 children: [
@@ -157,8 +159,9 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                 .colorScheme
                                 .primaryContainer
                                 .withValues(alpha: 0.5),
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radius2xl),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radius2xl,
+                            ),
                           ),
                           child: Text(
                             l10n.chapterCount(chapters.length),
@@ -176,9 +179,7 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
 
                   Divider(
                     height: 1,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant
+                    color: Theme.of(context).colorScheme.outlineVariant
                         .withValues(alpha: 0.6),
                   ),
 
@@ -186,9 +187,7 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-                      color: Theme.of(context)
-                          .colorScheme
-                          .surfaceContainer
+                      color: Theme.of(context).colorScheme.surfaceContainer
                           .withValues(alpha: 0.7),
                       child: SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
@@ -228,12 +227,11 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                   .colorScheme
                                   .secondaryContainer
                                   .withValues(alpha: 0.55),
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusLg),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusLg,
+                              ),
                               border: Border.all(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .secondary
+                                color: Theme.of(context).colorScheme.secondary
                                     .withValues(alpha: 0.3),
                               ),
                             ),
@@ -299,8 +297,8 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                         final isExternal = chapter.isExternal;
                         final externalHost = isExternal
                             ? (Uri.tryParse(chapter.externalUrl!.trim())
-                                    ?.host ??
-                                '')
+                                      ?.host ??
+                                  '')
                             : '';
                         final subtitleParts = [
                           if (isExternal && externalHost.isNotEmpty)
@@ -309,31 +307,31 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                           if ((chapter.scanGroup ?? '').trim().isNotEmpty)
                             chapter.scanGroup!.trim(),
                         ];
-                        final hasScanGroup =
-                            (chapter.scanGroup ?? '').trim().isNotEmpty;
+                        final hasScanGroup = (chapter.scanGroup ?? '')
+                            .trim()
+                            .isNotEmpty;
                         return AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
                           margin: const EdgeInsets.only(bottom: 12),
                           decoration: BoxDecoration(
                             color: isRead
                                 ? Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: 0.5)
+                                      .colorScheme
+                                      .surfaceContainerHighest
+                                      .withValues(alpha: 0.5)
                                 : Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerLow,
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusLg),
+                                      .colorScheme
+                                      .surfaceContainerLow,
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusLg,
+                            ),
                             border: Border.all(
                               color: isCompleted
                                   ? Theme.of(context).colorScheme.tertiary
                                   : isRead
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Theme.of(context)
-                                          .colorScheme
-                                          .outlineVariant
-                                          .withValues(alpha: 0.5),
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Theme.of(context).colorScheme.outlineVariant
+                                        .withValues(alpha: 0.5),
                               width: isRead ? 1.4 : 1,
                             ),
                           ),
@@ -344,8 +342,9 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                 context.pop();
                                 widget.detailCubit.openChapter(chapter);
                               },
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusXl),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusXl,
+                              ),
                               child: Padding(
                                 padding: const EdgeInsets.all(12),
                                 child: Row(
@@ -359,17 +358,18 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                           decoration: BoxDecoration(
                                             color: isCompleted
                                                 ? Theme.of(context)
-                                                    .colorScheme
-                                                    .tertiaryContainer
+                                                      .colorScheme
+                                                      .tertiaryContainer
                                                 : isRead
-                                                    ? Theme.of(context)
-                                                        .colorScheme
-                                                        .primaryContainer
-                                                    : Theme.of(context)
-                                                        .colorScheme
-                                                        .primaryContainer,
+                                                ? Theme.of(context)
+                                                      .colorScheme
+                                                      .primaryContainer
+                                                : Theme.of(context)
+                                                      .colorScheme
+                                                      .primaryContainer,
                                             borderRadius: BorderRadius.circular(
-                                                DesignTokens.radiusMd),
+                                              DesignTokens.radiusMd,
+                                            ),
                                           ),
                                           child: Center(
                                             child: isCompleted
@@ -381,69 +381,66 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                                     size: 24,
                                                   )
                                                 : isRead
-                                                    ? Stack(
-                                                        alignment:
-                                                            Alignment.center,
-                                                        children: [
-                                                          Text(
-                                                            '${entry.chapterIndex ?? (index + 1)}',
-                                                            style:
-                                                                TextStyleConst
-                                                                    .titleMedium
-                                                                    .copyWith(
-                                                              color: Theme.of(
-                                                                      context)
+                                                ? Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      Text(
+                                                        '${entry.chapterIndex ?? (index + 1)}',
+                                                        style: TextStyleConst
+                                                            .titleMedium
+                                                            .copyWith(
+                                                              color: Theme.of(context)
                                                                   .colorScheme
                                                                   .onPrimaryContainer,
                                                               fontWeight:
                                                                   FontWeight
                                                                       .bold,
                                                             ),
-                                                          ),
-                                                          // Progress ring for in-progress chapters
-                                                          SizedBox(
-                                                            width: 36,
-                                                            height: 36,
-                                                            child:
-                                                                CircularProgressIndicator(
-                                                              value: progress,
-                                                              strokeWidth: 2.5,
-                                                              backgroundColor: Theme
-                                                                      .of(
-                                                                          context)
+                                                      ),
+                                                      // Progress ring for in-progress chapters
+                                                      SizedBox(
+                                                        width: 36,
+                                                        height: 36,
+                                                        child: CircularProgressIndicator(
+                                                          value: progress,
+                                                          strokeWidth: 2.5,
+                                                          backgroundColor:
+                                                              Theme.of(context)
                                                                   .colorScheme
                                                                   .onPrimaryContainer
                                                                   .withValues(
-                                                                      alpha:
-                                                                          0.2),
-                                                              valueColor:
-                                                                  AlwaysStoppedAnimation<
-                                                                      Color>(
+                                                                    alpha: 0.2,
+                                                                  ),
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                Color
+                                                              >(
                                                                 Theme.of(
-                                                                        context)
+                                                                      context,
+                                                                    )
                                                                     .colorScheme
                                                                     .primary
                                                                     .withValues(
-                                                                        alpha:
-                                                                            0.9),
+                                                                      alpha:
+                                                                          0.9,
+                                                                    ),
                                                               ),
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      )
-                                                    : Text(
-                                                        '${entry.chapterIndex ?? (index + 1)}',
-                                                        style: TextStyleConst
-                                                            .titleMedium
-                                                            .copyWith(
-                                                          color: Theme.of(
-                                                                  context)
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  )
+                                                : Text(
+                                                    '${entry.chapterIndex ?? (index + 1)}',
+                                                    style: TextStyleConst
+                                                        .titleMedium
+                                                        .copyWith(
+                                                          color: Theme.of(context)
                                                               .colorScheme
                                                               .onPrimaryContainer,
                                                           fontWeight:
                                                               FontWeight.bold,
                                                         ),
-                                                      ),
+                                                  ),
                                           ),
                                         ),
                                         // Status dot indicator
@@ -457,11 +454,11 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                               decoration: BoxDecoration(
                                                 color: isCompleted
                                                     ? Theme.of(context)
-                                                        .colorScheme
-                                                        .tertiary
+                                                          .colorScheme
+                                                          .tertiary
                                                     : Theme.of(context)
-                                                        .colorScheme
-                                                        .primary,
+                                                          .colorScheme
+                                                          .primary,
                                                 shape: BoxShape.circle,
                                                 border: Border.all(
                                                   color: Theme.of(context)
@@ -486,21 +483,22 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                             chapter.title,
                                             style: TextStyleConst.bodyLarge
                                                 .copyWith(
-                                              fontWeight: FontWeight.w600,
-                                              color: isCompleted
-                                                  ? Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurfaceVariant
-                                                  : Theme.of(context)
-                                                      .colorScheme
-                                                      .onSurface,
-                                            ),
+                                                  fontWeight: FontWeight.w600,
+                                                  color: isCompleted
+                                                      ? Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurfaceVariant
+                                                      : Theme.of(context)
+                                                            .colorScheme
+                                                            .onSurface,
+                                                ),
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           if (subtitleParts.isNotEmpty) ...[
                                             const SizedBox(
-                                                height: DesignTokens.spaceXs),
+                                              height: DesignTokens.spaceXs,
+                                            ),
                                             Row(
                                               children: [
                                                 Icon(
@@ -519,10 +517,10 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                                     style: TextStyleConst
                                                         .bodySmall
                                                         .copyWith(
-                                                      color: Theme.of(context)
-                                                          .colorScheme
-                                                          .onSurfaceVariant,
-                                                    ),
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onSurfaceVariant,
+                                                        ),
                                                     maxLines: 1,
                                                     overflow:
                                                         TextOverflow.ellipsis,
@@ -539,10 +537,10 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                                     Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        if (widget.detailCubit
-                                            .isFeatureEnabled(
-                                                widget.content.sourceId,
-                                                (f) => f.download))
+                                        if (widget.detailCubit.isFeatureEnabled(
+                                          widget.content.sourceId,
+                                          (f) => f.download,
+                                        ))
                                           SizedBox(
                                             width: 44,
                                             height: 44,
@@ -594,23 +592,24 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
                         child: FilledButton.tonalIcon(
                           onPressed: _isLoadingMore
                               ? null
-                              : () => _loadMoreChapters(
-                                    loadMoreLanguageKey!,
-                                  ),
+                              : () => _loadMoreChapters(loadMoreLanguageKey!),
                           icon: _isLoadingMore
                               ? const SizedBox(
                                   width: 16,
                                   height: DesignTokens.spaceLg,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : const Icon(Icons.expand_more),
                           label: Text(
                             _isLoadingMore
                                 ? l10n.loading
                                 : _loadMoreError ??
-                                    l10n.loadMoreChapters(selectedLane?.label ??
-                                        l10n.chaptersTitle),
+                                      l10n.loadMoreChapters(
+                                        selectedLane?.label ??
+                                            l10n.chaptersTitle,
+                                      ),
                           ),
                         ),
                       ),
@@ -644,8 +643,9 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
       avatar: selected ? const Icon(Icons.check, size: 16) : null,
       label: Text('${lane.label}  ${lane.chapters.length}'),
       labelStyle: TextStyleConst.labelMedium.copyWith(
-        color:
-            selected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
+        color: selected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurface,
         fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
       ),
       selectedColor: colorScheme.primaryContainer,
@@ -658,7 +658,8 @@ class _ChapterListBottomSheetState extends State<ChapterListBottomSheet> {
             : colorScheme.outlineVariant,
       ),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
       onSelected: (_) {
         setState(() {
           _selectedLanguageKey = lane.key;

@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -47,9 +47,7 @@ class HistoryItemWidget extends StatelessWidget {
               const SizedBox(width: 16),
 
               // Content info
-              Expanded(
-                child: _buildContentInfo(context),
-              ),
+              Expanded(child: _buildContentInfo(context)),
 
               // Actions
               if (showRemoveButton && onRemove != null) _buildActions(context),
@@ -198,8 +196,9 @@ class HistoryItemWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
           child: LinearProgressIndicator(
             value: progressPercentage,
-            backgroundColor:
-                Theme.of(context).colorScheme.surfaceContainerHighest,
+            backgroundColor: Theme.of(context)
+                .colorScheme
+                .surfaceContainerHighest,
             valueColor: AlwaysStoppedAnimation<Color>(
               history.isCompleted
                   ? Theme.of(context).colorScheme.primary
@@ -215,9 +214,7 @@ class HistoryItemWidget extends StatelessWidget {
         Text(
           _formatLastViewed(context, history.lastViewed),
           style: TextStyleConst.caption.copyWith(
-            color: Theme.of(context)
-                .colorScheme
-                .onSurfaceVariant
+            color: Theme.of(context).colorScheme.onSurfaceVariant
                 .withValues(alpha: 0.8),
           ),
         ),
@@ -230,18 +227,14 @@ class HistoryItemWidget extends StatelessWidget {
               Icon(
                 Icons.schedule,
                 size: 12,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
+                color: Theme.of(context).colorScheme.onSurfaceVariant
                     .withValues(alpha: 0.8),
               ),
               const SizedBox(width: 4),
               Text(
                 _formatTimeSpent(context, history.timeSpent),
                 style: TextStyleConst.caption.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
+                  color: Theme.of(context).colorScheme.onSurfaceVariant
                       .withValues(alpha: 0.8),
                 ),
               ),
@@ -299,10 +292,14 @@ class HistoryItemWidget extends StatelessWidget {
       return l10n.daysAgo(difference.inDays, difference.inDays == 1 ? '' : 's');
     } else if (difference.inHours > 0) {
       return l10n.hoursAgo(
-          difference.inHours, difference.inHours == 1 ? '' : 's');
+        difference.inHours,
+        difference.inHours == 1 ? '' : 's',
+      );
     } else if (difference.inMinutes > 0) {
       return l10n.minutesAgo(
-          difference.inMinutes, difference.inMinutes == 1 ? '' : 's');
+        difference.inMinutes,
+        difference.inMinutes == 1 ? '' : 's',
+      );
     } else {
       return l10n.justNow;
     }

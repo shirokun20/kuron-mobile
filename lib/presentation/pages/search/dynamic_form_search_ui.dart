@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kuron_generic/kuron_generic.dart'
@@ -103,9 +103,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
     super.initState();
     _lastReloadSignal = widget.reloadSignal;
     _initFields();
-    context
-        .read<SearchBloc>()
-        .add(SearchInitializeEvent(sourceId: widget.sourceId));
+    context.read<SearchBloc>().add(
+      SearchInitializeEvent(sourceId: widget.sourceId),
+    );
   }
 
   @override
@@ -172,8 +172,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       for (final entry in widget.config.params.entries) {
         final qp = entry.value.queryParam;
         if (qp == null) continue;
-        (fieldsByParam[qp] ??= <MapEntry<String, SearchFormFieldConfig>>[])
-            .add(entry);
+        (fieldsByParam[qp] ??= <MapEntry<String, SearchFormFieldConfig>>[]).add(
+          entry,
+        );
       }
 
       for (final grouped in fieldsByParam.entries) {
@@ -249,10 +250,12 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       final options =
           cubitState.optionCacheBySource[sourceId] ?? const <DynamicOption>[];
       final selected = entry.value
-          .map((value) => options.firstWhere(
-                (o) => o.value == value,
-                orElse: () => DynamicOption(value: value, label: value),
-              ))
+          .map(
+            (value) => options.firstWhere(
+              (o) => o.value == value,
+              orElse: () => DynamicOption(value: value, label: value),
+            ),
+          )
           .toList();
       _multiSelectValues[fieldName] = selected;
     }
@@ -303,10 +306,12 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       case 'checkbox':
         final options = _optionsForField(name, field, cubitState);
         _multiSelectValues[name] = values
-            .map((value) => options.firstWhere(
-                  (option) => option.value == value,
-                  orElse: () => DynamicOption(value: value, label: value),
-                ))
+            .map(
+              (value) => options.firstWhere(
+                (option) => option.value == value,
+                orElse: () => DynamicOption(value: value, label: value),
+              ),
+            )
             .toList(growable: false);
       default:
         break;
@@ -343,10 +348,7 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       selectedTagItems: selectedTagItems,
     );
     final rawQuery = parts.isNotEmpty ? 'raw:${parts.join('&')}' : '';
-    final filter = SearchFilter(
-      query: rawQuery,
-      tags: selectedTagItems,
-    );
+    final filter = SearchFilter(query: rawQuery, tags: selectedTagItems);
 
     final ok = await cubit.saveSearchFilter(
       sourceId: widget.sourceId,
@@ -465,14 +467,16 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         },
         builder: (context, state) {
           final allFields = widget.config.params.entries
-              .where((e) =>
-                  e.value.type != 'page' &&
-                  !shouldHideBecauseCombinedPicker(
-                    name: e.key,
-                    field: e.value,
-                    config: widget.config,
-                    rawFieldConfig: (n) => state.rawFieldConfig(n),
-                  ))
+              .where(
+                (e) =>
+                    e.value.type != 'page' &&
+                    !shouldHideBecauseCombinedPicker(
+                      name: e.key,
+                      field: e.value,
+                      config: widget.config,
+                      rawFieldConfig: (n) => state.rawFieldConfig(n),
+                    ),
+              )
               .toList();
 
           final primaryFields = allFields
@@ -524,8 +528,12 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                                           CrossAxisAlignment.stretch,
                                       children: [
                                         for (final entry in advancedFields)
-                                          _buildField(entry.key, entry.value,
-                                              cubit, state),
+                                          _buildField(
+                                            entry.key,
+                                            entry.value,
+                                            cubit,
+                                            state,
+                                          ),
                                       ],
                                     )
                                   : const SizedBox.shrink(
@@ -600,11 +608,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
             Text(
               AppLocalizations.of(context)!.advancedFilters,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: _showAdvancedFilters
-                        ? colorScheme.onPrimary
-                        : colorScheme.onSurface,
-                  ),
+                fontWeight: FontWeight.w600,
+                color: _showAdvancedFilters
+                    ? colorScheme.onPrimary
+                    : colorScheme.onSurface,
+              ),
             ),
             if (activeCount > 0) ...[
               const SizedBox(width: 8),
@@ -619,11 +627,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                 child: Text(
                   '$activeCount',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: _showAdvancedFilters
-                            ? colorScheme.onPrimary
-                            : colorScheme.onPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    color: _showAdvancedFilters
+                        ? colorScheme.onPrimary
+                        : colorScheme.onPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -653,7 +661,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
   ) {
     final rawField = cubitState.rawFieldConfig(name);
     final pairedExcludedName = _findPairedExcludedFieldName();
-    final isPairedIncluded = isIncludedTagField(name, field) &&
+    final isPairedIncluded =
+        isIncludedTagField(name, field) &&
         isPickerField(name, field, rawField) &&
         pairedExcludedName != null &&
         widget.config.params[pairedExcludedName] != null &&
@@ -689,9 +698,10 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       padding: const EdgeInsets.only(bottom: DesignTokens.spaceMd),
       child: switch (field.type) {
         'text' => _buildTextField(name, field, cubit, cubitState),
-        'tag' => isTagChipsField(name, field, rawField)
-            ? _buildTagChipsField(name, field, cubitState)
-            : _buildTagField(name, field, cubit, cubitState),
+        'tag' =>
+          isTagChipsField(name, field, rawField)
+              ? _buildTagChipsField(name, field, cubitState)
+              : _buildTagField(name, field, cubit, cubitState),
         'select' => _buildSelectField(name, field, cubitState),
         'sort' => _buildSelectField(name, field, cubitState),
         'radio' => _buildSelectField(name, field, cubitState),
@@ -714,7 +724,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         hintText: field.placeholder,
         prefixIcon: _iconFor(name),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+        ),
         filled: true,
       ),
       textInputAction: TextInputAction.search,
@@ -733,11 +744,13 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       controller: _textControllers[name],
       decoration: InputDecoration(
         labelText: _labelFor(name, cubitState),
-        hintText: field.placeholder ??
+        hintText:
+            field.placeholder ??
             'Enter ${_labelFor(name, cubitState).toLowerCase()}',
         prefixIcon: const Icon(Icons.tag),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+          borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+        ),
         filled: true,
       ),
       textInputAction: TextInputAction.search,
@@ -794,7 +807,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
               onPressed: addCurrentInput,
             ),
             border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+            ),
             filled: true,
           ),
           textInputAction: TextInputAction.done,
@@ -805,11 +819,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         Text(
           AppLocalizations.of(context)!.tagInputTip,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.9),
-              ),
+            color: Theme.of(context).colorScheme.onSurfaceVariant
+                .withValues(alpha: 0.9),
+          ),
         ),
         if (chips.isNotEmpty) ...[
           const SizedBox(height: DesignTokens.spaceSm),
@@ -825,8 +837,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                     deleteIconColor: accent,
                     onDeleted: () {
                       setState(() {
-                        _tagChipValues[name] =
-                            chips.where((x) => x != chip).toList();
+                        _tagChipValues[name] = chips
+                            .where((x) => x != chip)
+                            .toList();
                       });
                     },
                   ),
@@ -852,8 +865,10 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
     final isLoading =
         sourceId != null && cubitState.loadingPickerSources.contains(sourceId);
     final hasLoadError =
-        sourceId != null && cubitState.pickerLoadErrorBySource.containsKey(sourceId);
-    final hasCachedOptions = sourceId != null &&
+        sourceId != null &&
+        cubitState.pickerLoadErrorBySource.containsKey(sourceId);
+    final hasCachedOptions =
+        sourceId != null &&
         (cubitState.optionCacheBySource[sourceId]?.isNotEmpty ?? false);
 
     return Column(
@@ -862,9 +877,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         Text(
           _labelFor(name, cubitState).toUpperCase(),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         const SizedBox(height: DesignTokens.spaceSm),
         Material(
@@ -897,16 +912,16 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                     child: Text(
                       selected.isEmpty
                           ? (field.placeholder ??
-                              'Select ${_labelFor(name, cubitState)}')
+                                'Select ${_labelFor(name, cubitState)}')
                           : '${selected.length} selected',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: selected.isEmpty
-                                ? Theme.of(context).colorScheme.onSurfaceVariant
-                                : null,
-                            fontWeight: selected.isNotEmpty
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
+                        color: selected.isEmpty
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : null,
+                        fontWeight: selected.isNotEmpty
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
                     ),
                   ),
                   if (isLoading)
@@ -997,13 +1012,16 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
     final excluded =
         _multiSelectValues[excludedName] ?? const <DynamicOption>[];
 
-    final sourceId = cubitState.pickerDataSource(includedName, includedField) ??
+    final sourceId =
+        cubitState.pickerDataSource(includedName, includedField) ??
         cubitState.pickerDataSource(excludedName, excludedField);
     final isLoading =
         sourceId != null && cubitState.loadingPickerSources.contains(sourceId);
     final hasLoadError =
-        sourceId != null && cubitState.pickerLoadErrorBySource.containsKey(sourceId);
-    final hasCachedOptions = sourceId != null &&
+        sourceId != null &&
+        cubitState.pickerLoadErrorBySource.containsKey(sourceId);
+    final hasCachedOptions =
+        sourceId != null &&
         (cubitState.optionCacheBySource[sourceId]?.isNotEmpty ?? false);
 
     final includeColors = tagChipColors(TagPickState.include, context);
@@ -1015,9 +1033,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         Text(
           AppLocalizations.of(context)!.filterTags,
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         const SizedBox(height: DesignTokens.spaceSm),
         Material(
@@ -1057,9 +1075,7 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                     child: (included.isEmpty && excluded.isEmpty)
                         ? Text(
                             AppLocalizations.of(context)!.tapToChooseTags,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -1069,8 +1085,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                         : Row(
                             children: [
                               if (included.isNotEmpty) ...[
-                                Icon(Icons.add_circle,
-                                    size: 14, color: includeColors.accent),
+                                Icon(
+                                  Icons.add_circle,
+                                  size: 14,
+                                  color: includeColors.accent,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${included.length}',
@@ -1083,8 +1102,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                               if (included.isNotEmpty && excluded.isNotEmpty)
                                 const SizedBox(width: 12),
                               if (excluded.isNotEmpty) ...[
-                                Icon(Icons.remove_circle,
-                                    size: 14, color: excludeColors.accent),
+                                Icon(
+                                  Icons.remove_circle,
+                                  size: 14,
+                                  color: excludeColors.accent,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   '${excluded.length}',
@@ -1149,7 +1171,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                   label: Text(opt.label),
                   selected: true,
                   showCheckmark: false,
-                  avatar: Icon(Icons.add, size: 14, color: includeColors.accent),
+                  avatar: Icon(
+                    Icons.add,
+                    size: 14,
+                    color: includeColors.accent,
+                  ),
                   backgroundColor: includeColors.background,
                   selectedColor: includeColors.background,
                   side: BorderSide(color: includeColors.border),
@@ -1171,7 +1197,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                   label: Text(opt.label),
                   selected: true,
                   showCheckmark: false,
-                  avatar: Icon(Icons.remove, size: 14, color: excludeColors.accent),
+                  avatar: Icon(
+                    Icons.remove,
+                    size: 14,
+                    color: excludeColors.accent,
+                  ),
                   backgroundColor: excludeColors.background,
                   selectedColor: excludeColors.background,
                   side: BorderSide(color: excludeColors.border),
@@ -1203,7 +1233,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
     required DynamicFormSearchCubit cubit,
     required DynamicFormSearchState cubitState,
   }) async {
-    final sourceId = cubitState.pickerDataSource(includedName, includedField) ??
+    final sourceId =
+        cubitState.pickerDataSource(includedName, includedField) ??
         cubitState.pickerDataSource(excludedName, excludedField);
     if (sourceId == null) return;
 
@@ -1228,9 +1259,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       final loadError = cubit.state.pickerLoadErrorBySource[sourceId];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(loadError == null || loadError.isEmpty
-              ? AppLocalizations.of(context)!.noOptionsAvailable
-              : AppLocalizations.of(context)!.failedLoadingOptions),
+          content: Text(
+            loadError == null || loadError.isEmpty
+                ? AppLocalizations.of(context)!.noOptionsAvailable
+                : AppLocalizations.of(context)!.failedLoadingOptions,
+          ),
           action: SnackBarAction(
             label: AppLocalizations.of(context)!.retryAction,
             onPressed: () => _openCombinedPicker(
@@ -1298,9 +1331,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       final loadError = cubit.state.pickerLoadErrorBySource[sourceId];
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(loadError == null || loadError.isEmpty
-              ? AppLocalizations.of(context)!.noOptionsAvailable
-              : AppLocalizations.of(context)!.failedLoadingOptions),
+          content: Text(
+            loadError == null || loadError.isEmpty
+                ? AppLocalizations.of(context)!.noOptionsAvailable
+                : AppLocalizations.of(context)!.failedLoadingOptions,
+          ),
           action: SnackBarAction(
             label: AppLocalizations.of(context)!.retryAction,
             onPressed: () => _openPicker(name, field, cubit, cubit.state),
@@ -1424,8 +1459,7 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
             addParamValue(qp, formatted, joinMode: joinMode);
           }
         case 'checkbox':
-          final selected =
-              _multiSelectValues[name] ?? const <DynamicOption>[];
+          final selected = _multiSelectValues[name] ?? const <DynamicOption>[];
           for (final option in selected) {
             final formatted = formatFieldValue(rawField, option.value);
             addParamValue(qp, formatted, joinMode: joinMode);
@@ -1494,9 +1528,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                 Text(
                   AppLocalizations.of(context)!.activeFilterPreview,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
@@ -1505,9 +1539,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
               Text(
                 qExpr,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: colorScheme.onSurface,
-                    ),
+                  fontWeight: FontWeight.w600,
+                  color: colorScheme.onSurface,
+                ),
               ),
             ],
             if (otherParams.isNotEmpty) ...[
@@ -1517,18 +1551,20 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                 runSpacing: 4,
                 children: otherParams.map((e) {
                   return Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainerHighest,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     child: Text(
                       '${e.key}: ${e.value.join(", ")}',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                      style: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   );
                 }).toList(),
@@ -1537,10 +1573,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
             const SizedBox(height: 4),
             Text(
               rawQuery,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: colorScheme.outline,
-                    fontSize: 10,
-                  ),
+              style: Theme.of(context).textTheme.labelSmall
+                  ?.copyWith(color: colorScheme.outline, fontSize: 10),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -1571,9 +1605,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         Text(
           _labelFor(name, cubitState).toUpperCase(),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         const SizedBox(height: DesignTokens.spaceSm),
         Wrap(
@@ -1614,8 +1648,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       backgroundColor: colorScheme.surfaceContainerHighest,
       checkmarkColor: colorScheme.onPrimaryContainer,
       labelStyle: TextStyle(
-        color:
-            isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
+        color: isSelected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
       ),
       side: BorderSide(
@@ -1648,9 +1683,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         Text(
           _labelFor(name, cubitState).toUpperCase(),
           style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.primary,
-              ),
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
         ),
         const SizedBox(height: DesignTokens.spaceSm),
         if (options.isEmpty && isDynamic) ...[
@@ -1703,8 +1738,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       backgroundColor: colorScheme.surfaceContainerHighest,
       checkmarkColor: colorScheme.onPrimaryContainer,
       labelStyle: TextStyle(
-        color:
-            isSelected ? colorScheme.onPrimaryContainer : colorScheme.onSurface,
+        color: isSelected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurface,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
       ),
       side: BorderSide(
@@ -1735,7 +1771,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
               if (value.isEmpty) return null;
               return DynamicOption(
                 value: value,
-                label: option['name']?.toString() ??
+                label:
+                    option['name']?.toString() ??
                     option['label']?.toString() ??
                     value,
               );
@@ -1749,10 +1786,12 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
     }
 
     return (field.options ?? const <SearchFormOptionConfig>[])
-        .map((opt) => DynamicOption(
-              value: opt.value,
-              label: opt.name ?? opt.label ?? _capitalize(opt.value),
-            ))
+        .map(
+          (opt) => DynamicOption(
+            value: opt.value,
+            label: opt.name ?? opt.label ?? _capitalize(opt.value),
+          ),
+        )
         .toList(growable: false);
   }
 
@@ -1792,7 +1831,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       duration: const Duration(milliseconds: 220),
       child: Container(
         key: ValueKey<String>(
-          'checkbox-remote-state-$fieldName-${isLoading ? 'loading' : isError ? 'error' : 'idle'}',
+          'checkbox-remote-state-$fieldName-${isLoading
+              ? 'loading'
+              : isError
+              ? 'error'
+              : 'idle'}',
         ),
         width: double.infinity,
         padding: const EdgeInsets.all(16),
@@ -1848,9 +1891,9 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                             child: Text(
                               isError
                                   ? AppLocalizations.of(context)!
-                                      .genreOptionsFailed
+                                        .genreOptionsFailed
                                   : AppLocalizations.of(context)!
-                                      .loadingGenreOptions,
+                                        .loadingGenreOptions,
                               style: theme.textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w800,
                               ),
@@ -1861,8 +1904,8 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                             label: isLoading
                                 ? AppLocalizations.of(context)!.statusLoading
                                 : isError
-                                    ? AppLocalizations.of(context)!.statusError
-                                    : AppLocalizations.of(context)!.statusIdle,
+                                ? AppLocalizations.of(context)!.statusError
+                                : AppLocalizations.of(context)!.statusIdle,
                             filled: isLoading || isIdle,
                             isError: isError,
                           ),
@@ -1872,12 +1915,13 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                       Text(
                         sourceHost == null
                             ? (isError
-                                ? AppLocalizations.of(context)!
-                                    .failedToLoadOptionsTap
-                                : AppLocalizations.of(context)!.loadingOptions)
+                                  ? AppLocalizations.of(context)!
+                                        .failedToLoadOptionsTap
+                                  : AppLocalizations.of(context)!
+                                        .loadingOptions)
                             : isError
-                                ? 'Could not read tags from $sourceHost'
-                                : 'Fetching tags from $sourceHost',
+                            ? 'Could not read tags from $sourceHost'
+                            : 'Fetching tags from $sourceHost',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -1991,11 +2035,11 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
                     onPressed: isLoading
                         ? null
                         : () => cubit.loadCheckboxOptionsForField(
-                              sourceId: widget.sourceId,
-                              fieldName: fieldName,
-                              rawField: rawField,
-                              force: true,
-                            ),
+                            sourceId: widget.sourceId,
+                            fieldName: fieldName,
+                            rawField: rawField,
+                            force: true,
+                          ),
                     icon: const Icon(Icons.refresh_rounded),
                     label: Text(
                       isError
@@ -2024,27 +2068,27 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
         color: isError
             ? colorScheme.errorContainer.withValues(alpha: 0.7)
             : filled
-                ? colorScheme.primaryContainer.withValues(alpha: 0.75)
-                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+            ? colorScheme.primaryContainer.withValues(alpha: 0.75)
+            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
         borderRadius: BorderRadius.circular(DesignTokens.radiusFull),
         border: Border.all(
           color: isError
               ? colorScheme.error.withValues(alpha: 0.30)
               : filled
-                  ? colorScheme.primary.withValues(alpha: 0.28)
-                  : colorScheme.outlineVariant.withValues(alpha: 0.28),
+              ? colorScheme.primary.withValues(alpha: 0.28)
+              : colorScheme.outlineVariant.withValues(alpha: 0.28),
         ),
       ),
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: isError
-                  ? colorScheme.onErrorContainer
-                  : filled
-                      ? colorScheme.onPrimaryContainer
-                      : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w700,
-            ),
+          color: isError
+              ? colorScheme.onErrorContainer
+              : filled
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -2085,15 +2129,14 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: emphasized
-                  ? colorScheme.onPrimaryContainer
-                  : colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
+          color: emphasized
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
-
 
   String? _findPairedExcludedFieldName() {
     for (final entry in widget.config.params.entries) {
@@ -2122,12 +2165,12 @@ class _DynamicFormSearchUIState extends State<DynamicFormSearchUI> {
   }
 
   Icon _iconFor(String name) => switch (name) {
-        'query' => const Icon(Icons.search),
-        'genre' => const Icon(Icons.category),
-        'author' => const Icon(Icons.person),
-        'artist' => const Icon(Icons.brush),
-        _ => const Icon(Icons.edit),
-      };
+    'query' => const Icon(Icons.search),
+    'genre' => const Icon(Icons.category),
+    'author' => const Icon(Icons.person),
+    'artist' => const Icon(Icons.brush),
+    _ => const Icon(Icons.edit),
+  };
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';

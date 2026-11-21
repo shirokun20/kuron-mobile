@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class TranslationStyle {
   final String id;
@@ -85,8 +85,7 @@ class TranslationStylePicker extends StatelessWidget {
         if (!compact)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text('Gaya Terjemahan',
-                style: theme.textTheme.titleSmall),
+            child: Text('Gaya Terjemahan', style: theme.textTheme.titleSmall),
           ),
         SizedBox(
           height: compact ? 40 : 100,
@@ -98,15 +97,21 @@ class TranslationStylePicker extends StatelessWidget {
                 padding: const EdgeInsets.only(right: 8),
                 child: compact
                     ? ChoiceChip(
-                        label: Text(style.label, style: const TextStyle(fontSize: 12)),
+                        label: Text(
+                          style.label,
+                          style: const TextStyle(fontSize: 12),
+                        ),
                         selected: isSelected,
                         onSelected: (_) => onChanged(style.id),
                       )
                     : ActionChip(
-                        avatar: Icon(style.icon, size: 18,
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.onSurfaceVariant),
+                        avatar: Icon(
+                          style.icon,
+                          size: 18,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
                         label: Text(style.label),
                         onPressed: () {
                           if (style.requiresConfirm) {

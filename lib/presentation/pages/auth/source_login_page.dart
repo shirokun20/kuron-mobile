@@ -1,5 +1,4 @@
-
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/utils/native_theme_helper.dart';
@@ -41,9 +40,10 @@ class _SourceLoginPageState extends State<SourceLoginPage>
       vsync: this,
       duration: const Duration(seconds: 3),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.85, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 0.85,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -60,8 +60,10 @@ class _SourceLoginPageState extends State<SourceLoginPage>
         child: Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: Text(AppLocalizations.of(context)!
-                .sourceAuthLoginTitle(widget.sourceId)),
+            title: Text(
+              AppLocalizations.of(context)!
+                  .sourceAuthLoginTitle(widget.sourceId),
+            ),
           ),
           body: BlocConsumer<CrotpediaAuthCubit, CrotpediaAuthState>(
             listener: (context, state) {
@@ -103,10 +105,11 @@ class _SourceLoginPageState extends State<SourceLoginPage>
 
     // ── Default: SourceAuthCubit (nhentai etc) ──
     return BlocProvider(
-      create: (_) => (widget.sourceAuthCubitFactory != null
-          ? widget.sourceAuthCubitFactory!()
-          : (widget.sourceAuthCubit ?? context.read<SourceAuthCubit>()))
-        ..initialize(widget.sourceId),
+      create: (_) =>
+          (widget.sourceAuthCubitFactory != null
+                ? widget.sourceAuthCubitFactory!()
+                : (widget.sourceAuthCubit ?? context.read<SourceAuthCubit>()))
+            ..initialize(widget.sourceId),
       child: Scaffold(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
@@ -158,8 +161,10 @@ class _SourceLoginPageState extends State<SourceLoginPage>
 
   // ── Shared UI ──
 
-  Widget _buildLoginButton(BuildContext context,
-      {required VoidCallback onLogin}) {
+  Widget _buildLoginButton(
+    BuildContext context, {
+    required VoidCallback onLogin,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     return Center(
       child: Padding(
@@ -181,36 +186,43 @@ class _SourceLoginPageState extends State<SourceLoginPage>
                   end: Alignment.bottomRight,
                 ),
                 border: Border.all(
-                    color:
-                        Theme.of(context).dividerColor.withValues(alpha: 0.2)),
+                  color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+                ),
               ),
-              child: Icon(Icons.lock_person,
-                  size: 40, color: Theme.of(context).colorScheme.primary),
+              child: Icon(
+                Icons.lock_person,
+                size: 40,
+                color: Theme.of(context).colorScheme.primary,
+              ),
             ),
             const SizedBox(height: 28),
-            Text(l10n.sourceAuthLoginTitle(widget.sourceId),
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              l10n.sourceAuthLoginTitle(widget.sourceId),
+              style: Theme.of(context).textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 12),
-            Text(l10n.sourceAuthLoginDescription,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6))),
+            Text(
+              l10n.sourceAuthLoginDescription,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.6),
+              ),
+            ),
             const SizedBox(height: 36),
             FilledButton.icon(
               onPressed: onLogin,
               icon: const Icon(Icons.login),
               label: Text(l10n.sourceAuthSecureLogin),
               style: FilledButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+                ),
               ),
             ),
           ],
@@ -236,8 +248,13 @@ class _SourceLoginPageState extends State<SourceLoginPage>
             animation: _pulseAnim,
             builder: (context, child) =>
                 Transform.scale(scale: _pulseAnim.value, child: child),
-            child:
-                _buildAvatarCard(context, avatarColor, initial, username, null),
+            child: _buildAvatarCard(
+              context,
+              avatarColor,
+              initial,
+              username,
+              null,
+            ),
           ),
           const SizedBox(height: 16),
           _buildConnectedBadge(context, l10n),
@@ -251,7 +268,10 @@ class _SourceLoginPageState extends State<SourceLoginPage>
   }
 
   Widget _buildAuthenticatedFull(
-      BuildContext context, SourceAuthState state, AppLocalizations l10n) {
+    BuildContext context,
+    SourceAuthState state,
+    AppLocalizations l10n,
+  ) {
     final initial = (state.accountName ?? 'U').substring(0, 1).toUpperCase();
     final hues = [170, 200, 220];
     final avatarColor = HSLColor.fromAHSL(
@@ -269,17 +289,23 @@ class _SourceLoginPageState extends State<SourceLoginPage>
             animation: _pulseAnim,
             builder: (context, child) =>
                 Transform.scale(scale: _pulseAnim.value, child: child),
-            child: _buildAvatarCard(context, avatarColor, initial,
-                state.accountName ?? l10n.sourceAuthUser, state.profileEmail),
+            child: _buildAvatarCard(
+              context,
+              avatarColor,
+              initial,
+              state.accountName ?? l10n.sourceAuthUser,
+              state.profileEmail,
+            ),
           ),
           if (state.profileSlug != null) ...[
             const SizedBox(height: 8),
-            Text('${l10n.sourceAuthSlug}: ${state.profileSlug}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4))),
+            Text(
+              '${l10n.sourceAuthSlug}: ${state.profileSlug}',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.4),
+              ),
+            ),
           ],
           const SizedBox(height: 16),
           _buildConnectedBadge(context, l10n),
@@ -295,8 +321,13 @@ class _SourceLoginPageState extends State<SourceLoginPage>
     );
   }
 
-  Widget _buildAvatarCard(BuildContext context, Color avatarColor,
-      String initial, String name, String? email) {
+  Widget _buildAvatarCard(
+    BuildContext context,
+    Color avatarColor,
+    String initial,
+    String name,
+    String? email,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -305,7 +336,7 @@ class _SourceLoginPageState extends State<SourceLoginPage>
         gradient: LinearGradient(
           colors: [
             avatarColor.withValues(alpha: 0.2),
-            avatarColor.withValues(alpha: 0.05)
+            avatarColor.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -317,26 +348,30 @@ class _SourceLoginPageState extends State<SourceLoginPage>
           CircleAvatar(
             radius: 36,
             backgroundColor: avatarColor,
-            child: Text(initial,
-                style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimary)),
+            child: Text(
+              initial,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
           ),
           const SizedBox(height: 14),
-          Text(name,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700)),
+          Text(
+            name,
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
           if (email != null) ...[
             const SizedBox(height: 4),
-            Text(email,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.6))),
+            Text(
+              email,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.6),
+              ),
+            ),
           ],
         ],
       ),
@@ -351,8 +386,8 @@ class _SourceLoginPageState extends State<SourceLoginPage>
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         border: Border.all(
-            color:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)),
+          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+        ),
       ),
       child: Row(
         children: [
@@ -362,17 +397,21 @@ class _SourceLoginPageState extends State<SourceLoginPage>
               color: Theme.of(context).colorScheme.surfaceContainer,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(Icons.check_circle,
-                color: Theme.of(context).colorScheme.primary, size: 18),
+            child: Icon(
+              Icons.check_circle,
+              color: Theme.of(context).colorScheme.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(l10n.sourceAuthConnectedAccount,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7))),
+            child: Text(
+              l10n.sourceAuthConnectedAccount,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface
+                    .withValues(alpha: 0.7),
+              ),
+            ),
           ),
         ],
       ),
@@ -387,27 +426,35 @@ class _SourceLoginPageState extends State<SourceLoginPage>
         borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
         color: Theme.of(context).colorScheme.surfaceContainerLow,
         border: Border.all(
-            color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
+          color: Theme.of(context).dividerColor.withValues(alpha: 0.2),
+        ),
       ),
       child: Column(
         children: [
-          Icon(Icons.check_circle_outline,
-              color: Theme.of(context).colorScheme.primary, size: 24),
+          Icon(
+            Icons.check_circle_outline,
+            color: Theme.of(context).colorScheme.primary,
+            size: 24,
+          ),
           const SizedBox(height: 10),
-          Text(l10n.sourceAuthConnectedDescription,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.38))),
+          Text(
+            l10n.sourceAuthConnectedDescription,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurface
+                  .withValues(alpha: 0.38),
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildLogoutButton(
-      BuildContext context, VoidCallback onLogout, AppLocalizations l10n) {
+    BuildContext context,
+    VoidCallback onLogout,
+    AppLocalizations l10n,
+  ) {
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
@@ -417,11 +464,12 @@ class _SourceLoginPageState extends State<SourceLoginPage>
         style: OutlinedButton.styleFrom(
           foregroundColor: Theme.of(context).colorScheme.error,
           side: BorderSide(
-              color:
-                  Theme.of(context).colorScheme.error.withValues(alpha: 0.2)),
+            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.2),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusLg)),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
+          ),
         ),
       ),
     );
@@ -441,15 +489,17 @@ class _SourceLoginPageState extends State<SourceLoginPage>
       if (result != null && result['success'] == true) {
         final cookies =
             (result['cookies'] as List<dynamic>?)?.cast<String>() ?? [];
-        await context
-            .read<CrotpediaAuthCubit>()
-            .loginWithRawCookies(cookies);
+        await context.read<CrotpediaAuthCubit>().loginWithRawCookies(cookies);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(
-                AppLocalizations.of(context)!.loginFailedError(e.toString()))));
+              AppLocalizations.of(context)!.loginFailedError(e.toString()),
+            ),
+          ),
+        );
       }
     }
   }
@@ -480,9 +530,13 @@ class _SourceLoginPageState extends State<SourceLoginPage>
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(
-                AppLocalizations.of(context)!.loginFailedError(e.toString()))));
+              AppLocalizations.of(context)!.loginFailedError(e.toString()),
+            ),
+          ),
+        );
       }
     }
   }

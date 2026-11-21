@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:path/path.dart' as path;
@@ -8,6 +9,7 @@ import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 import 'package:logger/logger.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/services/image_cache_service.dart';
@@ -116,7 +118,8 @@ class ProgressiveImageWidget extends StatefulWidget {
 
     final lowered = localPath.toLowerCase();
     final fileName = path.basename(lowered);
-    final hasDedicatedCoverName = fileName.startsWith('cover.') ||
+    final hasDedicatedCoverName =
+        fileName.startsWith('cover.') ||
         fileName.startsWith('thumbnail.') ||
         fileName.startsWith('thumb.');
     if (fileBytes >=
@@ -141,7 +144,7 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
   static const int _heavyAnimatedThumbnailThresholdBytes =
       10 * 1024 * 1024; // 10 MB
   static final Map<String, _LocalThumbnailPreviewMode>
-      _localThumbnailPreviewModeCache = <String, _LocalThumbnailPreviewMode>{};
+  _localThumbnailPreviewModeCache = <String, _LocalThumbnailPreviewMode>{};
 
   static void _addToPathCache(String key, String? value) {
     if (_pathCache.length >= _maxPathCacheSize) {
@@ -154,16 +157,20 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
   }
 
   static void _addToThumbnailModeCache(
-      String key, _LocalThumbnailPreviewMode mode) {
+    String key,
+    _LocalThumbnailPreviewMode mode,
+  ) {
     if (_localThumbnailPreviewModeCache.length >= _maxThumbnailModeCacheSize) {
-      final keysToRemove =
-          _localThumbnailPreviewModeCache.keys.take(50).toList();
+      final keysToRemove = _localThumbnailPreviewModeCache.keys
+          .take(50)
+          .toList();
       for (final k in keysToRemove) {
         _localThumbnailPreviewModeCache.remove(k);
       }
     }
     _localThumbnailPreviewModeCache[key] = mode;
   }
+
   String? _cachedLocalPath;
   bool _isLocalPathResolved = false;
   bool _imageLoadedNotified = false;
@@ -178,8 +185,10 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
     final key = '$url|${widget.httpHeaders}';
     if (_gifProcessKey != key) {
       _gifProcessKey = key;
-      _gifProcessFuture = getIt<ImageCacheService>()
-          .getOrProcessStaticGif(url, widget.httpHeaders);
+      _gifProcessFuture = getIt<ImageCacheService>().getOrProcessStaticGif(
+        url,
+        widget.httpHeaders,
+      );
     }
     return _gifProcessFuture!;
   }
@@ -210,8 +219,9 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
     }
 
     final keys = headers.keys.toList()..sort();
-    final normalized =
-        keys.map((key) => '$key=${headers[key] ?? ''}').join('&');
+    final normalized = keys
+        .map((key) => '$key=${headers[key] ?? ''}')
+        .join('&');
     return '$targetUrl::h=$normalized';
   }
 
@@ -276,7 +286,8 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
 
     if (kDebugMode) {
       _logger.d(
-          '🔍 Resolving local path for contentId: ${widget.contentId}, pageNumber: ${widget.pageNumber}, isThumbnail: ${widget.isThumbnail}');
+        '🔍 Resolving local path for contentId: ${widget.contentId}, pageNumber: ${widget.pageNumber}, isThumbnail: ${widget.isThumbnail}',
+      );
     }
 
     // ✅ Track performance of local path resolution
@@ -341,7 +352,9 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
       final file = File(localPath);
       if (!await file.exists()) {
         _addToThumbnailModeCache(
-            localPath, _LocalThumbnailPreviewMode.original);
+          localPath,
+          _LocalThumbnailPreviewMode.original,
+        );
         return _LocalThumbnailPreviewMode.original;
       }
 
@@ -360,8 +373,7 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
       return mode;
     } catch (e) {
       _logger.w('Error resolving local thumbnail preview mode: $e');
-      _addToThumbnailModeCache(
-          localPath, _LocalThumbnailPreviewMode.original);
+      _addToThumbnailModeCache(localPath, _LocalThumbnailPreviewMode.original);
       return _LocalThumbnailPreviewMode.original;
     }
   }
@@ -373,17 +385,21 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
     String? localPath;
 
     if (widget.isThumbnail) {
-      localPath =
-          await LocalImagePreloader.getLocalThumbnailPath(widget.contentId!);
+      localPath = await LocalImagePreloader.getLocalThumbnailPath(
+        widget.contentId!,
+      );
       if (kDebugMode && localPath != null) {
         _logger.d('🖼️ Thumbnail found for ${widget.contentId}: $localPath');
       }
     } else if (widget.pageNumber != null) {
       localPath = await LocalImagePreloader.getLocalImagePath(
-          widget.contentId!, widget.pageNumber!);
+        widget.contentId!,
+        widget.pageNumber!,
+      );
       if (kDebugMode && localPath != null) {
         _logger.d(
-            '📄 Page image found for ${widget.contentId} page ${widget.pageNumber}: $localPath');
+          '📄 Page image found for ${widget.contentId} page ${widget.pageNumber}: $localPath',
+        );
       }
     }
 
@@ -661,8 +677,9 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
           }
           if (snapshot.hasError || snapshot.data == null) {
             if (kDebugMode) {
-              _logger
-                  .e('❌ Error loading GIF as static image: ${snapshot.error}');
+              _logger.e(
+                '❌ Error loading GIF as static image: ${snapshot.error}',
+              );
             }
             if (fallbackUrl != null) {
               return _buildNetworkImage(forceUrl: fallbackUrl);
@@ -888,7 +905,8 @@ class _ProgressiveReaderImageWidgetState
 
     if (kDebugMode) {
       _logger.i(
-          '🖼️ READER IMAGE DEBUG: Resolving contentId: ${widget.contentId}, pageNumber: ${widget.pageNumber}');
+        '🖼️ READER IMAGE DEBUG: Resolving contentId: ${widget.contentId}, pageNumber: ${widget.pageNumber}',
+      );
       _logger.d('🌐 Network URL: ${widget.networkUrl}');
     }
 
@@ -901,7 +919,8 @@ class _ProgressiveReaderImageWidgetState
     if (cachedImage != null) {
       if (kDebugMode) {
         _logger.d(
-            'Reader: ✅ Found cached image in ImageCacheService: ${cachedImage.path}');
+          'Reader: ✅ Found cached image in ImageCacheService: ${cachedImage.path}',
+        );
       }
 
       if (mounted) {
@@ -958,7 +977,8 @@ class _ProgressiveReaderImageWidgetState
     // Priority 3: Download and cache using LocalImagePreloader
     if (kDebugMode) {
       _logger.d(
-          'Reader: 📥 No local image found, downloading and caching: $primaryUrl');
+        'Reader: 📥 No local image found, downloading and caching: $primaryUrl',
+      );
     }
 
     final cachedPath = await LocalImagePreloader.downloadAndCacheImage(
@@ -996,7 +1016,8 @@ class _ProgressiveReaderImageWidgetState
       // Cache failed, will fallback to network
       if (kDebugMode) {
         _logger.d(
-            'Reader: ❌ Failed to cache image, will use network: ${widget.networkUrl}');
+          'Reader: ❌ Failed to cache image, will use network: ${widget.networkUrl}',
+        );
       }
 
       if (mounted) {
@@ -1023,15 +1044,18 @@ class _ProgressiveReaderImageWidgetState
 
     // Fallback to network
     if (kDebugMode) {
-      _logger
-          .d('Reader: 📡 Falling back to network image: ${widget.networkUrl}');
+      _logger.d(
+        'Reader: 📡 Falling back to network image: ${widget.networkUrl}',
+      );
     }
     return _buildNetworkImageWithDynamicSize(context);
   }
 
   // Build network image with dynamic sizing
-  Widget _buildNetworkImageWithDynamicSize(BuildContext context,
-      {String? forceUrl}) {
+  Widget _buildNetworkImageWithDynamicSize(
+    BuildContext context, {
+    String? forceUrl,
+  }) {
     final targetUrl = forceUrl ?? widget.networkUrl;
     final urlParts = targetUrl.split('|');
     final primaryUrl = urlParts[0];
@@ -1039,7 +1063,8 @@ class _ProgressiveReaderImageWidgetState
 
     if (kDebugMode) {
       _logger.d(
-          '📡 Loading reader image with dynamic sizing for page ${widget.pageNumber}: $primaryUrl');
+        '📡 Loading reader image with dynamic sizing for page ${widget.pageNumber}: $primaryUrl',
+      );
     }
 
     // Use unique cache key combining contentId and pageNumber to prevent cache collision
@@ -1060,10 +1085,13 @@ class _ProgressiveReaderImageWidgetState
         if (fallbackUrl != null) {
           if (kDebugMode) {
             _logger.w(
-                '🔄 Reader falling back to secondary network URL: $fallbackUrl');
+              '🔄 Reader falling back to secondary network URL: $fallbackUrl',
+            );
           }
-          return _buildNetworkImageWithDynamicSize(context,
-              forceUrl: fallbackUrl);
+          return _buildNetworkImageWithDynamicSize(
+            context,
+            forceUrl: fallbackUrl,
+          );
         }
         return _buildReaderErrorWidget(context);
       },
@@ -1101,8 +1129,9 @@ class _ProgressiveReaderImageWidgetState
       height: _getDisplaySize().height,
       errorBuilder: (context, error, stackTrace) {
         if (kDebugMode) {
-          _logger
-              .e('Reader: ❌ Error loading local image from $localPath: $error');
+          _logger.e(
+            'Reader: ❌ Error loading local image from $localPath: $error',
+          );
         }
         // Fallback to network if local file fails
         return _buildNetworkImageWithDynamicSize(context);
@@ -1131,8 +1160,9 @@ class _ProgressiveReaderImageWidgetState
 
           await _imageCacheService.cacheImage(url, bytes);
           if (kDebugMode) {
-            _logger
-                .d('Reader: ✅ Cached network image in ImageCacheService: $url');
+            _logger.d(
+              'Reader: ✅ Cached network image in ImageCacheService: $url',
+            );
           }
         }
         httpClient.close();
@@ -1174,7 +1204,9 @@ class _ProgressiveReaderImageWidgetState
     }
 
     return Size(
-        _imageSize!.width, _imageSize!.height); // Original size, no scaling
+      _imageSize!.width,
+      _imageSize!.height,
+    ); // Original size, no scaling
   }
 
   Widget _buildReaderPlaceholder(BuildContext context) {
@@ -1287,15 +1319,15 @@ class ProgressiveThumbnailWidget extends StatelessWidget {
                     right: 8,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.tertiary,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .scrim
+                            color: Theme.of(context).colorScheme.scrim
                                 .withValues(alpha: 0.3),
                             blurRadius: 4,
                             offset: const Offset(0, 2),

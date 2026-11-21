@@ -1,5 +1,6 @@
 import 'dart:ui';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -53,7 +54,7 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
   final List<String> _sections = [
     '-',
     '#',
-    ...List.generate(26, (i) => String.fromCharCode(65 + i))
+    ...List.generate(26, (i) => String.fromCharCode(65 + i)),
   ];
 
   Map<String, List<dynamic>> _groupedDoujins = {};
@@ -80,9 +81,11 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
     final filteredDoujins = _searchQuery.isEmpty
         ? doujins
         : doujins
-            .where((d) =>
-                d.title.toLowerCase().contains(_searchQuery.toLowerCase()))
-            .toList();
+              .where(
+                (d) =>
+                    d.title.toLowerCase().contains(_searchQuery.toLowerCase()),
+              )
+              .toList();
 
     _groupedDoujins = {for (var section in _sections) section: []};
 
@@ -119,8 +122,9 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
   }
 
   void _scrollToSection(String section) {
-    final index = _listItems
-        .indexWhere((item) => item.isHeader && item.section == section);
+    final index = _listItems.indexWhere(
+      (item) => item.isHeader && item.section == section,
+    );
     if (index != -1) {
       _itemScrollController.scrollTo(
         index: index,
@@ -199,8 +203,9 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
                 child: Container(
                   decoration: BoxDecoration(
                     color: colorScheme.surfaceContainerHigh,
-                    borderRadius:
-                        BorderRadius.circular(DesignTokens.radius2xl + 8),
+                    borderRadius: BorderRadius.circular(
+                      DesignTokens.radius2xl + 8,
+                    ),
                     border: Border.all(
                       color: colorScheme.outlineVariant.withValues(alpha: 0.3),
                     ),
@@ -230,7 +235,9 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
                           : null,
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                     ),
                   ),
                 ),
@@ -239,17 +246,22 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
               // Results count chip
               if (_searchQuery.isNotEmpty)
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.secondaryContainer,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXl),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusXl,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -305,8 +317,10 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
                             )
                           : ScrollablePositionedList.builder(
                               itemScrollController: _itemScrollController,
-                              padding:
-                                  const EdgeInsets.only(right: 36, bottom: 16),
+                              padding: const EdgeInsets.only(
+                                right: 36,
+                                bottom: 16,
+                              ),
                               itemCount: _listItems.length,
                               itemBuilder: (context, index) {
                                 final item = _listItems[index];
@@ -316,7 +330,7 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
                                     letter: item.section!,
                                     count:
                                         _groupedDoujins[item.section]?.length ??
-                                            0,
+                                        0,
                                   );
                                 } else {
                                   return _DoujinListTile(
@@ -471,17 +485,28 @@ class _DoujinListTile extends StatelessWidget {
       final int seriesIndex = segments.indexOf('series');
       if (seriesIndex != -1 && seriesIndex + 1 < segments.length) {
         final slug = segments[seriesIndex + 1];
-        AppRouter.goToContentDetail(context, slug,
-            sourceId: SourceType.crotpedia.id);
+        AppRouter.goToContentDetail(
+          context,
+          slug,
+          sourceId: SourceType.crotpedia.id,
+        );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(
-                AppLocalizations.of(context)!.cannotParseSlug(doujin.url))));
+              AppLocalizations.of(context)!.cannotParseSlug(doujin.url),
+            ),
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content:
-              Text(AppLocalizations.of(context)!.errorParsingUrl(doujin.url))));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)!.errorParsingUrl(doujin.url),
+          ),
+        ),
+      );
     }
   }
 }
@@ -531,8 +556,9 @@ class _AlphabetNavigator extends StatelessWidget {
                             width: 20,
                             height: 18,
                             decoration: BoxDecoration(
-                              color:
-                                  colorScheme.primary.withValues(alpha: 0.15),
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.15,
+                              ),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
@@ -551,8 +577,9 @@ class _AlphabetNavigator extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 8,
                               fontWeight: FontWeight.w500,
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.2),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.2,
+                              ),
                             ),
                           ),
                   ),
@@ -607,8 +634,9 @@ class _DoujinListShimmer extends StatelessWidget {
                           height: 40,
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHighest,
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusLg),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusLg,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -630,8 +658,9 @@ class _DoujinListShimmer extends StatelessWidget {
                     height: 44,
                     decoration: BoxDecoration(
                       color: colorScheme.surfaceContainer,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                     ),
                   ),
                 ),

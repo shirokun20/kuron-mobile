@@ -1,8 +1,10 @@
 import 'dart:io';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kuron_native/kuron_native.dart';
+
 import 'permission_helper.dart';
 import '../services/local_image_preloader.dart';
 
@@ -22,14 +24,16 @@ class StorageSettings {
   static Future<String?> pickAndSaveCustomRoot(BuildContext context) async {
     // 1. Ensure storage permission granted first (MANAGE_EXTERNAL_STORAGE)
     //    SAF picker needs it to resolve content URI to an accessible path.
-    final hasPermission =
-        await PermissionHelper.requestStoragePermission(context);
+    final hasPermission = await PermissionHelper.requestStoragePermission(
+      context,
+    );
     if (!hasPermission) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Storage permission required to select a download folder.'),
+              'Storage permission required to select a download folder.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
@@ -65,7 +69,8 @@ class StorageSettings {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Please select a subfolder (e.g. "Download"), not the root directory.'),
+              'Please select a subfolder (e.g. "Download"), not the root directory.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
@@ -85,7 +90,8 @@ class StorageSettings {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-                'Cannot access this folder. Please grant storage permission first, then try again.'),
+              'Cannot access this folder. Please grant storage permission first, then try again.',
+            ),
             duration: Duration(seconds: 4),
           ),
         );
@@ -218,8 +224,7 @@ class StorageSettings {
 
     final subdirs = <Directory>[];
     for (final entry in entries) {
-      if (entry is Directory &&
-          !entry.path.split('/').last.startsWith('.')) {
+      if (entry is Directory && !entry.path.split('/').last.startsWith('.')) {
         try {
           final stat = await entry.stat();
           if (stat.type == FileSystemEntityType.directory) {
@@ -235,8 +240,10 @@ class StorageSettings {
     final result = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Pick folder:\n$currentPath',
-            style: const TextStyle(fontSize: 14)),
+        title: Text(
+          'Pick folder:\n$currentPath',
+          style: const TextStyle(fontSize: 14),
+        ),
         content: SizedBox(
           width: double.maxFinite,
           height: 400,
@@ -317,8 +324,9 @@ class StorageSettings {
       }
     } catch (_) {}
 
-    Logger()
-        .w('📁 STORAGE_SETTINGS: Could not resolve content URI: $uriString');
+    Logger().w(
+      '📁 STORAGE_SETTINGS: Could not resolve content URI: $uriString',
+    );
     return null;
   }
 }

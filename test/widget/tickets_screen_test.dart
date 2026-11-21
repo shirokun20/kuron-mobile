@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/core/services/tickets/tickets_service.dart';
@@ -38,14 +38,9 @@ void main() {
     ),
   ];
 
-  Widget buildTestWidget({
-    Future<bool> Function(Uri)? urlLauncher,
-  }) {
+  Widget buildTestWidget({Future<bool> Function(Uri)? urlLauncher}) {
     return MaterialApp(
-      home: TicketsScreen(
-        service: service,
-        urlLauncher: urlLauncher,
-      ),
+      home: TicketsScreen(service: service, urlLauncher: urlLauncher),
     );
   }
 
@@ -87,23 +82,30 @@ void main() {
     expect(find.text('[bug][nhentai] reader 0 images'), findsOneWidget);
   });
 
-  testWidgets('tapping ticket launches url via urlLauncher callback', (tester) async {
+  testWidgets('tapping ticket launches url via urlLauncher callback', (
+    tester,
+  ) async {
     when(() => service.getOpenTickets(forceRefresh: any(named: 'forceRefresh')))
         .thenAnswer((_) async => sampleTickets);
 
     Uri? launchedUri;
-    await tester.pumpWidget(buildTestWidget(
-      urlLauncher: (uri) async {
-        launchedUri = uri;
-        return true;
-      },
-    ));
+    await tester.pumpWidget(
+      buildTestWidget(
+        urlLauncher: (uri) async {
+          launchedUri = uri;
+          return true;
+        },
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Fix chapter parser selector'));
     await tester.pumpAndSettle();
 
-    expect(launchedUri, Uri.parse('https://github.com/shirokun20/kuron-mobile/issues/101'));
+    expect(
+      launchedUri,
+      Uri.parse('https://github.com/shirokun20/kuron-mobile/issues/101'),
+    );
   });
 
   testWidgets('displays empty state when no tickets', (tester) async {
@@ -136,7 +138,9 @@ void main() {
     expect(find.text('Fix chapter parser selector'), findsOneWidget);
   });
 
-  testWidgets('refresh button calls getOpenTickets with forceRefresh: true', (tester) async {
+  testWidgets('refresh button calls getOpenTickets with forceRefresh: true', (
+    tester,
+  ) async {
     when(() => service.getOpenTickets(forceRefresh: false))
         .thenAnswer((_) async => sampleTickets);
     when(() => service.getOpenTickets(forceRefresh: true))

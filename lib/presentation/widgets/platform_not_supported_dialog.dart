@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+
 import 'dart:io';
 
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -49,9 +50,7 @@ class PlatformNotSupportedDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(
-            foregroundColor: colorScheme.primary,
-          ),
+          style: TextButton.styleFrom(foregroundColor: colorScheme.primary),
           child: Text(
             AppLocalizations.of(context)!.ok,
             style: TextStyleConst.labelLarge.copyWith(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart' hide CustomTransitionPage;
 import 'package:nhasixapp/core/utils/app_animations.dart';
@@ -6,18 +6,24 @@ import 'package:nhasixapp/core/utils/app_animations.dart';
 void main() {
   group('typeForKind', () {
     test('forward drills in horizontally with fade', () {
-      expect(AppAnimations.typeForKind(RouteKind.forward),
-          RouteTransitionType.fadeSlide);
+      expect(
+        AppAnimations.typeForKind(RouteKind.forward),
+        RouteTransitionType.fadeSlide,
+      );
     });
 
     test('upward rises as a layer above', () {
-      expect(AppAnimations.typeForKind(RouteKind.upward),
-          RouteTransitionType.slideUp);
+      expect(
+        AppAnimations.typeForKind(RouteKind.upward),
+        RouteTransitionType.slideUp,
+      );
     });
 
     test('tab cross-fades without sliding', () {
       expect(
-          AppAnimations.typeForKind(RouteKind.tab), RouteTransitionType.fade);
+        AppAnimations.typeForKind(RouteKind.tab),
+        RouteTransitionType.fade,
+      );
     });
   });
 
@@ -70,14 +76,16 @@ void main() {
           page: Text('page-${kind.name}', textDirection: TextDirection.ltr),
           type: AppAnimations.typeForKind(kind),
         );
-        await tester.pumpWidget(MaterialApp(
-          home: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => Navigator.of(context).push(route),
-              child: const Text('go'),
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => Navigator.of(context).push(route),
+                child: const Text('go'),
+              ),
             ),
           ),
-        ));
+        );
         await tester.tap(find.text('go'));
         await tester.pumpAndSettle();
         expect(find.text('page-${kind.name}'), findsOneWidget);

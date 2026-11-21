@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/ai_model/ai_model_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/ai_model/ai_model_state.dart';
+
 import 'settings_theme_widgets.dart';
 
 /// "Model AI" settings screen: the single place to see and manage the
@@ -23,10 +24,7 @@ class AiModelDownloadScreen extends StatelessWidget {
       create: (_) =>
           AiModelCubit(logger: getIt(), assetBundle: assetBundle)..refresh(),
       child: Scaffold(
-        appBar: AppBar(
-          title:
-              Text(AppLocalizations.of(context)!.aiModelTitle),
-        ),
+        appBar: AppBar(title: Text(AppLocalizations.of(context)!.aiModelTitle)),
         body: const _AiModelBody(),
       ),
     );
@@ -51,21 +49,18 @@ class _AiModelBody extends StatelessWidget {
               theme,
             ),
             const SizedBox(height: 8),
-            buildSettingsCard(
-              [
-                _StatusTile(state: state),
-                if (state.isDownloading) ...[
-                  buildSettingsDivider(theme),
-                  _ProgressTile(state: state),
-                ],
-                if (state.errorScreenMessage != null ||
-                    state.errorCode != null) ...[
-                  buildSettingsDivider(theme),
-                  _ErrorTile(state: state),
-                ],
+            buildSettingsCard([
+              _StatusTile(state: state),
+              if (state.isDownloading) ...[
+                buildSettingsDivider(theme),
+                _ProgressTile(state: state),
               ],
-              theme,
-            ),
+              if (state.errorScreenMessage != null ||
+                  state.errorCode != null) ...[
+                buildSettingsDivider(theme),
+                _ErrorTile(state: state),
+              ],
+            ], theme),
             const SizedBox(height: 16),
             _ActionButtons(state: state),
           ],
@@ -102,8 +97,7 @@ class _StatusTile extends StatelessWidget {
       subtitle.write(' • ${_formatBytes(state.sizeBytes!)}');
     }
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: Icon(
         state.isReady
             ? Icons.check_circle_outline
@@ -125,11 +119,11 @@ class _ProgressTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final progress = state.progress;
     final received = _formatBytes(state.bytesReceived);
-    final total =
-        state.totalBytes != null ? _formatBytes(state.totalBytes!) : '?';
+    final total = state.totalBytes != null
+        ? _formatBytes(state.totalBytes!)
+        : '?';
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       title: LinearProgressIndicator(value: progress),
       subtitle: Text('$received / $total'),
     );
@@ -146,8 +140,7 @@ class _ErrorTile extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
     final message = _errorText(l10n, state);
     return ListTile(
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       leading: const Icon(Icons.error_outline, color: Colors.red),
       title: Text(message),
       trailing: TextButton(
@@ -182,8 +175,9 @@ class _ActionButtons extends StatelessWidget {
       );
     }
     return FilledButton.icon(
-      onPressed:
-          state.status == AiModelStatus.loading ? null : cubit.startDownload,
+      onPressed: state.status == AiModelStatus.loading
+          ? null
+          : cubit.startDownload,
       icon: const Icon(Icons.download_outlined),
       label: Text(l10n.download),
     );

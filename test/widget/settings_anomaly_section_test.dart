@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -9,6 +9,7 @@ import 'package:nhasixapp/presentation/pages/settings/anomaly/error_log_screen.d
 import 'package:nhasixapp/presentation/pages/settings/settings_anomaly_widgets.dart';
 
 class _MockAnomalyStore extends Mock implements AnomalyStoreContract {}
+
 class _MockErrorLog extends Mock implements ErrorLogContract {}
 
 void main() {
@@ -18,7 +19,8 @@ void main() {
   setUp(() {
     anomalyStore = _MockAnomalyStore();
     errorLog = _MockErrorLog();
-    when(() => anomalyStore.records()).thenAnswer((_) async => <AnomalyRecord>[]);
+    when(() => anomalyStore.records())
+        .thenAnswer((_) async => <AnomalyRecord>[]);
     when(() => errorLog.isEnabled()).thenAnswer((_) async => false);
     when(() => errorLog.entries(limit: any(named: 'limit')))
         .thenAnswer((_) async => <ErrorLogEntry>[]);
@@ -48,7 +50,9 @@ void main() {
     );
   }
 
-  testWidgets('renders section header, anomaly tile, and error log tile', (tester) async {
+  testWidgets('renders section header, anomaly tile, and error log tile', (
+    tester,
+  ) async {
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
 

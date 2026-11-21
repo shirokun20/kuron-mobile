@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/config/source_loader.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -45,7 +45,8 @@ class SourceSelector extends StatelessWidget {
         final isCombinedSelected =
             combinedCubit?.state.isCombinedSelected ?? false;
         final activeId = state.activeSource?.id;
-        final isActiveUnderMaintenance = !isCombinedSelected &&
+        final isActiveUnderMaintenance =
+            !isCombinedSelected &&
             activeId != null &&
             sourceLoader.isUnderMaintenance(activeId);
 
@@ -69,8 +70,10 @@ class SourceSelector extends StatelessWidget {
               ),
               child: AnimatedContainer(
                 duration: DesignTokens.durationPageTurn,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
@@ -106,12 +109,13 @@ class SourceSelector extends StatelessWidget {
                             isCombinedSelected
                                 ? 'Semua'
                                 : (state.activeSource?.displayName ??
-                                    AppLocalizations.of(context)!
-                                        .sourceSelectorSelectSource),
+                                      AppLocalizations.of(context)!
+                                          .sourceSelectorSelectSource),
                             style: TextStyleConst.bodyMedium.copyWith(
                               fontWeight: FontWeight.w500,
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.85),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.85,
+                              ),
                             ),
                           ),
                           if (isActiveUnderMaintenance)
@@ -142,8 +146,9 @@ class SourceSelector extends StatelessWidget {
                     Icon(
                       Icons.unfold_more_rounded,
                       size: 18,
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                   ],
                 ),
@@ -162,8 +167,7 @@ class SourceSelector extends StatelessWidget {
     ColorScheme colorScheme, {
     required CombinedHomeCubit? combinedCubit,
   }) {
-    final isCombinedSelected =
-        combinedCubit?.state.isCombinedSelected ?? false;
+    final isCombinedSelected = combinedCubit?.state.isCombinedSelected ?? false;
     final l10n = AppLocalizations.of(context)!;
     final sourceLoader = getIt<SourceLoader>();
     final remoteConfig = getIt<RemoteConfigService>();
@@ -207,7 +211,8 @@ class SourceSelector extends StatelessWidget {
               child: SafeArea(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    maxHeight: (MediaQuery.of(sheetContext).size.height -
+                    maxHeight:
+                        (MediaQuery.of(sheetContext).size.height -
                             bottomInset) *
                         0.75,
                   ),
@@ -234,10 +239,12 @@ class SourceSelector extends StatelessWidget {
                                 Container(
                                   padding: const EdgeInsets.all(6),
                                   decoration: BoxDecoration(
-                                    color: colorScheme.primary
-                                        .withValues(alpha: 0.12),
+                                    color: colorScheme.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(
-                                        DesignTokens.radiusMd),
+                                      DesignTokens.radiusMd,
+                                    ),
                                   ),
                                   child: Icon(
                                     Icons.hub_outlined,
@@ -259,8 +266,9 @@ class SourceSelector extends StatelessWidget {
                             Text(
                               l10n.sourceSelectorDescription,
                               style: TextStyleConst.bodySmall.copyWith(
-                                color: colorScheme.onSurfaceVariant
-                                    .withValues(alpha: 0.9),
+                                color: colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.9,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -271,8 +279,9 @@ class SourceSelector extends StatelessWidget {
                                     .withValues(alpha: 0.45),
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               child: Row(
@@ -299,29 +308,29 @@ class SourceSelector extends StatelessWidget {
                                           isCombinedSelected
                                               ? 'Semua'
                                               : (activeSource?.displayName ??
-                                                  l10n.sourceSelectorNoSourceSelected),
+                                                    l10n.sourceSelectorNoSourceSelected),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyleConst.bodyMedium
                                               .copyWith(
-                                            color: colorScheme.onSurface,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+                                                color: colorScheme.onSurface,
+                                                fontWeight: FontWeight.w700,
+                                              ),
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
                                           isCombinedSelected
                                               ? 'List kombinasi semua source'
                                               : (activeSourceInfo == null
-                                                  ? l10n
-                                                      .sourceSelectorActiveSource
-                                                  : '${activeSourceInfo.idWithVersion} • ${l10n.sourceSelectorActiveSource}'),
+                                                    ? l10n.sourceSelectorActiveSource
+                                                    : '${activeSourceInfo.idWithVersion} • ${l10n.sourceSelectorActiveSource}'),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
-                                          style:
-                                              TextStyleConst.bodySmall.copyWith(
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
+                                          style: TextStyleConst.bodySmall
+                                              .copyWith(
+                                                color: colorScheme
+                                                    .onSurfaceVariant,
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -354,10 +363,13 @@ class SourceSelector extends StatelessWidget {
                                 fillColor: colorScheme.surface,
                                 isDense: true,
                                 contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 12),
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(
-                                      DesignTokens.radiusLg),
+                                    DesignTokens.radiusLg,
+                                  ),
                                   borderSide: BorderSide.none,
                                 ),
                               ),
@@ -373,8 +385,9 @@ class SourceSelector extends StatelessWidget {
                             context: sheetContext,
                             colorScheme: colorScheme,
                             isActive: isCombinedSelected,
-                            onTap: () => Navigator.of(sheetContext)
-                                .pop(CombinedHomeCubit.combinedId),
+                            onTap: () =>
+                                Navigator.of(sheetContext)
+                                    .pop(CombinedHomeCubit.combinedId),
                           ),
                         ),
                       Flexible(
@@ -395,8 +408,12 @@ class SourceSelector extends StatelessWidget {
                                 shrinkWrap: true,
                                 keyboardDismissBehavior:
                                     ScrollViewKeyboardDismissBehavior.onDrag,
-                                padding:
-                                    const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  10,
+                                  12,
+                                  12,
+                                ),
                                 itemCount: filteredSources.length,
                                 itemBuilder: (context, index) {
                                   final source = filteredSources[index];
@@ -406,9 +423,9 @@ class SourceSelector extends StatelessWidget {
                                       .isUnderMaintenance(source.id);
                                   final sourceInfo =
                                       resolveSourceConfigDisplayInfo(
-                                    remoteConfigService: remoteConfig,
-                                    sourceId: source.id,
-                                  );
+                                        remoteConfigService: remoteConfig,
+                                        sourceId: source.id,
+                                      );
 
                                   return _buildSourceSheetItem(
                                     context: sheetContext,
@@ -425,8 +442,9 @@ class SourceSelector extends StatelessWidget {
                                         l10n.sourceSelectorTapToSwitch,
                                     onTap: isUnderMaintenance
                                         ? null
-                                        : () => Navigator.of(sheetContext)
-                                            .pop(source.id),
+                                        : () =>
+                                              Navigator.of(sheetContext)
+                                                  .pop(source.id),
                                   );
                                 },
                               ),
@@ -512,8 +530,9 @@ class SourceSelector extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyleConst.bodyMedium.copyWith(
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight: isActive
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                           color: isActive
                               ? colorScheme.primary
                               : colorScheme.onSurface,
@@ -613,8 +632,9 @@ class SourceSelector extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyleConst.bodyMedium.copyWith(
-                          fontWeight:
-                              isActive ? FontWeight.w700 : FontWeight.w600,
+                          fontWeight: isActive
+                              ? FontWeight.w700
+                              : FontWeight.w600,
                           color: titleColor,
                         ),
                       ),
@@ -678,15 +698,12 @@ class SourceSelector extends StatelessWidget {
     required Color color,
   }) {
     if (iconPath == null || iconPath.isEmpty) {
-      return Icon(
-        Icons.dns_rounded,
-        size: 20,
-        color: color,
-      );
+      return Icon(Icons.dns_rounded, size: 20, color: color);
     }
 
     final iconUri = Uri.tryParse(iconPath);
-    final isRemote = iconUri != null &&
+    final isRemote =
+        iconUri != null &&
         (iconUri.scheme == 'http' || iconUri.scheme == 'https');
     final isFileUri = iconUri?.scheme == 'file';
     final isAbsoluteLocalPath = iconPath.startsWith('/');
@@ -698,11 +715,7 @@ class SourceSelector extends StatelessWidget {
         width: 20,
         height: 20,
         errorBuilder: (context, error, stackTrace) {
-          return Icon(
-            Icons.dns_rounded,
-            size: 20,
-            color: color,
-          );
+          return Icon(Icons.dns_rounded, size: 20, color: color);
         },
       );
     }
@@ -713,11 +726,7 @@ class SourceSelector extends StatelessWidget {
         width: 20,
         height: 20,
         errorBuilder: (context, error, stackTrace) {
-          return Icon(
-            Icons.dns_rounded,
-            size: 20,
-            color: color,
-          );
+          return Icon(Icons.dns_rounded, size: 20, color: color);
         },
       );
     }
@@ -727,11 +736,7 @@ class SourceSelector extends StatelessWidget {
       width: 20,
       height: 20,
       errorBuilder: (context, error, stackTrace) {
-        return Icon(
-          Icons.dns_rounded,
-          size: 20,
-          color: color,
-        );
+        return Icon(Icons.dns_rounded, size: 20, color: color);
       },
     );
   }

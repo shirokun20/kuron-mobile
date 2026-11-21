@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 // Animated dice SVG widget that spins on demand
 class AnimatedDiceWidget extends StatefulWidget {
@@ -26,10 +26,7 @@ class _AnimatedDiceWidgetState extends State<AnimatedDiceWidget>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _controller = AnimationController(vsync: this, duration: widget.duration);
 
     if (widget.isSpinning) {
       _controller.repeat();
@@ -59,14 +56,12 @@ class _AnimatedDiceWidgetState extends State<AnimatedDiceWidget>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ??
+    final color =
+        widget.color ??
         IconTheme.of(context).color ??
         Theme.of(context).colorScheme.onSurface;
 
-    return RotationTransition(
-      turns: _controller,
-      child: _buildDiceSvg(color),
-    );
+    return RotationTransition(turns: _controller, child: _buildDiceSvg(color));
   }
 
   Widget _buildDiceSvg(Color color) {

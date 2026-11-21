@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/text_style_const.dart';
@@ -69,9 +69,9 @@ class DownloadButtonWidget extends StatelessWidget {
                   context: context,
                   icon: Icons.check_circle,
                   text: AppLocalizations.of(context)!.downloaded('').trim(),
-                  onPressed: () => context
-                      .read<DownloadBloc>()
-                      .add(const DownloadRefreshEvent()),
+                  onPressed: () => context.read<DownloadBloc>().add(
+                    const DownloadRefreshEvent(),
+                  ),
                   color: colorScheme.tertiary,
                 );
               }
@@ -79,7 +79,9 @@ class DownloadButtonWidget extends StatelessWidget {
               // Check if download feature is enabled for this source
               final remoteConfig = getIt<RemoteConfigService>();
               if (!remoteConfig.isFeatureEnabled(
-                  content.sourceId, (f) => f.download)) {
+                content.sourceId,
+                (f) => f.download,
+              )) {
                 // Feature disabled and not downloaded -> Hide button
                 return const SizedBox.shrink();
               }
@@ -253,8 +255,9 @@ class DownloadButtonWidget extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: color.withValues(alpha: 0.1),
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(color.withValues(alpha: 0.3)),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  color.withValues(alpha: 0.3),
+                ),
               ),
             ),
           ElevatedButton.icon(
@@ -297,8 +300,9 @@ class DownloadButtonWidget extends StatelessWidget {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: color.withValues(alpha: 0.1),
-                valueColor:
-                    AlwaysStoppedAnimation<Color>(color.withValues(alpha: 0.3)),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  color.withValues(alpha: 0.3),
+                ),
               ),
             ),
           if (isDownloadButton)
@@ -309,22 +313,19 @@ class DownloadButtonWidget extends StatelessWidget {
               label: Text(
                 text,
                 maxLines: 1,
-                style: TextStyleConst.buttonMedium.copyWith(
-                  color: color,
-                ),
+                style: TextStyleConst.buttonMedium.copyWith(color: color),
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: color,
                 backgroundColor: color.withValues(alpha: 0.1),
-                side: BorderSide(
-                  color: color,
-                  width: 1.5,
-                ),
+                side: BorderSide(color: color, width: 1.5),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                 ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             )
           else
@@ -336,8 +337,10 @@ class DownloadButtonWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: color,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                 ),
@@ -417,8 +420,9 @@ class DownloadButtonWidget extends StatelessWidget {
                 elevation: DesignTokens.elevationMd,
                 shadowColor: progressColor.withValues(alpha: 0.3),
                 padding: EdgeInsets.symmetric(
-                  horizontal:
-                      showText ? (isLarge ? 24 : 16) : (isLarge ? 16 : 12),
+                  horizontal: showText
+                      ? (isLarge ? 24 : 16)
+                      : (isLarge ? 16 : 12),
                   vertical: isLarge ? 12 : 8,
                 ),
                 shape: RoundedRectangleBorder(
@@ -443,7 +447,8 @@ class DownloadButtonWidget extends StatelessWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              AppLocalizations.of(context)!.externalChapterDownloadBlocked),
+            AppLocalizations.of(context)!.externalChapterDownloadBlocked,
+          ),
         ),
       );
       return;
@@ -461,8 +466,9 @@ class DownloadButtonWidget extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content:
-            Text(AppLocalizations.of(context)!.downloadStarted(content.title)),
+        content: Text(
+          AppLocalizations.of(context)!.downloadStarted(content.title),
+        ),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -518,17 +524,19 @@ class DownloadButtonWidget extends StatelessWidget {
         child: DownloadSettingsWidget(
           settings: settings,
           onSettingsChanged: (newSettings) {
-            context.read<DownloadBloc>().add(DownloadSettingsUpdateEvent(
-                  maxConcurrentDownloads: newSettings.maxConcurrentDownloads,
-                  imageQuality: newSettings.imageQuality,
-                  autoRetry: newSettings.autoRetry,
-                  retryAttempts: newSettings.retryAttempts,
-                  retryDelay: newSettings.retryDelay,
-                  timeoutDuration: newSettings.timeoutDuration,
-                  enableNotifications: newSettings.enableNotifications,
-                  wifiOnly: newSettings.wifiOnly,
-                  customStorageRoot: newSettings.customStorageRoot,
-                ));
+            context.read<DownloadBloc>().add(
+              DownloadSettingsUpdateEvent(
+                maxConcurrentDownloads: newSettings.maxConcurrentDownloads,
+                imageQuality: newSettings.imageQuality,
+                autoRetry: newSettings.autoRetry,
+                retryAttempts: newSettings.retryAttempts,
+                retryDelay: newSettings.retryDelay,
+                timeoutDuration: newSettings.timeoutDuration,
+                enableNotifications: newSettings.enableNotifications,
+                wifiOnly: newSettings.wifiOnly,
+                customStorageRoot: newSettings.customStorageRoot,
+              ),
+            );
           },
         ),
       ),
@@ -704,11 +712,13 @@ class DownloadButtonWidget extends StatelessWidget {
   ) {
     if (!_checkStorageAndProceed(context)) return;
 
-    context.read<DownloadBloc>().add(DownloadRangeEvent(
-          content: targetContent,
-          startPage: startPage,
-          endPage: endPage,
-        ));
+    context.read<DownloadBloc>().add(
+      DownloadRangeEvent(
+        content: targetContent,
+        startPage: startPage,
+        endPage: endPage,
+      ),
+    );
     context.read<DownloadBloc>().add(DownloadStartEvent(targetContent.id));
 
     final pageText = startPage == endPage
@@ -717,8 +727,10 @@ class DownloadButtonWidget extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!
-            .rangeDownloadStarted(targetContent.title, pageText)),
+        content: Text(
+          AppLocalizations.of(context)!
+              .rangeDownloadStarted(targetContent.title, pageText),
+        ),
         duration: const Duration(seconds: 3),
       ),
     );
@@ -755,8 +767,4 @@ class DownloadButtonWidget extends StatelessWidget {
 }
 
 // Size options for download button
-enum DownloadButtonSize {
-  small,
-  medium,
-  large,
-}
+enum DownloadButtonSize { small, medium, large }

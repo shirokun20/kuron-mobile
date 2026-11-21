@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -10,7 +10,9 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_translation_cubit.dart';
 
 import '../../../core/utils/polygon_geometry.dart';
+
 import 'package:kuron_native/kuron_native.dart';
+
 import '../../../domain/entities/ai_translation.dart';
 
 /// Toolbar button group for AI translation: ✨ translate, then overlay toggle.
@@ -35,7 +37,8 @@ class ReaderTranslationToolbar extends StatelessWidget {
         final cubit = context.read<ReaderTranslationCubit>();
         final active =
             state is ReaderTranslationTranslated && cubit.overlayVisible;
-        final busy = state is ReaderTranslationDetecting ||
+        final busy =
+            state is ReaderTranslationDetecting ||
             state is ReaderTranslationBuildingMosaic ||
             state is ReaderTranslationTranslating ||
             state is ReaderTranslationTranslatingBubble;
@@ -49,8 +52,8 @@ class ReaderTranslationToolbar extends StatelessWidget {
               tooltip: (active
                   ? l10n.aiHideTranslation
                   : busy
-                      ? l10n.aiTranslating
-                      : l10n.aiTranslatePage),
+                  ? l10n.aiTranslating
+                  : l10n.aiTranslatePage),
               onPressed: busy
                   ? null
                   : () {
@@ -81,14 +84,18 @@ class ReaderTranslationToolbar extends StatelessWidget {
               IconButton(
                 tooltip: l10n.aiClearTranslateBubbles,
                 onPressed: cubit.resetPage,
-                icon: const Icon(Icons.delete_sweep_outlined,
-                    size: 20, color: Colors.redAccent),
+                icon: const Icon(
+                  Icons.delete_sweep_outlined,
+                  size: 20,
+                  color: Colors.redAccent,
+                ),
                 visualDensity: VisualDensity.compact,
               ),
             // Manual bubble drawing toggle (9.5)
             IconButton(
-              tooltip:
-                  cubit.drawMode ? l10n.aiExitDrawMode : l10n.aiDrawBubbles,
+              tooltip: cubit.drawMode
+                  ? l10n.aiExitDrawMode
+                  : l10n.aiDrawBubbles,
               onPressed: () {
                 if (cubit.drawMode) {
                   cubit.setDrawMode(false);
@@ -123,9 +130,8 @@ Future<void> showReaderModelSwitcherSheet(BuildContext context) async {
   final l10n = AppLocalizations.of(context)!;
   final vision = providers.where((p) => p.isVisionCapable).toList();
   if (vision.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l10n.aiNeedVisionProvider)),
-    );
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.aiNeedVisionProvider)));
     return;
   }
   var defaultId = vision.first.id;
@@ -160,8 +166,9 @@ Future<void> showReaderModelSwitcherSheet(BuildContext context) async {
                   if (outerContext.mounted) {
                     ScaffoldMessenger.of(outerContext).showSnackBar(
                       SnackBar(
-                        content:
-                            Text(l10n.aiModelSwitched(selected.displayName)),
+                        content: Text(
+                          l10n.aiModelSwitched(selected.displayName),
+                        ),
                       ),
                     );
                   }
@@ -294,13 +301,15 @@ Widget _positionedBubble(
   // The polygon's bounding rect reaches into corners that sit OUTSIDE the
   // oval curve. Fit text against the ~0.8× inscribed rect so wrapped lines
   // stay inside the visible bubble instead of overflowing past its outline.
-  final effectiveBox =
-      shape != null && shape.length >= 3 ? _inscribedBox(shape) : null;
+  final effectiveBox = shape != null && shape.length >= 3
+      ? _inscribedBox(shape)
+      : null;
 
   // Find tail for manual bubbles at this index
   final tail = index < manualBubbles.length ? manualBubbles[index].tail : null;
-  final tailPoints =
-      tail?.map((p) => Offset(p[0].toDouble(), p[1].toDouble())).toList();
+  final tailPoints = tail
+      ?.map((p) => Offset(p[0].toDouble(), p[1].toDouble()))
+      .toList();
 
   return Positioned(
     left: rect.left,
@@ -332,7 +341,11 @@ Rect _inscribedBox(List<Offset> points) {
   final shrinkW = b.width * 0.1;
   final shrinkH = b.height * 0.1;
   return Rect.fromLTRB(
-      b.left + shrinkW, b.top + shrinkH, b.right - shrinkW, b.bottom - shrinkH);
+    b.left + shrinkW,
+    b.top + shrinkH,
+    b.right - shrinkW,
+    b.bottom - shrinkH,
+  );
 }
 
 class ReaderTranslatedBubble extends StatelessWidget {
@@ -384,18 +397,20 @@ class ReaderTranslatedBubble extends StatelessWidget {
     final hasShape = polygon != null;
     final bubbleBg = hasShape
         ? CustomPaint(
-            painter: _BubbleShapePainter(polygon, tailPoints: tailPoints))
+            painter: _BubbleShapePainter(polygon, tailPoints: tailPoints),
+          )
         : (bubble.needsWhitePatch
-            ? Container(
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              )
-            : const SizedBox.shrink());
+              ? Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                )
+              : const SizedBox.shrink());
     return GestureDetector(
-      onTap:
-          isFailed && onRetry != null ? onRetry : () => _showEditSheet(context),
+      onTap: isFailed && onRetry != null
+          ? onRetry
+          : () => _showEditSheet(context),
       onLongPress: () => _showSaveToGlossarySheet(context),
       child: Stack(
         fit: StackFit.expand,
@@ -422,8 +437,12 @@ class ReaderTranslatedBubble extends StatelessWidget {
                   child: Text(
                     bubble.translated,
                     textAlign: TextAlign.center,
-                    style: _fitText(bubble.translated, box, _fontFamily,
-                        hasShape: hasShape),
+                    style: _fitText(
+                      bubble.translated,
+                      box,
+                      _fontFamily,
+                      hasShape: hasShape,
+                    ),
                   ),
                 ),
               );
@@ -459,8 +478,10 @@ class ReaderTranslatedBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppLocalizations.of(sheetContext)!.aiEditTranslation,
-                style: Theme.of(sheetContext).textTheme.titleLarge),
+            Text(
+              AppLocalizations.of(sheetContext)!.aiEditTranslation,
+              style: Theme.of(sheetContext).textTheme.titleLarge,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
@@ -473,9 +494,10 @@ class ReaderTranslatedBubble extends StatelessWidget {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: () {
-                context
-                    .read<ReaderTranslationCubit>()
-                    .editBubbleTranslation(index, controller.text.trim());
+                context.read<ReaderTranslationCubit>().editBubbleTranslation(
+                  index,
+                  controller.text.trim(),
+                );
                 Navigator.pop(sheetContext);
               },
               child: Text(AppLocalizations.of(sheetContext)!.aiSave),
@@ -489,10 +511,12 @@ class ReaderTranslatedBubble extends StatelessWidget {
   /// Long-press → "Save to Glossary" action sheet (spec 7.1).
   void _showSaveToGlossarySheet(BuildContext context) {
     final state = context.read<ReaderTranslationCubit>().state;
-    final contentId =
-        state is ReaderTranslationTranslated ? state.contentId : '';
-    final pageIndex =
-        state is ReaderTranslationTranslated ? state.pageIndex : 0;
+    final contentId = state is ReaderTranslationTranslated
+        ? state.contentId
+        : '';
+    final pageIndex = state is ReaderTranslationTranslated
+        ? state.pageIndex
+        : 0;
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
@@ -502,9 +526,11 @@ class ReaderTranslatedBubble extends StatelessWidget {
           children: [
             ListTile(
               title: Text(bubble.translated),
-              subtitle: Text(bubble.original.isEmpty
-                  ? AppLocalizations.of(sheetContext)!.aiSaveToGlossaryHint
-                  : bubble.original),
+              subtitle: Text(
+                bubble.original.isEmpty
+                    ? AppLocalizations.of(sheetContext)!.aiSaveToGlossaryHint
+                    : bubble.original,
+              ),
             ),
             const Divider(height: 1),
             ListTile(
@@ -512,17 +538,20 @@ class ReaderTranslatedBubble extends StatelessWidget {
               title: Text(AppLocalizations.of(sheetContext)!.aiSaveToGlossary),
               onTap: () async {
                 getIt<Logger>().d(
-                    'Glossary: saving "${bubble.translated}" from page $pageIndex');
+                  'Glossary: saving "${bubble.translated}" from page $pageIndex',
+                );
                 try {
-                  await getIt<SaveGlossaryEntryUsecase>().call(GlossaryEntry(
-                    id: 'gl_${DateTime.now().millisecondsSinceEpoch}_${bubble.rect.hashCode}',
-                    sourceText: bubble.original,
-                    translatedText: bubble.translated,
-                    reading: bubble.reading,
-                    contentId: contentId,
-                    pageIndex: pageIndex,
-                    timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-                  ));
+                  await getIt<SaveGlossaryEntryUsecase>().call(
+                    GlossaryEntry(
+                      id: 'gl_${DateTime.now().millisecondsSinceEpoch}_${bubble.rect.hashCode}',
+                      sourceText: bubble.original,
+                      translatedText: bubble.translated,
+                      reading: bubble.reading,
+                      contentId: contentId,
+                      pageIndex: pageIndex,
+                      timestamp: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+                    ),
+                  );
                   getIt<Logger>().i('Glossary saved OK');
                 } catch (e) {
                   getIt<Logger>().e('Glossary save FAILED: $e');
@@ -531,8 +560,10 @@ class ReaderTranslatedBubble extends StatelessWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                        content: Text(
-                            AppLocalizations.of(context)!.aiSavedToGlossary)),
+                      content: Text(
+                        AppLocalizations.of(context)!.aiSavedToGlossary,
+                      ),
+                    ),
                   );
                 }
               },
@@ -551,8 +582,12 @@ class ReaderTranslatedBubble extends StatelessWidget {
 /// [hasShape] — for shape-following bubbles, [box] is the polygon's inscribed
 /// rect (see [_inscribedBox]) instead of the full bounding rect, so the
 /// fitted text stays inside the curved outline.
-TextStyle _fitText(String text, Size box, String fontFamily,
-    {bool hasShape = false}) {
+TextStyle _fitText(
+  String text,
+  Size box,
+  String fontFamily, {
+  bool hasShape = false,
+}) {
   // Base range [6,32], scaled down proportionally for small bubbles so the
   // text shrinks instead of overflowing. Hard cap: a giant bubble must not
   // balloon the font — manga text stays modest even on page-wide balloons.
@@ -668,16 +703,10 @@ class _BubbleShapePainter extends CustomPainter {
         pts.add(metric.getTangentForOffset(d)!.position);
       }
       if (pts.isEmpty) continue;
-      dst.addPolygon(
-        [
-          for (final p in pts)
-            Offset(
-              cx + (p.dx - cx) * scale,
-              cy + (p.dy - cy) * scale,
-            ),
-        ],
-        true,
-      );
+      dst.addPolygon([
+        for (final p in pts)
+          Offset(cx + (p.dx - cx) * scale, cy + (p.dy - cy) * scale),
+      ], true);
     }
     return dst;
   }
@@ -737,9 +766,10 @@ class AiBusyOverlay extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: const [
                 BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 12,
-                    offset: Offset(0, 3)),
+                  color: Colors.black26,
+                  blurRadius: 12,
+                  offset: Offset(0, 3),
+                ),
               ],
             ),
             child: Row(
@@ -754,10 +784,7 @@ class AiBusyOverlay extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 14),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text(label, style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
           ),

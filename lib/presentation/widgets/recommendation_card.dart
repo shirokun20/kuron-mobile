@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -36,8 +36,9 @@ class RecommendationCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           onTap: onTap,
-          onLongPress:
-              onDismiss == null ? null : () => _confirmDismiss(context),
+          onLongPress: onDismiss == null
+              ? null
+              : () => _confirmDismiss(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -47,8 +48,9 @@ class RecommendationCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                     border: Border.all(
-                      color: theme.colorScheme.outlineVariant
-                          .withValues(alpha: 0.35),
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.35,
+                      ),
                     ),
                   ),
                   child: ClipRRect(
@@ -62,7 +64,8 @@ class RecommendationCard extends StatelessWidget {
                             httpHeaders: getIt<ContentSourceRegistry>()
                                 .getSource(content.sourceId)
                                 ?.getImageDownloadHeaders(
-                                    imageUrl: content.coverUrl),
+                                  imageUrl: content.coverUrl,
+                                ),
                             fit: BoxFit.cover,
                             memCacheWidth: 300,
                             memCacheHeight: 430,

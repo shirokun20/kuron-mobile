@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -96,7 +97,8 @@ class AppLinearProgressIndicator extends StatelessWidget {
               child: Container(
                 height: height,
                 decoration: BoxDecoration(
-                  color: backgroundColor ??
+                  color:
+                      backgroundColor ??
                       colorScheme.outline.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(borderRadius),
                 ),
@@ -220,9 +222,10 @@ class _PulsingDotIndicatorState extends State<PulsingDotIndicator>
     );
 
     _animations = _controllers.map((controller) {
-      return Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: controller, curve: Curves.easeInOut),
-      );
+      return Tween<double>(
+        begin: 0.0,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
     }).toList();
 
     _startAnimations();
@@ -329,8 +332,9 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color:
-                (backgroundColor ?? colorScheme.surface).withValues(alpha: 0.7),
+            color: (backgroundColor ?? colorScheme.surface).withValues(
+              alpha: 0.7,
+            ),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart' hide Image;
+
+import 'package:material_ui/material_ui.dart' hide Image;
 import 'package:kuron_native/kuron_native.dart';
 
 class MosaicBuilder {

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/app_lock/app_lock_cubit.dart';
@@ -50,7 +50,8 @@ class _AppLockGateState extends State<AppLockGate> {
             return PinEntryScreen(
               title: l10n.enterPin,
               subtitle: l10n.unlockKuron,
-              showBiometric: lockState.isBiometricEnabled &&
+              showBiometric:
+                  lockState.isBiometricEnabled &&
                   lockState.isBiometricAvailable,
               onPinEntered: (pin) =>
                   context.read<AppLockCubit>().verifyPin(pin),

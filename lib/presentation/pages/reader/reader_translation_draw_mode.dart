@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kuron_native/kuron_native.dart' show BubbleBox;
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -11,24 +11,20 @@ import '../../../core/utils/polygon_geometry.dart';
 import 'reader_translation_widgets.dart';
 
 /// Shape tools for manual bubble drawing.
-enum DrawShapeTool {
-  rect,
-  ellipse,
-  freeform,
-}
+enum DrawShapeTool { rect, ellipse, freeform }
 
 extension DrawShapeToolX on DrawShapeTool {
   IconData get icon => switch (this) {
-        DrawShapeTool.rect => Icons.crop_square,
-        DrawShapeTool.ellipse => Icons.circle_outlined,
-        DrawShapeTool.freeform => Icons.gesture,
-      };
+    DrawShapeTool.rect => Icons.crop_square,
+    DrawShapeTool.ellipse => Icons.circle_outlined,
+    DrawShapeTool.freeform => Icons.gesture,
+  };
 
   String tooltip(AppLocalizations l10n) => switch (this) {
-        DrawShapeTool.rect => l10n.aiDrawRect,
-        DrawShapeTool.ellipse => l10n.aiDrawEllipse,
-        DrawShapeTool.freeform => l10n.aiDrawFreeform,
-      };
+    DrawShapeTool.rect => l10n.aiDrawRect,
+    DrawShapeTool.ellipse => l10n.aiDrawEllipse,
+    DrawShapeTool.freeform => l10n.aiDrawFreeform,
+  };
 }
 
 /// Screen-space shape entry for one detected bubble.
@@ -79,8 +75,7 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
     double scaleX,
     double scaleY,
     double topOffset,
-  ) =>
-      _handleTap(cubit, pos, scaleX, scaleY, topOffset);
+  ) => _handleTap(cubit, pos, scaleX, scaleY, topOffset);
 
   @visibleForTesting
   void onPanEndForTest(
@@ -168,14 +163,16 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
           rect.right / scaleX,
           (rect.bottom - topOffset) / scaleY,
         );
-        cubit.addManualBubble(BubbleBox(
-          x: imgRect.left.round(),
-          y: imgRect.top.round(),
-          w: imgRect.width.round(),
-          h: imgRect.height.round(),
-          confidence: 1.0,
-          shape: _shapeForTool(pts, scaleX, scaleY, topOffset),
-        ));
+        cubit.addManualBubble(
+          BubbleBox(
+            x: imgRect.left.round(),
+            y: imgRect.top.round(),
+            w: imgRect.width.round(),
+            h: imgRect.height.round(),
+            confidence: 1.0,
+            shape: _shapeForTool(pts, scaleX, scaleY, topOffset),
+          ),
+        );
       }
     }
     setState(() => _freeformPoints = null);
@@ -196,10 +193,12 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
       case DrawShapeTool.ellipse:
         final rect = Rect.fromPoints(screenPts.first, screenPts.last);
         return _ellipsePolygon(rect)
-            .map((o) => [
-                  (o.dx / scaleX).round(),
-                  ((o.dy - topOffset) / scaleY).round(),
-                ])
+            .map(
+              (o) => [
+                (o.dx / scaleX).round(),
+                ((o.dy - topOffset) / scaleY).round(),
+              ],
+            )
             .toList();
       case DrawShapeTool.freeform:
         var pts = List<Offset>.from(screenPts);
@@ -218,10 +217,12 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
         }
         if (pts.length < 3) return null;
         return pts
-            .map((o) => [
-                  (o.dx / scaleX).round(),
-                  ((o.dy - topOffset) / scaleY).round(),
-                ])
+            .map(
+              (o) => [
+                (o.dx / scaleX).round(),
+                ((o.dy - topOffset) / scaleY).round(),
+              ],
+            )
             .toList();
     }
   }
@@ -230,9 +231,7 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
   List<Offset> _simplify(List<Offset> pts, int cap) {
     if (pts.length <= cap) return pts;
     final step = pts.length / cap;
-    return [
-      for (var i = 0; i < cap; i++) pts[(i * step).floor()],
-    ];
+    return [for (var i = 0; i < cap; i++) pts[(i * step).floor()]];
   }
 
   /// Inscribed ellipse of [rect], sampled with ~24 vertices — dense enough
@@ -290,9 +289,7 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
             b.h * scaleY,
           );
           final poly = b.shape
-              ?.map(
-                (p) => Offset(p[0] * scaleX, p[1] * scaleY + topOffset),
-              )
+              ?.map((p) => Offset(p[0] * scaleX, p[1] * scaleY + topOffset))
               .toList();
           return _BubbleDrawEntry(rect: rect, poly: poly, kind: b.kind);
         }).toList();
@@ -307,7 +304,12 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
                 ignoring: !drawMode,
                 child: GestureDetector(
                   onTapUp: (d) => _handleTap(
-                      cubit, d.localPosition, scaleX, scaleY, topOffset),
+                    cubit,
+                    d.localPosition,
+                    scaleX,
+                    scaleY,
+                    topOffset,
+                  ),
                   onPanStart: _onPanStart,
                   onPanUpdate: _onPanUpdate,
                   onPanEnd: (_) => _onPanEnd(cubit, scaleX, scaleY, topOffset),
@@ -327,8 +329,12 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
                                 b.h * scaleY,
                               );
                               final poly = b.shape
-                                  ?.map((p) => Offset(
-                                      p[0] * scaleX, p[1] * scaleY + topOffset))
+                                  ?.map(
+                                    (p) => Offset(
+                                      p[0] * scaleX,
+                                      p[1] * scaleY + topOffset,
+                                    ),
+                                  )
                                   .toList();
                               return _BubbleDrawEntry(rect: rect, poly: poly);
                             }).toList())
@@ -343,9 +349,7 @@ class _ReaderTranslationDrawModeState extends State<ReaderTranslationDrawMode> {
             // Blocks input + visually tells the user work is happening instead
             // of a silent freeze.
             if (_detecting)
-              AiBusyOverlay(
-                label: AppLocalizations.of(context)!.aiDetecting,
-              ),
+              AiBusyOverlay(label: AppLocalizations.of(context)!.aiDetecting),
             // Controls — draw mode only. A small pill that expands into the
             // action panel on tap, so it never blocks the reader chrome or
             // the page below.
@@ -574,7 +578,9 @@ class _DrawPainter extends CustomPainter {
     final n = pts.length;
     final path = Path();
     final start = Offset(
-        (pts[n - 1].dx + pts[0].dx) / 2, (pts[n - 1].dy + pts[0].dy) / 2);
+      (pts[n - 1].dx + pts[0].dx) / 2,
+      (pts[n - 1].dy + pts[0].dy) / 2,
+    );
     path.moveTo(start.dx, start.dy);
     for (int i = 0; i < n; i++) {
       final ctrl = pts[i];
@@ -627,8 +633,8 @@ class _DrawPainter extends CustomPainter {
       // render identical to detected ones after translation.
       final drawPath = e.poly != null && e.poly!.length >= 3
           ? (isRectLikePolygon(e.poly!)
-              ? (Path()..addPolygon(e.poly!, true))
-              : _smoothPath(e.poly!))
+                ? (Path()..addPolygon(e.poly!, true))
+                : _smoothPath(e.poly!))
           : null;
       if (drawPath != null) {
         canvas.drawPath(drawPath, manualPaint);

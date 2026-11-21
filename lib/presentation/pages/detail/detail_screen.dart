@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +23,7 @@ import 'package:nhasixapp/core/utils/tag_color_palette.dart';
 import 'package:nhasixapp/core/services/tag_blacklist_service.dart';
 import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
 import 'package:nhasixapp/presentation/utils/chapter_language_presenter.dart';
+
 import '../../../core/services/anomaly/anomaly_store.dart';
 import '../../../core/utils/error_message_utils.dart';
 import '../../widgets/download_button_widget.dart';
@@ -65,8 +67,9 @@ class DetailScreen extends StatefulWidget {
 
   @visibleForTesting
   static String resolveDetailHeaderImageUrlForTesting(Content content) {
-    final firstImage =
-        content.imageUrls.isNotEmpty ? content.imageUrls.first : '';
+    final firstImage = content.imageUrls.isNotEmpty
+        ? content.imageUrls.first
+        : '';
     if (firstImage.isEmpty) {
       return content.coverUrl;
     }
@@ -76,8 +79,9 @@ class DetailScreen extends StatefulWidget {
         return content.coverUrl;
       }
 
-      final hentainexusThumb =
-          _deriveHentainexusDetailThumbUrlForTesting(firstImage);
+      final hentainexusThumb = _deriveHentainexusDetailThumbUrlForTesting(
+        firstImage,
+      );
       if (hentainexusThumb != null) {
         return hentainexusThumb;
       }
@@ -248,8 +252,10 @@ class _DetailScreenState extends State<DetailScreen> {
       return;
     }
 
-    final message =
-        ErrorMessageUtils.getFriendlyErrorMessage(state.error, l10n);
+    final message = ErrorMessageUtils.getFriendlyErrorMessage(
+      state.error,
+      l10n,
+    );
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
       SnackBar(
@@ -294,9 +300,7 @@ class _DetailScreenState extends State<DetailScreen> {
           if (state is DetailOpeningChapter)
             Container(
               color: Colors.black.withValues(alpha: 0.5),
-              child: const Center(
-                child: KuroLoading(size: 96),
-              ),
+              child: const Center(child: KuroLoading(size: 96)),
             ),
         ],
       );
@@ -351,13 +355,13 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget _detailLoadingBodyShimmer() {
     final colorScheme = Theme.of(context).colorScheme;
     Widget box(double h, double w) => Container(
-          height: h,
-          width: w,
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(6),
-          ),
-        );
+      height: h,
+      width: w,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(6),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -433,8 +437,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
       final uri = Uri.tryParse(url);
       final lastSegment = uri?.pathSegments.lastWhere(
-          (s) => s.trim().isNotEmpty && s.trim() != '0',
-          orElse: () => '');
+        (s) => s.trim().isNotEmpty && s.trim() != '0',
+        orElse: () => '',
+      );
       if (lastSegment != null && lastSegment.isNotEmpty) {
         return lastSegment;
       }
@@ -455,8 +460,9 @@ class _DetailScreenState extends State<DetailScreen> {
       return;
     }
 
-    final supportsOnlineFavorite =
-        _detailCubit.supportsOnlineFavorites(sourceId);
+    final supportsOnlineFavorite = _detailCubit.supportsOnlineFavorites(
+      sourceId,
+    );
 
     if (!supportsOnlineFavorite) {
       await _detailCubit.toggleFavorite();
@@ -498,7 +504,8 @@ class _DetailScreenState extends State<DetailScreen> {
                 subtitle: hasSession
                     ? null
                     : Text(
-                        AppLocalizations.of(context)!.loginRequiredForAction),
+                        AppLocalizations.of(context)!.loginRequiredForAction,
+                      ),
                 onTap: hasSession ? () => context.pop('online') : null,
               ),
               ListTile(
@@ -508,7 +515,8 @@ class _DetailScreenState extends State<DetailScreen> {
                 subtitle: hasSession
                     ? null
                     : Text(
-                        AppLocalizations.of(context)!.loginRequiredForAction),
+                        AppLocalizations.of(context)!.loginRequiredForAction,
+                      ),
                 onTap: hasSession ? () => context.pop('both') : null,
               ),
               const SizedBox(height: DesignTokens.spaceSm),
@@ -575,9 +583,7 @@ class _DetailScreenState extends State<DetailScreen> {
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            AppLocalizations.of(context)!.unableToSyncSettings,
-          ),
+          content: Text(AppLocalizations.of(context)!.unableToSyncSettings),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -590,7 +596,8 @@ class _DetailScreenState extends State<DetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              AppLocalizations.of(context)!.addToFavoritesManageCollections),
+            AppLocalizations.of(context)!.addToFavoritesManageCollections,
+          ),
         ),
       );
       return;
@@ -603,8 +610,9 @@ class _DetailScreenState extends State<DetailScreen> {
   void initState() {
     super.initState();
     _detailCubit = widget.detailCubit ?? context.read<DetailCubit>();
-    _mangaFireCoordinator =
-        DetailMangaFireCoordinator(detailCubit: _detailCubit);
+    _mangaFireCoordinator = DetailMangaFireCoordinator(
+      detailCubit: _detailCubit,
+    );
     _tagQueryResolver = const DetailTagQueryResolver();
     _tagBlacklistService = widget.tagBlacklistService;
     _tagBlacklistService?.addListener(_handleBlacklistChanged);
@@ -618,7 +626,8 @@ class _DetailScreenState extends State<DetailScreen> {
           // Don't switch if IDs are same (redundant check but safe)
           currentSourceId != widget.sourceId) {
         Logger().i(
-            'DetailScreen: Switching source from $currentSourceId to ${widget.sourceId}');
+          'DetailScreen: Switching source from $currentSourceId to ${widget.sourceId}',
+        );
         sourceCubit.switchSource(widget.sourceId!);
       }
     }
@@ -658,8 +667,9 @@ class _DetailScreenState extends State<DetailScreen> {
     // Chapter list starts after metadata sections (narrow). On wide screens
     // the chapter section sits at the top of the right pane instead.
     final wide = MediaQuery.sizeOf(context).width > DetailWideView.minWidth;
-    final approximateOffset =
-        wide ? 160 + (chapterIndex * 64) : 600 + (chapterIndex * 100);
+    final approximateOffset = wide
+        ? 160 + (chapterIndex * 64)
+        : 600 + (chapterIndex * 100);
 
     _scrollController.animateTo(
       approximateOffset.toDouble(),
@@ -715,12 +725,17 @@ class _DetailScreenState extends State<DetailScreen> {
 
   // Navigate to tag browsing mode (SIMPLIFIED routing)
   // Navigate to tag browsing mode (SIMPLIFIED routing)
-  void _searchByTag(String tagName,
-      {String? tagId, String? tagType, String? sourceId}) async {
+  void _searchByTag(
+    String tagName, {
+    String? tagId,
+    String? tagType,
+    String? sourceId,
+  }) async {
     // Prevent multiple simultaneous navigation attempts
     if (_isNavigating) {
-      Logger()
-          .w('Navigation already in progress, ignoring tag search: $tagName');
+      Logger().w(
+        'Navigation already in progress, ignoring tag search: $tagName',
+      );
       return;
     }
 
@@ -728,14 +743,14 @@ class _DetailScreenState extends State<DetailScreen> {
       _isNavigating = true;
 
       final detailState = _detailCubit.state;
-      final actualSourceId = sourceId ??
+      final actualSourceId =
+          sourceId ??
           ((detailState is DetailLoaded)
               ? detailState.content.sourceId
               : 'nhentai');
       final rawConfig = _detailCubit.getRawConfig(actualSourceId);
-      final navMap =
-          (rawConfig?['navigation'] as Map?)?.cast<String, dynamic>()[
-              'tagQueryMapping'];
+      final navMap = (rawConfig?['navigation'] as Map?)
+          ?.cast<String, dynamic>()['tagQueryMapping'];
       Logger().d(
         'TAGTAP in: source=$actualSourceId type=$tagType name=$tagName '
         'tagId=$tagId hasRawConfig=${rawConfig != null} '
@@ -762,17 +777,19 @@ class _DetailScreenState extends State<DetailScreen> {
         // mapping failure. Snackbar behavior below stays unchanged.
         try {
           final rawConfig = _detailCubit.getRawConfig(actualSourceId);
-          unawaited(AnomalyStore.instance.recordEvent(
-            sourceId: actualSourceId,
-            feature: 'tag-nav',
-            kind: 'mapping-failed',
-            contextJson: {
-              'tagType': tagType,
-              'tagName': tagName,
-              'tagId': tagId,
-            },
-            configVersion: (rawConfig?['version'] as String?) ?? 'unknown',
-          ));
+          unawaited(
+            AnomalyStore.instance.recordEvent(
+              sourceId: actualSourceId,
+              feature: 'tag-nav',
+              kind: 'mapping-failed',
+              contextJson: {
+                'tagType': tagType,
+                'tagName': tagName,
+                'tagId': tagId,
+              },
+              configVersion: (rawConfig?['version'] as String?) ?? 'unknown',
+            ),
+          );
         } catch (_) {
           // Detector must never break navigation.
         }
@@ -799,8 +816,11 @@ class _DetailScreenState extends State<DetailScreen> {
         Logger().w('Widget unmounted before navigation for tag: $tagName');
       }
     } catch (e, stackTrace) {
-      Logger().e('Error navigating to tag: $tagName',
-          error: e, stackTrace: stackTrace);
+      Logger().e(
+        'Error navigating to tag: $tagName',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       if (mounted) {
         final messenger = ScaffoldMessenger.of(context);
@@ -847,8 +867,9 @@ class _DetailScreenState extends State<DetailScreen> {
                       parentContent: state.content, // Parent series
                       chapterData: state.chapterData, // Navigation data
                       currentChapter: state.currentChapter, // Current chapter
-                      allChapters: _detailCubit
-                          .chaptersByLang(state.currentChapter?.language),
+                      allChapters: _detailCubit.chaptersByLang(
+                        state.currentChapter?.language,
+                      ),
                     );
                     context.read<DetailCubit>().resetToLoaded();
                   } else if (state is DetailActionFailure) {
@@ -876,8 +897,9 @@ class _DetailScreenState extends State<DetailScreen> {
     final content = state.content;
     final shouldBlurPrimaryCover = _shouldBlurCover(content);
     final headerImageUrl = _resolveDetailHeaderImageUrl(content);
-    final firstImage =
-        content.imageUrls.isNotEmpty ? content.imageUrls.first : '';
+    final firstImage = content.imageUrls.isNotEmpty
+        ? content.imageUrls.first
+        : '';
     final headerUsesFirstPage =
         firstImage.isNotEmpty && headerImageUrl == firstImage;
     final imageHeaders = _detailCubit.getImageDownloadHeaders(
@@ -893,24 +915,26 @@ class _DetailScreenState extends State<DetailScreen> {
     // area holds the chapter section for chapter sources (right pane) or the
     // read/download buttons for gallery sources (left rail, under the tags).
     if (MediaQuery.sizeOf(context).width > DetailWideView.minWidth) {
-      final hasChaptersFeature =
-          _detailCubit.isFeatureEnabled(content.sourceId, (f) => f.chapters);
+      final hasChaptersFeature = _detailCubit.isFeatureEnabled(
+        content.sourceId,
+        (f) => f.chapters,
+      );
       final actionArea = _buildActionButtons(state);
       final relatedArea =
           (state.relatedContent != null && state.relatedContent!.isNotEmpty)
-              ? <Widget>[
-                  _buildRelatedContentSection(state),
-                  const SizedBox(height: 20),
-                ]
-              : <Widget>[
-                  // Local engine fallback when the source has no related content.
-                  SimilarContentSection(
-                    contentId: state.content.id,
-                    sourceId: state.content.sourceId,
-                    onTap: _navigateToRelatedContent,
-                  ),
-                  const SizedBox(height: 20),
-                ];
+          ? <Widget>[
+              _buildRelatedContentSection(state),
+              const SizedBox(height: 20),
+            ]
+          : <Widget>[
+              // Local engine fallback when the source has no related content.
+              SimilarContentSection(
+                contentId: state.content.id,
+                sourceId: state.content.sourceId,
+                onTap: _navigateToRelatedContent,
+              ),
+              const SizedBox(height: 20),
+            ];
       return DetailWideView(
         rightScrollController: _scrollController,
         isOfflineMode: isOfflineMode,
@@ -1008,11 +1032,7 @@ class _DetailScreenState extends State<DetailScreen> {
         Container(
           margin: const EdgeInsets.only(right: 8),
           child: IconButton(
-            icon: Icon(
-              Icons.wifi_off,
-              color: colorScheme.error,
-              size: 20,
-            ),
+            icon: Icon(Icons.wifi_off, color: colorScheme.error, size: 20),
             onPressed: () => _showGoOnlineDialog(context),
             tooltip: l10n.youAreOfflineTapToGoOnline,
           ),
@@ -1039,8 +1059,8 @@ class _DetailScreenState extends State<DetailScreen> {
                 color: isFavorited
                     ? colorScheme.error
                     : (favoriteEnabled
-                        ? colorScheme.onSurface
-                        : colorScheme.onSurface.withValues(alpha: 0.3)),
+                          ? colorScheme.onSurface
+                          : colorScheme.onSurface.withValues(alpha: 0.3)),
               ),
               onPressed: favoriteEnabled
                   ? () {
@@ -1207,10 +1227,7 @@ class _DetailScreenState extends State<DetailScreen> {
       ),
     ];
 
-    return DetailMetadataSection(
-      title: l10n.contentInformation,
-      items: items,
-    );
+    return DetailMetadataSection(title: l10n.contentInformation, items: items);
   }
 
   Widget _buildBlacklistMatchBanner(Content content) {
@@ -1219,7 +1236,8 @@ class _DetailScreenState extends State<DetailScreen> {
         ? settingsState.preferences.blacklistedTags
         : const <String>[];
 
-    final isBlacklisted = _tagBlacklistService?.isContentBlacklisted(
+    final isBlacklisted =
+        _tagBlacklistService?.isContentBlacklisted(
           content,
           localEntries: localBlacklistEntries,
         ) ??
@@ -1256,21 +1274,13 @@ class _DetailScreenState extends State<DetailScreen> {
     final tagId = tag == null
         ? null
         : (tag.id != 0 ? tag.id.toString() : tag.slug ?? tag.id.toString());
-    _searchByTag(
-      name,
-      tagId: tagId,
-      tagType: type,
-      sourceId: content.sourceId,
-    );
+    _searchByTag(name, tagId: tagId, tagType: type, sourceId: content.sourceId);
   }
 
   List<Widget> _buildSynopsisSection(Content content) {
     final text = DetailScreen.synopsisForTesting(content);
     if (text.isEmpty) return const [];
-    return [
-      DetailSynopsisSection(text: text),
-      const SizedBox(height: 20),
-    ];
+    return [DetailSynopsisSection(text: text), const SizedBox(height: 20)];
   }
 
   Widget _buildTagsSection(Content content) {
@@ -1371,11 +1381,13 @@ class _DetailScreenState extends State<DetailScreen> {
     return ChoiceChip(
       selected: selected,
       showCheckmark: false,
-      avatar: Icon(icon,
-          size: 16,
-          color: selected
-              ? colorScheme.onPrimaryContainer
-              : colorScheme.onSurfaceVariant),
+      avatar: Icon(
+        icon,
+        size: 16,
+        color: selected
+            ? colorScheme.onPrimaryContainer
+            : colorScheme.onSurfaceVariant,
+      ),
       label: Text(label),
       selectedColor: colorScheme.primaryContainer,
       backgroundColor: colorScheme.surfaceContainerHighest,
@@ -1391,7 +1403,8 @@ class _DetailScreenState extends State<DetailScreen> {
             : colorScheme.outlineVariant,
       ),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
       onSelected: (_) {
         unawaited(_mangaFireCoordinator.onTypeSelected(content, value));
       },
@@ -1401,8 +1414,10 @@ class _DetailScreenState extends State<DetailScreen> {
   Widget _buildActionButtons(DetailLoaded detailState) {
     final content = detailState.content;
     // Check if chapters feature is enabled for this source
-    final hasChaptersFeature =
-        _detailCubit.isFeatureEnabled(content.sourceId, (f) => f.chapters);
+    final hasChaptersFeature = _detailCubit.isFeatureEnabled(
+      content.sourceId,
+      (f) => f.chapters,
+    );
     final hasChapters = content.chapters?.isNotEmpty == true;
 
     Logger().i('content.sourceId: ${content.sourceId}');
@@ -1419,8 +1434,8 @@ class _DetailScreenState extends State<DetailScreen> {
           builder: (context, _) {
             final chapterHistory =
                 detailState.chapterHistory ?? <String, History>{};
-            final displayContent =
-                _mangaFireCoordinator.resolveChapterDisplayContent(content);
+            final displayContent = _mangaFireCoordinator
+                .resolveChapterDisplayContent(content);
             final safeDisplayContent = displayContent.copyWith(
               chapters: displayContent.chapters ?? const <Chapter>[],
             );
@@ -1432,7 +1447,9 @@ class _DetailScreenState extends State<DetailScreen> {
               content: safeDisplayContent,
               chapterHistory: chapterHistory,
               canDownload: _detailCubit.isFeatureEnabled(
-                  content.sourceId, (f) => f.download),
+                content.sourceId,
+                (f) => f.download,
+              ),
               availableLanguageKeys: content.sourceId == 'mangafire'
                   ? _mangaFireCoordinator.extractAvailableLanguageKeys(content)
                   : (() {
@@ -1448,22 +1465,29 @@ class _DetailScreenState extends State<DetailScreen> {
                   : detailState.isChaptersLoading,
               onLanguageSelected: (languageKey) {
                 if (content.sourceId == 'mangafire') {
-                  unawaited(_mangaFireCoordinator.onLanguageSelected(
-                      content, languageKey));
+                  unawaited(
+                    _mangaFireCoordinator.onLanguageSelected(
+                      content,
+                      languageKey,
+                    ),
+                  );
                 } else {
-                  unawaited(_detailCubit.loadChapterLane(
-                    language: ChapterLanguagePresenter.normalize(languageKey),
-                    scanGroup:
-                        content.chapters?.firstOrNull?.scanGroup ?? 'Chapter',
-                  ));
+                  unawaited(
+                    _detailCubit.loadChapterLane(
+                      language: ChapterLanguagePresenter.normalize(languageKey),
+                      scanGroup:
+                          content.chapters?.firstOrNull?.scanGroup ?? 'Chapter',
+                    ),
+                  );
                 }
               },
               formatDate: _formatDate,
               formatLanguageLabel: _formatChapterLanguageLabel,
               onChapterTap: _detailCubit.openChapter,
               onViewAll: (selectedLanguageKey) {
-                final chapters =
-                    _detailCubit.chaptersByLang(selectedLanguageKey);
+                final chapters = _detailCubit.chaptersByLang(
+                  selectedLanguageKey,
+                );
                 showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
@@ -1518,9 +1542,7 @@ class _DetailScreenState extends State<DetailScreen> {
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   elevation: DesignTokens.elevationLg,
-                  shadowColor: Theme.of(context)
-                      .colorScheme
-                      .primary
+                  shadowColor: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.3),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
@@ -1532,7 +1554,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
           // Download button - conditional
           if (_detailCubit.isFeatureEnabled(
-              content.sourceId, (f) => f.download)) ...[
+            content.sourceId,
+            (f) => f.download,
+          )) ...[
             const SizedBox(width: 8),
             Expanded(
               flex: 1,
@@ -1668,8 +1692,10 @@ class _DetailScreenState extends State<DetailScreen> {
     final relatedContent = state.relatedContent ?? [];
 
     // Check if related content feature is enabled for this source
-    final hasRelatedFeature =
-        _detailCubit.isFeatureEnabled(content.sourceId, (f) => f.related);
+    final hasRelatedFeature = _detailCubit.isFeatureEnabled(
+      content.sourceId,
+      (f) => f.related,
+    );
 
     if (!hasRelatedFeature || relatedContent.isEmpty) {
       return const SizedBox.shrink();
@@ -1705,8 +1731,10 @@ class _DetailScreenState extends State<DetailScreen> {
     }
 
     // 2) Feature enabled but under maintenance — show banner
-    final maintenance =
-        _detailCubit.getFeatureMaintenance(sourceId, 'comments');
+    final maintenance = _detailCubit.getFeatureMaintenance(
+      sourceId,
+      'comments',
+    );
     if (maintenance != null) {
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 8),
@@ -1715,8 +1743,8 @@ class _DetailScreenState extends State<DetailScreen> {
           color: Theme.of(context).colorScheme.secondaryContainer,
           borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
           border: Border.all(
-            color:
-                Theme.of(context).colorScheme.secondary.withValues(alpha: 0.4),
+            color: Theme.of(context).colorScheme.secondary
+                .withValues(alpha: 0.4),
           ),
         ),
         child: Row(
@@ -1798,8 +1826,9 @@ class _DetailScreenState extends State<DetailScreen> {
       retryLabel: l10n.retry,
       onBack: context.pop,
       onLogin: isLoginError ? _goToCrotpediaLogin : null,
-      onRetry:
-          !isLoginError && state.canRetry ? _detailCubit.retryLoading : null,
+      onRetry: !isLoginError && state.canRetry
+          ? _detailCubit.retryLoading
+          : null,
       isLoginError: isLoginError,
     );
   }
@@ -1830,7 +1859,9 @@ class _DetailScreenState extends State<DetailScreen> {
       return l10n.dayAgo(difference.inDays, difference.inDays > 1 ? 's' : '');
     } else if (difference.inHours > 0) {
       return l10n.hourAgo(
-          difference.inHours, difference.inHours > 1 ? 's' : '');
+        difference.inHours,
+        difference.inHours > 1 ? 's' : '',
+      );
     } else {
       return l10n.justNow;
     }
@@ -1865,8 +1896,9 @@ class _DetailScreenState extends State<DetailScreen> {
   }) async {
     // Get metadata from current state if available
     final currentState = _detailCubit.state;
-    final imageMetadata =
-        currentState is DetailLoaded ? currentState.imageMetadata : null;
+    final imageMetadata = currentState is DetailLoaded
+        ? currentState.imageMetadata
+        : null;
 
     final hasPagination = _detailCubit.hasPagination(content.sourceId);
 
@@ -1885,37 +1917,47 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (launchPayload.content == null) {
       Logger().w(
-          '⚠️ Content passed from DetailScreen has no images, forcing reader to fetch fresh data: ${content.id}');
+        '⚠️ Content passed from DetailScreen has no images, forcing reader to fetch fresh data: ${content.id}',
+      );
     }
 
     // 🔍 DEBUG LOGGING - Chapter Data Flow
     Logger().i('📤 DetailScreen._readContent - Sending to Reader:');
     Logger().i('  contentId: ${content.id}');
     Logger().i('  content.title: ${content.title}');
-    Logger()
-        .i('  parentContent: ${launchPayload.parentContent?.title ?? "NULL"}');
-    Logger()
-        .i('  parentContent.id: ${launchPayload.parentContent?.id ?? "NULL"}');
-    Logger()
-        .i('  allChapters count: ${launchPayload.allChapters?.length ?? 0}');
+    Logger().i(
+      '  parentContent: ${launchPayload.parentContent?.title ?? "NULL"}',
+    );
+    Logger().i(
+      '  parentContent.id: ${launchPayload.parentContent?.id ?? "NULL"}',
+    );
+    Logger().i(
+      '  allChapters count: ${launchPayload.allChapters?.length ?? 0}',
+    );
     if (launchPayload.allChapters != null &&
         launchPayload.allChapters!.isNotEmpty) {
       Logger().i('  allChapters[0]: ${launchPayload.allChapters!.first.title}');
-      Logger()
-          .i('  allChapters[last]: ${launchPayload.allChapters!.last.title}');
+      Logger().i(
+        '  allChapters[last]: ${launchPayload.allChapters!.last.title}',
+      );
     }
     Logger().i(
-        '  currentChapter: ${launchPayload.currentChapter?.title ?? "NULL"}');
+      '  currentChapter: ${launchPayload.currentChapter?.title ?? "NULL"}',
+    );
     Logger().i(
-        '  currentChapter.id: ${launchPayload.currentChapter?.id ?? "NULL"}');
+      '  currentChapter.id: ${launchPayload.currentChapter?.id ?? "NULL"}',
+    );
     Logger().i(
-        '  chapterData.prevId: ${launchPayload.chapterData?.prevChapterId ?? "NULL"}');
+      '  chapterData.prevId: ${launchPayload.chapterData?.prevChapterId ?? "NULL"}',
+    );
     Logger().i(
-        '  chapterData.nextId: ${launchPayload.chapterData?.nextChapterId ?? "NULL"}');
+      '  chapterData.nextId: ${launchPayload.chapterData?.nextChapterId ?? "NULL"}',
+    );
 
     final downloadState = context.read<DownloadBloc>().state;
     final targetId = launchPayload.currentChapter?.id ?? content.id;
-    final isDownloaded = downloadState is DownloadLoaded &&
+    final isDownloaded =
+        downloadState is DownloadLoaded &&
         downloadState.downloads.any(
           (d) =>
               (d.contentId == targetId || d.contentId == content.id) &&
@@ -1981,10 +2023,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
       // Share using share_plus package
       await SharePlus.instance.share(
-        ShareParams(
-          text: shareText,
-          subject: content.title,
-        ),
+        ShareParams(text: shareText, subject: content.title),
       );
 
       // Show success feedback
@@ -2061,7 +2100,8 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (content.artists.isNotEmpty) {
       metadata.add(
-          AppLocalizations.of(context)!.artistLabel(content.artists.first));
+        AppLocalizations.of(context)!.artistLabel(content.artists.first),
+      );
     }
 
     if (content.pageCount > 0) {
@@ -2087,7 +2127,9 @@ class _DetailScreenState extends State<DetailScreen> {
       case 'download':
         // Check feature flag before downloading
         if (!_detailCubit.isFeatureEnabled(
-            content.sourceId, (f) => f.download)) {
+          content.sourceId,
+          (f) => f.download,
+        )) {
           _showFeatureDisabledDialog('download');
           return;
         }
@@ -2205,7 +2247,8 @@ class _DetailScreenState extends State<DetailScreen> {
               Expanded(
                 child: Text(
                   AppLocalizations.of(context)!.failedToStartDownload(
-                      AppLocalizations.of(context)!.unknownError),
+                    AppLocalizations.of(context)!.unknownError,
+                  ),
                   style: TextStyleConst.bodyMedium.copyWith(
                     color: Theme.of(context).colorScheme.onError,
                   ),
@@ -2502,26 +2545,32 @@ class _DetailScreenState extends State<DetailScreen> {
                     child: SingleChildScrollView(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        children: loadedState.collections.map((collection) {
-                          final isSelected =
-                              selectedIds.contains(collection.id);
-                          return CheckboxListTile(
-                            value: isSelected,
-                            title: Text(collection.name),
-                            subtitle: Text(AppLocalizations.of(context)!
-                                .nItems(collection.itemCount)),
-                            controlAffinity: ListTileControlAffinity.leading,
-                            onChanged: (value) {
-                              setSheetState(() {
-                                if (value == true) {
-                                  selectedIds.add(collection.id);
-                                } else {
-                                  selectedIds.remove(collection.id);
-                                }
-                              });
-                            },
-                          );
-                        }).toList(growable: false),
+                        children: loadedState.collections
+                            .map((collection) {
+                              final isSelected = selectedIds.contains(
+                                collection.id,
+                              );
+                              return CheckboxListTile(
+                                value: isSelected,
+                                title: Text(collection.name),
+                                subtitle: Text(
+                                  AppLocalizations.of(context)!
+                                      .nItems(collection.itemCount),
+                                ),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
+                                onChanged: (value) {
+                                  setSheetState(() {
+                                    if (value == true) {
+                                      selectedIds.add(collection.id);
+                                    } else {
+                                      selectedIds.remove(collection.id);
+                                    }
+                                  });
+                                },
+                              );
+                            })
+                            .toList(growable: false),
                       ),
                     ),
                   ),
@@ -2543,8 +2592,9 @@ class _DetailScreenState extends State<DetailScreen> {
                           await _showManageCollectionsSheet(content);
                         },
                         icon: const Icon(Icons.create_new_folder_outlined),
-                        label:
-                            Text(AppLocalizations.of(context)!.newCollection),
+                        label: Text(
+                          AppLocalizations.of(context)!.newCollection,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       FilledButton(
@@ -2559,10 +2609,13 @@ class _DetailScreenState extends State<DetailScreen> {
                             final messenger = ScaffoldMessenger.of(context);
                             messenger.showSnackBar(
                               SnackBar(
-                                content: Text(AppLocalizations.of(context)!
-                                    .collectionsUpdatedSuccessfully),
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.primary,
+                                content: Text(
+                                  AppLocalizations.of(context)!
+                                      .collectionsUpdatedSuccessfully,
+                                ),
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .primary,
                               ),
                             );
                           }
@@ -2585,7 +2638,8 @@ class _DetailScreenState extends State<DetailScreen> {
     String inputName = '';
     final controller = TextEditingController();
 
-    final created = await showDialog<bool>(
+    final created =
+        await showDialog<bool>(
           context: context,
           builder: (dialogContext) {
             return StatefulBuilder(
@@ -2617,14 +2671,16 @@ class _DetailScreenState extends State<DetailScreen> {
                     TextButton(
                       onPressed: () => dialogBuilderContext.pop(false),
                       child: Text(
-                          AppLocalizations.of(dialogBuilderContext)!.cancel),
+                        AppLocalizations.of(dialogBuilderContext)!.cancel,
+                      ),
                     ),
                     FilledButton(
                       onPressed: inputName.trim().isEmpty
                           ? null
                           : () => dialogBuilderContext.pop(true),
-                      child:
-                          Text(AppLocalizations.of(dialogBuilderContext)!.save),
+                      child: Text(
+                        AppLocalizations.of(dialogBuilderContext)!.save,
+                      ),
                     ),
                   ],
                 );
@@ -2650,8 +2706,10 @@ class _DetailScreenState extends State<DetailScreen> {
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!
-              .failedToCreateCollection(e.toString())),
+          content: Text(
+            AppLocalizations.of(context)!
+                .failedToCreateCollection(e.toString()),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

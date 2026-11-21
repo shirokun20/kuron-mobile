@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -8,6 +8,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/routing/app_router.dart';
 import 'package:nhasixapp/domain/usecases/content/get_random_galleries_usecase.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+
 import 'animated_dice_widget.dart';
 
 // Random Gallery Button — Rolls a dice to get random content
@@ -44,15 +45,17 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
         ? rawConfig['features'] as Map<String, dynamic>
         : null;
     final rawFeatureEnabled = features?['randomGallery'];
-    final featureEnabled =
-        rawFeatureEnabled is bool ? rawFeatureEnabled : false;
+    final featureEnabled = rawFeatureEnabled is bool
+        ? rawFeatureEnabled
+        : false;
 
     final api = rawConfig['api'] is Map<String, dynamic>
         ? rawConfig['api'] as Map<String, dynamic>
         : null;
     final rawEndpoints = api?['endpoints'];
-    final apiEndpoints =
-        rawEndpoints is Map<String, dynamic> ? rawEndpoints : null;
+    final apiEndpoints = rawEndpoints is Map<String, dynamic>
+        ? rawEndpoints
+        : null;
     final apiRandomPath = apiEndpoints?['random']?.toString().trim() ?? '';
 
     final scraper = rawConfig['scraper'] is Map<String, dynamic>
@@ -62,7 +65,8 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
     final scraperEndpoints = rawScraperEndpoints is Map<String, dynamic>
         ? rawScraperEndpoints
         : null;
-    final scraperRandomPath = scraperEndpoints?['random']?.toString().trim() ??
+    final scraperRandomPath =
+        scraperEndpoints?['random']?.toString().trim() ??
         scraper?['randomUrl']?.toString().trim() ??
         '';
 
@@ -186,10 +190,9 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
 
     try {
       final useCase = getIt<GetRandomGalleriesUseCase>();
-      final randomGalleries = await useCase(GetRandomGalleriesParams(
-        sourceId: sourceId,
-        count: 1,
-      ));
+      final randomGalleries = await useCase(
+        GetRandomGalleriesParams(sourceId: sourceId, count: 1),
+      );
 
       if (!mounted) return;
 
@@ -212,8 +215,8 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(AppLocalizations.of(context)!.randomGalleryNoResult)),
+            content: Text(AppLocalizations.of(context)!.randomGalleryNoResult),
+          ),
         );
       }
     } catch (e) {
@@ -222,7 +225,8 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(AppLocalizations.of(context)!.randomGalleryError)),
+            content: Text(AppLocalizations.of(context)!.randomGalleryError),
+          ),
         );
       }
     } finally {

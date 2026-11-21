@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:open_file/open_file.dart';
@@ -18,11 +18,14 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/offline_search/offline_search_cubit.dart';
 import 'package:nhasixapp/presentation/mixins/offline_management_mixin.dart';
 import 'package:nhasixapp/presentation/models/content_group.dart';
+
 import '../../core/utils/responsive_grid_delegate.dart';
 import '../../core/services/tag_blacklist_service.dart';
 import '../blocs/download/download_bloc.dart';
 import '../../core/config/remote_config_service.dart';
+
 import 'package:nhasixapp/core/config/config_models.dart';
+
 import '../cubits/settings/settings_cubit.dart';
 import 'content_group_card_widget.dart';
 import 'error_widget.dart';
@@ -66,8 +69,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
   }
 
   Future<void> _openSeriesDetail(ContentGroup contentGroup) async {
-    final changed =
-        await AppRouter.goToOfflineSeriesDetail(context, contentGroup);
+    final changed = await AppRouter.goToOfflineSeriesDetail(
+      context,
+      contentGroup,
+    );
     if (changed == true && mounted) {
       await _offlineSearchCubit.forceRefresh();
     }
@@ -169,14 +174,15 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
             return Container(
               decoration: BoxDecoration(
                 color: colorScheme.surface,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 10,
                     spreadRadius: 2,
-                  )
+                  ),
                 ],
               ),
               child: Column(
@@ -186,8 +192,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                     width: 48,
                     height: 5,
                     decoration: BoxDecoration(
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.3,
+                      ),
                       borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
@@ -200,9 +207,7 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                     ),
                   ),
                   const SizedBox(height: DesignTokens.spaceLg),
-                  Expanded(
-                    child: _buildSortTab(scrollController),
-                  ),
+                  Expanded(child: _buildSortTab(scrollController)),
                 ],
               ),
             );
@@ -224,7 +229,11 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
         }
 
         Widget buildSortTile(
-            String title, String orderBy, bool descending, IconData icon) {
+          String title,
+          String orderBy,
+          bool descending,
+          IconData icon,
+        ) {
           final isSelected =
               currentOrderBy == orderBy && currentDescending == descending;
           final colorScheme = Theme.of(context).colorScheme;
@@ -239,17 +248,22 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
                 onTap: () {
                   _offlineSearchCubit.changeSorting(
-                      orderBy: orderBy, descending: descending);
+                    orderBy: orderBy,
+                    descending: descending,
+                  );
                   context.pop();
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
                     border: Border.all(
-                      color:
-                          isSelected ? colorScheme.primary : Colors.transparent,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : Colors.transparent,
                       width: 1.5,
                     ),
                   ),
@@ -260,15 +274,18 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                         decoration: BoxDecoration(
                           color: isSelected
                               ? colorScheme.primary.withValues(alpha: 0.2)
-                              : colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.1),
+                              : colorScheme.onSurfaceVariant.withValues(
+                                  alpha: 0.1,
+                                ),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(icon,
-                            size: 20,
-                            color: isSelected
-                                ? colorScheme.primary
-                                : colorScheme.onSurfaceVariant),
+                        child: Icon(
+                          icon,
+                          size: 20,
+                          color: isSelected
+                              ? colorScheme.primary
+                              : colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -276,8 +293,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                           title,
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight:
-                                isSelected ? FontWeight.bold : FontWeight.w500,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.w500,
                             color: isSelected
                                 ? colorScheme.onPrimaryContainer
                                 : colorScheme.onSurface,
@@ -285,8 +303,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                         ),
                       ),
                       if (isSelected)
-                        Icon(Icons.check_circle_rounded,
-                            color: colorScheme.primary)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: colorScheme.primary,
+                        ),
                     ],
                   ),
                 ),
@@ -299,18 +319,42 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
           controller: scrollController,
           padding: const EdgeInsets.only(bottom: 24),
           children: [
-            buildSortTile(AppLocalizations.of(context)!.sortAZ, 'title', false,
-                Icons.sort_by_alpha_rounded),
-            buildSortTile(AppLocalizations.of(context)!.sortZA, 'title', true,
-                Icons.sort_by_alpha_rounded),
-            buildSortTile(AppLocalizations.of(context)!.sortNewToOld,
-                'created_at', true, Icons.new_releases_rounded),
-            buildSortTile(AppLocalizations.of(context)!.sortOldToNew,
-                'created_at', false, Icons.history_rounded),
-            buildSortTile(AppLocalizations.of(context)!.sortPagesAsc,
-                'total_pages', false, Icons.format_list_numbered_rounded),
-            buildSortTile(AppLocalizations.of(context)!.sortPagesDesc,
-                'total_pages', true, Icons.format_list_numbered_rtl_rounded),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortAZ,
+              'title',
+              false,
+              Icons.sort_by_alpha_rounded,
+            ),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortZA,
+              'title',
+              true,
+              Icons.sort_by_alpha_rounded,
+            ),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortNewToOld,
+              'created_at',
+              true,
+              Icons.new_releases_rounded,
+            ),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortOldToNew,
+              'created_at',
+              false,
+              Icons.history_rounded,
+            ),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortPagesAsc,
+              'total_pages',
+              false,
+              Icons.format_list_numbered_rounded,
+            ),
+            buildSortTile(
+              AppLocalizations.of(context)!.sortPagesDesc,
+              'total_pages',
+              true,
+              Icons.format_list_numbered_rtl_rounded,
+            ),
           ],
         );
       },
@@ -356,8 +400,8 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                     color: colorScheme.onSurface,
                   ),
                   decoration: InputDecoration(
-                    hintText:
-                        AppLocalizations.of(context)!.searchOfflineContentHint,
+                    hintText: AppLocalizations.of(context)!
+                        .searchOfflineContentHint,
                     hintStyle: TextStyleConst.bodyMedium.copyWith(
                       color: colorScheme.onSurface.withValues(alpha: 0.7),
                     ),
@@ -373,19 +417,22 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                             },
                             icon: Icon(
                               Icons.clear,
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.7),
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                           )
                         : null,
                     border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusMd,
+                      ),
                       borderSide: BorderSide(color: colorScheme.outline),
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusMd),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusMd,
+                      ),
                       borderSide: BorderSide(color: colorScheme.primary),
                     ),
                     contentPadding: const EdgeInsets.symmetric(
@@ -447,17 +494,20 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
       bloc: _offlineSearchCubit,
       builder: (context, state) {
         final l10n = AppLocalizations.of(context)!;
-        final sourceConfigs = getIt<RemoteConfigService>().getAllSourceConfigs();
+        final sourceConfigs = getIt<RemoteConfigService>()
+            .getAllSourceConfigs();
 
         final String? selectedSourceId = state is OfflineSearchLoaded
             ? state.selectedSourceId
-            : getIt<SharedPreferences>()
-                .getString('offline_selected_source_filter');
+            : getIt<SharedPreferences>().getString(
+                'offline_selected_source_filter',
+              );
         final counts = state is OfflineSearchLoaded
             ? state.sourceCounts
             : const <String, int>{};
-        List<String> bucketIds =
-            state is OfflineSearchLoaded ? state.availableSourceIds : const [];
+        List<String> bucketIds = state is OfflineSearchLoaded
+            ? state.availableSourceIds
+            : const [];
 
         // Cold start: fall back to the config source list so the row is never
         // empty before the first store load completes.
@@ -474,9 +524,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
           ..sort((a, b) {
             final diff = (counts[b] ?? 0).compareTo(counts[a] ?? 0);
             if (diff != 0) return diff;
-            return _sourceLabel(l10n, sourceConfigs, a)
-                .toLowerCase()
-                .compareTo(_sourceLabel(l10n, sourceConfigs, b).toLowerCase());
+            return _sourceLabel(l10n, sourceConfigs, a).toLowerCase().compareTo(
+              _sourceLabel(l10n, sourceConfigs, b).toLowerCase(),
+            );
           });
 
         final total = counts.values.fold<int>(0, (sum, v) => sum + v);
@@ -510,7 +560,8 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                 context,
                 sourceId: sourceId,
                 label: _sourceLabel(l10n, sourceConfigs, sourceId),
-                color: _sourceColor(sourceConfigs, sourceId) ??
+                color:
+                    _sourceColor(sourceConfigs, sourceId) ??
                     _fallbackSourceColor(sourceId),
                 iconPath: _sourceIconPath(sourceConfigs, sourceId),
                 count: counts[sourceId] ?? 0,
@@ -574,8 +625,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
       Color(0xFF81C784),
       Color(0xFF26C6DA),
     ];
-    final hash =
-        sourceId.codeUnits.fold<int>(0, (h, c) => (h * 31 + c) & 0x7fffffff);
+    final hash = sourceId.codeUnits.fold<int>(
+      0,
+      (h, c) => (h * 31 + c) & 0x7fffffff,
+    );
     return palette[hash % palette.length];
   }
 
@@ -672,8 +725,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                     child: LinearProgressIndicator(
                       value: pct,
                       minHeight: 4,
-                      backgroundColor:
-                          colorScheme.onSurface.withValues(alpha: 0.08),
+                      backgroundColor: colorScheme.onSurface.withValues(
+                        alpha: 0.08,
+                      ),
                       valueColor: AlwaysStoppedAnimation<Color>(color),
                     ),
                   ),
@@ -712,8 +766,11 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.arrow_forward_rounded,
-                      color: colorScheme.primary, size: 22),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: colorScheme.primary,
+                    size: 22,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     '${AppLocalizations.of(context)!.viewAll} ($totalSources)',
@@ -744,20 +801,24 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
       ..sort((a, b) {
         final diff = (counts[b] ?? 0).compareTo(counts[a] ?? 0);
         if (diff != 0) return diff;
-        return _sourceLabel(l10n, configs, a)
-            .toLowerCase()
-            .compareTo(_sourceLabel(l10n, configs, b).toLowerCase());
+        return _sourceLabel(
+          l10n,
+          configs,
+          a,
+        ).toLowerCase().compareTo(_sourceLabel(l10n, configs, b).toLowerCase());
       });
 
     final options = ids
-        .map((id) => _SourceOption(
-              id: id,
-              label: _sourceLabel(l10n, configs, id),
-              color: _sourceColor(configs, id) ?? _fallbackSourceColor(id),
-              iconPath: _sourceIconPath(configs, id),
-              count: counts[id] ?? 0,
-              isLocal: id == 'local',
-            ))
+        .map(
+          (id) => _SourceOption(
+            id: id,
+            label: _sourceLabel(l10n, configs, id),
+            color: _sourceColor(configs, id) ?? _fallbackSourceColor(id),
+            iconPath: _sourceIconPath(configs, id),
+            count: counts[id] ?? 0,
+            isLocal: id == 'local',
+          ),
+        )
         .toList(growable: false);
 
     final choice = await showModalBottomSheet<String>(
@@ -776,8 +837,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
     );
 
     if (!context.mounted || choice == null) return;
-    _offlineSearchCubit
-        .filterBySource(choice == _AllSourcesSheet.allSentinel ? null : choice);
+    _offlineSearchCubit.filterBySource(
+      choice == _AllSourcesSheet.allSentinel ? null : choice,
+    );
   }
 
   Widget _buildContent(OfflineSearchState state) {
@@ -826,7 +888,7 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                 state.query.isEmpty
                     ? AppLocalizations.of(context)!.noOfflineContent
                     : AppLocalizations.of(context)!
-                        .noResultsFoundFor(state.query),
+                          .noResultsFoundFor(state.query),
                 textAlign: TextAlign.center,
                 style: TextStyleConst.titleMedium.copyWith(
                   color: colorScheme.onSurface,
@@ -845,7 +907,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 24, vertical: 12),
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
                   ),
                 ),
               ],
@@ -891,8 +955,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                       const SizedBox(height: DesignTokens.spaceSm),
                       _buildTipRow(colorScheme, '2. Tap the download button'),
                       const SizedBox(height: DesignTokens.spaceSm),
-                      _buildTipRow(colorScheme,
-                          '3. Access them here anytime, even offline!'),
+                      _buildTipRow(
+                        colorScheme,
+                        '3. Access them here anytime, even offline!',
+                      ),
                     ],
                   ),
                 ),
@@ -901,8 +967,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                 FilledButton.icon(
                   onPressed: () => context.go('/downloads'),
                   icon: const Icon(Icons.download_rounded),
-                  label: Text(AppLocalizations.of(context)!
-                      .browseDownloads), // Hardcoded to avoid key guessing
+                  label: Text(
+                    AppLocalizations.of(context)!.browseDownloads,
+                  ), // Hardcoded to avoid key guessing
                   style: FilledButton.styleFrom(
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
@@ -923,8 +990,12 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
       return Column(
         children: [
           Container(
-            padding:
-                const EdgeInsets.only(left: 16, right: 16, top: 4, bottom: 12),
+            padding: const EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 4,
+              bottom: 12,
+            ),
             child: Row(
               children: [
                 Text(
@@ -1014,7 +1085,8 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                       final contentGroup = _dedupedGroup(state.results[index]);
                       return ContentGroupCardWidget(
                         key: ValueKey(
-                            '${contentGroup.representativeContent.sourceId}_${contentGroup.baseTitle}'),
+                          '${contentGroup.representativeContent.sourceId}_${contentGroup.baseTitle}',
+                        ),
                         contentGroup: contentGroup,
                         isListMode: state.isListMode,
                         hideOfflineIndicator:
@@ -1076,7 +1148,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
   }
 
   Future<void> _showGroupContentActions(
-      BuildContext context, ContentGroup group) async {
+    BuildContext context,
+    ContentGroup group,
+  ) async {
     final colorScheme = Theme.of(context).colorScheme;
     final offlineManager = getIt<OfflineContentManager>();
 
@@ -1089,8 +1163,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
           item.id,
         );
         if (firstImage != null) {
-          chapterPaths
-              .add((title: item.title, path: File(firstImage).parent.path));
+          chapterPaths.add((
+            title: item.title,
+            path: File(firstImage).parent.path,
+          ));
         }
       } catch (_) {
         // Best effort only. Missing paths should not block the info sheet.
@@ -1106,8 +1182,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
       isScrollControlled: true,
       backgroundColor: colorScheme.surface,
       builder: (bottomSheetContext) {
-        final sizeText =
-            OfflineContentManager.formatStorageSize(group.totalSize);
+        final sizeText = OfflineContentManager.formatStorageSize(
+          group.totalSize,
+        );
         final chapterLabel =
             '${group.chapterCount} Chapter${group.chapterCount > 1 ? 's' : ''} tersedia';
 
@@ -1125,8 +1202,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                 ),
               ),
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     Container(
@@ -1134,8 +1213,9 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                       height: 54,
                       decoration: BoxDecoration(
                         color: colorScheme.primaryContainer,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXl),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusXl,
+                        ),
                       ),
                       child: Center(
                         child: Icon(
@@ -1208,8 +1288,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
               const Divider(height: 1),
               if (chapterPaths.isNotEmpty) ...[
                 ListTile(
-                  leading: Icon(Icons.folder_copy_rounded,
-                      color: colorScheme.secondary),
+                  leading: Icon(
+                    Icons.folder_copy_rounded,
+                    color: colorScheme.secondary,
+                  ),
                   title: Text(
                     'Chapter paths',
                     style: TextStyleConst.titleSmall.copyWith(
@@ -1236,8 +1318,10 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                       );
                       ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(
-                            content: Text(AppLocalizations.of(parentContext)!
-                                .pathsCopied)),
+                          content: Text(
+                            AppLocalizations.of(parentContext)!.pathsCopied,
+                          ),
+                        ),
                       );
                     },
                   ),
@@ -1254,13 +1338,16 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                       final entry = chapterPaths[index];
                       return Container(
                         decoration: BoxDecoration(
-                          color: colorScheme.surfaceContainerHighest
-                              .withValues(alpha: 0.45),
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          color: colorScheme.surfaceContainerHighest.withValues(
+                            alpha: 0.45,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                           border: Border.all(
-                            color: colorScheme.outlineVariant
-                                .withValues(alpha: 0.45),
+                            color: colorScheme.outlineVariant.withValues(
+                              alpha: 0.45,
+                            ),
                           ),
                         ),
                         child: ListTile(
@@ -1300,19 +1387,24 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
                                 tooltip: AppLocalizations.of(context)!.copyPath,
                                 onPressed: () {
                                   Clipboard.setData(
-                                      ClipboardData(text: entry.path));
+                                    ClipboardData(text: entry.path),
+                                  );
                                   ScaffoldMessenger.of(parentContext)
                                       .showSnackBar(
-                                    SnackBar(
-                                        content: Text(
+                                        SnackBar(
+                                          content: Text(
                                             AppLocalizations.of(parentContext)!
-                                                .pathCopied)),
-                                  );
+                                                .pathCopied,
+                                          ),
+                                        ),
+                                      );
                                 },
                               ),
                               IconButton(
-                                icon: const Icon(Icons.open_in_new_rounded,
-                                    size: 18),
+                                icon: const Icon(
+                                  Icons.open_in_new_rounded,
+                                  size: 18,
+                                ),
                                 tooltip: AppLocalizations.of(context)!
                                     .openInExplorer,
                                 onPressed: () => OpenFile.open(entry.path),
@@ -1406,7 +1498,11 @@ Widget _sourceAvatarWidget({
         height: size,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: color, borderRadius: radius),
-        child: Icon(Icons.folder_rounded, size: size * 0.62, color: Colors.black87),
+        child: Icon(
+          Icons.folder_rounded,
+          size: size * 0.62,
+          color: Colors.black87,
+        ),
       );
     }
     return Container(
@@ -1434,15 +1530,15 @@ Widget _sourceAvatarWidget({
   final isAbsolute = iconPath.startsWith('/');
 
   Widget image(ImageProvider provider) => ClipRRect(
-        borderRadius: radius,
-        child: Image(
-          image: provider,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (_, _, _) => fallback(),
-        ),
-      );
+    borderRadius: radius,
+    child: Image(
+      image: provider,
+      width: size,
+      height: size,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => fallback(),
+    ),
+  );
 
   if (isFileUri || isAbsolute) {
     return image(FileImage(File(isFileUri ? uri!.toFilePath() : iconPath)));
@@ -1508,13 +1604,17 @@ class _AllSourcesSheetState extends State<_AllSourcesSheet> {
     final filtered = q.isEmpty
         ? widget.options
         : widget.options
-            .where((o) =>
-                o.label.toLowerCase().contains(q) ||
-                o.id.toLowerCase().contains(q))
-            .toList(growable: false);
+              .where(
+                (o) =>
+                    o.label.toLowerCase().contains(q) ||
+                    o.id.toLowerCase().contains(q),
+              )
+              .toList(growable: false);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1559,8 +1659,10 @@ class _AllSourcesSheetState extends State<_AllSourcesSheet> {
               ),
               decoration: InputDecoration(
                 hintText: l10n.sourceSelectorSearchHint,
-                prefixIcon: Icon(Icons.search_rounded,
-                    color: colorScheme.onSurfaceVariant),
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: colorScheme.onSurfaceVariant,
+                ),
                 suffixIcon: _query.isNotEmpty
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -1573,8 +1675,10 @@ class _AllSourcesSheetState extends State<_AllSourcesSheet> {
                 filled: true,
                 fillColor: colorScheme.surface,
                 isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   borderSide: BorderSide.none,
@@ -1590,8 +1694,10 @@ class _AllSourcesSheetState extends State<_AllSourcesSheet> {
                 if (q.isEmpty)
                   _row(
                     context,
-                    leading: Icon(Icons.select_all_rounded,
-                        color: colorScheme.primary),
+                    leading: Icon(
+                      Icons.select_all_rounded,
+                      color: colorScheme.primary,
+                    ),
                     title: l10n.allSources,
                     count: widget.total,
                     selected: widget.selectedSourceId == null,
@@ -1666,8 +1772,11 @@ class _AllSourcesSheetState extends State<_AllSourcesSheet> {
           ),
           const SizedBox(width: 8),
           if (selected)
-            Icon(Icons.check_circle_rounded,
-                size: 20, color: colorScheme.primary),
+            Icon(
+              Icons.check_circle_rounded,
+              size: 20,
+              color: colorScheme.primary,
+            ),
         ],
       ),
     );

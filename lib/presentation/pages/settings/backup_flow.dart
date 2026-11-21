@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/notification_service.dart';
@@ -27,14 +27,14 @@ typedef BackupFlowSummary = Map<String, BackupCategoryResult>;
 typedef BackupProgress = void Function(String category, int done, int total);
 
 Map<String, String> backupCategoryLabels(AppLocalizations l10n) => {
-      'favorites': l10n.favorites,
-      'collections': l10n.collections,
-      'memberships': l10n.nclientMemberships,
-      'history': l10n.history,
-      'positions': l10n.nclientPositions,
-      'settings': l10n.settings,
-      'malformed': l10n.nclientMalformedRows,
-    };
+  'favorites': l10n.favorites,
+  'collections': l10n.collections,
+  'memberships': l10n.nclientMemberships,
+  'history': l10n.history,
+  'positions': l10n.nclientPositions,
+  'settings': l10n.settings,
+  'malformed': l10n.nclientMalformedRows,
+};
 
 /// Shows a non-dismissable progress dialog while [run] works, then closes it.
 ///
@@ -53,23 +53,29 @@ Future<T?> runBackupProgressFlow<T>({
   final notif = getIt.isRegistered<NotificationService>()
       ? getIt<NotificationService>()
       : null;
-  String loc(String key,
-          {Map<String, dynamic>? args, required String fallback}) =>
-      notif?.localize(key, args: args, fallback: fallback) ?? fallback;
+  String loc(
+    String key, {
+    Map<String, dynamic>? args,
+    required String fallback,
+  }) => notif?.localize(key, args: args, fallback: fallback) ?? fallback;
   T? result;
   Object? failure;
   var finished = false;
   BuildContext? dialogContext;
 
-  unawaited(notif?.showTaskProgress(
-    id: _backupNotificationId,
-    title: title,
-    speech: loc('kuronNotifBackupStartSpeech',
-        fallback: '🐾 Kuron: Memproses data backup...'),
-    meta: '0%',
-    progress: 0,
-    indeterminate: true,
-  ));
+  unawaited(
+    notif?.showTaskProgress(
+      id: _backupNotificationId,
+      title: title,
+      speech: loc(
+        'kuronNotifBackupStartSpeech',
+        fallback: '🐾 Kuron: Memproses data backup...',
+      ),
+      meta: '0%',
+      progress: 0,
+      indeterminate: true,
+    ),
+  );
 
   void closeProgressDialog() {
     final ctx = dialogContext;
@@ -85,45 +91,64 @@ Future<T?> runBackupProgressFlow<T>({
     result = value;
     failure = error;
     if (error == null) {
-      unawaited(notif?.showTaskCompleted(
-        id: _backupNotificationId,
-        title: title,
-        speech: loc('kuronNotifBackupDoneSpeech',
-            fallback: '🐾 Kuron: Proses backup/restore selesai! ✨'),
-        meta: loc('kuronNotifBackupMeta',
-            args: {'title': title}, fallback: '$title completed'),
-        autoCancelAfter: const Duration(seconds: 4),
-      ));
+      unawaited(
+        notif?.showTaskCompleted(
+          id: _backupNotificationId,
+          title: title,
+          speech: loc(
+            'kuronNotifBackupDoneSpeech',
+            fallback: '🐾 Kuron: Proses backup/restore selesai! ✨',
+          ),
+          meta: loc(
+            'kuronNotifBackupMeta',
+            args: {'title': title},
+            fallback: '$title completed',
+          ),
+          autoCancelAfter: const Duration(seconds: 4),
+        ),
+      );
     } else {
-      unawaited(notif?.showTaskError(
-        id: _backupNotificationId,
-        title: title,
-        speech: loc('kuronNotifBackupErrorSpeech',
-            fallback: '⚠️ Kuron: Proses gagal'),
-        meta: '$error',
-        autoCancelAfter: const Duration(seconds: 5),
-      ));
+      unawaited(
+        notif?.showTaskError(
+          id: _backupNotificationId,
+          title: title,
+          speech: loc(
+            'kuronNotifBackupErrorSpeech',
+            fallback: '⚠️ Kuron: Proses gagal',
+          ),
+          meta: '$error',
+          autoCancelAfter: const Duration(seconds: 5),
+        ),
+      );
     }
     closeProgressDialog();
   }
 
-  unawaited(run((cat, done, total) {
-    progress.value = (cat, done, total);
-    final label = labels[cat] ?? cat;
-    final pct = total > 0 ? ((done / total) * 100).round().clamp(0, 100) : 0;
-    unawaited(notif?.showTaskProgress(
-      id: _backupNotificationId,
-      title: title,
-      speech: loc('kuronNotifBackupCategorySpeech',
-          args: {'label': label},
-          fallback: '🐾 Kuron: Memproses $label...'),
-      meta: loc('kuronNotifBackupProgressMeta',
-          args: {'label': label, 'done': '$done', 'total': '$total'},
-          fallback: '$label: $done/$total'),
-      progress: pct,
-      indeterminate: total == 0,
-    ));
-  }).then((v) => settle(v, null), onError: (Object e) => settle(null, e)));
+  unawaited(
+    run((cat, done, total) {
+      progress.value = (cat, done, total);
+      final label = labels[cat] ?? cat;
+      final pct = total > 0 ? ((done / total) * 100).round().clamp(0, 100) : 0;
+      unawaited(
+        notif?.showTaskProgress(
+          id: _backupNotificationId,
+          title: title,
+          speech: loc(
+            'kuronNotifBackupCategorySpeech',
+            args: {'label': label},
+            fallback: '🐾 Kuron: Memproses $label...',
+          ),
+          meta: loc(
+            'kuronNotifBackupProgressMeta',
+            args: {'label': label, 'done': '$done', 'total': '$total'},
+            fallback: '$label: $done/$total',
+          ),
+          progress: pct,
+          indeterminate: total == 0,
+        ),
+      );
+    }).then((v) => settle(v, null), onError: (Object e) => settle(null, e)),
+  );
 
   await showDialog<void>(
     context: context,
@@ -139,7 +164,8 @@ Future<T?> runBackupProgressFlow<T>({
             mainAxisSize: MainAxisSize.min,
             children: [
               LinearProgressIndicator(
-                  value: p.$3 == 0 ? null : (p.$2 / p.$3).clamp(0.0, 1.0)),
+                value: p.$3 == 0 ? null : (p.$2 / p.$3).clamp(0.0, 1.0),
+              ),
               const SizedBox(height: 12),
               Text('${labels[p.$1] ?? p.$1}: ${p.$2}/${p.$3}'),
             ],
@@ -265,12 +291,14 @@ class BackupSummaryDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           for (final e in summary.entries)
-            Text(l10n.nclientSummaryRow(
-              labels[e.key] ?? e.key,
-              e.value.success,
-              e.value.skipped,
-              e.value.failed,
-            )),
+            Text(
+              l10n.nclientSummaryRow(
+                labels[e.key] ?? e.key,
+                e.value.success,
+                e.value.skipped,
+                e.value.failed,
+              ),
+            ),
         ],
       ),
       actions: [

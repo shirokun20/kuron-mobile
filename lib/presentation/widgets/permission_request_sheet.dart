@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/utils/permission_helper.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -95,8 +95,9 @@ class _PermissionRequestSheetState extends State<PermissionRequestSheet> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text(AppLocalizations.of(context)!.pleaseGrantAllPermissions),
+          content: Text(
+            AppLocalizations.of(context)!.pleaseGrantAllPermissions,
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
           duration: const Duration(seconds: 3),
         ),
@@ -190,8 +191,10 @@ class _PermissionRequestSheetState extends State<PermissionRequestSheet> {
               ),
               child: Text(
                 l10n.confirmButton,
-                style:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -268,11 +271,13 @@ Future<bool> showPermissionRequestSheet(
   bool requireNotification = true,
 }) async {
   // Check if permissions already granted
-  final hasStorage =
-      requireStorage ? await PermissionHelper.hasStoragePermission() : true;
+  final hasStorage = requireStorage
+      ? await PermissionHelper.hasStoragePermission()
+      : true;
   final notificationService = getIt<NotificationService>();
-  final hasNotification =
-      requireNotification ? notificationService.hasPermission : true;
+  final hasNotification = requireNotification
+      ? notificationService.hasPermission
+      : true;
 
   if (hasStorage && hasNotification) {
     return true; // All required permissions already granted

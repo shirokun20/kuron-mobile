@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/domain/entities/reader_badge.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -9,19 +11,30 @@ import 'package:nhasixapp/presentation/widgets/reader_avatar.dart';
 void main() {
   test('backgroundFor keeps one pastel disc per tier', () {
     expect(
-        ReaderAvatar.backgroundFor(ReaderTier.santai), const Color(0xFFFFDFBF));
-    expect(ReaderAvatar.backgroundFor(ReaderTier.kutubuku),
-        const Color(0xFFC0AEDE));
+      ReaderAvatar.backgroundFor(ReaderTier.santai),
+      const Color(0xFFFFDFBF),
+    );
     expect(
-        ReaderAvatar.backgroundFor(ReaderTier.otaku), const Color(0xFFB6E3F4));
+      ReaderAvatar.backgroundFor(ReaderTier.kutubuku),
+      const Color(0xFFC0AEDE),
+    );
     expect(
-        ReaderAvatar.backgroundFor(ReaderTier.resi), const Color(0xFFFFD5DC));
+      ReaderAvatar.backgroundFor(ReaderTier.otaku),
+      const Color(0xFFB6E3F4),
+    );
     expect(
-        ReaderAvatar.backgroundFor(ReaderTier.shaker), const Color(0xFFD1D4F9));
+      ReaderAvatar.backgroundFor(ReaderTier.resi),
+      const Color(0xFFFFD5DC),
+    );
+    expect(
+      ReaderAvatar.backgroundFor(ReaderTier.shaker),
+      const Color(0xFFD1D4F9),
+    );
   });
 
-  testWidgets('every tier renders its dedicated avatar at the right size',
-      (tester) async {
+  testWidgets('every tier renders its dedicated avatar at the right size', (
+    tester,
+  ) async {
     for (final tier in ReaderTier.values) {
       await tester.pumpWidget(
         MaterialApp(

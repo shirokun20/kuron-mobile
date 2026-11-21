@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
@@ -40,11 +42,10 @@ void main() {
       GetIt.instance.unregister<RemoteConfigService>();
     }
 
-    when(() => mockRemoteConfigService.getRawConfig('crotpedia')).thenReturn(
-      <String, dynamic>{
-        'navigation': <String, dynamic>{'genreQueryPrefix': 'genre:'},
-      },
-    );
+    when(() => mockRemoteConfigService.getRawConfig('crotpedia'))
+        .thenReturn(<String, dynamic>{
+          'navigation': <String, dynamic>{'genreQueryPrefix': 'genre:'},
+        });
 
     GetIt.instance.registerFactory<CrotpediaFeatureCubit>(() => mockCubit);
     GetIt.instance.registerSingleton<RemoteConfigService>(
@@ -97,9 +98,17 @@ void main() {
     testWidgets('shows list of genres when state is loaded', (tester) async {
       final genres = [
         GenreItem(
-            name: 'Action', count: 10, url: '/genre/action', slug: 'action'),
+          name: 'Action',
+          count: 10,
+          url: '/genre/action',
+          slug: 'action',
+        ),
         GenreItem(
-            name: 'Romance', count: 5, url: '/genre/romance', slug: 'romance'),
+          name: 'Romance',
+          count: 5,
+          url: '/genre/romance',
+          slug: 'romance',
+        ),
       ];
       when(() => mockCubit.state).thenReturn(GenreListLoaded(genres));
       when(() => mockCubit.loadGenreList()).thenAnswer((_) async {});
@@ -115,7 +124,11 @@ void main() {
     testWidgets('shows header with genre count when loaded', (tester) async {
       final genres = [
         GenreItem(
-            name: 'Action', count: 10, url: '/genre/action', slug: 'action'),
+          name: 'Action',
+          count: 10,
+          url: '/genre/action',
+          slug: 'action',
+        ),
       ];
       when(() => mockCubit.state).thenReturn(GenreListLoaded(genres));
       when(() => mockCubit.loadGenreList()).thenAnswer((_) async {});

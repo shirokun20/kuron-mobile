@@ -1,5 +1,5 @@
 import 'package:logger/logger.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/utils/directory_utils.dart';
@@ -22,14 +22,17 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
     final hasPermission = await PermissionHelper.hasStoragePermission();
     if (!hasPermission) {
       if (context.mounted) {
-        final granted =
-            await PermissionHelper.requestStoragePermission(context);
+        final granted = await PermissionHelper.requestStoragePermission(
+          context,
+        );
         if (!granted) {
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)!.storagePermissionRequired)),
+              content: Text(
+                AppLocalizations.of(context)!.storagePermissionRequired,
+              ),
+            ),
           );
           return;
         }
@@ -103,9 +106,7 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
                   AppLocalizations.of(context)!.exportPath(exportPath),
                   style: TextStyle(
                     fontSize: 12,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
+                    color: Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.7),
                   ),
                 ),
@@ -134,8 +135,9 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content:
-              Text(AppLocalizations.of(context)!.errorGeneric(e.toString())),
+          content: Text(
+            AppLocalizations.of(context)!.errorGeneric(e.toString()),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -150,12 +152,14 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
 
     final backupPath = await DirectoryUtils.findNhasixBackupFolder();
     Logger().i(
-        'OFFLINE_AUTO_SCAN: DirectoryUtils.findNhasixBackupFolder() returned: $backupPath');
+      'OFFLINE_AUTO_SCAN: DirectoryUtils.findNhasixBackupFolder() returned: $backupPath',
+    );
 
     if (backupPath != null) {
       final scanPath = _resolveBackupSourcePath(backupPath, sourceId);
       Logger().i(
-          'OFFLINE_AUTO_SCAN: Found backup path: $scanPath, starting sync...');
+        'OFFLINE_AUTO_SCAN: Found backup path: $scanPath, starting sync...',
+      );
 
       final offlineManager = getIt<OfflineContentManager>();
 
@@ -166,8 +170,9 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
         scanPath,
         sourceId: sourceId,
         onProgress: (processed, total) {
-          final percentage =
-              total > 0 ? ((processed / total) * 100).toInt() : 0;
+          final percentage = total > 0
+              ? ((processed / total) * 100).toInt()
+              : 0;
           notificationService.updateSyncProgress(
             progress: percentage,
             message: 'Sync $processed/$total',
@@ -184,8 +189,9 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
       if (synced > 0 || updated > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content:
-                Text(AppLocalizations.of(context)!.syncResult(synced, updated)),
+            content: Text(
+              AppLocalizations.of(context)!.syncResult(synced, updated),
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -198,13 +204,15 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
 
       try {
         context.read<DownloadBloc>().add(const DownloadRefreshEvent());
-        Logger()
-            .i('OFFLINE_AUTO_SCAN: Triggered DownloadBloc refresh after sync');
+        Logger().i(
+          'OFFLINE_AUTO_SCAN: Triggered DownloadBloc refresh after sync',
+        );
       } catch (e) {
         // DownloadBloc might not be available in all contexts (e.g., if Downloads Screen hasn't been visited)
         // This is non-critical, so just log and continue
         Logger().i(
-            'OFFLINE_AUTO_SCAN: Could not refresh DownloadBloc (not initialized yet): $e');
+          'OFFLINE_AUTO_SCAN: Could not refresh DownloadBloc (not initialized yet): $e',
+        );
       }
     } else {
       Logger().i('OFFLINE_AUTO_SCAN: No backup folder found automatically');
@@ -250,8 +258,9 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
       return currentState.selectedSourceId;
     }
 
-    return getIt<SharedPreferences>()
-        .getString('offline_selected_source_filter');
+    return getIt<SharedPreferences>().getString(
+      'offline_selected_source_filter',
+    );
   }
 
   String _resolveBackupSourcePath(String backupPath, String? sourceId) {
@@ -272,14 +281,17 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
     final hasPermission = await PermissionHelper.hasStoragePermission();
     if (!hasPermission) {
       if (context.mounted) {
-        final granted =
-            await PermissionHelper.requestStoragePermission(context);
+        final granted = await PermissionHelper.requestStoragePermission(
+          context,
+        );
         if (!granted) {
           if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content: Text(
-                    AppLocalizations.of(context)!.storagePermissionRequired)),
+              content: Text(
+                AppLocalizations.of(context)!.storagePermissionRequired,
+              ),
+            ),
           );
           return;
         }
@@ -302,18 +314,21 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
           },
           onProgress:
               (fileIndex, totalFiles, processed, total, imgCount, currentFile) {
-            final percentage =
-                total > 0 ? ((processed / total) * 100).toInt() : 0;
+                final percentage = total > 0
+                    ? ((processed / total) * 100).toInt()
+                    : 0;
 
-            final String prefix =
-                totalFiles > 1 ? '[$fileIndex/$totalFiles] ' : '';
-            notificationService.updateZipExtractionProgress(
-              progress: percentage,
-              message: prefix +
-                  AppLocalizations.of(context)!
-                      .syncProgressMessage(processed, total),
-            );
-          },
+                final String prefix = totalFiles > 1
+                    ? '[$fileIndex/$totalFiles] '
+                    : '';
+                notificationService.updateZipExtractionProgress(
+                  progress: percentage,
+                  message:
+                      prefix +
+                      AppLocalizations.of(context)!
+                          .syncProgressMessage(processed, total),
+                );
+              },
         ),
       );
 
@@ -336,7 +351,7 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
               importedCount > 1
                   ? '$importedCount ZIP diimpor ke folder terpisah'
                   : AppLocalizations.of(context)!
-                      .importedContentWithImages(contentId, imageCount),
+                        .importedContentWithImages(contentId, imageCount),
             ),
             duration: const Duration(seconds: 3),
           ),
@@ -363,8 +378,10 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(AppLocalizations.of(context)!
-                  .importFailedError(error.toString())),
+              content: Text(
+                AppLocalizations.of(context)!
+                    .importFailedError(error.toString()),
+              ),
               backgroundColor: Theme.of(context).colorScheme.error,
               duration: const Duration(seconds: 4),
             ),
@@ -381,7 +398,8 @@ mixin OfflineManagementMixin<T extends StatefulWidget> on State<T> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              AppLocalizations.of(context)!.errorImportingZip(e.toString())),
+            AppLocalizations.of(context)!.errorImportingZip(e.toString()),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );

@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 import 'package:mocktail/mocktail.dart';
@@ -16,10 +18,7 @@ class _MockGetReadingStreakUseCase extends Mock
 // Sunday 2026-10-11.
 final _now = DateTime(2026, 10, 11, 20, 30);
 
-StreakCubit _cubitFor(
-  ReadingStatistics stats,
-  String? lastContentId,
-) {
+StreakCubit _cubitFor(ReadingStatistics stats, String? lastContentId) {
   final useCase = _MockGetReadingStreakUseCase();
   when(() => useCase.forDate(any())).thenAnswer((_) async => stats);
   when(() => useCase.getLastReadContentId())
@@ -47,8 +46,9 @@ KuroMood _moodOf(WidgetTester tester) =>
 
 void main() {
   group('StreakCard', () {
-    testWidgets('read today: shows streak and ceria mascot, no checklist',
-        (tester) async {
+    testWidgets('read today: shows streak and ceria mascot, no checklist', (
+      tester,
+    ) async {
       final cubit = _cubitFor(
         ReadingStatistics.streak(
           readingStreak: 4,
@@ -105,16 +105,14 @@ void main() {
       expect(find.text('0'), findsOneWidget);
     });
 
-    testWidgets('renders localized strings via AppLocalizations (en)',
-        (tester) async {
+    testWidgets('renders localized strings via AppLocalizations (en)', (
+      tester,
+    ) async {
       final cubit = _cubitFor(
         ReadingStatistics.streak(
           readingStreak: 5,
           lastReadDate: DateTime(2026, 10, 11),
-          readDays: [
-            DateTime(2026, 10, 10),
-            DateTime(2026, 10, 11),
-          ],
+          readDays: [DateTime(2026, 10, 10), DateTime(2026, 10, 11)],
         ),
         'content-99',
       );

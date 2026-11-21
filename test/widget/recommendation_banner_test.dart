@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -11,20 +13,20 @@ import 'package:nhasixapp/presentation/widgets/recommendation_banner.dart';
 class _MockRegistry extends Mock implements ContentSourceRegistry {}
 
 Content _content(String id) => Content(
-      id: id,
-      sourceId: 'nhentai',
-      title: 'Banner Title $id',
-      coverUrl: 'http://cover/$id',
-      tags: const [],
-      artists: const [],
-      characters: const [],
-      parodies: const [],
-      groups: const [],
-      language: 'english',
-      pageCount: 10,
-      imageUrls: const [],
-      uploadDate: DateTime(2026, 1, 1),
-    );
+  id: id,
+  sourceId: 'nhentai',
+  title: 'Banner Title $id',
+  coverUrl: 'http://cover/$id',
+  tags: const [],
+  artists: const [],
+  characters: const [],
+  parodies: const [],
+  groups: const [],
+  language: 'english',
+  pageCount: 10,
+  imageUrls: const [],
+  uploadDate: DateTime(2026, 1, 1),
+);
 
 Recommendation _rec(String id) {
   final c = _content(id);
@@ -52,10 +54,7 @@ Widget _harness({
     ],
     supportedLocales: const [Locale('en')],
     home: Scaffold(
-      body: RecommendationBannerCarousel(
-        items: items,
-        onTap: onTap ?? (_) {},
-      ),
+      body: RecommendationBannerCarousel(items: items, onTap: onTap ?? (_) {}),
     ),
   );
 }
@@ -79,8 +78,9 @@ void main() {
     expect(find.byType(BannerDots), findsOneWidget);
   });
 
-  testWidgets('explore slide chips the source id without prefix',
-      (tester) async {
+  testWidgets('explore slide chips the source id without prefix', (
+    tester,
+  ) async {
     final c = _content('x');
     final explore = Recommendation(
       contentId: 'x',
@@ -108,18 +108,12 @@ void main() {
 
   testWidgets('no autoplay progress bar, dots carry position', (tester) async {
     await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
-    expect(
-      find.byKey(const ValueKey('autoplay-progress')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('autoplay-progress')), findsNothing);
     expect(find.byType(BannerDots), findsOneWidget);
 
     await tester.pumpWidget(_harness(items: [_rec('a')]));
     await tester.pump();
-    expect(
-      find.byKey(const ValueKey('autoplay-progress')),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey('autoplay-progress')), findsNothing);
   });
 
   testWidgets('cover drifts against the swipe direction', (tester) async {
@@ -130,9 +124,9 @@ void main() {
     await tester.drag(find.byType(PageView), const Offset(-400, 0));
     await tester.pump(const Duration(milliseconds: 100));
 
-    final shifted = tester.widgetList<Transform>(find.byType(Transform)).where(
-          (t) => t.transform.getTranslation().x != 0,
-        );
+    final shifted = tester
+        .widgetList<Transform>(find.byType(Transform))
+        .where((t) => t.transform.getTranslation().x != 0);
     expect(shifted, isNotEmpty);
 
     await tester.pump(const Duration(milliseconds: 600));
@@ -141,10 +135,12 @@ void main() {
 
   testWidgets('tap opens the visible recommendation', (tester) async {
     final tapped = <String>[];
-    await tester.pumpWidget(_harness(
-      items: [_rec('a'), _rec('b')],
-      onTap: (r) => tapped.add(r.contentId),
-    ));
+    await tester.pumpWidget(
+      _harness(
+        items: [_rec('a'), _rec('b')],
+        onTap: (r) => tapped.add(r.contentId),
+      ),
+    );
 
     await tester.tap(find.text('Banner Title a'));
     expect(tapped, ['a']);

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../core/constants/colors_const.dart' show AppColors, KuronColors;
@@ -34,8 +34,9 @@ class ContentGroupCardWidget extends StatelessWidget {
 
   Widget _buildGridMode(BuildContext context) {
     final representative = contentGroup.representativeContent;
-    final totalSizeStr =
-        OfflineContentManager.formatStorageSize(contentGroup.totalSize);
+    final totalSizeStr = OfflineContentManager.formatStorageSize(
+      contentGroup.totalSize,
+    );
     final theme = Theme.of(context);
     final readColor =
         theme.extension<KuronColors>()?.readGold ?? AppColors.readGold;
@@ -58,8 +59,9 @@ class ContentGroupCardWidget extends StatelessWidget {
           boxShadow: [
             if (hasReadProgress || !hideOfflineIndicator)
               BoxShadow(
-                color: (hasReadProgress ? readColor : offlineColor)
-                    .withValues(alpha: hasReadProgress ? 0.2 : 0.14),
+                color: (hasReadProgress ? readColor : offlineColor).withValues(
+                  alpha: hasReadProgress ? 0.2 : 0.14,
+                ),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -181,8 +183,9 @@ class ContentGroupCardWidget extends StatelessWidget {
 
   Widget _buildListMode(BuildContext context) {
     final representative = contentGroup.representativeContent;
-    final totalSizeStr =
-        OfflineContentManager.formatStorageSize(contentGroup.totalSize);
+    final totalSizeStr = OfflineContentManager.formatStorageSize(
+      contentGroup.totalSize,
+    );
     final theme = Theme.of(context);
     final readColor =
         theme.extension<KuronColors>()?.readGold ?? AppColors.readGold;
@@ -212,8 +215,9 @@ class ContentGroupCardWidget extends StatelessWidget {
         boxShadow: [
           if (hasReadProgress || !hideOfflineIndicator)
             BoxShadow(
-              color: (hasReadProgress ? readColor : offlineColor)
-                  .withValues(alpha: hasReadProgress ? 0.16 : 0.12),
+              color: (hasReadProgress ? readColor : offlineColor).withValues(
+                alpha: hasReadProgress ? 0.16 : 0.12,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -320,8 +324,9 @@ class ContentGroupCardWidget extends StatelessWidget {
                     const Spacer(),
                     if (hasReadProgress) ...[
                       ClipRRect(
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusSm,
+                        ),
                         child: LinearProgressIndicator(
                           value: contentGroup.readProgress,
                           backgroundColor:

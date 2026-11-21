@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../core/constants/text_style_const.dart';
 import '../../domain/entities/entities.dart';
 import '../../l10n/app_localizations.dart';
+
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
 // Modern card widget for filter items with include/exclude toggle
@@ -97,9 +98,7 @@ class FilterItemCard extends StatelessWidget {
                     Text(
                       AppLocalizations.of(context)!.nItems(tag.count),
                       style: TextStyleConst.bodySmall.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
+                        color: Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: 0.7),
                       ),
                     ),
@@ -133,14 +132,10 @@ class FilterItemCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isIncluded
-                      ? Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1)
-                      : Theme.of(context)
-                          .colorScheme
-                          .error
-                          .withValues(alpha: 0.1),
+                      ? Theme.of(context).colorScheme.primary
+                            .withValues(alpha: 0.1)
+                      : Theme.of(context).colorScheme.error
+                            .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 ),
                 child: Row(
@@ -175,9 +170,7 @@ class FilterItemCard extends StatelessWidget {
                 icon: Icon(
                   Icons.close,
                   size: 20,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface
+                  color: Theme.of(context).colorScheme.onSurface
                       .withValues(alpha: 0.7),
                 ),
                 style: IconButton.styleFrom(
@@ -202,9 +195,7 @@ class FilterItemCard extends StatelessWidget {
                   color: Theme.of(context).colorScheme.primary,
                 ),
                 style: IconButton.styleFrom(
-                  backgroundColor: Theme.of(context)
-                      .colorScheme
-                      .primary
+                  backgroundColor: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.1),
                   padding: const EdgeInsets.all(8),
                   minimumSize: const Size(36, 36),
@@ -221,9 +212,7 @@ class FilterItemCard extends StatelessWidget {
                     color: Theme.of(context).colorScheme.error,
                   ),
                   style: IconButton.styleFrom(
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .error
+                    backgroundColor: Theme.of(context).colorScheme.error
                         .withValues(alpha: 0.1),
                     padding: const EdgeInsets.all(8),
                     minimumSize: const Size(36, 36),

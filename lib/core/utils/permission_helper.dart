@@ -1,8 +1,9 @@
 import 'dart:io';
+
 import 'package:permission_handler/permission_handler.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 // Helper class untuk handle permissions dengan user-friendly approach
@@ -71,8 +72,9 @@ class PermissionHelper {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title:
-                Text(AppLocalizations.of(context)!.storagePermissionRequired),
+            title: Text(
+              AppLocalizations.of(context)!.storagePermissionRequired,
+            ),
             content: Text(
               AppLocalizations.of(context)!.storagePermissionExplanation,
             ),

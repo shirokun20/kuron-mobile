@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -13,20 +15,20 @@ import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 class _MockRegistry extends Mock implements ContentSourceRegistry {}
 
 Content _content(String id) => Content(
-      id: id,
-      sourceId: 'nhentai',
-      title: 'Title $id',
-      coverUrl: 'http://cover/$id',
-      tags: const [],
-      artists: const [],
-      characters: const [],
-      parodies: const [],
-      groups: const [],
-      language: 'english',
-      pageCount: 10,
-      imageUrls: const [],
-      uploadDate: DateTime(2026, 1, 1),
-    );
+  id: id,
+  sourceId: 'nhentai',
+  title: 'Title $id',
+  coverUrl: 'http://cover/$id',
+  tags: const [],
+  artists: const [],
+  characters: const [],
+  parodies: const [],
+  groups: const [],
+  language: 'english',
+  pageCount: 10,
+  imageUrls: const [],
+  uploadDate: DateTime(2026, 1, 1),
+);
 
 Recommendation _rec(String id, {String relation = 'read'}) {
   final c = _content(id);
@@ -67,26 +69,34 @@ void main() {
 
   group('9.8 RecommendationRow', () {
     testWidgets('loading state shows shimmer', (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: const [],
-        isLoading: true,
-        isColdStart: false,
-        onTap: (_) {},
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: const [],
+            isLoading: true,
+            isColdStart: false,
+            onTap: (_) {},
+          ),
+        ),
+      );
 
       expect(find.byType(KuronShimmer), findsWidgets);
     });
 
     testWidgets('banner loading matches carousel size', (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: const [],
-        isLoading: true,
-        isColdStart: false,
-        bannerLoading: true,
-        onTap: (_) {},
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: const [],
+            isLoading: true,
+            isColdStart: false,
+            bannerLoading: true,
+            onTap: (_) {},
+          ),
+        ),
+      );
 
       expect(find.byType(KuronShimmer), findsWidgets);
       // Card-style horizontal list is NOT used for banner loading.
@@ -94,18 +104,21 @@ void main() {
     });
 
     testWidgets('cold start shows placeholder message', (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: const [],
-        isLoading: false,
-        isColdStart: true,
-        onTap: (_) {},
-        onBrowse: () {},
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: const [],
+            isLoading: false,
+            isColdStart: true,
+            onTap: (_) {},
+            onBrowse: () {},
+          ),
+        ),
+      );
 
       expect(
-        find.text(
-            'Start reading to get personalized recommendations'),
+        find.text('Start reading to get personalized recommendations'),
         findsOneWidget,
       );
       expect(find.text('Browse content'), findsOneWidget);
@@ -113,13 +126,20 @@ void main() {
 
     testWidgets('populated shows cards with reason badges', (tester) async {
       final tapped = <String>[];
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: [_rec('a'), _rec('b', relation: 'favorite')],
-        isLoading: false,
-        isColdStart: false,
-        onTap: (r) => tapped.add(r.contentId),
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: [
+              _rec('a'),
+              _rec('b', relation: 'favorite'),
+            ],
+            isLoading: false,
+            isColdStart: false,
+            onTap: (r) => tapped.add(r.contentId),
+          ),
+        ),
+      );
 
       expect(find.text('Because you read X'), findsOneWidget);
       expect(find.text('Because you favorited X'), findsOneWidget);
@@ -129,13 +149,17 @@ void main() {
     });
 
     testWidgets('error/empty collapses to nothing', (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: const [],
-        isLoading: false,
-        isColdStart: false,
-        onTap: (_) {},
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: const [],
+            isLoading: false,
+            isColdStart: false,
+            onTap: (_) {},
+          ),
+        ),
+      );
 
       expect(find.byType(RecommendationRow), findsOneWidget);
       // Collapsed: no title, no placeholder, no shimmer.
@@ -147,27 +171,35 @@ void main() {
   group('refresh affordance + badge polish', () {
     testWidgets('refresh button calls onRefresh', (tester) async {
       var refreshed = 0;
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: [_rec('a')],
-        isLoading: false,
-        isColdStart: false,
-        onTap: (_) {},
-        onRefresh: () => refreshed++,
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: [_rec('a')],
+            isLoading: false,
+            isColdStart: false,
+            onTap: (_) {},
+            onRefresh: () => refreshed++,
+          ),
+        ),
+      );
 
       await tester.tap(find.byType(IconButton));
       expect(refreshed, 1);
     });
 
     testWidgets('no refresh button without callback', (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'Recommended for You',
-        items: [_rec('a')],
-        isLoading: false,
-        isColdStart: false,
-        onTap: (_) {},
-      )));
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'Recommended for You',
+            items: [_rec('a')],
+            isLoading: false,
+            isColdStart: false,
+            onTap: (_) {},
+          ),
+        ),
+      );
 
       expect(find.byType(IconButton), findsNothing);
     });
@@ -175,29 +207,36 @@ void main() {
     test('shortTitle truncates long contributor titles', () {
       expect(RecommendationCard.shortTitle('Action'), 'Action');
       expect(
-        RecommendationCard.shortTitle('(C105) [Ringo no Naru Ki (Kise Itsuki)]'),
+        RecommendationCard.shortTitle(
+          '(C105) [Ringo no Naru Ki (Kise Itsuki)]',
+        ),
         '(C105) [Ringo no Naru Ki …',
       );
     });
   });
 
   group('9.10 reason badge fallback', () {
-    testWidgets('missing contributor title falls back to content id',
-        (tester) async {
-      await tester.pumpWidget(_harness(RecommendationRow(
-        title: 'T',
-        items: const [
-          Recommendation(
-            contentId: 'g9',
-            sourceId: 'nhentai',
-            score: 1,
-            reason: 'x',
+    testWidgets('missing contributor title falls back to content id', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _harness(
+          RecommendationRow(
+            title: 'T',
+            items: const [
+              Recommendation(
+                contentId: 'g9',
+                sourceId: 'nhentai',
+                score: 1,
+                reason: 'x',
+              ),
+            ],
+            isLoading: false,
+            isColdStart: false,
+            onTap: (_) {},
           ),
-        ],
-        isLoading: false,
-        isColdStart: false,
-        onTap: (_) {},
-      )));
+        ),
+      );
 
       expect(find.text('Because you read g9'), findsOneWidget);
     });

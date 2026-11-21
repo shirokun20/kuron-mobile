@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/utils/offline_content_manager.dart';
@@ -42,14 +42,7 @@ class OfflineSeriesDetailScreen extends StatefulWidget {
       _OfflineSeriesDetailScreenState();
 }
 
-enum _SortMode {
-  titleAsc,
-  titleDesc,
-  dateDesc,
-  dateAsc,
-  pagesDesc,
-  pagesAsc,
-}
+enum _SortMode { titleAsc, titleDesc, dateDesc, dateAsc, pagesDesc, pagesAsc }
 
 class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
   final Map<String, double> _progressMap = {};
@@ -77,9 +70,11 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _service = widget.service ??
+    _service =
+        widget.service ??
         (throw StateError('OfflineSeriesDetailService is required'));
-    _offlineSearchCubit = widget.offlineSearchCubit ??
+    _offlineSearchCubit =
+        widget.offlineSearchCubit ??
         (throw StateError('OfflineSearchCubit is required'));
     _applyContentGroup(widget.initialContentGroup);
     if (_contentGroup == null) {
@@ -199,9 +194,11 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result
-          .where((c) =>
-              c.title.toLowerCase().contains(q) ||
-              c.id.toLowerCase().contains(q))
+          .where(
+            (c) =>
+                c.title.toLowerCase().contains(q) ||
+                c.id.toLowerCase().contains(q),
+          )
           .toList();
     }
     switch (_sortMode) {
@@ -298,8 +295,10 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                     _selectedContentIds.clear();
                   }),
                 ),
-                title: Text('${_selectedContentIds.length} selected',
-                    style: TextStyleConst.titleLarge),
+                title: Text(
+                  '${_selectedContentIds.length} selected',
+                  style: TextStyleConst.titleLarge,
+                ),
                 actions: [
                   if (_selectedContentIds.length < _items.length)
                     IconButton(
@@ -316,95 +315,96 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                 ],
               )
             : _showSearch
-                ? AppBar(
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => setState(() {
-                        _showSearch = false;
+            ? AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => setState(() {
+                    _showSearch = false;
+                    _searchController.clear();
+                    _searchQuery = '';
+                  }),
+                ),
+                title: TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  style: TextStyleConst.bodyMedium.copyWith(
+                    color: colorScheme.onSurface,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Search chapters...',
+                    hintStyle: TextStyleConst.bodyMedium.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    border: InputBorder.none,
+                  ),
+                  onChanged: (q) => setState(() => _searchQuery = q),
+                ),
+                actions: [
+                  if (_searchQuery.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
                         _searchController.clear();
-                        _searchQuery = '';
-                      }),
+                        setState(() => _searchQuery = '');
+                      },
                     ),
-                    title: TextField(
-                      controller: _searchController,
-                      autofocus: true,
-                      style: TextStyleConst.bodyMedium
-                          .copyWith(color: colorScheme.onSurface),
-                      decoration: InputDecoration(
-                        hintText: 'Search chapters...',
-                        hintStyle: TextStyleConst.bodyMedium
-                            .copyWith(color: colorScheme.onSurfaceVariant),
-                        border: InputBorder.none,
+                ],
+              )
+            : AppBar(
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => context.pop(_didChange),
+                ),
+                title: Text(widget.baseTitle, style: TextStyleConst.titleLarge),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.checklist),
+                    onPressed: () => setState(() {
+                      _isSelectionMode = true;
+                    }),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.search),
+                    onPressed: () => setState(() => _showSearch = true),
+                  ),
+                  PopupMenuButton<_SortMode>(
+                    icon: const Icon(Icons.sort),
+                    onSelected: (mode) => setState(() => _sortMode = mode),
+                    itemBuilder: (_) => [
+                      PopupMenuItem(
+                        value: _SortMode.dateDesc,
+                        child: Text('Newest', style: TextStyleConst.bodyMedium),
                       ),
-                      onChanged: (q) => setState(() => _searchQuery = q),
-                    ),
-                    actions: [
-                      if (_searchQuery.isNotEmpty)
-                        IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() => _searchQuery = '');
-                          },
+                      PopupMenuItem(
+                        value: _SortMode.dateAsc,
+                        child: Text('Oldest', style: TextStyleConst.bodyMedium),
+                      ),
+                      PopupMenuItem(
+                        value: _SortMode.titleAsc,
+                        child: Text('A-Z', style: TextStyleConst.bodyMedium),
+                      ),
+                      PopupMenuItem(
+                        value: _SortMode.titleDesc,
+                        child: Text('Z-A', style: TextStyleConst.bodyMedium),
+                      ),
+                      PopupMenuItem(
+                        value: _SortMode.pagesAsc,
+                        child: Text(
+                          'Pages ↑',
+                          style: TextStyleConst.bodyMedium,
                         ),
-                    ],
-                  )
-                : AppBar(
-                    leading: IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      onPressed: () => context.pop(_didChange),
-                    ),
-                    title: Text(widget.baseTitle,
-                        style: TextStyleConst.titleLarge),
-                    actions: [
-                      IconButton(
-                        icon: const Icon(Icons.checklist),
-                        onPressed: () => setState(() {
-                          _isSelectionMode = true;
-                        }),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: () => setState(() => _showSearch = true),
-                      ),
-                      PopupMenuButton<_SortMode>(
-                        icon: const Icon(Icons.sort),
-                        onSelected: (mode) => setState(() => _sortMode = mode),
-                        itemBuilder: (_) => [
-                          PopupMenuItem(
-                            value: _SortMode.dateDesc,
-                            child: Text('Newest',
-                                style: TextStyleConst.bodyMedium),
-                          ),
-                          PopupMenuItem(
-                            value: _SortMode.dateAsc,
-                            child: Text('Oldest',
-                                style: TextStyleConst.bodyMedium),
-                          ),
-                          PopupMenuItem(
-                            value: _SortMode.titleAsc,
-                            child:
-                                Text('A-Z', style: TextStyleConst.bodyMedium),
-                          ),
-                          PopupMenuItem(
-                            value: _SortMode.titleDesc,
-                            child:
-                                Text('Z-A', style: TextStyleConst.bodyMedium),
-                          ),
-                          PopupMenuItem(
-                            value: _SortMode.pagesAsc,
-                            child: Text('Pages ↑',
-                                style: TextStyleConst.bodyMedium),
-                          ),
-                          PopupMenuItem(
-                            value: _SortMode.pagesDesc,
-                            child: Text('Pages ↓',
-                                style: TextStyleConst.bodyMedium),
-                          ),
-                        ],
+                      PopupMenuItem(
+                        value: _SortMode.pagesDesc,
+                        child: Text(
+                          'Pages ↓',
+                          style: TextStyleConst.bodyMedium,
+                        ),
                       ),
                     ],
                   ),
+                ],
+              ),
         body: _contentGroup == null
             ? Center(
                 child: _isResolving
@@ -419,16 +419,18 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                       ),
               )
             : ListView.separated(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 16,
+                ),
                 itemCount: items.length,
                 separatorBuilder: (context, index) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final content = items[index];
                   final progress = _progressMap[content.id] ?? 0.0;
 
-                  final dateStr =
-                      DateFormat('MMM dd, yyyy').format(content.uploadDate);
+                  final dateStr = DateFormat('MMM dd, yyyy')
+                      .format(content.uploadDate);
 
                   return Card(
                     clipBehavior: Clip.antiAlias,
@@ -436,12 +438,11 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                     color: Theme.of(context).colorScheme.surface,
                     margin: const EdgeInsets.only(bottom: 12),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                       side: BorderSide(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
+                        color: Theme.of(context).colorScheme.outlineVariant
                             .withValues(alpha: 0.5),
                         width: 1,
                       ),
@@ -449,15 +450,15 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                     child: InkWell(
                       onTap: _isSelectionMode
                           ? () => setState(() {
-                                if (_selectedContentIds.contains(content.id)) {
-                                  _selectedContentIds.remove(content.id);
-                                  if (_selectedContentIds.isEmpty) {
-                                    _isSelectionMode = false;
-                                  }
-                                } else {
-                                  _selectedContentIds.add(content.id);
+                              if (_selectedContentIds.contains(content.id)) {
+                                _selectedContentIds.remove(content.id);
+                                if (_selectedContentIds.isEmpty) {
+                                  _isSelectionMode = false;
                                 }
-                              })
+                              } else {
+                                _selectedContentIds.add(content.id);
+                              }
+                            })
                           : () => _openReader(content),
                       onLongPress: _isSelectionMode
                           ? null
@@ -486,7 +487,8 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                                     .primaryContainer
                                     .withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusLg),
+                                  DesignTokens.radiusLg,
+                                ),
                               ),
                               child: Icon(
                                 Icons.auto_stories,
@@ -553,9 +555,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                                         _buildBadge(
                                           context,
                                           Icons.storage,
-                                          OfflineContentManager
-                                              .formatStorageSize(
-                                                  _sizeFor(content)),
+                                          OfflineContentManager.formatStorageSize(
+                                            _sizeFor(content),
+                                          ),
                                           Theme.of(context)
                                               .colorScheme
                                               .surfaceContainerHighest,
@@ -572,7 +574,8 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                                         Expanded(
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(
-                                                DesignTokens.radiusSm),
+                                              DesignTokens.radiusSm,
+                                            ),
                                             child: LinearProgressIndicator(
                                               value: progress,
                                               backgroundColor: Theme.of(context)
@@ -580,9 +583,10 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                                                   .surfaceContainerHighest,
                                               valueColor:
                                                   AlwaysStoppedAnimation<Color>(
-                                                      Theme.of(context)
-                                                          .colorScheme
-                                                          .primary),
+                                                    Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
+                                                  ),
                                               minHeight: 4,
                                             ),
                                           ),
@@ -592,11 +596,11 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                                           '${(progress * 100).toInt()}%',
                                           style: TextStyleConst.labelSmall
                                               .copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                         ),
                                       ],
                                     ),
@@ -641,11 +645,7 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 12,
-            color: textColor,
-          ),
+          Icon(icon, size: 12, color: textColor),
           const SizedBox(width: 4),
           Text(
             label,
@@ -668,8 +668,7 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
     // Get content path if possible
     String? contentPath;
     try {
-      final firstImage =
-          await _service.getOfflineFirstImagePath(content.id);
+      final firstImage = await _service.getOfflineFirstImagePath(content.id);
       if (firstImage != null) {
         contentPath = p.dirname(firstImage);
       }
@@ -681,8 +680,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
       context: parentContext,
       isScrollControlled: true,
       builder: (context) {
-        final sizeText =
-            OfflineContentManager.formatStorageSize(_sizeFor(content));
+        final sizeText = OfflineContentManager.formatStorageSize(
+          _sizeFor(content),
+        );
 
         return SafeArea(
           child: Column(
@@ -708,8 +708,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                       height: 64,
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusSm,
+                        ),
                       ),
                       child: Center(
                         child: Text(
@@ -750,8 +751,10 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
               const Divider(),
               if (contentPath != null) ...[
                 ListTile(
-                  leading: Icon(Icons.folder_open_rounded,
-                      color: colorScheme.secondary),
+                  leading: Icon(
+                    Icons.folder_open_rounded,
+                    color: colorScheme.secondary,
+                  ),
                   title: Text(
                     contentPath,
                     style: TextStyleConst.labelSmall.copyWith(
@@ -770,7 +773,8 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                           Clipboard.setData(ClipboardData(text: contentPath!));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Path copied to clipboard')),
+                              content: Text('Path copied to clipboard'),
+                            ),
                           );
                           bottomSheetContext.pop();
                         },
@@ -794,9 +798,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
                   final isPdf = snapshot.data ?? false;
                   return ListTile(
                     leading: Icon(
-                        isPdf ? Icons.picture_as_pdf : Icons.remove_red_eye,
-                        color:
-                            isPdf ? colorScheme.tertiary : colorScheme.primary),
+                      isPdf ? Icons.picture_as_pdf : Icons.remove_red_eye,
+                      color: isPdf ? colorScheme.tertiary : colorScheme.primary,
+                    ),
                     title: Text(isPdf ? '${l10n.readNow} (PDF)' : l10n.readNow),
                     onTap: () {
                       bottomSheetContext.pop();
@@ -808,17 +812,21 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
               Builder(
                 builder: (context) {
                   try {
-                    final isEnabled =
-                        _service.isPdfGenerationEnabled(content.sourceId);
+                    final isEnabled = _service.isPdfGenerationEnabled(
+                      content.sourceId,
+                    );
 
                     if (!isEnabled) return const SizedBox.shrink();
 
                     return ListTile(
-                      leading: Icon(Icons.picture_as_pdf,
-                          color: colorScheme.tertiary),
+                      leading: Icon(
+                        Icons.picture_as_pdf,
+                        color: colorScheme.tertiary,
+                      ),
                       title: Text(l10n.convertToPdf),
-                      subtitle: Text(AppLocalizations.of(context)!
-                          .nPages(content.pageCount)),
+                      subtitle: Text(
+                        AppLocalizations.of(context)!.nPages(content.pageCount),
+                      ),
                       onTap: () {
                         bottomSheetContext.pop();
                         _generatePdf(parentContext, content);
@@ -888,10 +896,12 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.pdfConversionFailedWithError(
-              content.title,
-              AppLocalizations.of(context)!.noImagesFound,
-            )),
+            content: Text(
+              l10n.pdfConversionFailedWithError(
+                content.title,
+                AppLocalizations.of(context)!.noImagesFound,
+              ),
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -909,10 +919,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.pdfConversionFailedWithError(
-            content.title,
-            e.toString(),
-          )),
+          content: Text(
+            l10n.pdfConversionFailedWithError(content.title, e.toString()),
+          ),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -921,7 +930,9 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
 
   // Show delete confirmation dialog
   Future<void> _showDeleteConfirmation(
-      BuildContext context, Content content) async {
+    BuildContext context,
+    Content content,
+  ) async {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
@@ -942,14 +953,18 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: colorScheme.surface,
-        title:
-            Text(l10n.delete, style: TextStyle(color: colorScheme.onSurface)),
+        title: Text(
+          l10n.delete,
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.removeDownloadConfirmation,
-                style: TextStyle(color: colorScheme.onSurface)),
+            Text(
+              l10n.removeDownloadConfirmation,
+              style: TextStyle(color: colorScheme.onSurface),
+            ),
             const SizedBox(height: 12),
             ValueListenableBuilder<bool>(
               valueListenable: dontAskAgainNotifier,
@@ -1052,15 +1067,16 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: colorScheme.surface,
-        title: Text('Delete $count items?',
-            style: TextStyle(color: colorScheme.onSurface)),
-        content: Text('Remove $count offline chapters?',
-            style: TextStyle(color: colorScheme.onSurface)),
+        title: Text(
+          'Delete $count items?',
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
+        content: Text(
+          'Remove $count offline chapters?',
+          style: TextStyle(color: colorScheme.onSurface),
+        ),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(),
-            child: Text(l10n.cancel),
-          ),
+          TextButton(onPressed: () => ctx.pop(), child: Text(l10n.cancel)),
           FilledButton(
             onPressed: () {
               ctx.pop();

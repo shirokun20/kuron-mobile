@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:nhasixapp/core/constants/colors_const.dart' show AppColors;
@@ -88,6 +88,7 @@ class _MainGridCardState extends State<MainGridCard> {
           }
           return null;
         }
+
         return entryOf(previous) != entryOf(current);
       },
       builder: (context, _) {
@@ -101,41 +102,43 @@ class _MainGridCardState extends State<MainGridCard> {
             final theme = Theme.of(context);
             const readGoldColor = AppColors.readGold;
             const downloadBorderColor = AppColors.success;
-            final runningBorderColor =
-                theme.colorScheme.onSurface.withValues(alpha: 0.1);
+            final runningBorderColor = theme.colorScheme.onSurface.withValues(
+              alpha: 0.1,
+            );
             final hasAnimatedBorder = isRead || isDownloaded;
             final borderColors = isRead && isDownloaded
                 ? <Color>[
                     downloadBorderColor,
                     readGoldColor,
                     downloadBorderColor,
-                    runningBorderColor
+                    runningBorderColor,
                   ]
                 : isRead
-                    ? <Color>[readGoldColor]
-                    : <Color>[downloadBorderColor];
+                ? <Color>[readGoldColor]
+                : <Color>[downloadBorderColor];
             final borderStyle = switch ((isDownloaded, isRead)) {
               (true, true) => (
-                  innerColor: readGoldColor,
-                  innerWidth: 2.2,
-                  shadowColor: readGoldColor.withValues(alpha: 0.18),
-                ),
+                innerColor: readGoldColor,
+                innerWidth: 2.2,
+                shadowColor: readGoldColor.withValues(alpha: 0.18),
+              ),
               (true, false) => (
-                  innerColor: downloadBorderColor,
-                  innerWidth: 2.5,
-                  shadowColor: downloadBorderColor.withValues(alpha: 0.4),
-                ),
+                innerColor: downloadBorderColor,
+                innerWidth: 2.5,
+                shadowColor: downloadBorderColor.withValues(alpha: 0.4),
+              ),
               (false, true) => (
-                  innerColor: readGoldColor,
-                  innerWidth: 2.5,
-                  shadowColor: readGoldColor.withValues(alpha: 0.4),
-                ),
+                innerColor: readGoldColor,
+                innerWidth: 2.5,
+                shadowColor: readGoldColor.withValues(alpha: 0.4),
+              ),
               _ => (
-                  innerColor:
-                      theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
-                  innerWidth: 1.0,
-                  shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
+                innerColor: theme.colorScheme.outlineVariant.withValues(
+                  alpha: 0.35,
                 ),
+                innerWidth: 1.0,
+                shadowColor: theme.colorScheme.shadow.withValues(alpha: 0.1),
+              ),
             };
 
             final innerCard = AspectRatio(
@@ -183,8 +186,9 @@ class _MainGridCardState extends State<MainGridCard> {
                             ),
                             decoration: BoxDecoration(
                               color: readGoldColor.withValues(alpha: 0.88),
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMd),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusMd,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -270,15 +274,18 @@ class _MainGridCardState extends State<MainGridCard> {
                                   Text(
                                     '${content.pageCount}',
                                     style: TextStyleConst.overline.copyWith(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.8),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.8,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 8),
                                 ],
                                 if (content.language.isNotEmpty) ...[
                                   _LanguageFlag(
-                                      language: content.language, theme: theme),
+                                    language: content.language,
+                                    theme: theme,
+                                  ),
                                 ],
                               ],
                             ),
@@ -300,19 +307,21 @@ class _MainGridCardState extends State<MainGridCard> {
                                       Icon(
                                         Icons.schedule,
                                         size: 10,
-                                        color:
-                                            Colors.white.withValues(alpha: 0.7),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.7,
+                                        ),
                                       ),
                                       const SizedBox(width: 3),
                                       Flexible(
                                         child: Text(
                                           label,
-                                          style:
-                                              TextStyleConst.overline.copyWith(
-                                            color: Colors.white
-                                                .withValues(alpha: 0.7),
-                                            fontSize: 9,
-                                          ),
+                                          style: TextStyleConst.overline
+                                              .copyWith(
+                                                color: Colors.white.withValues(
+                                                  alpha: 0.7,
+                                                ),
+                                                fontSize: 9,
+                                              ),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -337,10 +346,12 @@ class _MainGridCardState extends State<MainGridCard> {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.tertiary
-                                  .withValues(alpha: 0.9),
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusMd),
+                              color: theme.colorScheme.tertiary.withValues(
+                                alpha: 0.9,
+                              ),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusMd,
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -370,10 +381,12 @@ class _MainGridCardState extends State<MainGridCard> {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: onTap,
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusLg),
-                            splashColor: theme.colorScheme.primary
-                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusLg,
+                            ),
+                            splashColor: theme.colorScheme.primary.withValues(
+                              alpha: 0.3,
+                            ),
                             highlightColor: theme.colorScheme.primary
                                 .withValues(alpha: 0.15),
                           ),
@@ -464,18 +477,18 @@ class _MainGridCardState extends State<MainGridCard> {
       errorWidget:
           // Try fallback URL if available
           (fallbackUrl != null && fallbackUrl != coverUrl)
-              ? ProgressiveImageWidget(
-                  networkUrl: fallbackUrl,
-                  httpHeaders: getIt<ContentSourceRegistry>()
-                      .getSource(content.sourceId)
-                      ?.getImageDownloadHeaders(imageUrl: fallbackUrl),
-                  fit: BoxFit.cover,
-                  memCacheWidth: 400,
-                  memCacheHeight: 600,
-                  placeholder: const KuroThumbPlaceholder(),
-                  errorWidget: _buildErrorPlaceholder(context),
-                )
-              : _buildErrorPlaceholder(context),
+          ? ProgressiveImageWidget(
+              networkUrl: fallbackUrl,
+              httpHeaders: getIt<ContentSourceRegistry>()
+                  .getSource(content.sourceId)
+                  ?.getImageDownloadHeaders(imageUrl: fallbackUrl),
+              fit: BoxFit.cover,
+              memCacheWidth: 400,
+              memCacheHeight: 600,
+              placeholder: const KuroThumbPlaceholder(),
+              errorWidget: _buildErrorPlaceholder(context),
+            )
+          : _buildErrorPlaceholder(context),
     );
   }
 
@@ -486,9 +499,7 @@ class _MainGridCardState extends State<MainGridCard> {
         child: Icon(
           Icons.broken_image_outlined,
           size: 40,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurfaceVariant
+          color: Theme.of(context).colorScheme.onSurfaceVariant
               .withValues(alpha: 0.5),
         ),
       ),

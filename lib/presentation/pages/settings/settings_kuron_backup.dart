@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/usecases/exports/export_kuron_backup_usecase.dart';
@@ -15,7 +15,10 @@ import 'package:share_plus/share_plus.dart';
 // Settings section "Backup & Restore": Kuron's own backup now + restore, sharing
 // the same preview/progress/summary flow as the NClient import.
 Widget buildKuronBackupTile(
-    BuildContext context, ThemeData theme, AppLocalizations l10n) {
+  BuildContext context,
+  ThemeData theme,
+  AppLocalizations l10n,
+) {
   return buildSettingsActionTile(
     title: l10n.kuronBackupNow,
     subtitle: l10n.kuronBackupNowSubtitle,
@@ -26,7 +29,10 @@ Widget buildKuronBackupTile(
 }
 
 Widget buildKuronRestoreTile(
-    BuildContext context, ThemeData theme, AppLocalizations l10n) {
+  BuildContext context,
+  ThemeData theme,
+  AppLocalizations l10n,
+) {
   return buildSettingsActionTile(
     title: l10n.kuronRestore,
     subtitle: l10n.kuronRestoreSubtitle,
@@ -72,17 +78,13 @@ Future<bool> _share(
 ) async {
   try {
     await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(file.path)],
-        subject: l10n.kuronBackupNow,
-      ),
+      ShareParams(files: [XFile(file.path)], subject: l10n.kuronBackupNow),
     );
     return true;
   } catch (e) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.kuronBackupFailed('$e'))),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.kuronBackupFailed('$e'))));
     }
     return false;
   }

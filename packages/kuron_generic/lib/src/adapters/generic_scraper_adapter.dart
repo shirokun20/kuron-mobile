@@ -1203,22 +1203,22 @@ class GenericScraperAdapter implements GenericAdapter {
   }
 
   /// Build a `Cookie` header value from a `reader.cookies` declaration.
-  /// Both names and values support `{id}` / `{contentId}` substitution
-  /// with the normalized chapter id (hentaikun: slug, e.g.
-  /// `{"{id}/read": "2"}` → `my-slug-18117/read=2`). Returns null when
-  /// the declaration is absent or yields no pairs.
+  /// Names and values support `{id}` / `{contentId}` substitution with the
+  /// normalized chapter id, plus `{slug}` for the last path segment — live
+  /// hentaikun config declares `{"{slug}/read": "2"}` while chapter ids may
+  /// carry a category prefix (`original-doujins-series/<slug>`). Returns
+  /// null when the declaration is absent or yields no pairs.
   String? _readerCookiesHeader(dynamic cookiesDef, String idValue) {
     if (cookiesDef is! Map || cookiesDef.isEmpty) return null;
+    final slug = idValue.split('/').where((s) => s.isNotEmpty).last;
+    String substitute(String raw) => raw
+        .replaceAll('{id}', idValue)
+        .replaceAll('{contentId}', idValue)
+        .replaceAll('{slug}', slug);
     final pairs = <String>[];
     for (final entry in cookiesDef.entries) {
-      final name = entry.key
-          .toString()
-          .replaceAll('{id}', idValue)
-          .replaceAll('{contentId}', idValue);
-      final value = entry.value
-          .toString()
-          .replaceAll('{id}', idValue)
-          .replaceAll('{contentId}', idValue);
+      final name = substitute(entry.key.toString());
+      final value = substitute(entry.value.toString());
       if (name.isEmpty) continue;
       pairs.add('$name=$value');
     }
@@ -1259,6 +1259,29 @@ class GenericScraperAdapter implements GenericAdapter {
 
     headers.putIfAbsent('Referer', () => fallbackReferer);
     return headers;
+  }
+
+  /// Rewrite image hostnames declared in `reader.imageHostRewrite`
+  /// (`{"dead.host": "live.host"}`). Only the host is replaced — scheme,
+  /// path, query and fragment are preserved. Non-HTTP values pass through.
+  List<String> _applyImageHostRewrite(List<String> urls, dynamic rewriteDef) {
+    if (rewriteDef is! Map || rewriteDef.isEmpty) return urls;
+    final rules = <MapEntry<String, String>>[];
+    for (final entry in rewriteDef.entries) {
+      final from = entry.key.toString().trim().toLowerCase();
+      final to = entry.value.toString().trim();
+      if (from.isNotEmpty && to.isNotEmpty) rules.add(MapEntry(from, to));
+    }
+    if (rules.isEmpty) return urls;
+    return urls.map((raw) {
+      final uri = Uri.tryParse(raw);
+      if (uri == null || !uri.hasScheme || uri.host.isEmpty) return raw;
+      final host = uri.host.toLowerCase();
+      for (final rule in rules) {
+        if (host == rule.key) return uri.replace(host: rule.value).toString();
+      }
+      return raw;
+    }).toList();
   }
 
   bool _isRedirectStatus(int statusCode) {
@@ -2807,6 +2830,11 @@ class GenericScraperAdapter implements GenericAdapter {
         videoReferer = (declared == null || declared.isEmpty) ? url : declared;
       }
 
+      // madarascans-style configs declare dead→live image host rewrites in
+      // `reader.imageHostRewrite`; apply once after all image sources ran.
+      imageUrls =
+          _applyImageHostRewrite(imageUrls, readerConfig['imageHostRewrite']);
+
       return ChapterData(
         images: imageUrls,
         videoUrls: videoUrls,
@@ -3250,6 +3278,10 @@ class GenericScraperAdapter implements GenericAdapter {
     Map<String, dynamic> fieldsConfig,
   ) {
     final result = <String, dynamic>{};
+    // Tag objects from every `extractTagObjects` field (author/artist/genres/
+    // tags) are merged into `tagObjects` so GenericContentMapper can build a
+    // typed Tag list instead of losing the non-`tags` fields.
+    final allTagObjectMaps = <Map<String, dynamic>>[];
     _logger.d(
         '$_sourceId: extracting ${fieldsConfig.length} fields from detail page');
 
@@ -3262,7 +3294,7 @@ class GenericScraperAdapter implements GenericAdapter {
       final sel = _readerImages.fieldDefToSelector(defMap);
       if (sel == null) continue;
 
-      if (entry.key == 'tags' && defMap['extractTagObjects'] == true) {
+      if (defMap['extractTagObjects'] == true) {
         final elements = _parser.selectAll(doc, sel.selector);
         final tagObjects = <Tag>[];
         for (final el in elements) {
@@ -3272,10 +3304,23 @@ class GenericScraperAdapter implements GenericAdapter {
           final spans = el.querySelectorAll('span');
           final nameEl = spans.isNotEmpty ? spans.first : el;
 
-          String name = nameEl.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+          // Honor the field's `attribute` + `transform` (hentairead declares
+          // `attribute: href`, `transform: slug`), otherwise fall back to the
+          // element's display text as the tag name.
+          final rawAttribute = sel.attribute?.trim();
+          String rawName = nameEl.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+          if (rawAttribute != null &&
+              rawAttribute.isNotEmpty &&
+              rawAttribute != 'text') {
+            rawName = nameEl.attributes[rawAttribute] ?? rawName;
+          }
+          String name = rawName.replaceAll(RegExp(r'\s+'), ' ').trim();
+          if (transform == 'slug' && name.isNotEmpty) {
+            name = _extractSlugFromUrl(name);
+          }
           if (name.isEmpty) continue;
 
-          String type = 'tag';
+          String segmentType = '';
           String slug = '';
           final href = el.attributes['href'] ?? '';
           if (href.isNotEmpty) {
@@ -3284,7 +3329,7 @@ class GenericScraperAdapter implements GenericAdapter {
               final segments =
                   uri.pathSegments.where((s) => s.isNotEmpty).toList();
               if (segments.length >= 2) {
-                type = segments[segments.length - 2].toLowerCase();
+                segmentType = segments[segments.length - 2].toLowerCase();
                 slug = segments.last.toLowerCase();
               } else if (segments.isNotEmpty) {
                 slug = segments.last.toLowerCase();
@@ -3292,9 +3337,29 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
 
-          // Map source-specific path segments to standard app tag types if necessary
-          if (type == 'circle') type = 'publisher';
-          if (type == 'author') type = 'artist'; // fallback normalization
+          // Type precedence: explicit tagType > tagTypeMap > tagTypeRegex >
+          // legacy segment normalization > raw URL segment > 'tag'. An
+          // explicit `tagType: 'author'` must stay 'author' — the old
+          // unconditional author→artist remap broke hentai4free taxonomy.
+          String type = 'tag';
+          final explicitType = defMap['tagType']?.toString().trim();
+          final typeMap = defMap['tagTypeMap'];
+          final typeRegex = defMap['tagTypeRegex']?.toString();
+          if (explicitType != null && explicitType.isNotEmpty) {
+            type = explicitType;
+          } else if (typeMap is Map && typeMap[segmentType] != null) {
+            type = typeMap[segmentType].toString();
+          } else if (typeRegex != null && typeRegex.isNotEmpty) {
+            final m = RegExp(typeRegex).firstMatch(segmentType);
+            final g = m == null
+                ? null
+                : (m.groupCount > 0 ? m.group(1) : m.group(0));
+            if (g != null && g.trim().isNotEmpty) type = g.trim();
+          } else if (segmentType == 'circle') {
+            type = 'publisher';
+          } else if (segmentType.isNotEmpty) {
+            type = segmentType;
+          }
 
           int count = 0;
           if (spans.length > 1) {
@@ -3338,8 +3403,14 @@ class GenericScraperAdapter implements GenericAdapter {
             }
           }
 
-          tagObjects.add(
-              Tag(id: 0, name: name, type: type, slug: slug, count: count));
+          tagObjects.add(Tag(
+            id: 0,
+            name: name,
+            type: type,
+            slug: slug,
+            count: count,
+            url: href,
+          ));
         }
 
         final seenValues = <String>{};
@@ -3347,6 +3418,16 @@ class GenericScraperAdapter implements GenericAdapter {
             .where((t) => seenValues.add('${t.type}:${t.name}'))
             .toList();
 
+        allTagObjectMaps.addAll(uniqueTags.map(
+          (t) => <String, dynamic>{
+            'id': t.id,
+            'name': t.name,
+            'type': t.type,
+            'slug': t.slug,
+            'count': t.count,
+            'url': t.url,
+          },
+        ));
         _logger.d(
             '$_sourceId: parsed ${uniqueTags.length} full Tag objects for "${entry.key}"');
         result[entry.key] = uniqueTags;
@@ -3410,6 +3491,9 @@ class GenericScraperAdapter implements GenericAdapter {
             .d('$_sourceId: extracted field "${entry.key}" (single): "$value"');
         result[entry.key] = value;
       }
+    }
+    if (allTagObjectMaps.isNotEmpty) {
+      result['tagObjects'] = allTagObjectMaps;
     }
     return result;
   }

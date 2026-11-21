@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/utils/native_theme_helper.dart';
@@ -76,8 +76,8 @@ class _CaptchaSolverPageState extends State<CaptchaSolverPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error =
-            AppLocalizations.of(context)!.failedToOpenCaptcha(e.toString());
+        _error = AppLocalizations.of(context)!
+            .failedToOpenCaptcha(e.toString());
         _loading = false;
       });
     }
@@ -116,9 +116,7 @@ class _CaptchaSolverPageState extends State<CaptchaSolverPage> {
               width: double.infinity,
               color: Theme.of(context).colorScheme.surfaceContainerHighest,
               padding: const EdgeInsets.all(12),
-              child: Text(
-                AppLocalizations.of(context)!.turnstileRejected,
-              ),
+              child: Text(AppLocalizations.of(context)!.turnstileRejected),
             ),
           Expanded(
             child: Center(

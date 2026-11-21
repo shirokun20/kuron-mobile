@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/entities/ai_translation.dart'
     show MosaicQuality, TranslationStyle;
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/ai_settings/ai_settings_cubit.dart';
+
 import 'settings_theme_widgets.dart';
 import 'glossary_screen.dart';
 import 'provider_manager_screen.dart';
@@ -57,7 +58,10 @@ class _AiSettingsBody extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           children: [
             buildSettingsSectionHeader(
-                Icons.auto_awesome_outlined, 'PROVIDERS', theme),
+              Icons.auto_awesome_outlined,
+              'PROVIDERS',
+              theme,
+            ),
             const SizedBox(height: 12),
             buildSettingsCard([
               ListTile(
@@ -68,7 +72,8 @@ class _AiSettingsBody extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                      builder: (_) => const ProviderManagerScreen()),
+                    builder: (_) => const ProviderManagerScreen(),
+                  ),
                 ),
               ),
             ], theme),
@@ -91,10 +96,14 @@ class _AiSettingsBody extends StatelessWidget {
               ),
               buildSettingsDivider(theme),
               ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                title: Text(l10n.aiTranslationStyle,
-                    style: TextStyle(fontWeight: FontWeight.w600)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                title: Text(
+                  l10n.aiTranslationStyle,
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Text(
                   state.style.instruction,
                   style: const TextStyle(fontSize: 12),
@@ -103,8 +112,9 @@ class _AiSettingsBody extends StatelessWidget {
                   value: state.style,
                   underline: const SizedBox(),
                   items: TranslationStyle.values
-                      .map((s) =>
-                          DropdownMenuItem(value: s, child: Text(s.label)))
+                      .map(
+                        (s) => DropdownMenuItem(value: s, child: Text(s.label)),
+                      )
                       .toList(),
                   onChanged: (v) {
                     if (v == null) return;
@@ -125,10 +135,14 @@ class _AiSettingsBody extends StatelessWidget {
               ),
               buildSettingsDivider(theme),
               ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                title: Text(l10n.aiMosaicQuality,
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
+                title: Text(
+                  l10n.aiMosaicQuality,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
                 subtitle: Text(
                   l10n.aiMosaicQualitySubtitle,
                   style: const TextStyle(fontSize: 12),
@@ -137,8 +151,9 @@ class _AiSettingsBody extends StatelessWidget {
                   value: state.mosaicQuality,
                   underline: const SizedBox(),
                   items: MosaicQuality.values
-                      .map((q) =>
-                          DropdownMenuItem(value: q, child: Text(q.label)))
+                      .map(
+                        (q) => DropdownMenuItem(value: q, child: Text(q.label)),
+                      )
                       .toList(),
                   onChanged: (v) {
                     if (v != null) cubit.setMosaicQuality(v);
@@ -148,7 +163,10 @@ class _AiSettingsBody extends StatelessWidget {
             ], theme),
             const SizedBox(height: 24),
             buildSettingsSectionHeader(
-                Icons.privacy_tip_outlined, 'PRIVACY', theme),
+              Icons.privacy_tip_outlined,
+              'PRIVACY',
+              theme,
+            ),
             const SizedBox(height: 12),
             buildSettingsCard([
               ListTile(
@@ -178,7 +196,8 @@ class _AiSettingsBody extends StatelessWidget {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute<void>(
-                      builder: (_) => const GlossaryScreen()),
+                    builder: (_) => const GlossaryScreen(),
+                  ),
                 ),
               ),
             ], theme),
@@ -189,13 +208,17 @@ class _AiSettingsBody extends StatelessWidget {
   }
 
   void _confirmKasarStyle(
-      BuildContext context, AiSettingsCubit cubit, TranslationStyle style) {
+    BuildContext context,
+    AiSettingsCubit cubit,
+    TranslationStyle style,
+  ) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Mode Kasar (18+)'),
-        content:
-            const Text('Mode Kasar menggunakan kata-kata keras. Lanjutkan?'),
+        content: const Text(
+          'Mode Kasar menggunakan kata-kata keras. Lanjutkan?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),

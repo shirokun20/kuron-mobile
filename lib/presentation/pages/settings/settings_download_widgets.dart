@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/blocs/download/download_bloc.dart';
+
 import 'settings_theme_widgets.dart';
 
 Widget buildDownloadSection(
@@ -41,9 +42,9 @@ Widget buildDownloadSection(
             ),
             trailing: state.canRetry
                 ? IconButton(
-                    onPressed: () => context
-                        .read<DownloadBloc>()
-                        .add(const DownloadInitializeEvent()),
+                    onPressed: () => context.read<DownloadBloc>().add(
+                      const DownloadInitializeEvent(),
+                    ),
                     icon: const Icon(Icons.refresh_rounded),
                     tooltip: l10n.retry,
                   )
@@ -105,18 +106,18 @@ Widget buildDownloadSection(
                 label: '${settings.maxConcurrentDownloads}',
                 onChanged: (value) {
                   context.read<DownloadBloc>().add(
-                        DownloadSettingsUpdateEvent(
-                          maxConcurrentDownloads: value.toInt(),
-                          imageQuality: settings.imageQuality,
-                          autoRetry: settings.autoRetry,
-                          retryAttempts: settings.retryAttempts,
-                          retryDelay: settings.retryDelay,
-                          timeoutDuration: settings.timeoutDuration,
-                          enableNotifications: settings.enableNotifications,
-                          wifiOnly: settings.wifiOnly,
-                          customStorageRoot: settings.customStorageRoot,
-                        ),
-                      );
+                    DownloadSettingsUpdateEvent(
+                      maxConcurrentDownloads: value.toInt(),
+                      imageQuality: settings.imageQuality,
+                      autoRetry: settings.autoRetry,
+                      retryAttempts: settings.retryAttempts,
+                      retryDelay: settings.retryDelay,
+                      timeoutDuration: settings.timeoutDuration,
+                      enableNotifications: settings.enableNotifications,
+                      wifiOnly: settings.wifiOnly,
+                      customStorageRoot: settings.customStorageRoot,
+                    ),
+                  );
                 },
               ),
               Text(
@@ -147,18 +148,12 @@ Widget buildDownloadSection(
             value: settings.imageQuality,
             isExpanded: true,
             items: [
-              DropdownMenuItem(
-                value: 'low',
-                child: Text(l10n.lowQuality),
-              ),
+              DropdownMenuItem(value: 'low', child: Text(l10n.lowQuality)),
               DropdownMenuItem(
                 value: 'medium',
                 child: Text(l10n.mediumQuality),
               ),
-              DropdownMenuItem(
-                value: 'high',
-                child: Text(l10n.highQuality),
-              ),
+              DropdownMenuItem(value: 'high', child: Text(l10n.highQuality)),
               DropdownMenuItem(
                 value: 'original',
                 child: Text(l10n.originalQuality),
@@ -167,18 +162,18 @@ Widget buildDownloadSection(
             onChanged: (value) {
               if (value != null) {
                 context.read<DownloadBloc>().add(
-                      DownloadSettingsUpdateEvent(
-                        maxConcurrentDownloads: settings.maxConcurrentDownloads,
-                        imageQuality: value,
-                        autoRetry: settings.autoRetry,
-                        retryAttempts: settings.retryAttempts,
-                        retryDelay: settings.retryDelay,
-                        timeoutDuration: settings.timeoutDuration,
-                        enableNotifications: settings.enableNotifications,
-                        wifiOnly: settings.wifiOnly,
-                        customStorageRoot: settings.customStorageRoot,
-                      ),
-                    );
+                  DownloadSettingsUpdateEvent(
+                    maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                    imageQuality: value,
+                    autoRetry: settings.autoRetry,
+                    retryAttempts: settings.retryAttempts,
+                    retryDelay: settings.retryDelay,
+                    timeoutDuration: settings.timeoutDuration,
+                    enableNotifications: settings.enableNotifications,
+                    wifiOnly: settings.wifiOnly,
+                    customStorageRoot: settings.customStorageRoot,
+                  ),
+                );
               }
             },
           ),
@@ -192,18 +187,18 @@ Widget buildDownloadSection(
           value: settings.autoRetry,
           onChanged: (value) {
             context.read<DownloadBloc>().add(
-                  DownloadSettingsUpdateEvent(
-                    maxConcurrentDownloads: settings.maxConcurrentDownloads,
-                    imageQuality: settings.imageQuality,
-                    autoRetry: value,
-                    retryAttempts: settings.retryAttempts,
-                    retryDelay: settings.retryDelay,
-                    timeoutDuration: settings.timeoutDuration,
-                    enableNotifications: settings.enableNotifications,
-                    wifiOnly: settings.wifiOnly,
-                    customStorageRoot: settings.customStorageRoot,
-                  ),
-                );
+              DownloadSettingsUpdateEvent(
+                maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                imageQuality: settings.imageQuality,
+                autoRetry: value,
+                retryAttempts: settings.retryAttempts,
+                retryDelay: settings.retryDelay,
+                timeoutDuration: settings.timeoutDuration,
+                enableNotifications: settings.enableNotifications,
+                wifiOnly: settings.wifiOnly,
+                customStorageRoot: settings.customStorageRoot,
+              ),
+            );
           },
           theme: theme,
         ),
@@ -230,18 +225,18 @@ Widget buildDownloadSection(
               label: '${settings.retryAttempts}',
               onChanged: (value) {
                 context.read<DownloadBloc>().add(
-                      DownloadSettingsUpdateEvent(
-                        maxConcurrentDownloads: settings.maxConcurrentDownloads,
-                        imageQuality: settings.imageQuality,
-                        autoRetry: settings.autoRetry,
-                        retryAttempts: value.toInt(),
-                        retryDelay: settings.retryDelay,
-                        timeoutDuration: settings.timeoutDuration,
-                        enableNotifications: settings.enableNotifications,
-                        wifiOnly: settings.wifiOnly,
-                        customStorageRoot: settings.customStorageRoot,
-                      ),
-                    );
+                  DownloadSettingsUpdateEvent(
+                    maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                    imageQuality: settings.imageQuality,
+                    autoRetry: settings.autoRetry,
+                    retryAttempts: value.toInt(),
+                    retryDelay: settings.retryDelay,
+                    timeoutDuration: settings.timeoutDuration,
+                    enableNotifications: settings.enableNotifications,
+                    wifiOnly: settings.wifiOnly,
+                    customStorageRoot: settings.customStorageRoot,
+                  ),
+                );
               },
             ),
           ),
@@ -255,18 +250,18 @@ Widget buildDownloadSection(
           value: settings.wifiOnly,
           onChanged: (value) {
             context.read<DownloadBloc>().add(
-                  DownloadSettingsUpdateEvent(
-                    maxConcurrentDownloads: settings.maxConcurrentDownloads,
-                    imageQuality: settings.imageQuality,
-                    autoRetry: settings.autoRetry,
-                    retryAttempts: settings.retryAttempts,
-                    retryDelay: settings.retryDelay,
-                    timeoutDuration: settings.timeoutDuration,
-                    enableNotifications: settings.enableNotifications,
-                    wifiOnly: value,
-                    customStorageRoot: settings.customStorageRoot,
-                  ),
-                );
+              DownloadSettingsUpdateEvent(
+                maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                imageQuality: settings.imageQuality,
+                autoRetry: settings.autoRetry,
+                retryAttempts: settings.retryAttempts,
+                retryDelay: settings.retryDelay,
+                timeoutDuration: settings.timeoutDuration,
+                enableNotifications: settings.enableNotifications,
+                wifiOnly: value,
+                customStorageRoot: settings.customStorageRoot,
+              ),
+            );
           },
           theme: theme,
         ),
@@ -304,19 +299,18 @@ Widget buildDownloadSection(
                     .timeoutMinutes(settings.timeoutDuration.inMinutes),
                 onChanged: (value) {
                   context.read<DownloadBloc>().add(
-                        DownloadSettingsUpdateEvent(
-                          maxConcurrentDownloads:
-                              settings.maxConcurrentDownloads,
-                          imageQuality: settings.imageQuality,
-                          autoRetry: settings.autoRetry,
-                          retryAttempts: settings.retryAttempts,
-                          retryDelay: settings.retryDelay,
-                          timeoutDuration: Duration(minutes: value.toInt()),
-                          enableNotifications: settings.enableNotifications,
-                          wifiOnly: settings.wifiOnly,
-                          customStorageRoot: settings.customStorageRoot,
-                        ),
-                      );
+                    DownloadSettingsUpdateEvent(
+                      maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                      imageQuality: settings.imageQuality,
+                      autoRetry: settings.autoRetry,
+                      retryAttempts: settings.retryAttempts,
+                      retryDelay: settings.retryDelay,
+                      timeoutDuration: Duration(minutes: value.toInt()),
+                      enableNotifications: settings.enableNotifications,
+                      wifiOnly: settings.wifiOnly,
+                      customStorageRoot: settings.customStorageRoot,
+                    ),
+                  );
                 },
               ),
             ],
@@ -331,18 +325,18 @@ Widget buildDownloadSection(
           value: settings.enableNotifications,
           onChanged: (value) {
             context.read<DownloadBloc>().add(
-                  DownloadSettingsUpdateEvent(
-                    maxConcurrentDownloads: settings.maxConcurrentDownloads,
-                    imageQuality: settings.imageQuality,
-                    autoRetry: settings.autoRetry,
-                    retryAttempts: settings.retryAttempts,
-                    retryDelay: settings.retryDelay,
-                    timeoutDuration: settings.timeoutDuration,
-                    enableNotifications: value,
-                    wifiOnly: settings.wifiOnly,
-                    customStorageRoot: settings.customStorageRoot,
-                  ),
-                );
+              DownloadSettingsUpdateEvent(
+                maxConcurrentDownloads: settings.maxConcurrentDownloads,
+                imageQuality: settings.imageQuality,
+                autoRetry: settings.autoRetry,
+                retryAttempts: settings.retryAttempts,
+                retryDelay: settings.retryDelay,
+                timeoutDuration: settings.timeoutDuration,
+                enableNotifications: value,
+                wifiOnly: settings.wifiOnly,
+                customStorageRoot: settings.customStorageRoot,
+              ),
+            );
           },
           theme: theme,
         ),
@@ -355,10 +349,8 @@ Widget buildDownloadSection(
           value: settings.pauseOnOnlineReaderOnly,
           onChanged: (value) {
             context.read<DownloadBloc>().add(
-                  DownloadSettingsUpdateEvent(
-                    pauseOnOnlineReaderOnly: value,
-                  ),
-                );
+              DownloadSettingsUpdateEvent(pauseOnOnlineReaderOnly: value),
+            );
           },
           theme: theme,
         ),

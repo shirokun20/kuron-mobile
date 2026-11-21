@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -6,6 +6,7 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/app_lock/app_lock_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/app_lock/app_lock_state.dart';
 import 'package:nhasixapp/presentation/pages/app_lock/pin_setup_screen.dart';
+
 import 'settings_theme_widgets.dart';
 
 // ── PIN setup sheet (first time) ───────────────────────────────────────
@@ -179,9 +180,8 @@ class _PinChangeSheetState extends State<_PinChangeSheet> {
     setState(() => _isLoading = false);
     if (success) {
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.pinChangedSuccess)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.pinChangedSuccess)));
     } else {
       setState(() => _error = l10n.failedToChangePin);
     }
@@ -223,29 +223,38 @@ Widget _pinDots(int pinLength, int maxDigits, ThemeData theme) {
 }
 
 Widget _keypadRow(
-    ThemeData theme, List<String> digits, void Function(String) onDigit) {
+  ThemeData theme,
+  List<String> digits,
+  void Function(String) onDigit,
+) {
   return Row(
     children: digits
-        .map((d) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(6),
-                child: Material(
-                  color: theme.colorScheme.surfaceContainerHighest,
+        .map(
+          (d) => Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Material(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+                child: InkWell(
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-                    onTap: () => onDigit(d),
-                    child: Container(
-                      height: 64,
-                      alignment: Alignment.center,
-                      child: Text(d,
-                          style: const TextStyle(
-                              fontSize: 26, fontWeight: FontWeight.w600)),
+                  onTap: () => onDigit(d),
+                  child: Container(
+                    height: 64,
+                    alignment: Alignment.center,
+                    child: Text(
+                      d,
+                      style: const TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ))
+            ),
+          ),
+        )
         .toList(),
   );
 }
@@ -262,8 +271,11 @@ Widget _keypadBackspace(ThemeData theme, VoidCallback onDelete) {
           child: Container(
             height: 64,
             alignment: Alignment.center,
-            child: Icon(Icons.backspace_outlined,
-                color: theme.colorScheme.onSurfaceVariant, size: 24),
+            child: Icon(
+              Icons.backspace_outlined,
+              color: theme.colorScheme.onSurfaceVariant,
+              size: 24,
+            ),
           ),
         ),
       ),
@@ -299,21 +311,31 @@ class _PinKeypadBody extends StatelessWidget {
     return Column(
       children: [
         const Spacer(flex: 2),
-        Text(title,
-            style: TextStyleConst.headingMedium.copyWith(
-                color: theme.colorScheme.onSurface,
-                fontWeight: FontWeight.w700)),
+        Text(
+          title,
+          style: TextStyleConst.headingMedium.copyWith(
+            color: theme.colorScheme.onSurface,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(subtitle,
-            style: TextStyleConst.bodyMedium
-                .copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        Text(
+          subtitle,
+          style: TextStyleConst.bodyMedium.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 48),
         _pinDots(pin.length, maxDigits, theme),
         if (error != null) ...[
           const SizedBox(height: 16),
-          Text(error!,
-              style: TextStyleConst.bodyMedium.copyWith(
-                  color: theme.colorScheme.error, fontWeight: FontWeight.w600)),
+          Text(
+            error!,
+            style: TextStyleConst.bodyMedium.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
         const Spacer(flex: 1),
         Padding(
@@ -331,18 +353,24 @@ class _PinKeypadBody extends StatelessWidget {
                       padding: const EdgeInsets.all(6),
                       child: Material(
                         color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXl),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusXl,
+                        ),
                         child: InkWell(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusXl),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusXl,
+                          ),
                           onTap: () => onDigit('0'),
                           child: Container(
                             height: 64,
                             alignment: Alignment.center,
-                            child: const Text('0',
-                                style: TextStyle(
-                                    fontSize: 26, fontWeight: FontWeight.w600)),
+                            child: const Text(
+                              '0',
+                              style: TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -373,7 +401,10 @@ Widget buildAppLockSection(BuildContext context, ThemeData theme) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           buildSettingsSectionHeader(
-              Icons.lock_outline, l10n.appLockSectionTitle, theme),
+            Icons.lock_outline,
+            l10n.appLockSectionTitle,
+            theme,
+          ),
           const SizedBox(height: 12),
           buildSettingsCard([
             buildSettingsSwitchTile(
@@ -391,21 +422,31 @@ Widget buildAppLockSection(BuildContext context, ThemeData theme) {
             ),
             buildSettingsDivider(theme),
             ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              title: Text(l10n.changePin,
-                  style: TextStyleConst.bodyLarge.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: state.hasPin
-                          ? theme.colorScheme.onSurface
-                          : theme.disabledColor)),
-              subtitle: Text(l10n.changePinDescription,
-                  style: TextStyleConst.bodySmall
-                      .copyWith(color: theme.colorScheme.onSurfaceVariant)),
-              trailing: Icon(Icons.chevron_right,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              title: Text(
+                l10n.changePin,
+                style: TextStyleConst.bodyLarge.copyWith(
+                  fontWeight: FontWeight.w600,
                   color: state.hasPin
-                      ? theme.colorScheme.onSurfaceVariant
-                      : theme.disabledColor),
+                      ? theme.colorScheme.onSurface
+                      : theme.disabledColor,
+                ),
+              ),
+              subtitle: Text(
+                l10n.changePinDescription,
+                style: TextStyleConst.bodySmall.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: state.hasPin
+                    ? theme.colorScheme.onSurfaceVariant
+                    : theme.disabledColor,
+              ),
               onTap: state.hasPin ? () => showPinChangeDialog(context) : null,
             ),
             buildSettingsDivider(theme),

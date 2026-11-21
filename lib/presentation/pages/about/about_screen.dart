@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -15,6 +15,7 @@ import 'package:nhasixapp/presentation/widgets/update_available_sheet.dart';
 import 'package:nhasixapp/presentation/widgets/legal_content_sheet.dart';
 import 'package:nhasixapp/core/services/legal_content_service.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+
 import 'tickets_screen.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -79,14 +80,13 @@ class _AboutContentState extends State<_AboutContent>
   // row hidden — a zero or a spinner here would mislead or clutter.
   Future<void> _loadDownloadCount() async {
     try {
-      final total =
-          await getIt<GithubReleaseStatsService>().getTotalDownloads();
+      final total = await getIt<GithubReleaseStatsService>()
+          .getTotalDownloads();
       if (mounted && total != null) {
         final lang = Localizations.localeOf(context).languageCode;
         setState(() {
           _downloadsLabel = AppLocalizations.of(context)!
-              .appDownloadsFromGithub(
-                  compactCount(total, languageCode: lang));
+              .appDownloadsFromGithub(compactCount(total, languageCode: lang));
         });
       }
     } catch (_) {
@@ -127,9 +127,8 @@ class _AboutContentState extends State<_AboutContent>
                   UpdateAvailableSheet(updateInfo: state.updateInfo),
             );
           } else if (state is UpdateNotAvailable && state.isManualCheck) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(l10n.appIsUpToDate)),
-            );
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(l10n.appIsUpToDate)));
           } else if (state is UpdateError && state.isManualCheck) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(l10n.checkFailedMessage(state.message))),
@@ -143,8 +142,9 @@ class _AboutContentState extends State<_AboutContent>
               end: Alignment.bottomCenter,
               colors: [
                 theme.colorScheme.surface,
-                theme.colorScheme.surfaceContainerHighest
-                    .withValues(alpha: 0.3),
+                theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.3,
+                ),
               ],
             ),
           ),
@@ -168,8 +168,9 @@ class _AboutContentState extends State<_AboutContent>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: theme.colorScheme.primary
-                                    .withValues(alpha: 0.3),
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.3,
+                                ),
                                 blurRadius: 30,
                                 spreadRadius: 5,
                               ),
@@ -196,12 +197,15 @@ class _AboutContentState extends State<_AboutContent>
                 const SizedBox(height: DesignTokens.spaceSm),
                 Center(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radius2xl),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radius2xl,
+                      ),
                     ),
                     child: Text(
                       _version,
@@ -217,13 +221,16 @@ class _AboutContentState extends State<_AboutContent>
                   Center(
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.primaryContainer.withValues(
                           alpha: 0.5,
                         ),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radius2xl),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radius2xl,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -274,7 +281,8 @@ class _AboutContentState extends State<_AboutContent>
                     context,
                     icon: Icons.confirmation_number_outlined,
                     title: 'Tickets',
-                    subtitle: 'Daftar issue terbuka kuron-mobile & kuron-extensions',
+                    subtitle:
+                        'Daftar issue terbuka kuron-mobile & kuron-extensions',
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute<void>(
@@ -359,10 +367,7 @@ class _AboutContentState extends State<_AboutContent>
                     _buildTechBadge('Dart', colorScheme.secondary),
                     _buildTechBadge('Bloc', colorScheme.tertiary),
                     _buildTechBadge('Clean Arch', colorScheme.error),
-                    _buildTechBadge(
-                      'GetIt',
-                      colorScheme.onSurfaceVariant,
-                    ),
+                    _buildTechBadge('GetIt', colorScheme.onSurfaceVariant),
                   ],
                 ),
 
@@ -435,7 +440,8 @@ class _AboutContentState extends State<_AboutContent>
           elevation: DesignTokens.elevationNone,
           color: theme.colorScheme.surfaceContainer,
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(DesignTokens.radiusXl)),
+            borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
+          ),
           child: InkWell(
             onTap: isLoading
                 ? null
@@ -485,8 +491,10 @@ class _AboutContentState extends State<_AboutContent>
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right,
-                      color: theme.iconTheme.color?.withValues(alpha: 0.5)),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.iconTheme.color?.withValues(alpha: 0.5),
+                  ),
                 ],
               ),
             ),
@@ -501,10 +509,9 @@ class _AboutContentState extends State<_AboutContent>
       elevation: DesignTokens.elevationNone,
       color: theme.colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusXl)),
-      child: Column(
-        children: children,
+        borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
       ),
+      child: Column(children: children),
     );
   }
 
@@ -535,8 +542,11 @@ class _AboutContentState extends State<_AboutContent>
         ),
       ),
       trailing: isExternal
-          ? Icon(Icons.open_in_new,
-              size: 16, color: colorScheme.onSurfaceVariant)
+          ? Icon(
+              Icons.open_in_new,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            )
           : Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant),
     );
   }
@@ -575,8 +585,10 @@ class _AboutContentState extends State<_AboutContent>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(
-                  AppLocalizations.of(context)!.couldNotLaunchUrl(urlString))),
+            content: Text(
+              AppLocalizations.of(context)!.couldNotLaunchUrl(urlString),
+            ),
+          ),
         );
       }
     }

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -53,9 +53,7 @@ class DynamicSortingWidget extends StatelessWidget {
             ? colorScheme.surfaceContainerHigh
             : colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -65,9 +63,7 @@ class DynamicSortingWidget extends StatelessWidget {
           Row(
             children: [
               // Info section (left side)
-              Expanded(
-                child: _buildInfoSection(context, colorScheme),
-              ),
+              Expanded(child: _buildInfoSection(context, colorScheme)),
 
               // Sort button (right side)
               _buildSortButton(context, colorScheme, isDark),
@@ -153,8 +149,9 @@ class DynamicSortingWidget extends StatelessWidget {
                     '$resultCount results',
                     style: TextStyle(
                       fontSize: 11,
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
+                      ),
                     ),
                   ),
               ],
@@ -166,7 +163,10 @@ class DynamicSortingWidget extends StatelessWidget {
   }
 
   Widget _buildSortButton(
-      BuildContext context, ColorScheme colorScheme, bool isDark) {
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
     final currentOption = _getCurrentOption();
 
     if (config.widgetType == SortWidgetType.readonly) {
@@ -277,7 +277,10 @@ class DynamicSortingWidget extends StatelessWidget {
   }
 
   Widget _buildReadonlyButton(
-      BuildContext context, ColorScheme colorScheme, SortOptionConfig option) {
+    BuildContext context,
+    ColorScheme colorScheme,
+    SortOptionConfig option,
+  ) {
     return InkWell(
       onTap: onNavigateToSearch,
       borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
@@ -286,9 +289,7 @@ class DynamicSortingWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
-          border: Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.2),
-          ),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.2)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -322,7 +323,10 @@ class DynamicSortingWidget extends StatelessWidget {
   }
 
   Widget _buildChips(
-      BuildContext context, ColorScheme colorScheme, bool isDark) {
+    BuildContext context,
+    ColorScheme colorScheme,
+    bool isDark,
+  ) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
@@ -355,8 +359,9 @@ class DynamicSortingWidget extends StatelessWidget {
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color:
-                                  colorScheme.primary.withValues(alpha: 0.25),
+                              color: colorScheme.primary.withValues(
+                                alpha: 0.25,
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -380,8 +385,9 @@ class DynamicSortingWidget extends StatelessWidget {
                         option.label,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.w500,
                           color: isSelected
                               ? colorScheme.onPrimary
                               : colorScheme.onSurface,
@@ -401,8 +407,10 @@ class DynamicSortingWidget extends StatelessWidget {
   SortOptionConfig _getCurrentOption() {
     return config.options.firstWhere(
       (opt) => opt.value == currentSortValue,
-      orElse: () => config.options
-          .firstWhere((o) => o.isDefault, orElse: () => config.options.first),
+      orElse: () => config.options.firstWhere(
+        (o) => o.isDefault,
+        orElse: () => config.options.first,
+      ),
     );
   }
 

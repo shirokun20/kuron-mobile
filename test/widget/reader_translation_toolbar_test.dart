@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
@@ -16,9 +16,7 @@ import '../unit/presentation/fakes.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  ReaderTranslationCubit makeCubit({
-    FakeCacheRepository? cacheRepository,
-  }) =>
+  ReaderTranslationCubit makeCubit({FakeCacheRepository? cacheRepository}) =>
       ReaderTranslationCubit(
         providerRepository: FakeAiProviderRepository()
           ..addOnly(FakeAiProviderRepository.testProvider),
@@ -94,8 +92,9 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('translate enabled in continue scroll (webtoon gate in cubit)',
-      (tester) async {
+  testWidgets('translate enabled in continue scroll (webtoon gate in cubit)', (
+    tester,
+  ) async {
     final cubit = makeCubit();
     addTearDown(cubit.close);
     await pumpToolbar(tester, cubit, mode: ReadingMode.continuousScroll);
@@ -103,7 +102,8 @@ void main() {
     final translateIcon = find.byIcon(Icons.auto_awesome_outlined);
     expect(translateIcon, findsOneWidget);
     final button = tester.widget<IconButton>(
-        find.ancestor(of: translateIcon, matching: find.byType(IconButton)));
+      find.ancestor(of: translateIcon, matching: find.byType(IconButton)),
+    );
     expect(button.onPressed, isNotNull);
   });
 
@@ -114,12 +114,14 @@ void main() {
 
     final translateIcon = find.byIcon(Icons.auto_awesome_outlined);
     final button = tester.widget<IconButton>(
-        find.ancestor(of: translateIcon, matching: find.byType(IconButton)));
+      find.ancestor(of: translateIcon, matching: find.byType(IconButton)),
+    );
     expect(button.onPressed, isNotNull);
   });
 
-  testWidgets('draw button enabled in continue scroll (bubble detect)',
-      (tester) async {
+  testWidgets('draw button enabled in continue scroll (bubble detect)', (
+    tester,
+  ) async {
     final cubit = makeCubit();
     addTearDown(cubit.close);
     await pumpToolbar(tester, cubit, mode: ReadingMode.continuousScroll);
@@ -127,46 +129,49 @@ void main() {
     final drawIcon = find.byIcon(Icons.draw_outlined);
     expect(drawIcon, findsOneWidget);
     final button = tester.widget<IconButton>(
-        find.ancestor(of: drawIcon, matching: find.byType(IconButton)));
+      find.ancestor(of: drawIcon, matching: find.byType(IconButton)),
+    );
     expect(button.onPressed, isNotNull);
   });
 
   testWidgets(
-      'continue scroll tap translate retriggers onTranslate even when translated',
-      (tester) async {
-    final cache = FakeCacheRepository();
-    final cubit = makeCubit(cacheRepository: cache);
-    addTearDown(cubit.close);
+    'continue scroll tap translate retriggers onTranslate even when translated',
+    (tester) async {
+      final cache = FakeCacheRepository();
+      final cubit = makeCubit(cacheRepository: cache);
+      addTearDown(cubit.close);
 
-    await seedTranslatedState(cubit, cache);
+      await seedTranslatedState(cubit, cache);
 
-    var called = 0;
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: BlocProvider.value(
-          value: cubit,
-          child: Scaffold(
-            body: ReaderTranslationToolbar(
-              readingMode: ReadingMode.continuousScroll,
-              onTranslate: () => called++,
+      var called = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: BlocProvider.value(
+            value: cubit,
+            child: Scaffold(
+              body: ReaderTranslationToolbar(
+                readingMode: ReadingMode.continuousScroll,
+                onTranslate: () => called++,
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.auto_awesome));
-    await tester.pump();
+      expect(find.byIcon(Icons.auto_awesome), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.auto_awesome));
+      await tester.pump();
 
-    expect(called, 1);
-  });
+      expect(called, 1);
+    },
+  );
 
-  testWidgets('single page tap translated toggles overlay, not retranslate',
-      (tester) async {
+  testWidgets('single page tap translated toggles overlay, not retranslate', (
+    tester,
+  ) async {
     final cache = FakeCacheRepository();
     final cubit = makeCubit(cacheRepository: cache);
     addTearDown(cubit.close);

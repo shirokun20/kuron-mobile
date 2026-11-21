@@ -1,7 +1,9 @@
 import 'package:bloc_test/bloc_test.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:kuron_core/kuron_core.dart';
@@ -80,76 +82,81 @@ void main() {
 
     await downloadBloc.close();
   });
-  testWidgets('DownloadBloc emit for other content does NOT trigger card rebuild', (tester) async {
-    final downloadBloc = _MockDownloadBloc();
-    when(() => downloadBloc.state).thenReturn(const DownloadInitial());
+  testWidgets(
+    'DownloadBloc emit for other content does NOT trigger card rebuild',
+    (tester) async {
+      final downloadBloc = _MockDownloadBloc();
+      when(() => downloadBloc.state).thenReturn(const DownloadInitial());
 
-    int buildCount = 0;
-    await tester.pumpWidget(
-      BlocProvider<DownloadBloc>.value(
-        value: downloadBloc,
-        child: MaterialApp(
-          localizationsDelegates: [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          supportedLocales: [Locale('en')],
-          home: Scaffold(
-            body: Builder(
-              builder: (context) {
-                buildCount++;
-                return SizedBox(
-                  width: 360,
-                  height: 160,
-                  child: MainFeaturedCard(
-                    content: Content(
-                      id: 'my-content',
-                      sourceId: 'test',
-                      title: 'My Title',
-                      coverUrl: '',
-                      tags: const [],
-                      artists: const [],
-                      characters: const [],
-                      parodies: const [],
-                      groups: const [],
-                      language: 'en',
-                      pageCount: 10,
-                      imageUrls: const [],
-                      uploadDate: DateTime(2026),
+      int buildCount = 0;
+      await tester.pumpWidget(
+        BlocProvider<DownloadBloc>.value(
+          value: downloadBloc,
+          child: MaterialApp(
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: [Locale('en')],
+            home: Scaffold(
+              body: Builder(
+                builder: (context) {
+                  buildCount++;
+                  return SizedBox(
+                    width: 360,
+                    height: 160,
+                    child: MainFeaturedCard(
+                      content: Content(
+                        id: 'my-content',
+                        sourceId: 'test',
+                        title: 'My Title',
+                        coverUrl: '',
+                        tags: const [],
+                        artists: const [],
+                        characters: const [],
+                        parodies: const [],
+                        groups: const [],
+                        language: 'en',
+                        pageCount: 10,
+                        imageUrls: const [],
+                        uploadDate: DateTime(2026),
+                      ),
+                      onTap: () {},
                     ),
-                    onTap: () {},
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('My Title'), findsOneWidget);
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('My Title'), findsOneWidget);
 
-    // Now emit DownloadLoaded for an unrelated content
-    when(() => downloadBloc.state).thenReturn(DownloadLoaded(
-      downloads: const [
-        DownloadStatus(
-          contentId: 'other-content',
-          state: DownloadState.completed,
-          title: 'Other',
-          totalPages: 5,
+      // Now emit DownloadLoaded for an unrelated content
+      when(() => downloadBloc.state).thenReturn(
+        DownloadLoaded(
+          downloads: const [
+            DownloadStatus(
+              contentId: 'other-content',
+              state: DownloadState.completed,
+              title: 'Other',
+              totalPages: 5,
+            ),
+          ],
+          settings: const DownloadSettings(),
+          lastUpdated: DateTime.now(),
         ),
-      ],
-      settings: const DownloadSettings(),
-      lastUpdated: DateTime.now(),
-    ));
+      );
 
-    // Pump a frame
-    await tester.pump();
-    expect(tester.takeException(), isNull);
-    expect(buildCount, 1);
+      // Pump a frame
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(buildCount, 1);
 
-    await downloadBloc.close();
-  });
+      await downloadBloc.close();
+    },
+  );
 }

@@ -1,5 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -10,12 +10,15 @@ import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_special/kuron_special.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/source_auth_service.dart';
+
 import '../../core/routing/app_route.dart';
 import '../../domain/entities/reader_badge.dart';
 import '../../domain/usecases/reader_identity/reader_identity_usecases.dart';
 import 'common/source_selector.dart';
+
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import 'reader_avatar.dart';
 import 'streak_card.dart';
 
@@ -23,17 +26,11 @@ class _SourceAuthIdentity {
   final bool authenticated;
   final String? displayName;
 
-  const _SourceAuthIdentity({
-    required this.authenticated,
-    this.displayName,
-  });
+  const _SourceAuthIdentity({required this.authenticated, this.displayName});
 }
 
 class AppDrawerContent extends StatefulWidget {
-  const AppDrawerContent({
-    super.key,
-    this.isDrawer = true,
-  });
+  const AppDrawerContent({super.key, this.isDrawer = true});
 
   final bool isDrawer;
 
@@ -113,10 +110,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
     }
 
     final displayName = await authService.getSessionDisplayName(sourceId);
-    return _SourceAuthIdentity(
-      authenticated: true,
-      displayName: displayName,
-    );
+    return _SourceAuthIdentity(authenticated: true, displayName: displayName);
   }
 
   @override
@@ -171,8 +165,10 @@ class _AppDrawerContentState extends State<AppDrawerContent>
             // 2. Scrollable Navigation Items
             Expanded(
               child: ListView(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 children: [
                   const SourceSelector(),
                   SizedBox(height: DesignTokens.spaceSm),
@@ -187,8 +183,11 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                           SourceType.crotpedia.id) ...[
                     Builder(
                       builder: (_) {
-                        final sourceId =
-                            context.watch<SourceCubit>().state.activeSource!.id;
+                        final sourceId = context
+                            .watch<SourceCubit>()
+                            .state
+                            .activeSource!
+                            .id;
 
                         return FutureBuilder<_SourceAuthIdentity>(
                           future: _loadSourceAuthIdentity(sourceId),
@@ -200,9 +199,9 @@ class _AppDrawerContentState extends State<AppDrawerContent>
 
                             final label = isLoggedIn
                                 ? (displayName.isNotEmpty
-                                    ? AppLocalizations.of(context)!
-                                        .profileWithName(displayName)
-                                    : AppLocalizations.of(context)!.profile)
+                                      ? AppLocalizations.of(context)!
+                                            .profileWithName(displayName)
+                                      : AppLocalizations.of(context)!.profile)
                                 : AppLocalizations.of(context)!.loginAccount;
 
                             return Column(
@@ -240,7 +239,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                         final name = adapter.username;
                         final label = isLoggedIn && name != null
                             ? AppLocalizations.of(context)!
-                                .accountWithName(name)
+                                  .accountWithName(name)
                             : AppLocalizations.of(context)!.loginAccount;
 
                         return Column(
@@ -265,118 +264,125 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                     ),
 
                     // Dynamic Crotpedia Menu
-                    Builder(builder: (context) {
-                      final configService = getIt<RemoteConfigService>();
-                      final rawConfig = configService.getRawConfig('crotpedia');
-                      if (rawConfig != null) {
-                        Map<String, dynamic>? menuConfig;
-                        if (rawConfig['menuConfig'] is Map<String, dynamic>) {
-                          menuConfig =
-                              rawConfig['menuConfig'] as Map<String, dynamic>;
-                        } else if (rawConfig['featurePages']
-                            is Map<String, dynamic>) {
-                          final featurePages =
-                              rawConfig['featurePages'] as Map<String, dynamic>;
-                          // Fallback: auto-build drawer menu from featurePages
-                          // so menu still appears even without legacy menuConfig.
-                          final generatedMenu = <String, dynamic>{};
-                          if (featurePages.containsKey('genreList')) {
-                            generatedMenu['genreList'] = {
-                              'enabled': true,
-                              'label': 'Genres',
-                              'icon': 'category',
-                            };
+                    Builder(
+                      builder: (context) {
+                        final configService = getIt<RemoteConfigService>();
+                        final rawConfig = configService.getRawConfig(
+                          'crotpedia',
+                        );
+                        if (rawConfig != null) {
+                          Map<String, dynamic>? menuConfig;
+                          if (rawConfig['menuConfig'] is Map<String, dynamic>) {
+                            menuConfig =
+                                rawConfig['menuConfig'] as Map<String, dynamic>;
+                          } else if (rawConfig['featurePages']
+                              is Map<String, dynamic>) {
+                            final featurePages =
+                                rawConfig['featurePages']
+                                    as Map<String, dynamic>;
+                            // Fallback: auto-build drawer menu from featurePages
+                            // so menu still appears even without legacy menuConfig.
+                            final generatedMenu = <String, dynamic>{};
+                            if (featurePages.containsKey('genreList')) {
+                              generatedMenu['genreList'] = {
+                                'enabled': true,
+                                'label': 'Genres',
+                                'icon': 'category',
+                              };
+                            }
+                            if (featurePages.containsKey('doujinList')) {
+                              generatedMenu['doujinList'] = {
+                                'enabled': true,
+                                'label': 'Doujin List',
+                                'icon': 'library_books',
+                              };
+                            }
+                            if (featurePages.containsKey('requestList')) {
+                              generatedMenu['requestList'] = {
+                                'enabled': true,
+                                'label': 'Request List',
+                                'icon': 'assignment',
+                              };
+                            }
+                            menuConfig = generatedMenu;
                           }
-                          if (featurePages.containsKey('doujinList')) {
-                            generatedMenu['doujinList'] = {
-                              'enabled': true,
-                              'label': 'Doujin List',
-                              'icon': 'library_books',
-                            };
+
+                          if (menuConfig == null) {
+                            return const SizedBox.shrink();
                           }
-                          if (featurePages.containsKey('requestList')) {
-                            generatedMenu['requestList'] = {
-                              'enabled': true,
-                              'label': 'Request List',
-                              'icon': 'assignment',
-                            };
-                          }
-                          menuConfig = generatedMenu;
-                        }
 
-                        if (menuConfig == null) {
-                          return const SizedBox.shrink();
-                        }
+                          final List<Widget> menuItems = [];
 
-                        final List<Widget> menuItems = [];
-
-                        // Helper for icon mapping
-                        IconData getIcon(String? iconName) {
-                          switch (iconName) {
-                            case 'volunteer_activism':
-                              return Icons.volunteer_activism;
-                            case 'category':
-                              return Icons.category;
-                            case 'library_books':
-                              return Icons.library_books;
-                            case 'assignment':
-                              return Icons.assignment;
-                            default:
-                              return Icons.circle;
-                          }
-                        }
-
-                        // Helper for route mapping
-                        String getRoute(String key) {
-                          switch (key) {
-                            case 'genreList':
-                              return AppRoute.crotpediaGenreList;
-                            case 'doujinList':
-                              return AppRoute.crotpediaDoujinList;
-                            case 'requestList':
-                              return AppRoute.crotpediaRequestList;
-                            case 'donation':
-                              return AppRoute
-                                  .crotpediaDonation; // Needs handling
-                            default:
-                              return '';
-                          }
-                        }
-
-                        menuConfig.forEach((key, value) {
-                          if (value is Map<String, dynamic> &&
-                              value['enabled'] == true) {
-                            final label = value['label']?.toString() ?? '';
-                            final iconName = value['icon'] as String?;
-                            final route = getRoute(key);
-
-                            if (route.isNotEmpty) {
-                              menuItems.add(_buildNavItem(
-                                context,
-                                icon: getIcon(iconName),
-                                label: label,
-                                route: route,
-                                isSelected: isSelected(route),
-                                theme: theme,
-                              ));
+                          // Helper for icon mapping
+                          IconData getIcon(String? iconName) {
+                            switch (iconName) {
+                              case 'volunteer_activism':
+                                return Icons.volunteer_activism;
+                              case 'category':
+                                return Icons.category;
+                              case 'library_books':
+                                return Icons.library_books;
+                              case 'assignment':
+                                return Icons.assignment;
+                              default:
+                                return Icons.circle;
                             }
                           }
-                        });
 
-                        if (menuItems.isNotEmpty) {
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildSectionLabel('MENU', theme),
-                              SizedBox(height: DesignTokens.spaceSm),
-                              ...menuItems,
-                              SizedBox(height: DesignTokens.spaceLg),
-                            ],
-                          );
+                          // Helper for route mapping
+                          String getRoute(String key) {
+                            switch (key) {
+                              case 'genreList':
+                                return AppRoute.crotpediaGenreList;
+                              case 'doujinList':
+                                return AppRoute.crotpediaDoujinList;
+                              case 'requestList':
+                                return AppRoute.crotpediaRequestList;
+                              case 'donation':
+                                return AppRoute
+                                    .crotpediaDonation; // Needs handling
+                              default:
+                                return '';
+                            }
+                          }
+
+                          menuConfig.forEach((key, value) {
+                            if (value is Map<String, dynamic> &&
+                                value['enabled'] == true) {
+                              final label = value['label']?.toString() ?? '';
+                              final iconName = value['icon'] as String?;
+                              final route = getRoute(key);
+
+                              if (route.isNotEmpty) {
+                                menuItems.add(
+                                  _buildNavItem(
+                                    context,
+                                    icon: getIcon(iconName),
+                                    label: label,
+                                    route: route,
+                                    isSelected: isSelected(route),
+                                    theme: theme,
+                                  ),
+                                );
+                              }
+                            }
+                          });
+
+                          if (menuItems.isNotEmpty) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildSectionLabel('MENU', theme),
+                                SizedBox(height: DesignTokens.spaceSm),
+                                ...menuItems,
+                                SizedBox(height: DesignTokens.spaceLg),
+                              ],
+                            );
+                          }
                         }
-                      }
-                      return const SizedBox.shrink();
-                    }),
+                        return const SizedBox.shrink();
+                      },
+                    ),
                   ],
 
                   _buildSectionLabel(l10n.home.toUpperCase(), theme),
@@ -398,7 +404,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                       // Get active source ID once for all feature checks
                       final sourceId =
                           context.read<SourceCubit>().state.activeSource?.id ??
-                              'nhentai';
+                          'nhentai';
                       final config = getIt<RemoteConfigService>();
 
                       return Column(
@@ -406,7 +412,9 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                         children: [
                           // Downloaded Galleries
                           if (config.isFeatureEnabled(
-                              sourceId, (f) => f.download))
+                            sourceId,
+                            (f) => f.download,
+                          ))
                             _buildNavItem(
                               context,
                               icon: Icons.download_rounded,
@@ -418,7 +426,9 @@ class _AppDrawerContentState extends State<AppDrawerContent>
 
                           // Offline Content (Linked to Download feature)
                           if (config.isFeatureEnabled(
-                              sourceId, (f) => f.offlineMode))
+                            sourceId,
+                            (f) => f.offlineMode,
+                          ))
                             _buildNavItem(
                               context,
                               icon: Icons.offline_bolt_rounded,
@@ -436,7 +446,9 @@ class _AppDrawerContentState extends State<AppDrawerContent>
 
                             // Favorite Galleries
                             if (config.isFeatureEnabled(
-                                sourceId, (f) => f.favorite))
+                              sourceId,
+                              (f) => f.favorite,
+                            ))
                               _buildNavItem(
                                 context,
                                 icon: Icons.favorite_rounded,
@@ -582,10 +594,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
           // App Name with gradient text effect
           ShaderMask(
             shaderCallback: (bounds) => LinearGradient(
-              colors: [
-                theme.colorScheme.primary,
-                theme.colorScheme.secondary,
-              ],
+              colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
             ).createShader(bounds),
             child: Text(
               l10n.appTitle,
@@ -628,7 +637,10 @@ class _AppDrawerContentState extends State<AppDrawerContent>
   }
 
   Widget _buildIdentityRow(
-      ThemeData theme, AppLocalizations l10n, ReaderBadge badge) {
+    ThemeData theme,
+    AppLocalizations l10n,
+    ReaderBadge badge,
+  ) {
     final source = badge.topSourceDisplayName.isNotEmpty
         ? badge.topSourceDisplayName
         : '–';
@@ -662,10 +674,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  l10n.readerStatsLine(
-                    badge.completedCount.toString(),
-                    source,
-                  ),
+                  l10n.readerStatsLine(badge.completedCount.toString(), source),
                   style: TextStyleConst.bodySmall.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                     fontSize: 11,
@@ -706,10 +715,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
               borderRadius: BorderRadius.circular(14),
               border: isSelected
                   ? Border(
-                      left: BorderSide(
-                        color: colorScheme.primary,
-                        width: 3,
-                      ),
+                      left: BorderSide(color: colorScheme.primary, width: 3),
                     )
                   : null,
             ),
@@ -737,8 +743,9 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                   child: Text(
                     label,
                     style: TextStyleConst.bodyMedium.copyWith(
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: isSelected
                           ? colorScheme.primary
                           : colorScheme.onSurface.withValues(alpha: 0.85),

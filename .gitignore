@@ -91,6 +91,11 @@ skills-lock.json
 .cline/*
 .clinerules/*
 .omp/*
+# Copied kuron-extensions configs (READ-ONLY source lives in the external
+# checkout; these must never be committed — resolved at test time instead)
+packages/kuron_generic/test/integration/fixtures/configs/
+test/integration/fixtures/configs/
+
 # Widget Preview related
 .widget_preview/
 .playwright-cli/*

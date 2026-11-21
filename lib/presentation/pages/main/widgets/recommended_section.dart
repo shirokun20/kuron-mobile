@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/routing/app_router.dart';
@@ -40,8 +40,7 @@ class _RecommendedSectionState extends State<RecommendedSection>
     WidgetsBinding.instance.addObserver(this);
     _cubit = getIt<RecommendationCubit>()
       ..loadRecommendations(excludeIds: widget.excludeIds);
-    _busSub =
-        getIt<RecommendationRefreshBus>().stream.listen((_) {
+    _busSub = getIt<RecommendationRefreshBus>().stream.listen((_) {
       if (mounted) _cubit.refresh();
     });
   }
@@ -111,8 +110,7 @@ class _RecommendedSectionState extends State<RecommendedSection>
                 RecommendationBannerCarousel(
                   items: loaded.items,
                   onTap: (item) => _onTap(context, cubit, item),
-                  onDismiss: (item) =>
-                      _onDismiss(context, cubit, item),
+                  onDismiss: (item) => _onDismiss(context, cubit, item),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -168,8 +166,11 @@ class _RecommendedSectionState extends State<RecommendedSection>
     );
   }
 
-  Future<void> _onTap(BuildContext context, RecommendationCubit cubit,
-      Recommendation item) async {
+  Future<void> _onTap(
+    BuildContext context,
+    RecommendationCubit cubit,
+    Recommendation item,
+  ) async {
     unawaited(cubit.markTapped(item));
     await AppRouter.goToContentDetail(
       context,
@@ -179,15 +180,16 @@ class _RecommendedSectionState extends State<RecommendedSection>
     );
   }
 
-  Future<void> _onDismiss(BuildContext context, RecommendationCubit cubit,
-      Recommendation item) async {
-    await cubit.dismissRecommendation(item.contentId,
-        sourceId: item.sourceId);
+  Future<void> _onDismiss(
+    BuildContext context,
+    RecommendationCubit cubit,
+    Recommendation item,
+  ) async {
+    await cubit.dismissRecommendation(item.contentId, sourceId: item.sourceId);
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              AppLocalizations.of(context)!.recommendationDismissed),
+          content: Text(AppLocalizations.of(context)!.recommendationDismissed),
           duration: const Duration(seconds: 2),
         ),
       );

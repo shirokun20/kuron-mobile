@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
 import 'package:nhasixapp/core/constants/colors_const.dart' show AppColors;
@@ -21,16 +21,10 @@ class TagChipColors {
   final Color border;
 }
 
-enum TagPickState {
-  include,
-  exclude,
-}
+enum TagPickState { include, exclude }
 
 class CombinedPickerResult {
-  const CombinedPickerResult({
-    required this.included,
-    required this.excluded,
-  });
+  const CombinedPickerResult({required this.included, required this.excluded});
 
   final List<DynamicOption> included;
   final List<DynamicOption> excluded;
@@ -195,12 +189,11 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                       width: 38,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
+                        color: Theme.of(context).colorScheme.outlineVariant
                             .withValues(alpha: 0.8),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusFull,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -223,17 +216,27 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                     const SizedBox(height: DesignTokens.spaceXs),
                     Row(
                       children: [
-                        Icon(Icons.add_circle_outline,
-                            size: 16, color: includeColors.accent),
+                        Icon(
+                          Icons.add_circle_outline,
+                          size: 16,
+                          color: includeColors.accent,
+                        ),
                         const SizedBox(width: 4),
-                        Text(AppLocalizations.of(context)!
-                            .includeCountLabel(includeCount)),
+                        Text(
+                          AppLocalizations.of(context)!
+                              .includeCountLabel(includeCount),
+                        ),
                         const SizedBox(width: 12),
-                        Icon(Icons.remove_circle_outline,
-                            size: 16, color: excludeColors.accent),
+                        Icon(
+                          Icons.remove_circle_outline,
+                          size: 16,
+                          color: excludeColors.accent,
+                        ),
                         const SizedBox(width: 4),
-                        Text(AppLocalizations.of(context)!
-                            .excludeCountLabel(excludeCount)),
+                        Text(
+                          AppLocalizations.of(context)!
+                              .excludeCountLabel(excludeCount),
+                        ),
                       ],
                     ),
                     const SizedBox(height: DesignTokens.spaceSm),
@@ -242,8 +245,9 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                         prefixIcon: const Icon(Icons.search),
                         hintText: AppLocalizations.of(context)!.searchTagsHint,
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                         filled: true,
                       ),
@@ -264,7 +268,9 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                                 for (final groupKey in groupKeys) ...[
                                   Padding(
                                     padding: const EdgeInsets.only(
-                                        top: 6, bottom: 8),
+                                      top: 6,
+                                      bottom: 8,
+                                    ),
                                     child: Text(
                                       _capitalize(groupKey),
                                       style: Theme.of(context)
@@ -288,8 +294,8 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                                       final selectedColors = isInclude
                                           ? includeColors
                                           : isExclude
-                                              ? excludeColors
-                                              : null;
+                                          ? excludeColors
+                                          : null;
                                       final fallbackBorder = Theme.of(context)
                                           .colorScheme
                                           .outlineVariant;
@@ -299,14 +305,18 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                                         label: Text(option.label),
                                         selected: isInclude || isExclude,
                                         avatar: isInclude
-                                            ? Icon(Icons.add,
+                                            ? Icon(
+                                                Icons.add,
                                                 size: 14,
-                                                color: includeColors.accent)
+                                                color: includeColors.accent,
+                                              )
                                             : isExclude
-                                                ? Icon(Icons.remove,
-                                                    size: 14,
-                                                    color: excludeColors.accent)
-                                                : null,
+                                            ? Icon(
+                                                Icons.remove,
+                                                size: 14,
+                                                color: excludeColors.accent,
+                                              )
+                                            : null,
                                         backgroundColor: Theme.of(context)
                                             .colorScheme
                                             .surfaceContainerLow,
@@ -339,8 +349,9 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                                               selectedState[option.value] =
                                                   TagPickState.exclude;
                                             } else {
-                                              selectedState
-                                                  .remove(option.value);
+                                              selectedState.remove(
+                                                option.value,
+                                              );
                                             }
                                           });
                                         },
@@ -359,14 +370,18 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                       child: FilledButton(
                         onPressed: () {
                           final include = options
-                              .where((o) =>
-                                  selectedState[o.value] ==
-                                  TagPickState.include)
+                              .where(
+                                (o) =>
+                                    selectedState[o.value] ==
+                                    TagPickState.include,
+                              )
                               .toList();
                           final exclude = options
-                              .where((o) =>
-                                  selectedState[o.value] ==
-                                  TagPickState.exclude)
+                              .where(
+                                (o) =>
+                                    selectedState[o.value] ==
+                                    TagPickState.exclude,
+                              )
                               .toList();
                           context.pop(
                             CombinedPickerResult(
@@ -375,8 +390,10 @@ Future<CombinedPickerResult?> showDynamicFormCombinedPicker({
                             ),
                           );
                         },
-                        child: Text(AppLocalizations.of(context)!
-                            .applyWithCounts(includeCount, excludeCount)),
+                        child: Text(
+                          AppLocalizations.of(context)!
+                              .applyWithCounts(includeCount, excludeCount),
+                        ),
                       ),
                     ),
                   ],
@@ -463,12 +480,11 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                       width: 38,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .outlineVariant
+                        color: Theme.of(context).colorScheme.outlineVariant
                             .withValues(alpha: 0.8),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusFull,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -489,7 +505,7 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                           onPressed: selectedValues.isEmpty
                               ? null
                               : () =>
-                                  setSheetState(() => selectedValues.clear()),
+                                    setSheetState(() => selectedValues.clear()),
                           child: Text(AppLocalizations.of(context)!.reset),
                         ),
                       ],
@@ -500,8 +516,9 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                         prefixIcon: const Icon(Icons.search),
                         hintText: AppLocalizations.of(context)!.searchTagsHint,
                         border: OutlineInputBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                         filled: true,
                       ),
@@ -522,7 +539,9 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                                 for (final groupKey in groupKeys) ...[
                                   Padding(
                                     padding: const EdgeInsets.only(
-                                        top: 6, bottom: 8),
+                                      top: 6,
+                                      bottom: 8,
+                                    ),
                                     child: Text(
                                       _capitalize(groupKey),
                                       style: Theme.of(context)
@@ -536,50 +555,47 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 8,
-                                    children: grouped[groupKey]!.map(
-                                      (option) {
-                                        final isSelected = selectedValues
-                                            .contains(option.value);
-                                        return FilterChip(
-                                          label: Text(option.label),
-                                          selected: isSelected,
-                                          backgroundColor: Theme.of(context)
-                                              .colorScheme
-                                              .surfaceContainerLow,
-                                          selectedColor: colors.background,
-                                          side: BorderSide(
-                                            color: isSelected
-                                                ? colors.border
-                                                : Theme.of(context)
+                                    children: grouped[groupKey]!.map((option) {
+                                      final isSelected = selectedValues
+                                          .contains(option.value);
+                                      return FilterChip(
+                                        label: Text(option.label),
+                                        selected: isSelected,
+                                        backgroundColor: Theme.of(context)
+                                            .colorScheme
+                                            .surfaceContainerLow,
+                                        selectedColor: colors.background,
+                                        side: BorderSide(
+                                          color: isSelected
+                                              ? colors.border
+                                              : Theme.of(context)
                                                     .colorScheme
                                                     .outlineVariant,
-                                          ),
-                                          checkmarkColor: colors.foreground,
-                                          labelStyle: TextStyle(
-                                            color: isSelected
-                                                ? colors.foreground
-                                                : null,
-                                            fontWeight: isSelected
-                                                ? FontWeight.w600
-                                                : FontWeight.w500,
-                                          ),
-                                          onSelected: (isSelected) {
-                                            setSheetState(() {
-                                              if (isSelected) {
-                                                selectedValues
-                                                    .add(option.value);
-                                              } else {
-                                                selectedValues
-                                                    .remove(option.value);
-                                              }
-                                            });
-                                          },
-                                        );
-                                      },
-                                    ).toList(),
+                                        ),
+                                        checkmarkColor: colors.foreground,
+                                        labelStyle: TextStyle(
+                                          color: isSelected
+                                              ? colors.foreground
+                                              : null,
+                                          fontWeight: isSelected
+                                              ? FontWeight.w600
+                                              : FontWeight.w500,
+                                        ),
+                                        onSelected: (isSelected) {
+                                          setSheetState(() {
+                                            if (isSelected) {
+                                              selectedValues.add(option.value);
+                                            } else {
+                                              selectedValues.remove(
+                                                option.value,
+                                              );
+                                            }
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
                                   ),
-                                  const SizedBox(
-                                      height: DesignTokens.spaceMd),
+                                  const SizedBox(height: DesignTokens.spaceMd),
                                 ],
                                 const SizedBox(height: DesignTokens.spaceSm),
                               ],
@@ -592,9 +608,7 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                         style: FilledButton.styleFrom(
                           backgroundColor: accentColor,
                           foregroundColor: onAccentColor(accentColor),
-                          textStyle: Theme.of(context)
-                              .textTheme
-                              .labelLarge
+                          textStyle: Theme.of(context).textTheme.labelLarge
                               ?.copyWith(fontWeight: FontWeight.w700),
                         ),
                         onPressed: () {
@@ -603,8 +617,10 @@ Future<List<DynamicOption>?> showDynamicFormMultiSelectPicker({
                               .toList();
                           context.pop(applied);
                         },
-                        child: Text(AppLocalizations.of(context)!
-                            .applyWithCount(selectedValues.length)),
+                        child: Text(
+                          AppLocalizations.of(context)!
+                              .applyWithCount(selectedValues.length),
+                        ),
                       ),
                     ),
                   ],

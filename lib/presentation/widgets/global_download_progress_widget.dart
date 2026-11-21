@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../domain/entities/download_status.dart';
@@ -38,10 +39,7 @@ class _GlobalDownloadProgressWidgetState
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, -1),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _slideController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
   }
 
   @override
@@ -55,11 +53,15 @@ class _GlobalDownloadProgressWidgetState
     return BlocBuilder<DownloadBloc, DownloadBlocState>(
       buildWhen: (previous, current) {
         if (previous.runtimeType != current.runtimeType) return true;
-        if (previous is! DownloadLoaded || current is! DownloadLoaded) return true;
-        final prevActive =
-            previous.downloads.where((d) => d.state == DownloadState.downloading);
-        final currActive =
-            current.downloads.where((d) => d.state == DownloadState.downloading);
+        if (previous is! DownloadLoaded || current is! DownloadLoaded) {
+          return true;
+        }
+        final prevActive = previous.downloads.where(
+          (d) => d.state == DownloadState.downloading,
+        );
+        final currActive = current.downloads.where(
+          (d) => d.state == DownloadState.downloading,
+        );
         if (prevActive.isEmpty && currActive.isEmpty) return false;
         return true;
       },
@@ -101,10 +103,7 @@ class _GlobalDownloadProgressWidgetState
               )
             : child;
 
-        return SlideTransition(
-          position: _slideAnimation,
-          child: paddedChild,
-        );
+        return SlideTransition(position: _slideAnimation, child: paddedChild);
       },
     );
   }
@@ -123,7 +122,9 @@ class _GlobalDownloadProgressWidgetState
   }
 
   Widget _buildMultipleDownloadsView(
-      BuildContext context, DownloadLoaded state) {
+    BuildContext context,
+    DownloadLoaded state,
+  ) {
     final active = state.downloads
         .where((d) => d.state == DownloadState.downloading)
         .toList();
@@ -134,7 +135,15 @@ class _GlobalDownloadProgressWidgetState
     final speed = active.fold<double>(0, (s, d) => s + d.speed);
     final formattedSpeed = speed <= 0
         ? '0 B/s'
-        : '${(speed >= 1024 * 1024 ? speed / (1024 * 1024) : speed >= 1024 ? speed / 1024 : speed).toStringAsFixed(1)} ${speed >= 1024 * 1024 ? 'MB/s' : speed >= 1024 ? 'KB/s' : 'B/s'}';
+        : '${(speed >= 1024 * 1024
+              ? speed / (1024 * 1024)
+              : speed >= 1024
+              ? speed / 1024
+              : speed).toStringAsFixed(1)} ${speed >= 1024 * 1024
+              ? 'MB/s'
+              : speed >= 1024
+              ? 'KB/s'
+              : 'B/s'}';
 
     return Material(
       elevation: DesignTokens.elevationLg,
@@ -148,9 +157,7 @@ class _GlobalDownloadProgressWidgetState
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surface
+                  color: Theme.of(context).colorScheme.surface
                       .withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 ),
@@ -194,8 +201,9 @@ class _GlobalDownloadProgressWidgetState
                         Text(
                           '$formattedSpeed • ${(totalProgress * 100).toInt()}%',
                           style: TextStyleConst.labelSmall.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -225,7 +233,9 @@ class _GlobalDownloadProgressWidgetState
   }
 
   Widget _buildSingleDownloadView(
-      BuildContext context, DownloadStatus download) {
+    BuildContext context,
+    DownloadStatus download,
+  ) {
     final isPaused = download.isPaused;
     final progress = download.progress;
 
@@ -241,9 +251,7 @@ class _GlobalDownloadProgressWidgetState
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .surface
+                  color: Theme.of(context).colorScheme.surface
                       .withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 ),
@@ -288,8 +296,9 @@ class _GlobalDownloadProgressWidgetState
                         Text(
                           '${(progress * 100).toInt()}%',
                           style: TextStyleConst.labelSmall.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -309,12 +318,12 @@ class _GlobalDownloadProgressWidgetState
                     onPressed: () {
                       if (isPaused) {
                         context.read<DownloadBloc>().add(
-                              DownloadResumeEvent(download.contentId),
-                            );
+                          DownloadResumeEvent(download.contentId),
+                        );
                       } else {
                         context.read<DownloadBloc>().add(
-                              DownloadPauseEvent(download.contentId),
-                            );
+                          DownloadPauseEvent(download.contentId),
+                        );
                       }
                     },
                     tooltip: isPaused

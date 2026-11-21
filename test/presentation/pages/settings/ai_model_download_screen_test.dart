@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -27,23 +27,23 @@ void main() {
     deleteCalls = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-      switch (methodCall.method) {
-        case 'getModelStatus':
-          return statusResponse;
-        case 'startModelDownload':
-          startedDownloads.add(
-            Map<String, dynamic>.from(methodCall.arguments as Map),
-          );
-          return true;
-        case 'cancelModelDownload':
-          cancelCalls++;
-          return true;
-        case 'deleteModel':
-          deleteCalls++;
-          return true;
-      }
-      return null;
-    });
+          switch (methodCall.method) {
+            case 'getModelStatus':
+              return statusResponse;
+            case 'startModelDownload':
+              startedDownloads.add(
+                Map<String, dynamic>.from(methodCall.arguments as Map),
+              );
+              return true;
+            case 'cancelModelDownload':
+              cancelCalls++;
+              return true;
+            case 'deleteModel':
+              deleteCalls++;
+              return true;
+          }
+          return null;
+        });
   });
 
   tearDown(() async {
@@ -76,9 +76,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
     // First load round-trips pin + channel; give it up to 2s fake time.
-    for (var i = 0;
-        i < 20 && find.text('bubble_detector.onnx').evaluate().isEmpty;
-        i++) {
+    for (
+      var i = 0;
+      i < 20 && find.text('bubble_detector.onnx').evaluate().isEmpty;
+      i++
+    ) {
       await tester.pump(const Duration(milliseconds: 100));
     }
   }
@@ -89,26 +91,25 @@ void main() {
     await tester.pump();
   }
 
-
   Map<String, dynamic> status(
     String state, {
     int received = 0,
     int? total,
     String? errorCode,
-  }) =>
-      {
-        'state': state,
-        'bytesReceived': received,
-        'totalBytes': total,
-        'version': '1',
-        'sizeBytes': state == 'ready' ? 42241751 : null,
-        'fileName': 'bubble_detector.onnx',
-        'errorCode': errorCode,
-        'errorMessage': errorCode != null ? 'boom' : null,
-      };
+  }) => {
+    'state': state,
+    'bytesReceived': received,
+    'totalBytes': total,
+    'version': '1',
+    'sizeBytes': state == 'ready' ? 42241751 : null,
+    'fileName': 'bubble_detector.onnx',
+    'errorCode': errorCode,
+    'errorMessage': errorCode != null ? 'boom' : null,
+  };
 
-  testWidgets('missing model shows not-downloaded + download button',
-      (tester) async {
+  testWidgets('missing model shows not-downloaded + download button', (
+    tester,
+  ) async {
     statusResponse = status('not_downloaded');
     await pumpScreen(tester);
 
@@ -124,8 +125,7 @@ void main() {
   });
 
   testWidgets('downloading shows progress + cancel', (tester) async {
-    statusResponse =
-        status('downloading', received: 1000000, total: 4000000);
+    statusResponse = status('downloading', received: 1000000, total: 4000000);
     await pumpScreen(tester);
 
     expect(find.textContaining('Downloading'), findsOneWidget);
@@ -137,8 +137,9 @@ void main() {
     expect(cancelCalls, 1);
   });
 
-  testWidgets('ready model shows version + delete with confirm',
-      (tester) async {
+  testWidgets('ready model shows version + delete with confirm', (
+    tester,
+  ) async {
     statusResponse = status('ready');
     await pumpScreen(tester);
 

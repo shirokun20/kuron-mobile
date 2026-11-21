@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/domain/entities/entities.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/app_privacy_overlay_service.dart';
+
 import '../../core/services/workers/download_lifecycle_mixin.dart';
 import '../blocs/download/download_bloc.dart';
 
@@ -12,10 +13,7 @@ import '../blocs/download/download_bloc.dart';
 class LifecycleWatcher extends StatefulWidget {
   final Widget child;
 
-  const LifecycleWatcher({
-    required this.child,
-    super.key,
-  });
+  const LifecycleWatcher({required this.child, super.key});
 
   @override
   State<LifecycleWatcher> createState() => _LifecycleWatcherState();
@@ -69,15 +67,16 @@ class _LifecycleWatcherState extends State<LifecycleWatcher>
       final activeDownloads = downloadState.downloads
           .where((d) => d.state == DownloadState.downloading)
           .map((download) {
-        return ActiveDownloadInfo(
-          contentId: download.contentId,
-          isInProgress: true, // Only active ones are here
-          currentProgress: download.progressPercentage,
-          totalImages: download.totalPages,
-          // Native WorkManager already owns active downloads in background.
-          // We intentionally avoid reconstructing legacy resume payloads here.
-        );
-      }).toList();
+            return ActiveDownloadInfo(
+              contentId: download.contentId,
+              isInProgress: true, // Only active ones are here
+              currentProgress: download.progressPercentage,
+              totalImages: download.totalPages,
+              // Native WorkManager already owns active downloads in background.
+              // We intentionally avoid reconstructing legacy resume payloads here.
+            );
+          })
+          .toList();
 
       handleLifecycleChange(state, activeDownloads);
     }

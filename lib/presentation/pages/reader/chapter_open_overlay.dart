@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 // A brief overlay shown when a chapter is first opened.
@@ -72,16 +72,21 @@ class _ChapterOpenOverlayState extends State<ChapterOpenOverlay>
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.menu_book_rounded,
-                        color: Colors.white70, size: 22),
+                    const Icon(
+                      Icons.menu_book_rounded,
+                      color: Colors.white70,
+                      size: 22,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -91,9 +96,10 @@ class _ChapterOpenOverlayState extends State<ChapterOpenOverlay>
                           Text(
                             widget.title,
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600),
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -101,7 +107,9 @@ class _ChapterOpenOverlayState extends State<ChapterOpenOverlay>
                             AppLocalizations.of(context)!
                                 .nPages(widget.totalPages),
                             style: const TextStyle(
-                                color: Colors.white60, fontSize: 11),
+                              color: Colors.white60,
+                              fontSize: 11,
+                            ),
                           ),
                         ],
                       ),

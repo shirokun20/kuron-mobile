@@ -1,10 +1,12 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
+
 import '../../widgets/shimmer_loading_widgets.dart';
+
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/service_locator.dart';
@@ -18,7 +20,9 @@ import '../../widgets/widgets.dart';
 import '../history/widgets/history_item_widget.dart';
 import '../history/widgets/history_empty_widget.dart';
 import '../history/widgets/history_cleanup_info_widget.dart';
+
 import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
+
 import '../../../domain/entities/history.dart';
 import '../../../core/services/tag_blacklist_service.dart';
 
@@ -61,9 +65,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _trackScreenView() async {
     await _analyticsService.trackScreenView(
       'history',
-      parameters: {
-        'timestamp': DateTime.now().toIso8601String(),
-      },
+      parameters: {'timestamp': DateTime.now().toIso8601String()},
     );
   }
 
@@ -179,8 +181,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (state is HistoryClearing) {
       return Center(
         child: AppProgressIndicator(
-            message: AppLocalizations.of(context)?.clearingHistory ??
-                AppLocalizations.of(context)!.clearingHistory),
+          message:
+              AppLocalizations.of(context)?.clearingHistory ??
+              AppLocalizations.of(context)!.clearingHistory,
+        ),
       );
     }
 
@@ -222,11 +226,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           child: Text(
             AppLocalizations.of(context)!.nItemsInHistory(state.history.length),
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurfaceVariant
-                      .withValues(alpha: 0.5),
-                ),
+              color: Theme.of(context).colorScheme.onSurfaceVariant
+                  .withValues(alpha: 0.5),
+            ),
             textAlign: TextAlign.center,
           ),
         ),
@@ -269,7 +271,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     History historyItem, {
     required List<String> localBlacklistEntries,
   }) {
-    final contentId = (historyItem.isChapterMode &&
+    final contentId =
+        (historyItem.isChapterMode &&
             historyItem.parentId != null &&
             historyItem.parentId!.isNotEmpty)
         ? historyItem.parentId!
@@ -316,9 +319,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.clearAllHistory),
-        content: Text(
-          AppLocalizations.of(context)!.areYouSureClearHistory,
-        ),
+        content: Text(AppLocalizations.of(context)!.areYouSureClearHistory),
         actions: [
           TextButton(
             onPressed: () => context.pop(),
@@ -341,9 +342,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.manualCleanup),
-        content: Text(
-          AppLocalizations.of(context)!.manualCleanupConfirmation,
-        ),
+        content: Text(AppLocalizations.of(context)!.manualCleanupConfirmation),
         actions: [
           TextButton(
             onPressed: () => context.pop(),
@@ -388,9 +387,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      builder: (context) => HistoryCleanupInfoWidget(
-        historyCubit: _historyCubit,
-      ),
+      builder: (context) =>
+          HistoryCleanupInfoWidget(historyCubit: _historyCubit),
     );
   }
 
@@ -402,16 +400,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
     // Determine the target content ID:
     // - For chapter mode with parentId: use parentId (series ID)
     // - Otherwise: use contentId
-    final targetContentId = (historyItem.isChapterMode &&
+    final targetContentId =
+        (historyItem.isChapterMode &&
             historyItem.parentId != null &&
             historyItem.parentId!.isNotEmpty)
         ? historyItem.parentId!
         : historyItem.contentId;
 
     // Build query parameters
-    final queryParams = <String, String>{
-      'sourceId': historyItem.sourceId,
-    };
+    final queryParams = <String, String>{'sourceId': historyItem.sourceId};
 
     // For chapter mode, pass chapterId to highlight the read chapter
     if (historyItem.isChapterMode &&
@@ -427,8 +424,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     final encodedContentId = Uri.encodeComponent(targetContentId);
 
-    getIt<Logger>()
-        .d('🔗 Navigating to: /content/$encodedContentId?$queryString');
+    getIt<Logger>().d(
+      '🔗 Navigating to: /content/$encodedContentId?$queryString',
+    );
 
     // Navigate to detail screen
     context.push('/content/$encodedContentId?$queryString');

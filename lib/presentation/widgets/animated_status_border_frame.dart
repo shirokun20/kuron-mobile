@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 class AnimatedStatusBorderFrame extends StatefulWidget {
   const AnimatedStatusBorderFrame({
@@ -86,8 +86,9 @@ class _AnimatedStatusBorderFrameState extends State<AnimatedStatusBorderFrame>
           decoration: BoxDecoration(
             borderRadius: widget.borderRadius,
             gradient: SweepGradient(
-              transform:
-                  GradientRotation(_effectiveAnimation.value * math.pi * 2),
+              transform: GradientRotation(
+                _effectiveAnimation.value * math.pi * 2,
+              ),
               colors: colors,
             ),
             boxShadow: [

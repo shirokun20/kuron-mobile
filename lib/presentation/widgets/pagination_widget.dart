@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -90,9 +90,7 @@ class _PaginationWidgetState extends State<PaginationWidget> {
                 ),
                 border: OutlineInputBorder(
                   borderSide: BorderSide(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outline
+                    color: Theme.of(context).colorScheme.outline
                         .withValues(alpha: 0.3),
                   ),
                 ),
@@ -188,10 +186,8 @@ class _PaginationWidgetState extends State<PaginationWidget> {
                 icon: const Icon(Icons.chevron_left),
                 color: widget.hasPrevious
                     ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4),
+                    : Theme.of(context).colorScheme.onSurface
+                          .withValues(alpha: 0.4),
                 tooltip: AppLocalizations.of(context)!.previousPageTooltip,
               ),
 
@@ -222,9 +218,7 @@ class _PaginationWidgetState extends State<PaginationWidget> {
                         Container(
                           height: 4,
                           decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .outline
+                            color: Theme.of(context).colorScheme.outline
                                 .withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(2),
                           ),
@@ -256,8 +250,9 @@ class _PaginationWidgetState extends State<PaginationWidget> {
                         Text(
                           AppLocalizations.of(context)!.tapToJumpToPage,
                           style: TextStyleConst.overline.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -276,10 +271,8 @@ class _PaginationWidgetState extends State<PaginationWidget> {
                 icon: const Icon(Icons.chevron_right),
                 color: widget.hasNext
                     ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4),
+                    : Theme.of(context).colorScheme.onSurface
+                          .withValues(alpha: 0.4),
                 tooltip: AppLocalizations.of(context)!.nextPageTooltip,
               ),
 
@@ -340,10 +333,8 @@ class SimplePaginationWidget extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: hasPrevious
                   ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.4),
+                  : Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.4),
             ),
           ),
 
@@ -363,10 +354,8 @@ class SimplePaginationWidget extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: hasNext
                   ? Theme.of(context).colorScheme.onSurface
-                  : Theme.of(context)
-                      .colorScheme
-                      .onSurface
-                      .withValues(alpha: 0.4),
+                  : Theme.of(context).colorScheme.onSurface
+                        .withValues(alpha: 0.4),
             ),
           ),
         ],

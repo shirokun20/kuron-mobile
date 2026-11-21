@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
@@ -192,8 +192,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
   }
 
   void _observeConnectivity() {
-    _connectivitySubscription =
-        Connectivity().onConnectivityChanged.listen(_setOfflineFromResults);
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _setOfflineFromResults,
+    );
   }
 
   void _setOfflineFromResults(List<ConnectivityResult> results) {
@@ -227,8 +228,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       }
 
       // Check if there's a saved search filter from local storage for this source
-      final savedFilter =
-          await getIt<UserDataRepository>().getLastSearchFilter(sourceId);
+      final savedFilter = await getIt<UserDataRepository>().getLastSearchFilter(
+        sourceId,
+      );
 
       if (savedFilter != null) {
         try {
@@ -248,7 +250,8 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
         } catch (filterError) {
           // Error parsing filter data, clear it and load normal content
           Logger().w(
-              'MainScreen: Error parsing saved filter, clearing it: $filterError');
+            'MainScreen: Error parsing saved filter, clearing it: $filterError',
+          );
           await getIt<UserDataRepository>().clearSearchFilter(sourceId);
           _loadDefaultContent();
         }
@@ -287,13 +290,15 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
 
       if (sourceId == null) return;
 
-      final savedFilter =
-          await getIt<UserDataRepository>().getLastSearchFilter(sourceId);
+      final savedFilter = await getIt<UserDataRepository>().getLastSearchFilter(
+        sourceId,
+      );
 
       if (savedFilter != null) {
         if (savedFilter.hasFilters && _isValidSearchFilter(savedFilter)) {
-          final sanitizedQuery =
-              savedFilter.query == '{query}' ? '' : savedFilter.query;
+          final sanitizedQuery = savedFilter.query == '{query}'
+              ? ''
+              : savedFilter.query;
           _currentSearchFilter = savedFilter.copyWith(
             query: sanitizedQuery,
             sortBy: savedFilter.sortBy,
@@ -452,8 +457,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                 (previous.runtimeType != current.runtimeType),
             builder: (context, homeState) {
               // Show full screen loading during home initialization or source switching
-              final isSwitchingSource =
-                  context.watch<SourceCubit>().state.isSwitching;
+              final isSwitchingSource = context
+                  .watch<SourceCubit>()
+                  .state
+                  .isSwitching;
               if (homeState is HomeLoading || isSwitchingSource) {
                 return SimpleOfflineScaffold(
                   title: AppLocalizations.of(context)?.appTitle ?? 'NHentai',
@@ -557,16 +564,18 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           // Show previous content with reduced opacity
           Opacity(
             opacity: 0.3,
-            child: _buildScrollableContentGrid(ContentLoaded(
-              contents: state.previousContents!,
-              currentPage: 1, // Temporary values
-              totalPages: 1,
-              totalCount: state.previousContents!.length,
-              hasNext: false,
-              hasPrevious: false,
-              sortBy: SortOption.newest,
-              lastUpdated: DateTime.now(),
-            )),
+            child: _buildScrollableContentGrid(
+              ContentLoaded(
+                contents: state.previousContents!,
+                currentPage: 1, // Temporary values
+                totalPages: 1,
+                totalCount: state.previousContents!.length,
+                hasNext: false,
+                hasPrevious: false,
+                sortBy: SortOption.newest,
+                lastUpdated: DateTime.now(),
+              ),
+            ),
           ),
           // Loading overlay
           Container(
@@ -582,8 +591,8 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                   borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   boxShadow: [
                     BoxShadow(
-                      color:
-                          Theme.of(context).shadowColor.withValues(alpha: 0.5),
+                      color: Theme.of(context).shadowColor
+                          .withValues(alpha: 0.5),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -601,48 +610,50 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                       ),
                     ),
                     const SizedBox(width: 16),
-                    Builder(builder: (context) {
-                      final l10n = AppLocalizations.of(context)!;
-                      String displayMessage;
+                    Builder(
+                      builder: (context) {
+                        final l10n = AppLocalizations.of(context)!;
+                        String displayMessage;
 
-                      switch (state.message) {
-                        case 'loadingPageNum':
-                        case 'loadingPageNumber':
-                          displayMessage = state.pageNumber != null
-                              ? l10n.loadingPageNum(state.pageNumber!)
-                              : l10n.loading;
-                          break;
-                        case 'refreshingContentMsg':
-                          displayMessage = l10n.refreshingContentMsg;
-                          break;
-                        case 'searchingContentMsg':
-                          displayMessage = l10n.searchingContentMsg;
-                          break;
-                        case 'loadingPopularContent':
-                          displayMessage = l10n.loadingPopularContent;
-                          break;
-                        case 'loadingContentByTag':
-                          displayMessage = l10n.loadingContentByTag;
-                          break;
-                        case 'clearingSearchMsg':
-                          displayMessage = l10n.clearingSearchMsg;
-                          break;
-                        case 'retryingMsg':
-                          displayMessage = l10n.retryingMsg;
-                          break;
-                        default:
-                          displayMessage = state.message.isNotEmpty
-                              ? state.message
-                              : l10n.loading;
-                      }
+                        switch (state.message) {
+                          case 'loadingPageNum':
+                          case 'loadingPageNumber':
+                            displayMessage = state.pageNumber != null
+                                ? l10n.loadingPageNum(state.pageNumber!)
+                                : l10n.loading;
+                            break;
+                          case 'refreshingContentMsg':
+                            displayMessage = l10n.refreshingContentMsg;
+                            break;
+                          case 'searchingContentMsg':
+                            displayMessage = l10n.searchingContentMsg;
+                            break;
+                          case 'loadingPopularContent':
+                            displayMessage = l10n.loadingPopularContent;
+                            break;
+                          case 'loadingContentByTag':
+                            displayMessage = l10n.loadingContentByTag;
+                            break;
+                          case 'clearingSearchMsg':
+                            displayMessage = l10n.clearingSearchMsg;
+                            break;
+                          case 'retryingMsg':
+                            displayMessage = l10n.retryingMsg;
+                            break;
+                          default:
+                            displayMessage = state.message.isNotEmpty
+                                ? state.message
+                                : l10n.loading;
+                        }
 
-                      return Text(
-                        displayMessage,
-                        style: TextStyleConst.bodyMedium.copyWith(
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
-                      );
-                    }),
+                        return Text(
+                          displayMessage,
+                          style: TextStyleConst.bodyMedium.copyWith(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
@@ -686,8 +697,8 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           Icon(
             Icons.inbox_outlined,
             size: 64,
-            color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
@@ -740,8 +751,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                 // Use smart retry to preserve context (page, filter, etc.)
                 getIt<ContentBloc>().add(const ContentRetryEvent());
               },
-              child:
-                  Text(AppLocalizations.of(context)?.tryAgain ?? 'Try Again'),
+              child: Text(
+                AppLocalizations.of(context)?.tryAgain ?? 'Try Again',
+              ),
             ),
           ],
         ],
@@ -766,17 +778,15 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           const SizedBox(height: 16),
           Text(
             state.errorType.displayName,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colorScheme.onSurface,
-                ),
+            style: Theme.of(context).textTheme.titleLarge
+                ?.copyWith(color: colorScheme.onSurface),
           ),
           const SizedBox(height: 8),
           Text(
             state.userFriendlyMessage,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+            style: Theme.of(context).textTheme.bodyMedium
+                ?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
           if (state.canRetry) ...[
             const SizedBox(height: 16),
@@ -812,9 +822,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
         slivers: [
           // Search results header
           if (_isShowingSearchResults)
-            SliverToBoxAdapter(
-              child: _buildSearchResultsHeader(),
-            ),
+            SliverToBoxAdapter(child: _buildSearchResultsHeader()),
 
           // Sorting widget
           if (_shouldShowSorting(state))
@@ -834,7 +842,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
 
                   return DynamicSortingWidget(
                     currentSortValue: _mapSortOptionToConfigValue(
-                        _currentSortOption, sortingConfig),
+                      _currentSortOption,
+                      sortingConfig,
+                    ),
                     config: sortingConfig,
                     onSortChanged: (val) =>
                         _handleDynamicSortChange(val, sortingConfig),
@@ -880,14 +890,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           ),
 
           // Pagination footer
-          SliverToBoxAdapter(
-            child: _buildContentFooter(state),
-          ),
+          SliverToBoxAdapter(child: _buildContentFooter(state)),
 
           // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 16),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 16)),
         ],
       ),
     );
@@ -914,10 +920,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
 
     // Fallback to default option
     return config.options
-        .firstWhere(
-          (o) => o.isDefault,
-          orElse: () => config.options.first,
-        )
+        .firstWhere((o) => o.isDefault, orElse: () => config.options.first)
         .value;
   }
 
@@ -926,8 +929,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     // komikcast: value:"popular" → SortOption.popular.name == "popular" ✅
     // nhentai:   value:"popular-week" → name "popularWeek" ≠ "popular-week" → apiValue match ✅
     try {
-      final optionConfig =
-          config.options.firstWhere((o) => o.value == newValue);
+      final optionConfig = config.options.firstWhere(
+        (o) => o.value == newValue,
+      );
 
       final sortOption = SortOption.values.firstWhere(
         (so) => so.name == newValue,
@@ -940,7 +944,8 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       _onSortingChanged(sortOption);
     } catch (e) {
       Logger().w(
-          'MainScreen: Could not map dynamic sort "$newValue" to SortOption: $e');
+        'MainScreen: Could not map dynamic sort "$newValue" to SortOption: $e',
+      );
     }
   }
 
@@ -1011,8 +1016,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
             contents[currentIndex]; // Capture content before closure
         children.add(
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12.0,
+              vertical: 8.0,
+            ),
             child: MainFeaturedCard(
               content: featuredContent,
               onTap: () => _onContentTap(featuredContent),
@@ -1037,8 +1044,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       }
 
       // Build batch for 2-column grid
-      final batchEnd =
-          nextFeatured < contents.length ? nextFeatured : contents.length;
+      final batchEnd = nextFeatured < contents.length
+          ? nextFeatured
+          : contents.length;
       final batchContents = contents.sublist(currentIndex, batchEnd);
 
       if (batchContents.isNotEmpty) {
@@ -1050,8 +1058,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           final rowContents = batchContents.sublist(i, rowEnd);
           children.add(
             Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12.0, vertical: 5.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12.0,
+                vertical: 5.0,
+              ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1059,8 +1069,11 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                     if (k > 0) const SizedBox(width: 10),
                     Expanded(
                       child: k < rowContents.length
-                          ? _gridCard(rowContents[k], blurThumbnails,
-                              localBlacklistEntries)
+                          ? _gridCard(
+                              rowContents[k],
+                              blurThumbnails,
+                              localBlacklistEntries,
+                            )
                           : const SizedBox.shrink(),
                     ),
                   ],
@@ -1186,8 +1199,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                   ),
                 ),
                 const SizedBox(width: 12),
-                Text(AppLocalizations.of(context)?.refreshingContent ??
-                    AppLocalizations.of(context)!.refreshingContent),
+                Text(
+                  AppLocalizations.of(context)?.refreshingContent ??
+                      AppLocalizations.of(context)!.refreshingContent,
+                ),
               ],
             ),
             duration: const Duration(seconds: 2),
@@ -1198,12 +1213,17 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
 
       // Get current page from ContentBloc state
       final contentState = _contentBloc.state;
-      final currentPage =
-          contentState is ContentLoaded ? contentState.currentPage : 1;
+      final currentPage = contentState is ContentLoaded
+          ? contentState.currentPage
+          : 1;
 
       // Trigger ContentRefreshEvent with current sort option and current page
-      _contentBloc.add(ContentRefreshEvent(
-          sortBy: _currentSortOption, currentPage: currentPage));
+      _contentBloc.add(
+        ContentRefreshEvent(
+          sortBy: _currentSortOption,
+          currentPage: currentPage,
+        ),
+      );
     } catch (e) {
       Logger().e('MainScreen: Error during refresh: $e');
       // Error handling is managed by ContentBloc state changes
@@ -1228,7 +1248,8 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     if (sortingConfig == null) return false;
 
     // Only show when there is actual content to sort
-    final hasData = (state is ContentLoaded && state.contents.isNotEmpty) ||
+    final hasData =
+        (state is ContentLoaded && state.contents.isNotEmpty) ||
         state is ContentLoadingMore ||
         state is ContentRefreshing;
 
@@ -1267,9 +1288,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
+                  color: Theme.of(context).colorScheme.primary
                       .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
@@ -1350,10 +1369,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     // 4. Show success/error states properly
     final sourceId = context.read<SourceCubit>().state.activeSource?.id;
     if (sourceId != null) {
-      _contentBloc.add(ContentClearSearchEvent(
-        sourceId: sourceId,
-        sortBy: _currentSortOption,
-      ));
+      _contentBloc.add(
+        ContentClearSearchEvent(sourceId: sourceId, sortBy: _currentSortOption),
+      );
     }
   }
 
@@ -1434,8 +1452,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
         url = configuredUrl;
       } else if (_isShowingSearchResults && _currentSearchFilter != null) {
         // Search results page - try config-driven search URL first
-        final filter =
-            _currentSearchFilter!.copyWith(page: contentState.currentPage);
+        final filter = _currentSearchFilter!.copyWith(
+          page: contentState.currentPage,
+        );
 
         if (filter.isEmpty) {
           url = _buildMainPageUrl(contentState.currentPage);
@@ -1524,8 +1543,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
     } else if (contentState.timeframe != null) {
       // Popular content page
       final timeframe = contentState.timeframe!;
-      final timeframeSuffix =
-          timeframe.apiValue.isNotEmpty ? '-${timeframe.apiValue}' : '';
+      final timeframeSuffix = timeframe.apiValue.isNotEmpty
+          ? '-${timeframe.apiValue}'
+          : '';
       final pageParam = contentState.currentPage > 1
           ? '?page=${contentState.currentPage}'
           : '';
@@ -1679,10 +1699,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => ctx.pop(false),
-            child: Text(l10n.cancel),
-          ),
+          TextButton(onPressed: () => ctx.pop(false), child: Text(l10n.cancel)),
           ElevatedButton(
             onPressed: () => ctx.pop(true),
             child: Text(l10n.downloadNew(downloadCount)),
@@ -1760,8 +1777,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
         duration: const Duration(seconds: 10),
       );
 
-      final galleriesNeedDownload =
-          await _getBulkDownloadCandidates(contentState.contents);
+      final galleriesNeedDownload = await _getBulkDownloadCandidates(
+        contentState.contents,
+      );
       final alreadyDownloadedCount =
           contentState.contents.length - galleriesNeedDownload.length;
 
@@ -1801,8 +1819,10 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       _showMainSnackBar(
         Row(
           children: [
-            Icon(Icons.download,
-                color: _snackForegroundColor(AppColors.success)),
+            Icon(
+              Icons.download,
+              color: _snackForegroundColor(AppColors.success),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -1831,8 +1851,9 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
             ),
           ],
         ),
-        backgroundColor:
-            queuedCount > 0 ? AppColors.success : AppColors.warning,
+        backgroundColor: queuedCount > 0
+            ? AppColors.success
+            : AppColors.warning,
         duration: const Duration(seconds: 5),
         action: SnackBarAction(
           label: l10n.viewDownloads,

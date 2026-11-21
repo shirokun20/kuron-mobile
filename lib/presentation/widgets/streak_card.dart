@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/constants/colors_const.dart';
@@ -139,7 +139,8 @@ class _StreakCardState extends State<StreakCard> with WidgetsBindingObserver {
                   );
             return Container(
               padding: EdgeInsets.all(
-                  compact ? DesignTokens.spaceMd : DesignTokens.spaceLg),
+                compact ? DesignTokens.spaceMd : DesignTokens.spaceLg,
+              ),
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXl),

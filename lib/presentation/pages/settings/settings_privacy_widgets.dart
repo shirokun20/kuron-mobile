@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +15,7 @@ import 'package:nhasixapp/domain/entities/search_filter.dart' as search_filter;
 import 'package:nhasixapp/domain/entities/user_preferences.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
+
 import 'settings_theme_widgets.dart';
 
 Widget buildTagBlacklistSection(
@@ -30,9 +31,7 @@ Widget buildTagBlacklistSection(
         sourceId: 'nhentai',
         localEntries: prefs.blacklistedTags,
       );
-      final onlineRules = tagBlacklistService.getCachedOnlineRules(
-        'nhentai',
-      );
+      final onlineRules = tagBlacklistService.getCachedOnlineRules('nhentai');
       final hasSession = tagBlacklistService.hasActiveSession('nhentai');
       final isSyncingRules = tagBlacklistService.isSyncingRules('nhentai');
 
@@ -141,10 +140,8 @@ Widget buildTagBlacklistSection(
                     children: onlineRules
                         .take(12)
                         .map(
-                          (rule) => buildBlacklistEntryChip(
-                            theme,
-                            rule.displayLabel,
-                          ),
+                          (rule) =>
+                              buildBlacklistEntryChip(theme, rule.displayLabel),
                         )
                         .toList(),
                   ),
@@ -155,8 +152,9 @@ Widget buildTagBlacklistSection(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.6),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
+                    ),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -174,8 +172,9 @@ Widget buildTagBlacklistSection(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.6),
+                    color: theme.colorScheme.surfaceContainerHighest.withValues(
+                      alpha: 0.6,
+                    ),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: theme.colorScheme.outline.withValues(alpha: 0.2),
@@ -270,8 +269,8 @@ String buildLocalBlacklistLabel(
   if (int.tryParse(normalized) != null) {
     idCandidate = normalized;
   } else {
-    final idMatch =
-        RegExp(r'^(?:id|tag_id|tagid|tag):\s*(\d+)$').firstMatch(normalized);
+    final idMatch = RegExp(r'^(?:id|tag_id|tagid|tag):\s*(\d+)$')
+        .firstMatch(normalized);
     idCandidate = idMatch?.group(1);
   }
 
@@ -301,8 +300,9 @@ Future<void> showTagBlacklistSheet(
 }) async {
   final controller = TextEditingController();
   var localEntries = List<String>.from(prefs.blacklistedTags);
-  var localMetadata =
-      Map<String, BlacklistedTagMetadata>.from(prefs.blacklistedTagMetadata);
+  var localMetadata = Map<String, BlacklistedTagMetadata>.from(
+    prefs.blacklistedTagMetadata,
+  );
 
   await showModalBottomSheet<void>(
     context: context,
@@ -314,15 +314,20 @@ Future<void> showTagBlacklistSheet(
           // Initialize: sync from Cubit to ensure fresh data on first open
           final settingsState = sheetContext.read<SettingsCubit>().state;
           if (settingsState is SettingsLoaded &&
-              (!listEquals(localEntries,
-                      settingsState.preferences.blacklistedTags) ||
+              (!listEquals(
+                    localEntries,
+                    settingsState.preferences.blacklistedTags,
+                  ) ||
                   localMetadata.length !=
                       settingsState
-                          .preferences.blacklistedTagMetadata.length)) {
+                          .preferences
+                          .blacklistedTagMetadata
+                          .length)) {
             // If Cubit has different data, use that (source of truth)
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              localEntries =
-                  List<String>.from(settingsState.preferences.blacklistedTags);
+              localEntries = List<String>.from(
+                settingsState.preferences.blacklistedTags,
+              );
               localMetadata = Map<String, BlacklistedTagMetadata>.from(
                 settingsState.preferences.blacklistedTagMetadata,
               );
@@ -342,16 +347,15 @@ Future<void> showTagBlacklistSheet(
           );
           final hasSession = tagBlacklistService.hasActiveSession('nhentai');
           final isSyncing = tagBlacklistService.isSyncing('nhentai');
-          final isSyncingRules = tagBlacklistService.isSyncingRules(
-            'nhentai',
-          );
+          final isSyncingRules = tagBlacklistService.isSyncingRules('nhentai');
 
           // Sync localEntries from Cubit state to ensure data consistency
           void syncFromCubit() {
             final settingsState = context.read<SettingsCubit>().state;
             if (settingsState is SettingsLoaded) {
-              localEntries =
-                  List<String>.from(settingsState.preferences.blacklistedTags);
+              localEntries = List<String>.from(
+                settingsState.preferences.blacklistedTags,
+              );
               localMetadata = Map<String, BlacklistedTagMetadata>.from(
                 settingsState.preferences.blacklistedTagMetadata,
               );
@@ -361,45 +365,46 @@ Future<void> showTagBlacklistSheet(
           Future<void> saveState() async {
             await context
                 .read<SettingsCubit>()
-                .updateBlacklistedTagsWithMetadata(
-                  localEntries,
-                  localMetadata,
-                );
+                .updateBlacklistedTagsWithMetadata(localEntries, localMetadata);
           }
 
           Future<void> pickFromTags() async {
-            final selectedFiltersForPicker = localEntries.map((entry) {
-              final normalizedEntry = TagBlacklistUtils.normalizeEntry(entry);
-              final numericId = int.tryParse(normalizedEntry);
-              if (numericId == null) {
-                return search_filter.FilterItem.include(
-                  entry,
-                  tagName: entry,
-                );
-              }
+            final selectedFiltersForPicker = localEntries
+                .map((entry) {
+                  final normalizedEntry = TagBlacklistUtils.normalizeEntry(
+                    entry,
+                  );
+                  final numericId = int.tryParse(normalizedEntry);
+                  if (numericId == null) {
+                    return search_filter.FilterItem.include(
+                      entry,
+                      tagName: entry,
+                    );
+                  }
 
-              final localMeta = localMetadata[normalizedEntry];
-              if (localMeta != null) {
-                return search_filter.FilterItem.include(
-                  normalizedEntry,
-                  tagId: numericId,
-                  tagType: localMeta.type,
-                  tagName: localMeta.name,
-                  tagSlug: localMeta.slug,
-                );
-              }
+                  final localMeta = localMetadata[normalizedEntry];
+                  if (localMeta != null) {
+                    return search_filter.FilterItem.include(
+                      normalizedEntry,
+                      tagId: numericId,
+                      tagType: localMeta.type,
+                      tagName: localMeta.name,
+                      tagSlug: localMeta.slug,
+                    );
+                  }
 
-              final onlineMeta = onlineRules.firstWhere(
-                (rule) => rule.id == normalizedEntry,
-                orElse: () => OnlineBlacklistRule(token: normalizedEntry),
-              );
-              return search_filter.FilterItem.include(
-                normalizedEntry,
-                tagId: numericId,
-                tagType: onlineMeta.type,
-                tagName: onlineMeta.name,
-              );
-            }).toList(growable: false);
+                  final onlineMeta = onlineRules.firstWhere(
+                    (rule) => rule.id == normalizedEntry,
+                    orElse: () => OnlineBlacklistRule(token: normalizedEntry),
+                  );
+                  return search_filter.FilterItem.include(
+                    normalizedEntry,
+                    tagId: numericId,
+                    tagType: onlineMeta.type,
+                    tagName: onlineMeta.name,
+                  );
+                })
+                .toList(growable: false);
 
             final selected = await AppRouter.goToFilterData(
               context,
@@ -415,8 +420,9 @@ Future<void> showTagBlacklistSheet(
             }
 
             final backupEntries = List<String>.from(localEntries);
-            final backupMetadata =
-                Map<String, BlacklistedTagMetadata>.from(localMetadata);
+            final backupMetadata = Map<String, BlacklistedTagMetadata>.from(
+              localMetadata,
+            );
 
             // FilterData works as a full selector. Apply should replace
             // current local selections, including the empty state.
@@ -450,8 +456,10 @@ Future<void> showTagBlacklistSheet(
               if (sheetContext.mounted) {
                 ScaffoldMessenger.of(sheetContext).showSnackBar(
                   SnackBar(
-                      content: Text(AppLocalizations.of(context)!
-                          .failedToSave(e.toString()))),
+                    content: Text(
+                      AppLocalizations.of(context)!.failedToSave(e.toString()),
+                    ),
+                  ),
                 );
               }
               return;
@@ -463,8 +471,9 @@ Future<void> showTagBlacklistSheet(
           }
 
           Future<void> addEntries() async {
-            final parsedEntries =
-                TagBlacklistUtils.parseManualEntries(controller.text);
+            final parsedEntries = TagBlacklistUtils.parseManualEntries(
+              controller.text,
+            );
             if (parsedEntries.isEmpty) {
               return;
             }
@@ -473,7 +482,8 @@ Future<void> showTagBlacklistSheet(
             final cubitBefore = context.read<SettingsCubit>().state;
             if (cubitBefore is SettingsLoaded) {
               getIt<Logger>().d(
-                  'SHEET_ADD_BEFORE: blur=${cubitBefore.preferences.blurThumbnails}, tags=${cubitBefore.preferences.blacklistedTags.length}');
+                'SHEET_ADD_BEFORE: blur=${cubitBefore.preferences.blurThumbnails}, tags=${cubitBefore.preferences.blacklistedTags.length}',
+              );
             }
 
             final backup = List<String>.from(localEntries);
@@ -490,7 +500,8 @@ Future<void> showTagBlacklistSheet(
               final cubitAfter = context.read<SettingsCubit>().state;
               if (cubitAfter is SettingsLoaded) {
                 getIt<Logger>().d(
-                    'SHEET_ADD_AFTER: blur=${cubitAfter.preferences.blurThumbnails}, tags=${cubitAfter.preferences.blacklistedTags.length}');
+                  'SHEET_ADD_AFTER: blur=${cubitAfter.preferences.blurThumbnails}, tags=${cubitAfter.preferences.blacklistedTags.length}',
+                );
               }
 
               // Sync back from Cubit to ensure data consistency
@@ -503,8 +514,10 @@ Future<void> showTagBlacklistSheet(
               if (sheetContext.mounted) {
                 ScaffoldMessenger.of(sheetContext).showSnackBar(
                   SnackBar(
-                      content: Text(AppLocalizations.of(context)!
-                          .failedToSave(e.toString()))),
+                    content: Text(
+                      AppLocalizations.of(context)!.failedToSave(e.toString()),
+                    ),
+                  ),
                 );
               }
               return;
@@ -517,8 +530,9 @@ Future<void> showTagBlacklistSheet(
 
           Future<void> removeEntry(String entry) async {
             final backup = List<String>.from(localEntries);
-            final backupMetadata =
-                Map<String, BlacklistedTagMetadata>.from(localMetadata);
+            final backupMetadata = Map<String, BlacklistedTagMetadata>.from(
+              localMetadata,
+            );
             localEntries = localEntries
                 .where((current) => current != entry)
                 .toList(growable: false);
@@ -537,8 +551,11 @@ Future<void> showTagBlacklistSheet(
               if (sheetContext.mounted) {
                 ScaffoldMessenger.of(sheetContext).showSnackBar(
                   SnackBar(
-                      content: Text(AppLocalizations.of(context)!
-                          .failedToDelete(e.toString()))),
+                    content: Text(
+                      AppLocalizations.of(context)!
+                          .failedToDelete(e.toString()),
+                    ),
+                  ),
                 );
               }
               return;
@@ -576,10 +593,12 @@ Future<void> showTagBlacklistSheet(
                               width: 42,
                               height: 4,
                               decoration: BoxDecoration(
-                                color: theme.colorScheme.outline
-                                    .withValues(alpha: 0.3),
+                                color: theme.colorScheme.outline.withValues(
+                                  alpha: 0.3,
+                                ),
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusFull),
+                                  DesignTokens.radiusFull,
+                                ),
                               ),
                             ),
                           ),
@@ -589,10 +608,12 @@ Future<void> showTagBlacklistSheet(
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary
-                                      .withValues(alpha: 0.1),
+                                  color: theme.colorScheme.primary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(
-                                      DesignTokens.radiusXl),
+                                    DesignTokens.radiusXl,
+                                  ),
                                 ),
                                 child: Icon(
                                   Icons.visibility_off_rounded,
@@ -607,10 +628,10 @@ Future<void> showTagBlacklistSheet(
                                     Text(
                                       AppLocalizations.of(context)!
                                           .manageTagBlacklist,
-                                      style:
-                                          TextStyleConst.headingSmall.copyWith(
-                                        color: theme.colorScheme.onSurface,
-                                      ),
+                                      style: TextStyleConst.headingSmall
+                                          .copyWith(
+                                            color: theme.colorScheme.onSurface,
+                                          ),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
@@ -641,15 +662,17 @@ Future<void> showTagBlacklistSheet(
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
                                 borderSide: BorderSide(
-                                  color: theme.colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: theme.colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(18),
                                 borderSide: BorderSide(
-                                  color: theme.colorScheme.outline
-                                      .withValues(alpha: 0.2),
+                                  color: theme.colorScheme.outline.withValues(
+                                    alpha: 0.2,
+                                  ),
                                 ),
                               ),
                             ),
@@ -666,9 +689,9 @@ Future<void> showTagBlacklistSheet(
                                           await Future.wait([
                                             tagBlacklistService
                                                 .syncOnlineEntries(
-                                              'nhentai',
-                                              forceRefresh: true,
-                                            ),
+                                                  'nhentai',
+                                                  forceRefresh: true,
+                                                ),
                                             tagBlacklistService.syncOnlineRules(
                                               'nhentai',
                                               forceRefresh: true,
@@ -700,10 +723,7 @@ Future<void> showTagBlacklistSheet(
                               Expanded(
                                 child: FilledButton.icon(
                                   onPressed: addEntries,
-                                  icon: const Icon(
-                                    Icons.add_rounded,
-                                    size: 18,
-                                  ),
+                                  icon: const Icon(Icons.add_rounded, size: 18),
                                   label: Text(
                                     AppLocalizations.of(context)!.addRules,
                                   ),
@@ -772,10 +792,11 @@ Future<void> showTagBlacklistSheet(
                             Text(
                               hasSession
                                   ? AppLocalizations.of(context)!
-                                      .onlineRulesMetadataCount(
-                                          onlineRules.length)
+                                        .onlineRulesMetadataCount(
+                                          onlineRules.length,
+                                        )
                                   : AppLocalizations.of(context)!
-                                      .onlineRulesMetadata,
+                                        .onlineRulesMetadata,
                               style: TextStyleConst.bodyLarge.copyWith(
                                 color: theme.colorScheme.onSurface,
                                 fontWeight: FontWeight.w700,
@@ -834,8 +855,8 @@ Future<void> showTagBlacklistSheet(
                                 theme,
                                 AppLocalizations.of(context)!
                                     .coverageActiveDescription(
-                                  mergedEntries.length,
-                                ),
+                                      mergedEntries.length,
+                                    ),
                               ),
                           ],
                         ),

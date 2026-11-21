@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 
 void main() {
-  testWidgets('N KuronShimmer in ShimmerScope share single animation',
-      (tester) async {
+  testWidgets('N KuronShimmer in ShimmerScope share single animation', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(
@@ -34,11 +35,7 @@ void main() {
 
   testWidgets('ListShimmer wraps list in ShimmerScope', (tester) async {
     await tester.pumpWidget(
-      const MaterialApp(
-        home: Scaffold(
-          body: ListShimmer(itemCount: 4),
-        ),
-      ),
+      const MaterialApp(home: Scaffold(body: ListShimmer(itemCount: 4))),
     );
 
     expect(find.byType(ShimmerScope), findsOneWidget);

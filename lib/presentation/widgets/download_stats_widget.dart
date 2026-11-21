@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../../domain/entities/entities.dart';
 import '../../core/constants/text_style_const.dart';
@@ -8,10 +8,7 @@ import '../blocs/download/download_bloc.dart';
 
 // Widget for displaying download statistics and overall progress
 class DownloadStatsWidget extends StatelessWidget {
-  const DownloadStatsWidget({
-    super.key,
-    required this.state,
-  });
+  const DownloadStatsWidget({super.key, required this.state});
 
   final DownloadLoaded state;
 
@@ -23,10 +20,12 @@ class DownloadStatsWidget extends StatelessWidget {
     final completedDownloads = state.downloads
         .where((d) => d.state == DownloadState.completed)
         .toList();
-    final queuedDownloads =
-        state.downloads.where((d) => d.state == DownloadState.queued).toList();
-    final failedDownloads =
-        state.downloads.where((d) => d.state == DownloadState.failed).toList();
+    final queuedDownloads = state.downloads
+        .where((d) => d.state == DownloadState.queued)
+        .toList();
+    final failedDownloads = state.downloads
+        .where((d) => d.state == DownloadState.failed)
+        .toList();
     final totalProgress = _calcTotalProgress(activeDownloads);
     final totalSpeed = activeDownloads.fold<double>(0, (s, d) => s + d.speed);
     final totalSize = state.downloads.fold<int>(0, (s, d) => s + d.fileSize);
@@ -60,12 +59,11 @@ class DownloadStatsWidget extends StatelessWidget {
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
                         value: totalProgress,
-                        backgroundColor: Theme.of(context)
-                            .colorScheme
-                            .onSurface
+                        backgroundColor: Theme.of(context).colorScheme.onSurface
                             .withValues(alpha: 0.1),
                         valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary),
+                          Theme.of(context).colorScheme.primary,
+                        ),
                         minHeight: 8,
                       ),
                     ],
@@ -158,13 +156,11 @@ class DownloadStatsWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color:
-                    Theme.of(context).colorScheme.error.withValues(alpha: 0.1),
+                color: Theme.of(context).colorScheme.error
+                    .withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                 border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .error
+                  color: Theme.of(context).colorScheme.error
                       .withValues(alpha: 0.3),
                   width: 1,
                 ),
@@ -180,8 +176,9 @@ class DownloadStatsWidget extends StatelessWidget {
                   Expanded(
                     child: Text(
                       AppLocalizations.of(context)!.downloadsFailed(
-                          failedDownloads.length,
-                          failedDownloads.length == 1 ? '' : 's'),
+                        failedDownloads.length,
+                        failedDownloads.length == 1 ? '' : 's',
+                      ),
                       style: TextStyleConst.bodyMedium.copyWith(
                         color: Theme.of(context).colorScheme.error,
                       ),
@@ -215,7 +212,8 @@ class DownloadStatsWidget extends StatelessWidget {
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
                     valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).colorScheme.primary),
+                      Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -224,9 +222,7 @@ class DownloadStatsWidget extends StatelessWidget {
                       ? (state as DownloadProcessing).operation
                       : AppLocalizations.of(context)!.processing,
                   style: TextStyleConst.bodySmall.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
+                    color: Theme.of(context).colorScheme.onSurface
                         .withValues(alpha: 0.7),
                   ),
                 ),
@@ -281,24 +277,15 @@ class DownloadStatsWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-          width: 1,
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(height: 4),
           Text(
             value,
-            style: TextStyleConst.headingMedium.copyWith(
-              color: color,
-            ),
+            style: TextStyleConst.headingMedium.copyWith(color: color),
           ),
           Text(
             label,
@@ -328,8 +315,8 @@ class DownloadStatsWidget extends StatelessWidget {
         Text(
           '$label: ',
           style: TextStyleConst.bodySmall.copyWith(
-            color:
-                Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.7),
           ),
         ),
         Text(

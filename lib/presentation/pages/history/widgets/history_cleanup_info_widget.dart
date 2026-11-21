@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/constants/text_style_const.dart';
@@ -8,10 +8,7 @@ import '../../../cubits/history/history_cubit.dart';
 
 // Widget for displaying history cleanup information and settings
 class HistoryCleanupInfoWidget extends StatefulWidget {
-  const HistoryCleanupInfoWidget({
-    super.key,
-    required this.historyCubit,
-  });
+  const HistoryCleanupInfoWidget({super.key, required this.historyCubit});
 
   final HistoryCubit historyCubit;
 
@@ -114,7 +111,9 @@ class _HistoryCleanupInfoWidgetState extends State<HistoryCleanupInfoWidget> {
   }
 
   Widget _buildContent(
-      BuildContext context, ScrollController scrollController) {
+    BuildContext context,
+    ScrollController scrollController,
+  ) {
     if (_cleanupStatus == null) {
       return Center(
         child: Text(AppLocalizations.of(context)!.failedToLoadCleanupStatus),
@@ -359,10 +358,14 @@ class _HistoryCleanupInfoWidgetState extends State<HistoryCleanupInfoWidget> {
       return l10n.daysAgo(difference.inDays, difference.inDays == 1 ? '' : 's');
     } else if (difference.inHours > 0) {
       return l10n.hoursAgo(
-          difference.inHours, difference.inHours == 1 ? '' : 's');
+        difference.inHours,
+        difference.inHours == 1 ? '' : 's',
+      );
     } else if (difference.inMinutes > 0) {
       return l10n.minutesAgo(
-          difference.inMinutes, difference.inMinutes == 1 ? '' : 's');
+        difference.inMinutes,
+        difference.inMinutes == 1 ? '' : 's',
+      );
     } else {
       return l10n.justNow;
     }
@@ -373,9 +376,7 @@ class _HistoryCleanupInfoWidgetState extends State<HistoryCleanupInfoWidget> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(AppLocalizations.of(context)!.manualCleanup),
-        content: Text(
-          AppLocalizations.of(context)!.manualCleanupConfirmation,
-        ),
+        content: Text(AppLocalizations.of(context)!.manualCleanupConfirmation),
         actions: [
           TextButton(
             onPressed: () => context.pop(),

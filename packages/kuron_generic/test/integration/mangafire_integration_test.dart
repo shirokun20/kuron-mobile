@@ -22,10 +22,10 @@ const _listResponse = {
       'poster': {'large': 'https://img.mangafire.to/manga1.jpg'},
       'status': 'ongoing',
       'type': 'manga',
-      'latestChapter': 50
-    }
+      'latestChapter': 50,
+    },
   ],
-  'meta': {'currentPage': 1, 'hasNext': true}
+  'meta': {'currentPage': 1, 'hasNext': true},
 };
 
 const _detailResponse = {
@@ -38,14 +38,14 @@ const _detailResponse = {
     'type': 'manga',
     'genres': [
       {'title': 'Action'},
-      {'title': 'Adventure'}
+      {'title': 'Adventure'},
     ],
     'authors': [
-      {'title': 'Test Author'}
+      {'title': 'Test Author'},
     ],
     'languages': ['en', 'id'],
-    'createdAt': '2023-01-01T00:00:00Z'
-  }
+    'createdAt': '2023-01-01T00:00:00Z',
+  },
 };
 
 const _chaptersResponse = {
@@ -54,18 +54,18 @@ const _chaptersResponse = {
       'id': _chapterId,
       'number': '1.0',
       'name': 'The Beginning',
-      'createdAt': '2023-01-01T00:00:00Z'
-    }
-  ]
+      'createdAt': '2023-01-01T00:00:00Z',
+    },
+  ],
 };
 
 const _imagesResponse = {
   'data': {
     'pages': [
       {'url': 'https://img.mangafire.to/page1.jpg'},
-      {'url': 'https://img.mangafire.to/page2.jpg'}
-    ]
-  }
+      {'url': 'https://img.mangafire.to/page2.jpg'},
+    ],
+  },
 };
 
 String? lastRequestedUri;
@@ -76,34 +76,40 @@ class MockInterceptor extends Interceptor {
     final uri = options.uri.toString();
     lastRequestedUri = uri;
     if (uri.contains('/api/titles/$_mangaId/chapters')) {
-      handler.resolve(Response(
-        requestOptions: options,
-        statusCode: 200,
-        data: _chaptersResponse,
-      ));
+      handler.resolve(
+        Response(
+          requestOptions: options,
+          statusCode: 200,
+          data: _chaptersResponse,
+        ),
+      );
     } else if (uri.contains('/api/titles/$_mangaId')) {
-      handler.resolve(Response(
-        requestOptions: options,
-        statusCode: 200,
-        data: _detailResponse,
-      ));
+      handler.resolve(
+        Response(
+          requestOptions: options,
+          statusCode: 200,
+          data: _detailResponse,
+        ),
+      );
     } else if (uri.contains('/api/titles')) {
-      handler.resolve(Response(
-        requestOptions: options,
-        statusCode: 200,
-        data: _listResponse,
-      ));
+      handler.resolve(
+        Response(requestOptions: options, statusCode: 200, data: _listResponse),
+      );
     } else if (uri.contains('/api/chapters/$_chapterId')) {
-      handler.resolve(Response(
-        requestOptions: options,
-        statusCode: 200,
-        data: _imagesResponse,
-      ));
+      handler.resolve(
+        Response(
+          requestOptions: options,
+          statusCode: 200,
+          data: _imagesResponse,
+        ),
+      );
     } else {
-      handler.reject(DioException(
-        requestOptions: options,
-        error: 'Unhandled mocked route: $uri',
-      ));
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          error: 'Unhandled mocked route: $uri',
+        ),
+      );
     }
   }
 }
@@ -132,6 +138,19 @@ void main() {
       );
     });
 
+    String? publishedSortValue(String sortOption) {
+      final options =
+          ((config['searchForm']?['params']?['sort']?['options'])
+              as List<dynamic>?) ??
+          const <dynamic>[];
+      for (final option in options) {
+        if (option is Map && option['sortOption'] == sortOption) {
+          return option['value']?.toString();
+        }
+      }
+      return null;
+    }
+
     test('search returns parsed items and hasNextPage', () async {
       final result = await adapter.search(
         const SearchFilter(query: '', page: 1, sort: SortOption.popular),
@@ -142,12 +161,19 @@ void main() {
       expect(result.items.first.id, _mangaId);
       expect(result.items.first.title, 'Test Manga');
       expect(result.hasNextPage, isTrue);
-      
+
       expect(lastRequestedUri, isNotNull);
-      // Native sort only works if '{sort}' or 'sort=' is in the URL template. 
-      // If the user removed it from config, it won't be appended.
+      // Published config uses `sortOption` on each option (mangafire v1.1.5)
+      // and its wire value is `views_total:desc` — not the old `order[...]`
+      // shape. Derive the expectation from the config itself.
       if (config['api']['endpoints']['allGalleries'].contains('{sort}')) {
-        expect(Uri.decodeComponent(lastRequestedUri!), contains('order[views_total]=desc'));
+        final expected = publishedSortValue('popular');
+        expect(
+          expected,
+          isNotNull,
+          reason: 'config must declare a sortOption=popular value',
+        );
+        expect(Uri.decodeComponent(lastRequestedUri!), contains(expected!));
       }
     });
 
@@ -159,7 +185,13 @@ void main() {
 
       expect(lastRequestedUri, isNotNull);
       if (config['api']['endpoints']['search'].contains('{sort}')) {
-        expect(Uri.decodeComponent(lastRequestedUri!), contains('order[created_at]=desc'));
+        final expected = publishedSortValue('newest');
+        expect(
+          expected,
+          isNotNull,
+          reason: 'config must declare a sortOption=newest value',
+        );
+        expect(Uri.decodeComponent(lastRequestedUri!), contains(expected!));
       }
       expect(lastRequestedUri, contains('keyword=naruto'));
       expect(lastRequestedUri, contains('page=2'));
@@ -168,11 +200,9 @@ void main() {
     test('search with dynamic UI rawParam sorting', () async {
       await adapter.search(
         const SearchFilter(
-          query: 'naruto', 
-          page: 1, 
-          radioGroupSelections: {
-            'rawParam': 'order[views_total]=desc'
-          }
+          query: 'naruto',
+          page: 1,
+          radioGroupSelections: {'rawParam': 'order[views_total]=desc'},
         ),
         config,
       );
@@ -180,7 +210,10 @@ void main() {
       expect(lastRequestedUri, isNotNull);
       // Validate that the rawParam is injected into the URL!
       // Uri.toString() encodes '[' and ']', so we decode it for assertion
-      expect(Uri.decodeComponent(lastRequestedUri!), contains('order[views_total]=desc'));
+      expect(
+        Uri.decodeComponent(lastRequestedUri!),
+        contains('order[views_total]=desc'),
+      );
       expect(lastRequestedUri, contains('keyword=naruto'));
       expect(lastRequestedUri, contains('page=1'));
     });
@@ -196,12 +229,17 @@ void main() {
     });
 
     test('fetchChapters returns parsed chapters for language', () async {
-      final chapters =
-          await adapter.fetchChapters(_mangaId, config, language: 'en');
+      final chapters = await adapter.fetchChapters(
+        _mangaId,
+        config,
+        language: 'en',
+      );
 
       expect(chapters, hasLength(1));
       expect(
-          chapters.first.id, 'https://mangafire.to/api/chapters/$_chapterId');
+        chapters.first.id,
+        'https://mangafire.to/api/chapters/$_chapterId',
+      );
       expect(chapters.first.title, 'Ch.1.0');
     });
 

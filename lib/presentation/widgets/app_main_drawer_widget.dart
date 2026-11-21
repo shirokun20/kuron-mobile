@@ -1,11 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/presentation/widgets/app_drawer_content.dart';
 
 class AppMainDrawerWidget extends StatelessWidget {
-  const AppMainDrawerWidget({
-    super.key,
-    required this.context,
-  });
+  const AppMainDrawerWidget({super.key, required this.context});
 
   final BuildContext context;
 

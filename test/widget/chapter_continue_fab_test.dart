@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -9,7 +11,8 @@ import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 Chapter _chapter(String id) =>
     Chapter(id: id, title: 'Chapter $id', url: '/chapter/$id');
 
-ChapterContinueTarget _target(ChapterContinueMode mode) => ChapterContinueTarget(
+ChapterContinueTarget _target(ChapterContinueMode mode) =>
+    ChapterContinueTarget(
       chapter: _chapter('c1'),
       page: mode == ChapterContinueMode.resume ? 12 : 1,
       mode: mode,
@@ -34,16 +37,16 @@ Future<void> _pumpFab(
   ChapterContinueMode mode, {
   VoidCallback? onTap,
 }) async {
-  await tester.pumpWidget(_harness(ChapterContinueFab(
-    target: _target(mode),
-    onTap: onTap ?? () {},
-  )));
+  await tester.pumpWidget(
+    _harness(ChapterContinueFab(target: _target(mode), onTap: onTap ?? () {})),
+  );
   await tester.pump(const Duration(milliseconds: 16));
 }
 
 void main() {
-  testWidgets('resume mode shows the chapter title and page subtitle',
-      (tester) async {
+  testWidgets('resume mode shows the chapter title and page subtitle', (
+    tester,
+  ) async {
     await _pumpFab(tester, ChapterContinueMode.resume);
 
     expect(find.text('Continue from chapter 1'), findsOneWidget);
@@ -65,8 +68,9 @@ void main() {
     );
   });
 
-  testWidgets('restart mode shows the happy mascot and restart label',
-      (tester) async {
+  testWidgets('restart mode shows the happy mascot and restart label', (
+    tester,
+  ) async {
     await _pumpFab(tester, ChapterContinueMode.restart);
 
     expect(find.text('Go to First Page'), findsOneWidget);

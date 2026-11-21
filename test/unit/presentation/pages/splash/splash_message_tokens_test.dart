@@ -10,8 +10,10 @@
 //
 // This walks the real emission sites instead of a hand-copied list, so the next
 // message nobody taught the resolver to translate fails here.
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/blocs/splash/splash_bloc.dart';
@@ -171,19 +173,21 @@ void main() {
       contains('12'),
     );
     expect(
-        resolveSplashMessage(l10n, 'readyLastSync:23:59'), contains('23:59'));
+      resolveSplashMessage(l10n, 'readyLastSync:23:59'),
+      contains('23:59'),
+    );
     expect(
       resolveSplashMessage(l10n, 'initFailedMsg:SocketException'),
       contains('SocketException'),
     );
     // Zero-padded, so a 9am sync reads as 09:05 rather than 9:5.
     expect(
-        resolveSplashMessage(
-            l10n,
-            SplashBloc.readyMessage(
-              DateTime(2026, 9, 30, 9, 5),
-            )),
-        contains('09:05'));
+      resolveSplashMessage(
+        l10n,
+        SplashBloc.readyMessage(DateTime(2026, 9, 30, 9, 5)),
+      ),
+      contains('09:05'),
+    );
   });
 
   testWidgets('error keys emitted without a payload never dangle', (

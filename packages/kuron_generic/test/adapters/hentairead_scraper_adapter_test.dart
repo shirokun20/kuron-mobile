@@ -38,9 +38,11 @@ const _detailHtml = '''
   <body>
     <h1 class="title-detail" id="title-detail-manga" data-manga="59697">BRASS EATER</h1>
     <meta property="og:image" content="https://hentairead.io/upload/pages/2026/09/1790413498-6ab78abadd82e-cover.jpg">
-    <a href="/genres/adult/" class="list-group-item list-group-item-action-menu ">Adult</a>
-    <a href="/genres/action/" class="list-group-item list-group-item-action-menu ">Action</a>
-    <a href="/genres/adaptation/" class="list-group-item list-group-item-action-menu ">Adaptation</a>
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="/genres/adult/">Adult</a></li>
+      <li class="breadcrumb-item"><a href="/genres/action/">Action</a></li>
+      <li class="breadcrumb-item"><a href="/genres/adaptation/">Adaptation</a></li>
+    </ol>
     <ul id="nt_listchapter">
       <li>
         <a href="/$_slug/chapter-1-162735/" title="Chapter 1">Chapter 1</a>

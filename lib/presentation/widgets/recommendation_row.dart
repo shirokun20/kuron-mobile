@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/domain/entities/recommendation.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
@@ -55,20 +55,21 @@ class RecommendationRow extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-              horizontalPadding, 8, horizontalPadding, 8),
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            8,
+          ),
           child: Row(
             children: [
-              Expanded(
-                child: Text(title, style: theme.textTheme.titleMedium),
-              ),
+              Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
               if (onRefresh != null)
                 IconButton(
                   icon: isLoading
                       ? const SizedBox(
                           width: 18,
                           height: 18,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.refresh_outlined, size: 20),
                   tooltip: MaterialLocalizations.of(context)
@@ -82,8 +83,7 @@ class RecommendationRow extends StatelessWidget {
           height: cardWidth / 0.7 + 54,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding:
-                EdgeInsets.symmetric(horizontal: horizontalPadding),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, i) {
@@ -92,8 +92,7 @@ class RecommendationRow extends StatelessWidget {
                 item: item,
                 width: cardWidth,
                 onTap: () => onTap(item),
-                onDismiss:
-                    onDismiss == null ? null : () => onDismiss!(item),
+                onDismiss: onDismiss == null ? null : () => onDismiss!(item),
               );
             },
           ),
@@ -109,14 +108,19 @@ class RecommendationRow extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-              horizontalPadding, 8, horizontalPadding, 8),
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            8,
+          ),
           child: Text(title, style: theme.textTheme.titleMedium),
         ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: KuronShimmer(
-            baseColor: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
+            baseColor: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
             highlightColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.1),
             child: Container(
@@ -124,8 +128,7 @@ class RecommendationRow extends StatelessWidget {
               height: 200,
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
-                borderRadius:
-                    BorderRadius.circular(DesignTokens.radiusLg),
+                borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
               ),
             ),
           ),
@@ -133,8 +136,9 @@ class RecommendationRow extends StatelessWidget {
         const SizedBox(height: 8),
         Center(
           child: KuronShimmer(
-            baseColor: theme.colorScheme.surfaceContainerHighest
-                .withValues(alpha: 0.3),
+            baseColor: theme.colorScheme.surfaceContainerHighest.withValues(
+              alpha: 0.3,
+            ),
             highlightColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.1),
             child: Container(
@@ -159,7 +163,11 @@ class RecommendationRow extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-              horizontalPadding, 8, horizontalPadding, 8),
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            8,
+          ),
           child: Text(title, style: theme.textTheme.titleMedium),
         ),
         SizedBox(
@@ -167,21 +175,20 @@ class RecommendationRow extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
-            padding:
-                EdgeInsets.symmetric(horizontal: horizontalPadding),
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: 5,
             separatorBuilder: (_, _) => const SizedBox(width: 10),
             itemBuilder: (context, _) => KuronShimmer(
-              baseColor: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.3),
+              baseColor: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.3,
+              ),
               highlightColor: theme.colorScheme.surfaceContainerHighest
                   .withValues(alpha: 0.1),
               child: Container(
                 width: cardWidth,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius:
-                      BorderRadius.circular(DesignTokens.radiusLg),
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                 ),
               ),
             ),
@@ -199,7 +206,11 @@ class RecommendationRow extends StatelessWidget {
       children: [
         Padding(
           padding: EdgeInsets.fromLTRB(
-              horizontalPadding, 8, horizontalPadding, 8),
+            horizontalPadding,
+            8,
+            horizontalPadding,
+            8,
+          ),
           child: Text(title, style: theme.textTheme.titleMedium),
         ),
         Padding(
@@ -208,10 +219,10 @@ class RecommendationRow extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest
-                  .withValues(alpha: 0.4),
-              borderRadius:
-                  BorderRadius.circular(DesignTokens.radiusLg),
+              color: theme.colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.4,
+              ),
+              borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
             ),
             child: Column(
               children: [

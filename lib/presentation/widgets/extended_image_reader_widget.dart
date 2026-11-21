@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:extended_image/extended_image.dart';
 import 'package:logger/logger.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/core/utils/native_theme_helper.dart';
+
 import '../../data/datasources/reader_image_pipeline.dart';
 import '../../core/utils/reader_image_repair_utils.dart';
 import '../../core/utils/header_inspector.dart';
 import '../../../domain/entities/page_image_result.dart';
 import '../../../domain/entities/reader_settings_entity.dart';
+
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
@@ -18,7 +21,7 @@ import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 typedef PageImageTripleKey = (
   String contentId,
   int pageNumber,
-  String imageUrl
+  String imageUrl,
 );
 
 class ExtendedImageReaderWidget extends StatefulWidget {
@@ -84,11 +87,11 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     String url, {
     String contentId = 'test-content',
     int pageNumber = 1,
-  }) =>
-      _ExtendedImageReaderWidgetState._boundedTripleSetAdd(
-          _ExtendedImageReaderWidgetState._heavyImageKeys,
-          (contentId, pageNumber, url),
-          _ExtendedImageReaderWidgetState._maxHeavyImageUrls);
+  }) => _ExtendedImageReaderWidgetState._boundedTripleSetAdd(
+    _ExtendedImageReaderWidgetState._heavyImageKeys,
+    (contentId, pageNumber, url),
+    _ExtendedImageReaderWidgetState._maxHeavyImageUrls,
+  );
 
   @visibleForTesting
   static bool isHeavyUrlForTesting(
@@ -97,11 +100,15 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     int? pageNumber,
   }) {
     if (contentId != null && pageNumber != null) {
-      return _ExtendedImageReaderWidgetState._heavyImageKeys
-          .contains((contentId, pageNumber, url));
+      return _ExtendedImageReaderWidgetState._heavyImageKeys.contains((
+        contentId,
+        pageNumber,
+        url,
+      ));
     }
-    return _ExtendedImageReaderWidgetState._heavyImageKeys
-        .any((key) => key.$3 == url);
+    return _ExtendedImageReaderWidgetState._heavyImageKeys.any(
+      (key) => key.$3 == url,
+    );
   }
 
   @visibleForTesting
@@ -216,7 +223,8 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     int? imageBytes,
   }) {
     final viewportPx = logicalWidth * devicePixelRatio;
-    final isUltraHeavy = imageBytes != null &&
+    final isUltraHeavy =
+        imageBytes != null &&
         imageBytes >=
             _ExtendedImageReaderWidgetState
                 ._ultraHeavyAnimatedImageThresholdBytes;
@@ -241,11 +249,10 @@ class ExtendedImageReaderWidget extends StatefulWidget {
   static bool shouldConvertTallAvifFileForTesting(
     File file, {
     required bool nativeViewAvailable,
-  }) =>
-      ReaderImagePipeline.shouldConvertTallAvifFile(
-        file,
-        nativeViewAvailable: nativeViewAvailable,
-      );
+  }) => ReaderImagePipeline.shouldConvertTallAvifFile(
+    file,
+    nativeViewAvailable: nativeViewAvailable,
+  );
 
   /// Whether a just-converted AVIF page counts as heavy (native view +
   /// heavy-image notify). Height only decides *conversion*: a tall static
@@ -270,8 +277,7 @@ class ExtendedImageReaderWidget extends StatefulWidget {
   static String resolvedConvertedImagePathForTesting({
     required String? convertedPath,
     required String resolvedPath,
-  }) =>
-      convertedPath ?? resolvedPath;
+  }) => convertedPath ?? resolvedPath;
 
   /// Whether the cached file for [url] must be inspected on disk before
   /// Flutter decodes it. Brand (avis vs avif/mif1) and height (> 4096) live in
@@ -335,15 +341,22 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   static void _boundedTripleSetAdd(
-      Set<PageImageTripleKey> set, PageImageTripleKey item, int maxSize) {
+    Set<PageImageTripleKey> set,
+    PageImageTripleKey item,
+    int maxSize,
+  ) {
     set.add(item);
     if (set.length > maxSize) {
       set.remove(set.first);
     }
   }
 
-  static void _boundedTripleMapPut(Map<PageImageTripleKey, String> map,
-      PageImageTripleKey key, String value, int maxSize) {
+  static void _boundedTripleMapPut(
+    Map<PageImageTripleKey, String> map,
+    PageImageTripleKey key,
+    String value,
+    int maxSize,
+  ) {
     map[key] = value;
     if (map.length > maxSize) {
       map.remove(map.keys.first);
@@ -476,9 +489,14 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       final localPath = _normalizeLocalPath(widget.imageUrl);
       _seedConvertedPathFromCache(localPath);
       _cachedFilePath = _staticConvertedFilePath ?? localPath;
-      _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
-          _cachedFilePath!, _maxCachedFilePathByUrl);
-      final isKnownBrokenAvif = localPath.toLowerCase().endsWith('.avif') &&
+      _boundedTripleMapPut(
+        _cachedFilePathByTripleKey,
+        _currentTripleKey,
+        _cachedFilePath!,
+        _maxCachedFilePathByUrl,
+      );
+      final isKnownBrokenAvif =
+          localPath.toLowerCase().endsWith('.avif') &&
           _knownBrokenLocalAvifPaths.contains(localPath);
       _shouldBypassLocalDecode = isKnownBrokenAvif;
       if (!_shouldBypassLocalDecode) {
@@ -508,24 +526,27 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final gen = _pageGen;
     _pipeline
         .preCheckDiskCache(
-      imageUrl: widget.imageUrl,
-      contentId: widget.contentId,
-      pageNumber: widget.pageNumber,
-      onConvertProgress: (progress) => _onConvertProgress(progress, gen: gen),
-    )
+          imageUrl: widget.imageUrl,
+          contentId: widget.contentId,
+          pageNumber: widget.pageNumber,
+          onConvertProgress: (progress) =>
+              _onConvertProgress(progress, gen: gen),
+        )
         .then((result) {
-      if (!mounted || _pageGen != gen) return;
-      if (result != null) {
-        _applyProcessedResult(result, gen: gen);
-      }
-    }).catchError((Object e) {
-      _logger.w('[NativeWebP] Pre-check error: $e');
-    }).whenComplete(() {
-      if (!mounted || _pageGen != gen) return;
-      if (_awaitingNativeCheck) {
-        setState(() => _awaitingNativeCheck = false);
-      }
-    });
+          if (!mounted || _pageGen != gen) return;
+          if (result != null) {
+            _applyProcessedResult(result, gen: gen);
+          }
+        })
+        .catchError((Object e) {
+          _logger.w('[NativeWebP] Pre-check error: $e');
+        })
+        .whenComplete(() {
+          if (!mounted || _pageGen != gen) return;
+          if (_awaitingNativeCheck) {
+            setState(() => _awaitingNativeCheck = false);
+          }
+        });
   }
 
   bool _shouldConvertTallAvifLocalFile(String localPath) {
@@ -564,8 +585,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         _isConfirmedAnimatedWebP = true;
         _cachedFilePath = result.convertedPath;
       } else {
-        _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
-            result.convertedPath!, _maxCachedFilePathByUrl);
+        _boundedTripleMapPut(
+          _cachedFilePathByTripleKey,
+          _currentTripleKey,
+          result.convertedPath!,
+          _maxCachedFilePathByUrl,
+        );
       }
     } else if (result.isHeavy) {
       _markHeavyNativeAnimatedImage(
@@ -598,8 +623,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       final capturedPageNumber = widget.pageNumber;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _pageGen == gen) {
-          widget.onImageLoaded
-              ?.call(capturedPageNumber, result.nativeImageSize!);
+          widget.onImageLoaded?.call(
+            capturedPageNumber,
+            result.nativeImageSize!,
+          );
         }
       });
     }
@@ -617,8 +644,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         contentId: widget.contentId,
         pageNumber: widget.pageNumber,
         checkInvalidPayload: true,
-        onConvertProgress: (progress) =>
-            _onConvertProgress(progress, gen: gen),
+        onConvertProgress: (progress) => _onConvertProgress(progress, gen: gen),
       );
       if (!mounted || _pageGen != gen) return;
       _applyProcessedResult(result, gen: gen);
@@ -650,8 +676,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     )) {
       return;
     }
-    _boundedSetAdd(_notifiedHeavyContentIds, widget.contentId,
-        _maxNotifiedHeavyContentIds);
+    _boundedSetAdd(
+      _notifiedHeavyContentIds,
+      widget.contentId,
+      _maxNotifiedHeavyContentIds,
+    );
     // postFrameCallback so we never call this during a build/layout phase.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.onHeavyImageDetected?.call();
@@ -662,7 +691,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   // so static WebP images >= 2MB are not misrouted to AnimatedWebPView.
   void _preSeedHeavyImageUrl() {
     _boundedTripleSetAdd(
-        _largeContentLengthKeys, _currentTripleKey, _maxHeavyImageUrls);
+      _largeContentLengthKeys,
+      _currentTripleKey,
+      _maxHeavyImageUrls,
+    );
   }
 
   void _notifyImageLoaded(int pageNumber, Size imageSize, int gen) {
@@ -752,7 +784,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
       setState(() {
         _boundedTripleSetAdd(
-            _heavyImageKeys, _currentTripleKey, _maxHeavyImageUrls);
+          _heavyImageKeys,
+          _currentTripleKey,
+          _maxHeavyImageUrls,
+        );
         _isHeavyImage = true;
         _cachedFilePath =
             _cachedFilePathByTripleKey[_currentTripleKey] ?? _cachedFilePath;
@@ -822,9 +857,14 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         final localPath = _normalizeLocalPath(widget.imageUrl);
         _seedConvertedPathFromCache(localPath);
         _cachedFilePath = _staticConvertedFilePath ?? localPath;
-        _boundedTripleMapPut(_cachedFilePathByTripleKey, _currentTripleKey,
-            _cachedFilePath!, _maxCachedFilePathByUrl);
-        final isKnownBrokenAvif = localPath.toLowerCase().endsWith('.avif') &&
+        _boundedTripleMapPut(
+          _cachedFilePathByTripleKey,
+          _currentTripleKey,
+          _cachedFilePath!,
+          _maxCachedFilePathByUrl,
+        );
+        final isKnownBrokenAvif =
+            localPath.toLowerCase().endsWith('.avif') &&
             _knownBrokenLocalAvifPaths.contains(localPath);
         _shouldBypassLocalDecode = isKnownBrokenAvif;
         if (!_shouldBypassLocalDecode) {
@@ -951,9 +991,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final normalizedLocalPath = _normalizeLocalPath(widget.imageUrl);
     final effectiveLocalPath =
         ExtendedImageReaderWidget.resolvedConvertedImagePathForTesting(
-      convertedPath: _staticConvertedFilePath,
-      resolvedPath: normalizedLocalPath,
-    );
+          convertedPath: _staticConvertedFilePath,
+          resolvedPath: normalizedLocalPath,
+        );
 
     final isLocalFile = _isLocalFilePath(widget.imageUrl);
 
@@ -967,8 +1007,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       }
 
       if (_awaitingNativeCheck) {
-        return _buildLoadingIndicator(context,
-            progressOverride: _conversionProgress);
+        return _buildLoadingIndicator(
+          context,
+          progressOverride: _conversionProgress,
+        );
       }
 
       // Tall static AVIF on disk (often a `.jpg` holding AVIF): Flutter cannot
@@ -1000,11 +1042,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
       return ExtendedImage.file(
         File(effectiveLocalPath),
-        key:
-            ValueKey('extended_image_${widget.contentId}_${widget.pageNumber}'),
+        key: ValueKey(
+          'extended_image_${widget.contentId}_${widget.pageNumber}',
+        ),
         fit: _getAdaptiveBoxFit(),
         cacheWidth: _targetDecodeWidth(context),
-        mode: widget.enableZoom &&
+        mode:
+            widget.enableZoom &&
                 widget.readingMode != ReadingMode.continuousScroll
             ? ExtendedImageMode.gesture
             : ExtendedImageMode.none,
@@ -1012,10 +1056,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         // does not trigger re-decode.
         clearMemoryCacheWhenDispose:
             ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
-          readingMode: widget.readingMode,
-          isHeavy: _isHeavyImage,
-          isHeavyReaderSource: false,
-        ),
+              readingMode: widget.readingMode,
+              isHeavy: _isHeavyImage,
+              isHeavyReaderSource: false,
+            ),
         enableLoadState: true,
         extendedImageGestureKey: _gestureKey,
         initGestureConfigHandler: (state) {
@@ -1083,8 +1127,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       );
     } else {
       final effectiveImageUrl = widget.imageUrl;
-      final isEhentaiReaderUrl =
-          _shouldResolveEhentaiImageUrl(effectiveImageUrl);
+      final isEhentaiReaderUrl = _shouldResolveEhentaiImageUrl(
+        effectiveImageUrl,
+      );
       if (!isEhentaiReaderUrl) {
         final headers = widget.sourceId == 'hentainexus'
             ? _buildHentainexusImageHeaders(effectiveImageUrl)
@@ -1092,11 +1137,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
         //  ExtendedImage.network handles caching + cacheWidth.
         // Pre-decode via precacheImage already populated ImageCache → instant.
-        return _buildNetworkImage(
-          context,
-          effectiveImageUrl,
-          headers: headers,
-        );
+        return _buildNetworkImage(context, effectiveImageUrl, headers: headers);
       }
 
       return FutureBuilder<String?>(
@@ -1132,8 +1173,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
   void _prepareMangaFireImageFuture() {
     if (_shouldResolveMangaFireImageBytes(widget.imageUrl)) {
-      _mangaFireResolvedImageFuture =
-          _resolveMangaFireImageBytes(widget.imageUrl);
+      _mangaFireResolvedImageFuture = _resolveMangaFireImageBytes(
+        widget.imageUrl,
+      );
       return;
     }
 
@@ -1162,8 +1204,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           final bytes = snapshot.data;
           if (bytes == null || bytes.isEmpty) {
             return _buildResolvedOrNetworkImage(
-                context, rawUrl, url, fallbackUrl,
-                headers: headers);
+              context,
+              rawUrl,
+              url,
+              fallbackUrl,
+              headers: headers,
+            );
           }
 
           return _buildMemoryImage(context, bytes);
@@ -1171,8 +1217,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       );
     }
 
-    return _buildResolvedOrNetworkImage(context, rawUrl, url, fallbackUrl,
-        headers: headers);
+    return _buildResolvedOrNetworkImage(
+      context,
+      rawUrl,
+      url,
+      fallbackUrl,
+      headers: headers,
+    );
   }
 
   /// Resolves the page image through the unified download-first repository
@@ -1207,7 +1258,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
     return FutureBuilder<PageImageResult?>(
       key: ValueKey(
-          'page_resolve_${widget.contentId}_${widget.pageNumber}_$_pageGen'),
+        'page_resolve_${widget.contentId}_${widget.pageNumber}_$_pageGen',
+      ),
       future: _pageResolveFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -1218,14 +1270,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         final String? path = result is ReadyFromDisk
             ? result.path
             : result is ReadyFresh
-                ? result.path
-                : null;
+            ? result.path
+            : null;
         if (path != null) {
           // If an AVIF→WebP conversion is in-flight, show loading instead
           // of letting Flutter try to decode the AVIF (which fails).
           if (_awaitingNativeCheck) {
-            return _buildLoadingIndicator(context,
-                progressOverride: _conversionProgress);
+            return _buildLoadingIndicator(
+              context,
+              progressOverride: _conversionProgress,
+            );
           }
           // Tall static AVIF served as `.jpg`/`.png` fails Flutter's decode
           // too. Flag it before the first decode attempt, then convert.
@@ -1260,16 +1314,18 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
           // gone, so render the WebP as a plain webtoon page.
           final renderPath =
               ExtendedImageReaderWidget.resolvedConvertedImagePathForTesting(
-            convertedPath: _staticConvertedFilePath,
-            resolvedPath: path,
-          );
+                convertedPath: _staticConvertedFilePath,
+                resolvedPath: path,
+              );
           return ExtendedImage.file(
             File(renderPath),
             key: ValueKey(
-                'extended_image_${widget.contentId}_${widget.pageNumber}'),
+              'extended_image_${widget.contentId}_${widget.pageNumber}',
+            ),
             fit: _getAdaptiveBoxFit(),
             cacheWidth: _targetDecodeWidth(context, imageUrl: renderPath),
-            mode: widget.enableZoom &&
+            mode:
+                widget.enableZoom &&
                     widget.readingMode != ReadingMode.continuousScroll
                 ? ExtendedImageMode.gesture
                 : ExtendedImageMode.none,
@@ -1313,13 +1369,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   }
                   return _buildCompletedImage(context, state, imageUrl: path);
                 case LoadState.failed:
-                  return _buildErrorWidget(context, failedSource: path,
-                      onRetry: () {
-                    setState(() {
-                      _pageResolveFuture = null;
-                      _postProcessScheduledPath = null;
-                    });
-                  });
+                  return _buildErrorWidget(
+                    context,
+                    failedSource: path,
+                    onRetry: () {
+                      setState(() {
+                        _pageResolveFuture = null;
+                        _postProcessScheduledPath = null;
+                      });
+                    },
+                  );
                 case LoadState.loading:
                   return _buildLoadingIndicator(context, state: state);
               }
@@ -1328,8 +1387,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         }
 
         // Resolve failed or repo absent → keep the existing network path.
-        return _buildStandardNetworkImage(context, rawUrl, url, fallbackUrl,
-            headers: headers);
+        return _buildStandardNetworkImage(
+          context,
+          rawUrl,
+          url,
+          fallbackUrl,
+          headers: headers,
+        );
       },
     );
   }
@@ -1346,16 +1410,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       if (!mounted || _pageGen != gen || _isHeavyImage) return;
       _pipeline
           .processImageFile(
-        filePath: path,
-        contentId: widget.contentId,
-        pageNumber: widget.pageNumber,
-        onConvertProgress: (progress) =>
-            _onConvertProgress(progress, gen: gen),
-      )
+            filePath: path,
+            contentId: widget.contentId,
+            pageNumber: widget.pageNumber,
+            onConvertProgress: (progress) =>
+                _onConvertProgress(progress, gen: gen),
+          )
           .then((result) {
-        if (!mounted || _pageGen != gen) return;
-        _applyProcessedResult(result, gen: gen);
-      });
+            if (!mounted || _pageGen != gen) return;
+            _applyProcessedResult(result, gen: gen);
+          });
     });
   }
 
@@ -1369,19 +1433,17 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     // Only route small/normal .webp through ExtendedImage.network.
     final isLikelyAnimatedUrl = _isLikelyAnimatedUrl(url);
     if (_shouldUseNativeAnimatedView(url)) {
-      return _buildNativeAnimatedWebP(
-        url,
-        headers,
-        filePath: _cachedFilePath,
-      );
+      return _buildNativeAnimatedWebP(url, headers, filePath: _cachedFilePath);
     }
 
     // Block ExtendedImage from decoding while the async native-format check
     // is in flight. Prevents "getPixels failed: invalid input" when Android's
     // ImageDecoder encounters an avis animated-AVIF sequence.
     if (_awaitingNativeCheck) {
-      return _buildLoadingIndicator(context,
-          progressOverride: _conversionProgress);
+      return _buildLoadingIndicator(
+        context,
+        progressOverride: _conversionProgress,
+      );
     }
 
     final decodeWidth = _targetDecodeWidth(
@@ -1398,9 +1460,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       //  ALL static images use FilterQuality.low (bilinear) —
       // cacheWidth at display size makes nearest-neighbor (none) acceptable.
       // Animated WebP uses FilterQuality.none (fastest per-frame).
-      filterQuality:
-          isLikelyAnimatedUrl ? FilterQuality.none : FilterQuality.low,
-      mode: widget.enableZoom &&
+      filterQuality: isLikelyAnimatedUrl
+          ? FilterQuality.none
+          : FilterQuality.low,
+      mode:
+          widget.enableZoom &&
               widget.readingMode != ReadingMode.continuousScroll
           ? ExtendedImageMode.gesture
           : ExtendedImageMode.none,
@@ -1408,10 +1472,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       // decoded frame buffers, while heavy/native pages stay warm.
       clearMemoryCacheWhenDispose:
           ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
-        readingMode: widget.readingMode,
-        isHeavy: _isHeavyImage,
-        isHeavyReaderSource: _isHeavyReaderSource(),
-      ),
+            readingMode: widget.readingMode,
+            isHeavy: _isHeavyImage,
+            isHeavyReaderSource: _isHeavyReaderSource(),
+          ),
       cache: true,
       cacheMaxAge: const Duration(days: 14),
       cacheWidth: decodeWidth,
@@ -1471,15 +1535,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
             }
             if (fallbackUrl != null) {
               _logger.w(
-                  '🔄 Reader falling back to secondary network URL: $fallbackUrl');
-              return _buildNetworkImage(context, rawUrl,
-                  headers: headers, forceUrl: fallbackUrl);
+                '🔄 Reader falling back to secondary network URL: $fallbackUrl',
+              );
+              return _buildNetworkImage(
+                context,
+                rawUrl,
+                headers: headers,
+                forceUrl: fallbackUrl,
+              );
             }
-            return _buildErrorWidget(
-              context,
-              state: state,
-              failedSource: url,
-            );
+            return _buildErrorWidget(context, state: state, failedSource: url);
           case LoadState.completed:
             _ehentaiResolveRetries = 0;
             if (widget.onImageLoaded != null &&
@@ -1501,72 +1566,78 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
               final gen = _pageGen;
               final capturedKey = _currentTripleKey;
               final capturedPageNumber = widget.pageNumber;
-              getCachedImageFile(url).then((cacheFile) {
-                if (cacheFile == null || !mounted || _pageGen != gen) return;
-                _pipeline
-                    .processImageFile(
-                  filePath: cacheFile.path,
-                  contentId: widget.contentId,
-                  pageNumber: widget.pageNumber,
-                  onConvertProgress: (progress) =>
-                      _onConvertProgress(progress, gen: gen),
-                )
-                    .then((result) {
-                  if (!mounted || _pageGen != gen) return;
-                  if (result.isHeavy || result.isConfirmedAnimatedWebP) {
-                    // Prefer the converted WebP: the original cache file is
-                    // deleted by format-conflict cleanup after conversion.
-                    final renderPath =
-                        result.convertedPath ?? cacheFile.path;
-                    if (result.wasConverted &&
-                        result.convertedPath != null) {
-                      _staticConvertedFilePath = result.convertedPath;
+              getCachedImageFile(url)
+                  .then((cacheFile) {
+                    if (cacheFile == null || !mounted || _pageGen != gen) {
+                      return;
                     }
-                    _markHeavyNativeAnimatedImage(
-                      key: capturedKey,
-                      cachedFilePath: renderPath,
-                      confirmedAnimatedWebP: true,
-                    );
-                    clearMemoryImageCache(url);
-                    _cancelToken?.cancel();
-                    _cancelToken = CancellationToken();
-                    setState(() {
-                      _isHeavyImage = true;
-                      _isConfirmedAnimatedWebP = true;
-                      _cachedFilePath = renderPath;
-                      _conversionProgress = null;
-                      if (result.nativeImageSize != null) {
-                        _nativeImageSize = result.nativeImageSize;
-                      }
-                      if (result.imageBytes != null) {
-                        _nativeImageByteSize = result.imageBytes;
-                      }
-                    });
-                    updateKeepAlive();
-                    _maybeNotifyHeavyImageDetected();
-                    if (result.nativeImageSize != null) {
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted && _pageGen == gen) {
-                          widget.onImageLoaded?.call(
-                              capturedPageNumber, result.nativeImageSize!);
-                        }
-                      });
-                    }
-                  } else {
-                    _boundedTripleSetAdd(_nonNativeAnimatedKeys, capturedKey,
-                        _maxHeavyImageUrls);
-                  }
-                });
-              }).catchError((Object e) {
-                _logger.w('[NativeWebP] getCachedImageFile error: $e');
-              });
+                    _pipeline
+                        .processImageFile(
+                          filePath: cacheFile.path,
+                          contentId: widget.contentId,
+                          pageNumber: widget.pageNumber,
+                          onConvertProgress: (progress) =>
+                              _onConvertProgress(progress, gen: gen),
+                        )
+                        .then((result) {
+                          if (!mounted || _pageGen != gen) return;
+                          if (result.isHeavy ||
+                              result.isConfirmedAnimatedWebP) {
+                            // Prefer the converted WebP: the original cache file is
+                            // deleted by format-conflict cleanup after conversion.
+                            final renderPath =
+                                result.convertedPath ?? cacheFile.path;
+                            if (result.wasConverted &&
+                                result.convertedPath != null) {
+                              _staticConvertedFilePath = result.convertedPath;
+                            }
+                            _markHeavyNativeAnimatedImage(
+                              key: capturedKey,
+                              cachedFilePath: renderPath,
+                              confirmedAnimatedWebP: true,
+                            );
+                            clearMemoryImageCache(url);
+                            _cancelToken?.cancel();
+                            _cancelToken = CancellationToken();
+                            setState(() {
+                              _isHeavyImage = true;
+                              _isConfirmedAnimatedWebP = true;
+                              _cachedFilePath = renderPath;
+                              _conversionProgress = null;
+                              if (result.nativeImageSize != null) {
+                                _nativeImageSize = result.nativeImageSize;
+                              }
+                              if (result.imageBytes != null) {
+                                _nativeImageByteSize = result.imageBytes;
+                              }
+                            });
+                            updateKeepAlive();
+                            _maybeNotifyHeavyImageDetected();
+                            if (result.nativeImageSize != null) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted && _pageGen == gen) {
+                                  widget.onImageLoaded?.call(
+                                    capturedPageNumber,
+                                    result.nativeImageSize!,
+                                  );
+                                }
+                              });
+                            }
+                          } else {
+                            _boundedTripleSetAdd(
+                              _nonNativeAnimatedKeys,
+                              capturedKey,
+                              _maxHeavyImageUrls,
+                            );
+                          }
+                        });
+                  })
+                  .catchError((Object e) {
+                    _logger.w('[NativeWebP] getCachedImageFile error: $e');
+                  });
             }
 
-            return _buildCompletedImage(
-              context,
-              state,
-              imageUrl: url,
-            );
+            return _buildCompletedImage(context, state, imageUrl: url);
         }
       },
     );
@@ -1598,10 +1669,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         grayscale: widget.grayscale,
         loadingBuilder: (context, receivedBytes, totalBytes) =>
             _buildLoadingIndicator(
-          context,
-          loadedBytesOverride: receivedBytes,
-          totalBytesOverride: totalBytes,
-        ),
+              context,
+              loadedBytesOverride: receivedBytes,
+              totalBytesOverride: totalBytes,
+            ),
         fallback: _buildLoadingIndicator(context),
       ),
     );
@@ -1666,11 +1737,18 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     required bool confirmedAnimatedWebP,
   }) {
     _boundedTripleSetAdd(_heavyImageKeys, key, _maxHeavyImageUrls);
-    _boundedTripleMapPut(_cachedFilePathByTripleKey, key, cachedFilePath,
-        _maxCachedFilePathByUrl);
+    _boundedTripleMapPut(
+      _cachedFilePathByTripleKey,
+      key,
+      cachedFilePath,
+      _maxCachedFilePathByUrl,
+    );
     if (confirmedAnimatedWebP) {
       _boundedTripleSetAdd(
-          _confirmedAnimatedWebPKeys, key, _maxConfirmedAnimatedWebPUrls);
+        _confirmedAnimatedWebPKeys,
+        key,
+        _maxConfirmedAnimatedWebPUrls,
+      );
     }
   }
 
@@ -1692,7 +1770,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     // bringing the total decoded footprint from ~112 MB to ~31 MB.
     // Static heavy: 75% — keeps text/detail readable.
     // Normal images: 100% width × DPR — exact display size, 0 waste.
-    final bool animatedImage = isLikelyAnimatedUrl ??
+    final bool animatedImage =
+        isLikelyAnimatedUrl ??
         _isLikelyAnimatedUrl(imageUrl ?? widget.imageUrl);
     final bool heavyImage = _isHeavyReaderSource() || _isHeavyImage;
     final double factor = animatedImage ? 0.40 : (heavyImage ? 0.75 : 1.0);
@@ -1815,16 +1894,17 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       key: ValueKey('extended_memory_${widget.contentId}_${widget.pageNumber}'),
       fit: _getAdaptiveBoxFit(),
       filterQuality: FilterQuality.low,
-      mode: widget.enableZoom &&
+      mode:
+          widget.enableZoom &&
               widget.readingMode != ReadingMode.continuousScroll
           ? ExtendedImageMode.gesture
           : ExtendedImageMode.none,
       clearMemoryCacheWhenDispose:
           ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
-        readingMode: widget.readingMode,
-        isHeavy: _isHeavyImage,
-        isHeavyReaderSource: _isHeavyReaderSource(),
-      ),
+            readingMode: widget.readingMode,
+            isHeavy: _isHeavyImage,
+            isHeavyReaderSource: _isHeavyReaderSource(),
+          ),
       cacheWidth: decodeWidth,
       extendedImageGestureKey: _gestureKey,
       initGestureConfigHandler: (state) {
@@ -1847,8 +1927,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   bool _shouldResolveMangaFireImageBytes(String url) {
-    return _pipeline.shouldResolveMangaFireImageBytes(url,
-        sourceId: widget.sourceId);
+    return _pipeline.shouldResolveMangaFireImageBytes(
+      url,
+      sourceId: widget.sourceId,
+    );
   }
 
   Future<Uint8List?> _resolveMangaFireImageBytes(String url) {
@@ -1884,18 +1966,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
               const SizedBox(height: 12),
               Text(
                 l10n.readerPageNotDownloaded(widget.pageNumber),
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                style: Theme.of(context).textTheme.titleSmall
+                    ?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 l10n.readerPageSkippedDuringDownload,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color:
-                          colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                    ),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                ),
                 textAlign: TextAlign.center,
               ),
               if (hasSourcePageFallback) ...[
@@ -1941,8 +2021,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                         vertical: 10,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusLg),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusLg,
+                        ),
                       ),
                     ),
                   ),
@@ -1996,11 +2077,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
   }
 
   // Loading indicator with download progress.
-  Widget _buildLoadingIndicator(BuildContext context,
-      {ExtendedImageState? state,
-      int? loadedBytesOverride,
-      int? totalBytesOverride,
-      double? progressOverride}) {
+  Widget _buildLoadingIndicator(
+    BuildContext context, {
+    ExtendedImageState? state,
+    int? loadedBytesOverride,
+    int? totalBytesOverride,
+    double? progressOverride,
+  }) {
     final l10n = AppLocalizations.of(context)!;
     final bool isContinuousScroll =
         widget.readingMode == ReadingMode.continuousScroll;
@@ -2044,12 +2127,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final String captionText = isConvertingBadAvif && progressPercent != null
         ? '${l10n.processingBadAvifToWebp} • $progressPercent%'
         : isConvertingBadAvif
-            ? l10n.processingBadAvifToWebp
-            : hasKnownTotal
-                ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)} • $progressPercent%'
-                : hasRealByteCount
-                    ? l10n.downloaded(_formatByteSize(loadedBytes))
-                    : l10n.downloadingImageData;
+        ? l10n.processingBadAvifToWebp
+        : hasKnownTotal
+        ? '${_formatByteSize(loadedBytes)} / ${_formatByteSize(resolvedTotalBytes)} • $progressPercent%'
+        : hasRealByteCount
+        ? l10n.downloaded(_formatByteSize(loadedBytes))
+        : l10n.downloadingImageData;
     final double? indicatorValue = progressValue;
     final bool showIndeterminateFromRealBytes =
         hasRealByteCount && !hasKnownTotal;
@@ -2090,11 +2173,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   ClipRRect(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
                     child: LinearProgressIndicator(
-                      value:
-                          showIndeterminateFromRealBytes ? null : indicatorValue,
+                      value: showIndeterminateFromRealBytes
+                          ? null
+                          : indicatorValue,
                       minHeight: 6,
-                      backgroundColor:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation<Color>(
                         Theme.of(context).colorScheme.primary,
                       ),
@@ -2104,8 +2189,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   Text(
                     captionText,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -2134,9 +2219,11 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     final isOpeningSourcePage = _isOpeningSourcePage;
     final isActionBusy = isRepairing || isOpeningSourcePage;
     final resolvedFailedSource = failedSource ?? widget.imageUrl;
-    final canOpenLocalAvif = _isLocalFilePath(resolvedFailedSource) &&
+    final canOpenLocalAvif =
+        _isLocalFilePath(resolvedFailedSource) &&
         _isAvifSource(resolvedFailedSource);
-    final canOpenRemoteAvif = !_isLocalFilePath(resolvedFailedSource) &&
+    final canOpenRemoteAvif =
+        !_isLocalFilePath(resolvedFailedSource) &&
         _isAvifSource(resolvedFailedSource);
     final retryAction = onRetry ?? state?.reLoadImage;
 
@@ -2145,8 +2232,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       child: Center(
         child: Card(
           elevation: 8,
-          shadowColor:
-              Theme.of(context).colorScheme.shadow.withValues(alpha: 0.3),
+          shadowColor: Theme.of(context).colorScheme.shadow
+              .withValues(alpha: 0.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(24),
           ),
@@ -2181,9 +2268,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       height: logoSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .error
+                        color: Theme.of(context).colorScheme.error
                             .withValues(alpha: 0.8),
                       ),
                       child: Icon(
@@ -2201,22 +2286,22 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                   isRepairing
                       ? l10n.readerRepairingImage
                       : isOpeningSourcePage
-                          ? l10n.readerOpeningSourcePage
-                          : l10n.failedToLoad,
+                      ? l10n.readerOpeningSourcePage
+                      : l10n.failedToLoad,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isActionBusy
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(context).colorScheme.onSurface,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    color: isActionBusy
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurface,
+                    fontWeight: FontWeight.w500,
+                  ),
                   textAlign: TextAlign.center,
                 ),
 
                 Text(
                   l10n.pageNumber(widget.pageNumber),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
 
@@ -2275,8 +2360,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                       ),
                     ),
@@ -2298,8 +2384,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
 
                               bool repaired = false;
                               try {
-                                repaired =
-                                    await widget.onRepairBrokenImage!.call();
+                                repaired = await widget.onRepairBrokenImage!
+                                    .call();
                               } finally {
                                 if (mounted) {
                                   setState(() {
@@ -2325,8 +2411,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                                 color: Theme.of(context).colorScheme.primary,
                               ),
                             )
-                          : const Icon(Icons.download_for_offline_outlined,
-                              size: 16),
+                          : const Icon(
+                              Icons.download_for_offline_outlined,
+                              size: 16,
+                            ),
                       label: Text(
                         isRepairing
                             ? l10n.readerRepairingImage
@@ -2338,8 +2426,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                       ),
                     ),
@@ -2355,7 +2444,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       onPressed: isActionBusy
                           ? null
                           : () =>
-                              _openFailedAvifExternally(resolvedFailedSource),
+                                _openFailedAvifExternally(resolvedFailedSource),
                       icon: const Icon(Icons.photo_library_outlined, size: 16),
                       label: Text(l10n.readerOpenInGallery),
                       style: OutlinedButton.styleFrom(
@@ -2364,8 +2453,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                       ),
                     ),
@@ -2385,10 +2475,13 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       elevation: DesignTokens.elevationMd,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusLg),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusLg,
+                        ),
                       ),
                     ),
                   ),
@@ -2402,7 +2495,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       onPressed: isActionBusy
                           ? null
                           : () =>
-                              _openFailedAvifExternally(resolvedFailedSource),
+                                _openFailedAvifExternally(resolvedFailedSource),
                       icon: const Icon(Icons.open_in_browser, size: 16),
                       label: Text(l10n.openInBrowser),
                       style: OutlinedButton.styleFrom(
@@ -2411,8 +2504,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                           vertical: 8,
                         ),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(DesignTokens.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusLg,
+                          ),
                         ),
                       ),
                     ),
@@ -2434,8 +2528,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     ExtendedImageState state, {
     String? imageUrl,
   }) {
-    final isLikelyAnimatedImage =
-        _isLikelyAnimatedUrl(imageUrl ?? widget.imageUrl);
+    final isLikelyAnimatedImage = _isLikelyAnimatedUrl(
+      imageUrl ?? widget.imageUrl,
+    );
     final Widget imageWidget = widget.enableZoom
         ? state.completedWidget
         : ExtendedRawImage(
@@ -2461,9 +2556,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
         final hintOpacity = _pinchHintController.value < 0.2
             ? _pinchHintController.value / 0.2
             : _pinchHintController.value > 0.7
-                ? (1.0 - _pinchHintController.value) / 0.3
-                : 1.0;
-        final showHint = widget.onDoubleTapGesture != null &&
+            ? (1.0 - _pinchHintController.value) / 0.3
+            : 1.0;
+        final showHint =
+            widget.onDoubleTapGesture != null &&
             _pinchHintController.isAnimating &&
             !isZoomed;
 
@@ -2484,8 +2580,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 top: 16,
                 right: 16,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
@@ -2517,11 +2615,14 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                     opacity: hintOpacity.clamp(0.0, 1.0),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.6),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radius2xl),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radius2xl,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,

@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/domain/entities/ai_translation.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/ai_settings/ai_settings_cubit.dart';
+
 import 'settings_theme_widgets.dart';
 
 /// Dedicated AI provider (BYOK) manager: list, CRUD, set-default, validate.
@@ -200,8 +201,8 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
           : _keyController.text.trim(),
       baseUrl: _type == AiProviderType.custom
           ? (_baseUrlController.text.trim().isEmpty
-              ? null
-              : _baseUrlController.text.trim())
+                ? null
+                : _baseUrlController.text.trim())
           : existing?.baseUrl,
       isDefault: existing?.isDefault ?? false,
       modelIsVision: _selectedVision,
@@ -218,9 +219,10 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
       final apiKey = _keyController.text.trim().isEmpty
           ? null
           : _keyController.text.trim();
-      final models = await context
-          .read<AiSettingsCubit>()
-          .fetchModels(type: _type, apiKey: apiKey);
+      final models = await context.read<AiSettingsCubit>().fetchModels(
+        type: _type,
+        apiKey: apiKey,
+      );
       if (!mounted) return;
       setState(() {
         _models = models;
@@ -241,7 +243,9 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
       return TextField(
         controller: _modelController,
         decoration: InputDecoration(
-            labelText: l10n.aiModel, hintText: 'e.g. gpt-4o-mini'),
+          labelText: l10n.aiModel,
+          hintText: 'e.g. gpt-4o-mini',
+        ),
       );
     }
     if (_manualMode) {
@@ -263,24 +267,37 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
     }
     if (_isLoadingModels) {
       return const Center(
-          child: Padding(
-              padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
     if (_modelsError != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_modelsError!,
-              style: TextStyle(
-                  color: Theme.of(context).colorScheme.error, fontSize: 12)),
+          Text(
+            _modelsError!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 8),
-          Row(children: [
-            OutlinedButton(onPressed: _loadModels, child: Text(l10n.aiReload)),
-            const SizedBox(width: 8),
-            TextButton(
+          Row(
+            children: [
+              OutlinedButton(
+                onPressed: _loadModels,
+                child: Text(l10n.aiReload),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
                 onPressed: () => setState(() => _manualMode = true),
-                child: Text(l10n.aiManualEntry)),
-          ]),
+                child: Text(l10n.aiManualEntry),
+              ),
+            ],
+          ),
         ],
       );
     }
@@ -297,15 +314,19 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
           ),
           if (needsKey)
             Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(l10n.aiEnterApiKeyFirst,
-                    style:
-                        const TextStyle(fontSize: 11, color: Colors.orange))),
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                l10n.aiEnterApiKeyFirst,
+                style: const TextStyle(fontSize: 11, color: Colors.orange),
+              ),
+            ),
           Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                  onPressed: () => setState(() => _manualMode = true),
-                  child: Text(l10n.aiManualEntry))),
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => setState(() => _manualMode = true),
+              child: Text(l10n.aiManualEntry),
+            ),
+          ),
         ],
       );
     }
@@ -326,34 +347,41 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          ChoiceChip(
+        Row(
+          children: [
+            ChoiceChip(
               label: Text(l10n.aiAll),
               selected: _modelFilter == 'all',
-              onSelected: (_) => setState(() => _modelFilter = 'all')),
-          const SizedBox(width: 6),
-          ChoiceChip(
+              onSelected: (_) => setState(() => _modelFilter = 'all'),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
               label: Text(l10n.aiVision),
               selected: _modelFilter == 'vision',
-              onSelected: (_) => setState(() => _modelFilter = 'vision')),
-          const SizedBox(width: 6),
-          ChoiceChip(
+              onSelected: (_) => setState(() => _modelFilter = 'vision'),
+            ),
+            const SizedBox(width: 6),
+            ChoiceChip(
               label: Text(l10n.aiTextOnly),
               selected: _modelFilter == 'text',
-              onSelected: (_) => setState(() => _modelFilter = 'text')),
-          const Spacer(),
-          IconButton(
+              onSelected: (_) => setState(() => _modelFilter = 'text'),
+            ),
+            const Spacer(),
+            IconButton(
               icon: const Icon(Icons.refresh, size: 18),
               onPressed: _loadModels,
-              tooltip: l10n.aiReload),
-        ]),
+              tooltip: l10n.aiReload,
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         if (isLarge)
           TextField(
             decoration: InputDecoration(
-                hintText: l10n.aiSearchModels,
-                prefixIcon: const Icon(Icons.search, size: 18),
-                isDense: true),
+              hintText: l10n.aiSearchModels,
+              prefixIcon: const Icon(Icons.search, size: 18),
+              isDense: true,
+            ),
             onChanged: (v) => setState(() => _searchQuery = v),
           ),
         if (isLarge) const SizedBox(height: 8),
@@ -361,31 +389,44 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
           OutlinedButton.icon(
             onPressed: () => _showModelPicker(context, filtered),
             icon: const Icon(Icons.list),
-            label: Text(_modelController.text.isEmpty
-                ? l10n.aiSelectModel
-                : _modelController.text),
+            label: Text(
+              _modelController.text.isEmpty
+                  ? l10n.aiSelectModel
+                  : _modelController.text,
+            ),
           )
         else
           DropdownButtonFormField<String>(
-            initialValue:
-                _modelController.text.isEmpty ? null : _modelController.text,
+            initialValue: _modelController.text.isEmpty
+                ? null
+                : _modelController.text,
             decoration: InputDecoration(labelText: l10n.aiModel),
             isExpanded: true,
             items: filtered
-                .map((m) => DropdownMenuItem(
+                .map(
+                  (m) => DropdownMenuItem(
                     value: m.id,
-                    child: Row(children: [
-                      Expanded(
-                          child: Text(m.id,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13))),
-                      if (m.isVision != null) ...[
-                        const SizedBox(width: 6),
-                        Icon(m.isVision! ? Icons.visibility : Icons.text_fields,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            m.id,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                        if (m.isVision != null) ...[
+                          const SizedBox(width: 6),
+                          Icon(
+                            m.isVision! ? Icons.visibility : Icons.text_fields,
                             size: 14,
-                            color: m.isVision! ? Colors.green : Colors.grey)
-                      ]
-                    ])))
+                            color: m.isVision! ? Colors.green : Colors.grey,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                )
                 .toList(),
             onChanged: (v) {
               if (v == null) return;
@@ -398,17 +439,20 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
           ),
         const SizedBox(height: 4),
         TextButton(
-            onPressed: () => setState(() => _manualMode = true),
-            child: Text(l10n.aiManualEntry)),
+          onPressed: () => setState(() => _manualMode = true),
+          child: Text(l10n.aiManualEntry),
+        ),
         if (_models != null &&
             widget.provider != null &&
             widget.provider!.model.isNotEmpty &&
             !_models!.any((m) => m.id == widget.provider!.model))
           Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(l10n.aiStaleModel(widget.provider!.model),
-                  style:
-                      TextStyle(color: Colors.orange.shade700, fontSize: 11))),
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              l10n.aiStaleModel(widget.provider!.model),
+              style: TextStyle(color: Colors.orange.shade700, fontSize: 11),
+            ),
+          ),
       ],
     );
   }
@@ -421,83 +465,101 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
       builder: (ctx) {
         String q = _searchQuery;
         String filter = _modelFilter;
-        return StatefulBuilder(builder: (ctx, setSheet) {
-          final filtered = options.where((m) {
-            if (filter == 'vision' && m.isVision != true) {
-              return false;
-            }
-            if (filter == 'text' && m.isVision != false) {
-              return false;
-            }
-            if (q.isNotEmpty && !m.id.toLowerCase().contains(q.toLowerCase())) {
-              return false;
-            }
-            return true;
-          }).toList();
-          return DraggableScrollableSheet(
+        return StatefulBuilder(
+          builder: (ctx, setSheet) {
+            final filtered = options.where((m) {
+              if (filter == 'vision' && m.isVision != true) {
+                return false;
+              }
+              if (filter == 'text' && m.isVision != false) {
+                return false;
+              }
+              if (q.isNotEmpty &&
+                  !m.id.toLowerCase().contains(q.toLowerCase())) {
+                return false;
+              }
+              return true;
+            }).toList();
+            return DraggableScrollableSheet(
               expand: false,
               initialChildSize: 0.7,
               maxChildSize: 0.9,
-              builder: (_, ctrl) => Column(children: [
-                    Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: TextField(
-                            decoration: InputDecoration(
-                                hintText: l10n.aiSearchModels,
-                                prefixIcon: const Icon(Icons.search)),
-                            onChanged: (v) => setSheet(() => q = v))),
-                    Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Row(children: [
-                          ChoiceChip(
-                              label: Text(l10n.aiAll),
-                              selected: filter == 'all',
-                              onSelected: (_) =>
-                                  setSheet(() => filter = 'all')),
-                          const SizedBox(width: 6),
-                          ChoiceChip(
-                              label: Text(l10n.aiVision),
-                              selected: filter == 'vision',
-                              onSelected: (_) =>
-                                  setSheet(() => filter = 'vision')),
-                          const SizedBox(width: 6),
-                          ChoiceChip(
-                              label: Text(l10n.aiTextOnly),
-                              selected: filter == 'text',
-                              onSelected: (_) =>
-                                  setSheet(() => filter = 'text')),
-                        ])),
-                    Expanded(
-                        child: ListView.builder(
-                            controller: ctrl,
-                            itemCount: filtered.length,
-                            itemBuilder: (_, i) {
-                              final m = filtered[i];
-                              return ListTile(
-                                  title: Text(m.id,
-                                      style: const TextStyle(fontSize: 13)),
-                                  trailing: m.isVision == null
-                                      ? null
-                                      : Icon(
-                                          m.isVision!
-                                              ? Icons.visibility
-                                              : Icons.text_fields,
-                                          size: 16,
-                                          color: m.isVision!
-                                              ? Colors.green
-                                              : Colors.grey),
-                                  onTap: () {
-                                    setState(() {
-                                      _modelController.text = m.id;
-                                      _selectedVision = m.isVision;
-                                      _searchQuery = q;
-                                      _modelFilter = filter;
-                                    });
-                                    Navigator.pop(ctx);
-                                  });
-                            })),
-                  ]));
-        });
+              builder: (_, ctrl) => Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: TextField(
+                      decoration: InputDecoration(
+                        hintText: l10n.aiSearchModels,
+                        prefixIcon: const Icon(Icons.search),
+                      ),
+                      onChanged: (v) => setSheet(() => q = v),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Row(
+                      children: [
+                        ChoiceChip(
+                          label: Text(l10n.aiAll),
+                          selected: filter == 'all',
+                          onSelected: (_) => setSheet(() => filter = 'all'),
+                        ),
+                        const SizedBox(width: 6),
+                        ChoiceChip(
+                          label: Text(l10n.aiVision),
+                          selected: filter == 'vision',
+                          onSelected: (_) => setSheet(() => filter = 'vision'),
+                        ),
+                        const SizedBox(width: 6),
+                        ChoiceChip(
+                          label: Text(l10n.aiTextOnly),
+                          selected: filter == 'text',
+                          onSelected: (_) => setSheet(() => filter = 'text'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: ctrl,
+                      itemCount: filtered.length,
+                      itemBuilder: (_, i) {
+                        final m = filtered[i];
+                        return ListTile(
+                          title: Text(
+                            m.id,
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          trailing: m.isVision == null
+                              ? null
+                              : Icon(
+                                  m.isVision!
+                                      ? Icons.visibility
+                                      : Icons.text_fields,
+                                  size: 16,
+                                  color: m.isVision!
+                                      ? Colors.green
+                                      : Colors.grey,
+                                ),
+                          onTap: () {
+                            setState(() {
+                              _modelController.text = m.id;
+                              _selectedVision = m.isVision;
+                              _searchQuery = q;
+                              _modelFilter = filter;
+                            });
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
       },
     );
   }
@@ -529,8 +591,12 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
                 initialValue: _type,
                 decoration: InputDecoration(labelText: l10n.aiProviderType),
                 items: AiProviderType.values
-                    .map((t) =>
-                        DropdownMenuItem(value: t, child: Text(t.displayName)))
+                    .map(
+                      (t) => DropdownMenuItem(
+                        value: t,
+                        child: Text(t.displayName),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) {
                   if (v == null) return;
@@ -581,8 +647,9 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
                               _testResult = null;
                               _testRan = false;
                             });
-                            final result =
-                                await cubit.validateProvider(_buildConfig());
+                            final result = await cubit.validateProvider(
+                              _buildConfig(),
+                            );
                             if (!context.mounted) return;
                             setState(() {
                               _isTesting = false;
@@ -591,9 +658,11 @@ class _ProviderFormSheetState extends State<_ProviderFormSheet> {
                             });
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(result == null
-                                    ? l10n.aiCheckIconD(_modelController.text)
-                                    : '✗ ${result.substring(0, result.length > 100 ? 100 : result.length)}'),
+                                content: Text(
+                                  result == null
+                                      ? l10n.aiCheckIconD(_modelController.text)
+                                      : '✗ ${result.substring(0, result.length > 100 ? 100 : result.length)}',
+                                ),
                               ),
                             );
                           },

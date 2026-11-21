@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/routing/app_router.dart';
 
@@ -8,7 +8,9 @@ import '../../../core/constants/design_tokens.dart';
 import '../../../core/constants/text_style_const.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../l10n/app_localizations.dart';
+
 import 'package:nhasixapp/core/constants/colors_const.dart' show AppColors;
+
 import '../../../domain/entities/entities.dart';
 import '../../cubits/filter_data/filter_data_cubit.dart';
 import '../../widgets/filter_data_search_widget.dart';
@@ -165,9 +167,7 @@ class _FilterDataScreenState extends State<FilterDataScreen>
             _buildSelectedFiltersSection(),
 
             // Filter results
-            Expanded(
-              child: _buildFilterResults(),
-            ),
+            Expanded(child: _buildFilterResults()),
           ],
         ),
         bottomNavigationBar: _buildBottomActions(),
@@ -280,7 +280,9 @@ class _FilterDataScreenState extends State<FilterDataScreen>
                   onRemove: _onRemoveSelectedFilter,
                 ),
                 const Divider(
-                    height: 1, color: null), // Let divider use theme color
+                  height: 1,
+                  color: null,
+                ), // Let divider use theme color
               ],
             ),
           );
@@ -360,9 +362,10 @@ class _FilterDataScreenState extends State<FilterDataScreen>
                   Text(
                     state.searchQuery?.isEmpty == true
                         ? AppLocalizations.of(context)!.noFilterTypeAvailable(
-                            _getCurrentFilterTypeDisplayName().toLowerCase())
+                            _getCurrentFilterTypeDisplayName().toLowerCase(),
+                          )
                         : AppLocalizations.of(context)!
-                            .noResultsFoundForQuery(state.searchQuery!),
+                              .noResultsFoundForQuery(state.searchQuery!),
                     style: TextStyleConst.headingMedium.copyWith(
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -445,7 +448,8 @@ class _FilterDataScreenState extends State<FilterDataScreen>
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Theme.of(context).colorScheme.onSurface,
                     side: BorderSide(
-                        color: Theme.of(context).colorScheme.outline),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                   child: Text(AppLocalizations.of(context)!.cancel),
@@ -463,7 +467,7 @@ class _FilterDataScreenState extends State<FilterDataScreen>
                   child: Text(
                     state is FilterDataLoaded && state.hasSelectedFilters
                         ? AppLocalizations.of(context)!
-                            .applyWithCount(state.selectedCount)
+                              .applyWithCount(state.selectedCount)
                         : AppLocalizations.of(context)!.apply,
                   ),
                 ),
@@ -640,8 +644,8 @@ class _FilterTagChip extends StatelessWidget {
     final foreground = isExclude
         ? (isDark ? AppColors.error.withValues(alpha: 0.8) : AppColors.error)
         : (isDark
-            ? AppColors.success.withValues(alpha: 0.8)
-            : AppColors.success);
+              ? AppColors.success.withValues(alpha: 0.8)
+              : AppColors.success);
 
     return _FilterSelectionColors(
       accent: accent,

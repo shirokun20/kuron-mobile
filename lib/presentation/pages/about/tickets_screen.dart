@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,11 +10,7 @@ import 'package:nhasixapp/core/services/tickets/tickets_service.dart';
 
 /// Screen displaying open issues / tickets from kuron-mobile and kuron-extensions.
 class TicketsScreen extends StatefulWidget {
-  const TicketsScreen({
-    super.key,
-    this.service,
-    this.urlLauncher,
-  });
+  const TicketsScreen({super.key, this.service, this.urlLauncher});
 
   final TicketsService? service;
   final Future<bool> Function(Uri uri)? urlLauncher;
@@ -28,7 +24,8 @@ class _TicketsScreenState extends State<TicketsScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   List<TicketItem> _tickets = [];
-  String _selectedRepoFilter = 'all'; // 'all', 'kuron-mobile', 'kuron-extensions'
+  String _selectedRepoFilter =
+      'all'; // 'all', 'kuron-mobile', 'kuron-extensions'
 
   @override
   void initState() {
@@ -43,12 +40,10 @@ class _TicketsScreenState extends State<TicketsScreen> {
       _service = getIt<TicketsService>();
     } else {
       final prefs = await SharedPreferences.getInstance();
-      final logger = getIt.isRegistered<Logger>() ? getIt<Logger>() : Logger(level: Level.off);
-      _service = TicketsService(
-        prefs: prefs,
-        logger: logger,
-        dio: Dio(),
-      );
+      final logger = getIt.isRegistered<Logger>()
+          ? getIt<Logger>()
+          : Logger(level: Level.off);
+      _service = TicketsService(prefs: prefs, logger: logger, dio: Dio());
     }
     await _loadTickets();
   }
@@ -109,7 +104,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
       appBar: AppBar(
         title: Text(
           'Tickets',
-          style: TextStyleConst.titleLarge.copyWith(color: colorScheme.onSurface),
+          style: TextStyleConst.titleLarge.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         elevation: DesignTokens.elevationNone,
@@ -118,16 +115,16 @@ class _TicketsScreenState extends State<TicketsScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Segarkan Tiket',
-            onPressed: _isLoading ? null : () => _loadTickets(forceRefresh: true),
+            onPressed: _isLoading
+                ? null
+                : () => _loadTickets(forceRefresh: true),
           ),
         ],
       ),
       body: Column(
         children: [
           _buildFilterChips(theme),
-          Expanded(
-            child: _buildBody(theme),
-          ),
+          Expanded(child: _buildBody(theme)),
         ],
       ),
     );
@@ -174,9 +171,7 @@ class _TicketsScreenState extends State<TicketsScreen> {
 
   Widget _buildBody(ThemeData theme) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_errorMessage != null && _tickets.isEmpty) {
@@ -186,11 +181,17 @@ class _TicketsScreenState extends State<TicketsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Gagal memuat tiket terbuka',
-                style: TextStyleConst.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyleConst.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -263,7 +264,9 @@ class _TicketsScreenState extends State<TicketsScreen> {
   Widget _buildTicketCard(TicketItem ticket, ThemeData theme) {
     final colorScheme = theme.colorScheme;
     final isExtensions = ticket.repo == 'kuron-extensions';
-    final repoBadgeColor = isExtensions ? colorScheme.tertiary : colorScheme.primary;
+    final repoBadgeColor = isExtensions
+        ? colorScheme.tertiary
+        : colorScheme.primary;
 
     return Card(
       elevation: DesignTokens.elevationNone,
@@ -282,10 +285,15 @@ class _TicketsScreenState extends State<TicketsScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: repoBadgeColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     child: Text(
                       ticket.repo,
@@ -327,10 +335,15 @@ class _TicketsScreenState extends State<TicketsScreen> {
                   runSpacing: 4,
                   children: ticket.labels.map((label) {
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusSm,
+                        ),
                         border: Border.all(
                           color: colorScheme.outline.withValues(alpha: 0.2),
                         ),

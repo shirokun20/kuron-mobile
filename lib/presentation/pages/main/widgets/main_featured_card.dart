@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/constants/colors_const.dart'
     show AppColors, KuronColors;
@@ -92,6 +92,7 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
           }
           return null;
         }
+
         return entryOf(previous) != entryOf(current);
       },
       builder: (context, _) {
@@ -105,15 +106,16 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                 final isRead = readSnapshot.data ?? false;
                 final theme = Theme.of(context);
                 final kuronColors = theme.extension<KuronColors>();
-                final gradientStart = kuronColors?.cardGradientStart ??
+                final gradientStart =
+                    kuronColors?.cardGradientStart ??
                     AppColors.darkGradientStart;
                 final gradientEnd =
                     kuronColors?.cardGradientEnd ?? AppColors.darkGradientEnd;
                 final cardBorder =
                     kuronColors?.cardBorder ?? AppColors.darkBorder;
                 const downloadBorderColor = AppColors.brandCoral;
-                final runningBorderColor =
-                    theme.colorScheme.onSurface.withValues(alpha: 0.1);
+                final runningBorderColor = theme.colorScheme.onSurface
+                    .withValues(alpha: 0.1);
                 final readGoldColor =
                     kuronColors?.readGold ?? AppColors.readGold;
                 final hasAnimatedBorder = isRead || isDownloaded;
@@ -125,29 +127,29 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                         runningBorderColor,
                       ]
                     : isRead
-                        ? <Color>[readGoldColor]
-                        : <Color>[downloadBorderColor];
+                    ? <Color>[readGoldColor]
+                    : <Color>[downloadBorderColor];
                 final borderStyle = switch ((isDownloaded, isRead)) {
                   (true, true) => (
-                      innerColor: readGoldColor,
-                      innerWidth: 2.2,
-                      shadowColor: readGoldColor.withValues(alpha: 0.18),
-                    ),
+                    innerColor: readGoldColor,
+                    innerWidth: 2.2,
+                    shadowColor: readGoldColor.withValues(alpha: 0.18),
+                  ),
                   (true, false) => (
-                      innerColor: downloadBorderColor,
-                      innerWidth: 2.0,
-                      shadowColor: downloadBorderColor.withValues(alpha: 0.25),
-                    ),
+                    innerColor: downloadBorderColor,
+                    innerWidth: 2.0,
+                    shadowColor: downloadBorderColor.withValues(alpha: 0.25),
+                  ),
                   (false, true) => (
-                      innerColor: readGoldColor,
-                      innerWidth: 2.0,
-                      shadowColor: readGoldColor.withValues(alpha: 0.25),
-                    ),
+                    innerColor: readGoldColor,
+                    innerWidth: 2.0,
+                    shadowColor: readGoldColor.withValues(alpha: 0.25),
+                  ),
                   _ => (
-                      innerColor: cardBorder,
-                      innerWidth: 1.5,
-                      shadowColor: cardBorder.withValues(alpha: 0.08),
-                    ),
+                    innerColor: cardBorder,
+                    innerWidth: 1.5,
+                    shadowColor: cardBorder.withValues(alpha: 0.08),
+                  ),
                 };
 
                 final innerCard = Container(
@@ -225,10 +227,10 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                               'READ',
                                               style: TextStyleConst.overline
                                                   .copyWith(
-                                                color: Colors.white,
-                                                fontSize: 8,
-                                                fontWeight: FontWeight.w700,
-                                              ),
+                                                    color: Colors.white,
+                                                    fontSize: 8,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -245,10 +247,12 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                           vertical: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.7),
+                                          color: Colors.black.withValues(
+                                            alpha: 0.7,
+                                          ),
                                           borderRadius: BorderRadius.circular(
-                                              DesignTokens.radiusMd),
+                                            DesignTokens.radiusMd,
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -263,9 +267,9 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                               '${content.pageCount}',
                                               style: TextStyleConst.labelSmall
                                                   .copyWith(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -285,7 +289,8 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                           color: theme.colorScheme.tertiary
                                               .withValues(alpha: 0.9),
                                           borderRadius: BorderRadius.circular(
-                                              DesignTokens.radiusMd),
+                                            DesignTokens.radiusMd,
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -301,11 +306,12 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                               'OFFLINE',
                                               style: TextStyleConst.overline
                                                   .copyWith(
-                                                color: theme
-                                                    .colorScheme.onTertiary,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 9,
-                                              ),
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onTertiary,
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 9,
+                                                  ),
                                             ),
                                           ],
                                         ),
@@ -323,10 +329,7 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
                                     end: Alignment.bottomRight,
-                                    colors: [
-                                      gradientStart,
-                                      gradientEnd,
-                                    ],
+                                    colors: [gradientStart, gradientEnd],
                                   ),
                                 ),
                                 child: Column(
@@ -335,12 +338,12 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                     // Title
                                     Text(
                                       content.getDisplayTitle(),
-                                      style:
-                                          TextStyleConst.headingSmall.copyWith(
-                                        color: theme.colorScheme.onSurface,
-                                        fontSize: 15,
-                                        height: 1.2,
-                                      ),
+                                      style: TextStyleConst.headingSmall
+                                          .copyWith(
+                                            color: theme.colorScheme.onSurface,
+                                            fontSize: 15,
+                                            height: 1.2,
+                                          ),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -350,12 +353,12 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                       const SizedBox(height: 4),
                                       Text(
                                         content.subTitle!,
-                                        style:
-                                            TextStyleConst.labelSmall.copyWith(
-                                          color: theme.colorScheme.onSurface
-                                              .withValues(alpha: 0.6),
-                                          fontSize: 10,
-                                        ),
+                                        style: TextStyleConst.labelSmall
+                                            .copyWith(
+                                              color: theme.colorScheme.onSurface
+                                                  .withValues(alpha: 0.6),
+                                              fontSize: 10,
+                                            ),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
@@ -378,10 +381,11 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                                   .join(', '),
                                               style: TextStyleConst.bodySmall
                                                   .copyWith(
-                                                color:
-                                                    theme.colorScheme.primary,
-                                                fontWeight: FontWeight.w600,
-                                              ),
+                                                    color: theme
+                                                        .colorScheme
+                                                        .primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                             ),
@@ -394,8 +398,9 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                       Wrap(
                                         spacing: 6,
                                         runSpacing: 4,
-                                        children:
-                                            content.tags.take(3).map((tag) {
+                                        children: content.tags.take(3).map((
+                                          tag,
+                                        ) {
                                           return Container(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 8,
@@ -403,7 +408,8 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: theme
-                                                  .colorScheme.primaryContainer
+                                                  .colorScheme
+                                                  .primaryContainer
                                                   .withValues(alpha: 0.5),
                                               borderRadius:
                                                   BorderRadius.circular(10),
@@ -412,10 +418,11 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                               tag.name,
                                               style: TextStyleConst.labelSmall
                                                   .copyWith(
-                                                color: theme.colorScheme
-                                                    .onPrimaryContainer,
-                                                fontSize: 10,
-                                              ),
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onPrimaryContainer,
+                                                    fontSize: 10,
+                                                  ),
                                             ),
                                           );
                                         }).toList(),
@@ -433,15 +440,17 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                           return const SizedBox.shrink();
                                         }
                                         return Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 6),
+                                          padding: const EdgeInsets.only(
+                                            bottom: 6,
+                                          ),
                                           child: Row(
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
                                               Icon(
                                                 Icons.schedule,
                                                 size: 10,
-                                                color: theme.colorScheme
+                                                color: theme
+                                                    .colorScheme
                                                     .onSurfaceVariant
                                                     .withValues(alpha: 0.7),
                                               ),
@@ -452,11 +461,14 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                                   style: TextStyleConst
                                                       .labelSmall
                                                       .copyWith(
-                                                    color: theme.colorScheme
-                                                        .onSurfaceVariant
-                                                        .withValues(alpha: 0.7),
-                                                    fontSize: 10,
-                                                  ),
+                                                        color: theme
+                                                            .colorScheme
+                                                            .onSurfaceVariant
+                                                            .withValues(
+                                                              alpha: 0.7,
+                                                            ),
+                                                        fontSize: 10,
+                                                      ),
                                                   maxLines: 1,
                                                   overflow:
                                                       TextOverflow.ellipsis,
@@ -470,38 +482,42 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                                     // Language flag
                                     Row(
                                       children: [
-                                        Builder(builder: (context) {
-                                          final langSvc =
-                                              getIt<LanguageService>();
-                                          final normLang = content.language
-                                              .toLowerCase()
-                                              .trim();
-                                          final hasLang = normLang.isNotEmpty &&
-                                              normLang != 'unknown';
-                                          final emoji = hasLang
-                                              ? langSvc.flagEmoji(normLang)
-                                              : null;
-                                          final languageBadge = hasLang
-                                              ? (normLang.length >= 2
-                                                  ? normLang
-                                                      .substring(0, 2)
-                                                      .toUpperCase()
-                                                  : normLang.toUpperCase())
-                                              : '--';
-                                          final label = hasLang
-                                              ? langSvc.displayName(normLang)
-                                              : content.language;
+                                        Builder(
+                                          builder: (context) {
+                                            final langSvc =
+                                                getIt<LanguageService>();
+                                            final normLang = content.language
+                                                .toLowerCase()
+                                                .trim();
+                                            final hasLang =
+                                                normLang.isNotEmpty &&
+                                                normLang != 'unknown';
+                                            final emoji = hasLang
+                                                ? langSvc.flagEmoji(normLang)
+                                                : null;
+                                            final languageBadge = hasLang
+                                                ? (normLang.length >= 2
+                                                      ? normLang
+                                                            .substring(0, 2)
+                                                            .toUpperCase()
+                                                      : normLang.toUpperCase())
+                                                : '--';
+                                            final label = hasLang
+                                                ? langSvc.displayName(normLang)
+                                                : content.language;
 
-                                          return Text(
-                                            '${emoji ?? languageBadge} $label',
-                                            style: TextStyleConst.labelSmall
-                                                .copyWith(
-                                              color: theme
-                                                  .colorScheme.onSurfaceVariant,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          );
-                                        }),
+                                            return Text(
+                                              '${emoji ?? languageBadge} $label',
+                                              style: TextStyleConst.labelSmall
+                                                  .copyWith(
+                                                    color: theme
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                            );
+                                          },
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -516,10 +532,12 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
                             color: Colors.transparent,
                             child: InkWell(
                               onTap: onTap,
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusXl),
-                              splashColor: theme.colorScheme.primary
-                                  .withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(
+                                DesignTokens.radiusXl,
+                              ),
+                              splashColor: theme.colorScheme.primary.withValues(
+                                alpha: 0.3,
+                              ),
                               highlightColor: theme.colorScheme.primary
                                   .withValues(alpha: 0.15),
                             ),
@@ -613,18 +631,18 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
       errorWidget:
           // Try fallback URL if available
           (fallbackUrl != null && fallbackUrl != coverUrl)
-              ? ProgressiveImageWidget(
-                  networkUrl: fallbackUrl,
-                  httpHeaders: getIt<ContentSourceRegistry>()
-                      .getSource(content.sourceId)
-                      ?.getImageDownloadHeaders(imageUrl: fallbackUrl),
-                  fit: BoxFit.cover,
-                  memCacheWidth: 400,
-                  memCacheHeight: 600,
-                  placeholder: const KuroThumbPlaceholder(),
-                  errorWidget: _buildErrorPlaceholder(context),
-                )
-              : _buildErrorPlaceholder(context),
+          ? ProgressiveImageWidget(
+              networkUrl: fallbackUrl,
+              httpHeaders: getIt<ContentSourceRegistry>()
+                  .getSource(content.sourceId)
+                  ?.getImageDownloadHeaders(imageUrl: fallbackUrl),
+              fit: BoxFit.cover,
+              memCacheWidth: 400,
+              memCacheHeight: 600,
+              placeholder: const KuroThumbPlaceholder(),
+              errorWidget: _buildErrorPlaceholder(context),
+            )
+          : _buildErrorPlaceholder(context),
     );
   }
 
@@ -635,9 +653,7 @@ class _MainFeaturedCardState extends State<MainFeaturedCard> {
         child: Icon(
           Icons.broken_image_outlined,
           size: 40,
-          color: Theme.of(context)
-              .colorScheme
-              .onSurfaceVariant
+          color: Theme.of(context).colorScheme.onSurfaceVariant
               .withValues(alpha: 0.5),
         ),
       ),

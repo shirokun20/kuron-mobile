@@ -3195,11 +3195,16 @@ class GenericRestAdapter implements GenericAdapter {
       final value = option['value']?.toString().trim() ?? '';
       final apiValue = option['apiValue']?.toString().trim() ?? '';
       final name = option['name']?.toString().trim() ?? '';
+      // Newer published configs (e.g. mangafire v1.1.5) declare an explicit
+      // `sortOption` key mapping the option to the app's SortOption enum
+      // instead of relying on a name/value string match.
+      final sortOptionKey = option['sortOption']?.toString().trim() ?? '';
 
       if (candidates.contains(value) ||
           candidates.contains(apiValue) ||
           candidates.contains(name) ||
-          candidates.contains(name.toLowerCase())) {
+          candidates.contains(name.toLowerCase()) ||
+          (sortOptionKey.isNotEmpty && candidates.contains(sortOptionKey))) {
         return value;
       }
     }

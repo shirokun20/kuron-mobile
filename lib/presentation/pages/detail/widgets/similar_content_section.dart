@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -39,11 +39,9 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
     super.initState();
     _cubit = getIt<RecommendationCubit>()
       ..loadSimilarContent(widget.contentId, sourceId: widget.sourceId);
-    _busSub =
-        getIt<RecommendationRefreshBus>().stream.listen((_) {
+    _busSub = getIt<RecommendationRefreshBus>().stream.listen((_) {
       if (mounted) {
-        _cubit.loadSimilarContent(widget.contentId,
-            sourceId: widget.sourceId);
+        _cubit.loadSimilarContent(widget.contentId, sourceId: widget.sourceId);
       }
     });
   }
@@ -76,8 +74,7 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
           if (state is! RecommendationLoaded) {
             return const SizedBox.shrink();
           }
-          final items =
-              state.similarByContent[widget.contentId] ?? const [];
+          final items = state.similarByContent[widget.contentId] ?? const [];
           if (items.isEmpty && !state.isLoadingSimilar) {
             return const SizedBox.shrink();
           }
@@ -105,8 +102,9 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
                   }
                 },
                 onDismiss: (item) => _cubit.dismissRecommendation(
-                    item.contentId,
-                    sourceId: item.sourceId),
+                  item.contentId,
+                  sourceId: item.sourceId,
+                ),
               ),
               const SizedBox(height: 8),
             ],
@@ -116,8 +114,7 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
     );
   }
 
-  Widget _header(
-      BuildContext context, AppLocalizations l10n, bool isLoading) {
+  Widget _header(BuildContext context, AppLocalizations l10n, bool isLoading) {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -143,7 +140,8 @@ class _SimilarContentSectionState extends State<SimilarContentSection> {
                 ? null
                 : () => _cubit.loadSimilarContent(
                     widget.contentId,
-                    sourceId: widget.sourceId),
+                    sourceId: widget.sourceId,
+                  ),
           ),
         ],
       ),

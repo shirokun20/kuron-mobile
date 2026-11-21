@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/pages/settings/settings_theme_widgets.dart';
+
 import 'anomaly/anomaly_list_screen.dart';
 import 'anomaly/anomaly_store_contract.dart';
 import 'anomaly/error_log_contract.dart';
@@ -44,12 +45,14 @@ Widget buildAnomalySection(
   AnomalyStoreContract? anomalyStore,
   ErrorLogContract? errorLogStore,
 }) {
-  final resolvedAnomalyStore = anomalyStore ??
+  final resolvedAnomalyStore =
+      anomalyStore ??
       (getIt.isRegistered<AnomalyStoreContract>()
           ? getIt<AnomalyStoreContract>()
           : _NoOpAnomalyStore());
 
-  final resolvedErrorLog = errorLogStore ??
+  final resolvedErrorLog =
+      errorLogStore ??
       (getIt.isRegistered<ErrorLogContract>()
           ? getIt<ErrorLogContract>()
           : _NoOpErrorLog());
@@ -66,12 +69,16 @@ Widget buildAnomalySection(
       buildSettingsCard([
         buildSettingsActionTile(
           title: 'Anomali Source',
-          subtitle: 'Daftar kegagalan config ekstensi yang terdeteksi saat runtime',
+          subtitle:
+              'Daftar kegagalan config ekstensi yang terdeteksi saat runtime',
           actionLabel: 'Lihat',
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => AnomalyListScreen(store: resolvedAnomalyStore, onReport: (ctx, record) => launchAnomalyReport(ctx, record)),
+              builder: (_) => AnomalyListScreen(
+                store: resolvedAnomalyStore,
+                onReport: (ctx, record) => launchAnomalyReport(ctx, record),
+              ),
             ),
           ),
           theme: theme,
@@ -84,7 +91,10 @@ Widget buildAnomalySection(
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute<void>(
-              builder: (_) => ErrorLogScreen(store: resolvedErrorLog, onReport: (ctx, entry) => launchErrorReport(ctx, entry)),
+              builder: (_) => ErrorLogScreen(
+                store: resolvedErrorLog,
+                onReport: (ctx, entry) => launchErrorReport(ctx, entry),
+              ),
             ),
           ),
           theme: theme,

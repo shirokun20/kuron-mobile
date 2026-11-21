@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -59,10 +59,7 @@ class DetailTitleSection extends StatelessWidget {
 }
 
 class DetailBlacklistBanner extends StatelessWidget {
-  const DetailBlacklistBanner({
-    super.key,
-    required this.message,
-  });
+  const DetailBlacklistBanner({super.key, required this.message});
 
   final String message;
 
@@ -76,9 +73,7 @@ class DetailBlacklistBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.errorContainer.withValues(alpha: 0.75),
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
-        border: Border.all(
-          color: colorScheme.error.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: colorScheme.error.withValues(alpha: 0.35)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,10 +100,7 @@ class DetailBlacklistBanner extends StatelessWidget {
 }
 
 class DetailBlacklistedCoverOverlay extends StatelessWidget {
-  const DetailBlacklistedCoverOverlay({
-    super.key,
-    required this.compact,
-  });
+  const DetailBlacklistedCoverOverlay({super.key, required this.compact});
 
   final bool compact;
 
@@ -197,11 +189,7 @@ class DetailMetadataSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                Icons.info_outline,
-                color: colorScheme.primary,
-                size: 20,
-              ),
+              Icon(Icons.info_outline, color: colorScheme.primary, size: 20),
               const SizedBox(width: 8),
               Text(
                 title,
@@ -282,11 +270,7 @@ class DetailMetadataRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (item.icon != null) ...[
-            Icon(
-              item.icon,
-              color: colorScheme.onSurfaceVariant,
-              size: 18,
-            ),
+            Icon(item.icon, color: colorScheme.onSurfaceVariant, size: 18),
             const SizedBox(width: 12),
           ],
           SizedBox(
@@ -318,11 +302,7 @@ class DetailMetadataRow extends StatelessWidget {
           Row(
             children: [
               if (item.icon != null) ...[
-                Icon(
-                  item.icon,
-                  color: colorScheme.onSurfaceVariant,
-                  size: 16,
-                ),
+                Icon(item.icon, color: colorScheme.onSurfaceVariant, size: 16),
                 const SizedBox(width: 8),
               ],
               Expanded(
@@ -343,28 +323,22 @@ class DetailMetadataRow extends StatelessWidget {
   }
 
   BoxDecoration _cardDecoration(ColorScheme colorScheme) => BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.5),
-        ),
-      );
+    color: colorScheme.surface,
+    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+    border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+  );
 
   Widget _valueWidget(ColorScheme colorScheme) {
     if (item.links != null && item.links!.isNotEmpty) {
       return Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: [
-          for (final link in item.links!) _CreatorChip(link: link),
-        ],
+        children: [for (final link in item.links!) _CreatorChip(link: link)],
       );
     }
     return Text(
       item.value,
-      style: TextStyleConst.bodyLarge.copyWith(
-        color: colorScheme.onSurface,
-      ),
+      style: TextStyleConst.bodyLarge.copyWith(color: colorScheme.onSurface),
     );
   }
 }
@@ -470,23 +444,21 @@ class DetailTagSection extends StatelessWidget {
             return GestureDetector(
               onTap: () => onTagTap(tag),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
-                  border: Border.all(
-                    color: color.withValues(alpha: 0.8),
-                  ),
+                  border: Border.all(color: color.withValues(alpha: 0.8)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       tag.name,
-                      style: TextStyleConst.bodyMedium.copyWith(
-                        color: color,
-                      ),
+                      style: TextStyleConst.bodyMedium.copyWith(color: color),
                     ),
                     if (tag.count > 0) ...[
                       const SizedBox(width: 4),
@@ -552,13 +524,14 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
   Widget build(BuildContext context) {
     final chapters = widget.content.chapters!;
     final l10n = AppLocalizations.of(context)!;
-    final rawConfig =
-        getIt<RemoteConfigService>().getRawConfig(widget.content.sourceId);
+    final rawConfig = getIt<RemoteConfigService>().getRawConfig(
+      widget.content.sourceId,
+    );
     final supportsEhentaiGalleryDownload =
         EhentaiDownloadStrategyResolver.supports(
-      widget.content,
-      rawConfig: rawConfig,
-    );
+          widget.content,
+          rawConfig: rawConfig,
+        );
     final loadedPresentation = ChapterLanguagePresenter.build(
       chapters,
       selectedKey: _selectedLanguageKey,
@@ -569,12 +542,12 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
     };
     final availableLanguageKeys =
         (widget.availableLanguageKeys?.isNotEmpty ?? false)
-            ? widget.availableLanguageKeys!
-                .map(ChapterLanguagePresenter.normalize)
-                .where((key) => key.isNotEmpty)
-                .toSet()
-                .toList()
-            : loadedPresentation.lanes.map((lane) => lane.key).toList();
+        ? widget.availableLanguageKeys!
+              .map(ChapterLanguagePresenter.normalize)
+              .where((key) => key.isNotEmpty)
+              .toSet()
+              .toList()
+        : loadedPresentation.lanes.map((lane) => lane.key).toList();
     availableLanguageKeys.sort((a, b) {
       if (a == unknownChapterLanguageKey) return 1;
       if (b == unknownChapterLanguageKey) return -1;
@@ -585,21 +558,22 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
     final normalizedSelection = preferredSelection == null
         ? null
         : ChapterLanguagePresenter.normalize(preferredSelection);
-    final selectedLanguageKey = availableLanguageKeys
-            .contains(normalizedSelection)
+    final selectedLanguageKey =
+        availableLanguageKeys.contains(normalizedSelection)
         ? normalizedSelection
         : (loadedPresentation.selectedKey != null &&
-                availableLanguageKeys.contains(loadedPresentation.selectedKey))
-            ? loadedPresentation.selectedKey
-            : (availableLanguageKeys.contains('en')
-                ? 'en'
-                : availableLanguageKeys.firstOrNull);
+              availableLanguageKeys.contains(loadedPresentation.selectedKey))
+        ? loadedPresentation.selectedKey
+        : (availableLanguageKeys.contains('en')
+              ? 'en'
+              : availableLanguageKeys.firstOrNull);
     if (widget.selectedLanguageKey == null) {
       _selectedLanguageKey = selectedLanguageKey;
     }
     final hasMultipleLanguageOptions = availableLanguageKeys.length > 1;
-    final selectedLane =
-        selectedLanguageKey == null ? null : loadedByKey[selectedLanguageKey];
+    final selectedLane = selectedLanguageKey == null
+        ? null
+        : loadedByKey[selectedLanguageKey];
     final selectedChapters = selectedLane?.chapters ?? const <Chapter>[];
     final previewEntries = hasMultipleLanguageOptions
         ? _buildChapterPreviewEntries(selectedChapters)
@@ -607,9 +581,11 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
             chapters,
             labelForKey: widget.formatLanguageLabel,
           );
-    final visibleChapterCount =
-        hasMultipleLanguageOptions ? selectedChapters.length : chapters.length;
-    final viewAllLanguageKey = selectedLanguageKey ??
+    final visibleChapterCount = hasMultipleLanguageOptions
+        ? selectedChapters.length
+        : chapters.length;
+    final viewAllLanguageKey =
+        selectedLanguageKey ??
         (availableLanguageKeys.length == 1
             ? availableLanguageKeys.first
             : null);
@@ -641,8 +617,9 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
             decoration: BoxDecoration(
               color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(15)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(15),
+              ),
             ),
             child: Row(
               children: [
@@ -676,9 +653,9 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                         selectedLane == null
                             ? l10n.chapterCount(chapters.length)
                             : widget.isLoadingSelectedLanguage &&
-                                    selectedLane.chapters.isEmpty
-                                ? '${selectedLaneLabel ?? selectedLane.label} • ${l10n.loading}'
-                                : '${selectedLaneLabel ?? selectedLane.label} • ${selectedLane.chapters.length} loaded',
+                                  selectedLane.chapters.isEmpty
+                            ? '${selectedLaneLabel ?? selectedLane.label} • ${l10n.loading}'
+                            : '${selectedLaneLabel ?? selectedLane.label} • ${selectedLane.chapters.length} loaded',
                         style: TextStyleConst.bodySmall.copyWith(
                           color: colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w500,
@@ -802,10 +779,12 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color:
-                          colorScheme.secondaryContainer.withValues(alpha: 0.5),
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      color: colorScheme.secondaryContainer.withValues(
+                        alpha: 0.5,
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                       border: Border.all(
                         color: colorScheme.secondary.withValues(alpha: 0.35),
                       ),
@@ -837,7 +816,7 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                     isRead && widget.chapterHistory[chapter.id]!.isCompleted;
                 final progress = isRead
                     ? widget.chapterHistory[chapter.id]!.lastPage /
-                        widget.chapterHistory[chapter.id]!.totalPages
+                          widget.chapterHistory[chapter.id]!.totalPages
                     : 0.0;
                 final chapterContent = Content(
                   id: chapter.id,
@@ -873,7 +852,7 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                         ? l10n.chapterCompleted
                         : l10n.continueFromPage(
                             widget.chapterHistory[chapter.id]!.lastPage,
-                          )
+                          ),
                 ];
 
                 return AnimatedContainer(
@@ -886,9 +865,8 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                       color: isCompleted
                           ? colorScheme.tertiary
                           : isRead
-                              ? colorScheme.primary.withValues(alpha: 0.55)
-                              : colorScheme.outlineVariant
-                                  .withValues(alpha: 0.6),
+                          ? colorScheme.primary.withValues(alpha: 0.55)
+                          : colorScheme.outlineVariant.withValues(alpha: 0.6),
                       width: isRead ? 1.4 : 1,
                     ),
                   ),
@@ -896,8 +874,9 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: () => widget.onChapterTap(chapter),
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Row(
@@ -912,7 +891,8 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                                         ? colorScheme.tertiaryContainer
                                         : colorScheme.primaryContainer,
                                     borderRadius: BorderRadius.circular(
-                                        DesignTokens.radiusMd),
+                                      DesignTokens.radiusMd,
+                                    ),
                                   ),
                                   child: Center(
                                     child: isCompleted
@@ -923,52 +903,50 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                                             size: 24,
                                           )
                                         : isRead
-                                            ? Stack(
-                                                alignment: Alignment.center,
-                                                children: [
-                                                  Text(
-                                                    '$displayIndex',
-                                                    style: TextStyleConst
-                                                        .headingSmall
-                                                        .copyWith(
+                                        ? Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              Text(
+                                                '$displayIndex',
+                                                style: TextStyleConst
+                                                    .headingSmall
+                                                    .copyWith(
                                                       color: colorScheme
                                                           .onPrimaryContainer,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                       fontSize: 18,
                                                     ),
-                                                  ),
-                                                  SizedBox(
-                                                    width: 40,
-                                                    height: 40,
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                      value: progress,
-                                                      strokeWidth: 3,
-                                                      backgroundColor: Colors
-                                                          .white
-                                                          .withValues(
-                                                              alpha: 0.3),
-                                                      valueColor:
-                                                          AlwaysStoppedAnimation<
-                                                              Color>(
+                                              ),
+                                              SizedBox(
+                                                width: 40,
+                                                height: 40,
+                                                child: CircularProgressIndicator(
+                                                  value: progress,
+                                                  strokeWidth: 3,
+                                                  backgroundColor: Colors.white
+                                                      .withValues(alpha: 0.3),
+                                                  valueColor:
+                                                      AlwaysStoppedAnimation<
+                                                        Color
+                                                      >(
                                                         Colors.white.withValues(
-                                                            alpha: 0.9),
+                                                          alpha: 0.9,
+                                                        ),
                                                       ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              )
-                                            : Text(
-                                                '$displayIndex',
-                                                style: TextStyleConst
-                                                    .headingSmall
-                                                    .copyWith(
+                                                ),
+                                              ),
+                                            ],
+                                          )
+                                        : Text(
+                                            '$displayIndex',
+                                            style: TextStyleConst.headingSmall
+                                                .copyWith(
                                                   color: colorScheme
                                                       .onPrimaryContainer,
                                                   fontWeight: FontWeight.bold,
                                                 ),
-                                              ),
+                                          ),
                                   ),
                                 ),
                                 if (isRead)
@@ -1015,8 +993,8 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                                       color: isCompleted
                                           ? colorScheme.tertiary
                                           : isRead
-                                              ? colorScheme.primary
-                                              : colorScheme.onSurface,
+                                          ? colorScheme.primary
+                                          : colorScheme.onSurface,
                                     ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -1060,16 +1038,16 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                                     isExternal
                                         ? Icons.open_in_new
                                         : isCompleted
-                                            ? Icons.replay
-                                            : Icons.menu_book_outlined,
+                                        ? Icons.replay
+                                        : Icons.menu_book_outlined,
                                     size: 16,
                                   ),
                                   label: Text(
                                     isCompleted
                                         ? l10n.readAgain
                                         : isRead
-                                            ? l10n.continueReading
-                                            : l10n.readChapter,
+                                        ? l10n.continueReading
+                                        : l10n.readChapter,
                                   ),
                                   style: FilledButton.styleFrom(
                                     padding: const EdgeInsets.symmetric(
@@ -1081,7 +1059,8 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                                         MaterialTapTargetSize.shrinkWrap,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(
-                                          DesignTokens.radiusLg),
+                                        DesignTokens.radiusLg,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -1109,8 +1088,9 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                     ),
                   ),
                 ),
@@ -1148,7 +1128,8 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
             : colorScheme.outlineVariant,
       ),
       shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DesignTokens.radiusMd)),
+        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+      ),
       onSelected: (_) => _selectLanguage(languageKey),
     );
   }
@@ -1273,8 +1254,10 @@ class _DetailChapterSectionState extends State<DetailChapterSection> {
                 icon: const Icon(Icons.info_outline_rounded),
                 label: Text(l10n.showAvailability),
                 style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
                   ),
@@ -1353,11 +1336,7 @@ class DetailRelatedSection extends StatelessWidget {
           Column(
             children: [
               for (var index = 0; index < items.length; index++) ...[
-                _buildCoverlessRelatedItem(
-                  context,
-                  items[index],
-                  colorScheme,
-                ),
+                _buildCoverlessRelatedItem(context, items[index], colorScheme),
                 if (index < items.length - 1) const SizedBox(height: 10),
               ],
             ],
@@ -1381,13 +1360,15 @@ class DetailRelatedSection extends StatelessWidget {
                         Container(
                           height: 200,
                           decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusMd),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusMd,
+                            ),
                             color: colorScheme.surfaceContainer,
                           ),
                           child: ClipRRect(
-                            borderRadius:
-                                BorderRadius.circular(DesignTokens.radiusMd),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusMd,
+                            ),
                             child: Stack(
                               fit: StackFit.expand,
                               children: [

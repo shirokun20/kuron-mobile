@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
 class _SlidingGradientTransform extends GradientTransform {
@@ -86,10 +86,7 @@ class _ShimmerScopeState extends State<ShimmerScope>
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerControllerScope(
-      animation: _controller,
-      child: widget.child,
-    );
+    return ShimmerControllerScope(animation: _controller, child: widget.child);
   }
 }
 
@@ -129,14 +126,17 @@ class _KuronShimmerState extends State<KuronShimmer>
     _ownController?.dispose();
     super.dispose();
   }
+
   @override
   Widget build(BuildContext context) {
     if (!widget.enabled) return widget.child;
 
     final colorScheme = Theme.of(context).colorScheme;
-    final baseColor = widget.baseColor ??
+    final baseColor =
+        widget.baseColor ??
         colorScheme.surfaceContainerHighest.withValues(alpha: 0.3);
-    final highlightColor = widget.highlightColor ??
+    final highlightColor =
+        widget.highlightColor ??
         colorScheme.surfaceContainerHighest.withValues(alpha: 0.1);
 
     final sharedAnimation = ShimmerControllerScope.maybeOf(context);
@@ -153,8 +153,9 @@ class _KuronShimmerState extends State<KuronShimmer>
               stops: const [0.1, 0.5, 0.9],
               begin: const Alignment(-1.0, -0.3),
               end: const Alignment(1.0, 0.3),
-              transform:
-                  _SlidingGradientTransform(slidePercent: effectiveAnimation.value),
+              transform: _SlidingGradientTransform(
+                slidePercent: effectiveAnimation.value,
+              ),
             ).createShader(bounds);
           },
           child: child,
@@ -170,18 +171,11 @@ class BaseShimmer extends StatelessWidget {
   final Widget child;
   final bool enabled;
 
-  const BaseShimmer({
-    super.key,
-    required this.child,
-    this.enabled = true,
-  });
+  const BaseShimmer({super.key, required this.child, this.enabled = true});
 
   @override
   Widget build(BuildContext context) {
-    return KuronShimmer(
-      enabled: enabled,
-      child: child,
-    );
+    return KuronShimmer(enabled: enabled, child: child);
   }
 }
 
@@ -253,8 +247,10 @@ class ContentCardShimmer extends StatelessWidget {
             // Content placeholder
             Expanded(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 8,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -288,10 +284,7 @@ class ContentCardShimmer extends StatelessWidget {
                           width: 50,
                           margin: EdgeInsets.only(right: 12),
                         ),
-                        ShimmerBox(
-                          height: 12,
-                          width: 50,
-                        ),
+                        ShimmerBox(height: 12, width: 50),
                       ],
                     ),
                   ],
@@ -378,10 +371,7 @@ class ContentGridCardShimmer extends StatelessWidget {
 class ListShimmer extends StatelessWidget {
   final int itemCount;
 
-  const ListShimmer({
-    super.key,
-    this.itemCount = 5,
-  });
+  const ListShimmer({super.key, this.itemCount = 5});
 
   @override
   Widget build(BuildContext context) {
@@ -401,11 +391,7 @@ class GridShimmer extends StatelessWidget {
   final int itemCount;
   final int crossAxisCount;
 
-  const GridShimmer({
-    super.key,
-    this.itemCount = 6,
-    this.crossAxisCount = 2,
-  });
+  const GridShimmer({super.key, this.itemCount = 6, this.crossAxisCount = 2});
 
   @override
   Widget build(BuildContext context) {
@@ -415,8 +401,9 @@ class GridShimmer extends StatelessWidget {
         shrinkWrap: true,
         padding: const EdgeInsets.all(16),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount:
-              MediaQuery.of(context).size.width > 600 ? 3 : crossAxisCount,
+          crossAxisCount: MediaQuery.of(context).size.width > 600
+              ? 3
+              : crossAxisCount,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: 0.7,
@@ -474,8 +461,9 @@ class GenreListShimmer extends StatelessWidget {
                     ShimmerBox(
                       height: 20,
                       width: 20,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     const ShimmerBox(height: 20, width: 140),
@@ -483,8 +471,9 @@ class GenreListShimmer extends StatelessWidget {
                     ShimmerBox(
                       height: 24,
                       width: 36,
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusLg,
+                      ),
                     ),
                   ],
                 ),
@@ -501,52 +490,54 @@ class GenreListShimmer extends StatelessWidget {
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return BaseShimmer(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHigh,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusXl),
-                        border: Border.all(
-                          color: colorScheme.outlineVariant
-                              .withValues(alpha: 0.3),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                return BaseShimmer(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusXl,
+                      ),
+                      border: Border.all(
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.3,
                         ),
                       ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: ShimmerBox(
-                              height: 14,
-                              borderRadius:
-                                  BorderRadius.circular(DesignTokens.radiusSm),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          ShimmerBox(
-                            width: 32,
-                            height: 20,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(10),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ShimmerBox(
+                            height: 14,
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusSm,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ShimmerBox(
+                          width: 32,
+                          height: 20,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ],
                     ),
-                  );
-                },
-                childCount: 20,
-              ),
+                  ),
+                );
+              }, childCount: 20),
             ),
           ),
         ],
@@ -575,10 +566,12 @@ class SimpleListShimmer extends StatelessWidget {
                     child: Container(
                       height: 20,
                       decoration: BoxDecoration(
-                        color:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusSm),
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusSm,
+                        ),
                       ),
                     ),
                   ),
@@ -587,8 +580,9 @@ class SimpleListShimmer extends StatelessWidget {
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color:
-                          Theme.of(context).colorScheme.surfaceContainerHighest,
+                      color: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest,
                       shape: BoxShape.circle,
                     ),
                   ),

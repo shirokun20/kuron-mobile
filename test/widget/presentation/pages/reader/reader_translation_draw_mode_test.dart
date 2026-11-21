@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,18 +16,17 @@ void main() {
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      const MethodChannel('kuron_native'),
-      (MethodCall call) async {
-        if (call.method == 'detectBubbles') {
-          return [
-            {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
-            {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
-          ];
-        }
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(const MethodChannel('kuron_native'), (
+          MethodCall call,
+        ) async {
+          if (call.method == 'detectBubbles') {
+            return [
+              {'x': 10, 'y': 10, 'w': 50, 'h': 30, 'confidence': 0.9},
+              {'x': 100, 'y': 100, 'w': 40, 'h': 25, 'confidence': 0.8},
+            ];
+          }
+          return null;
+        });
   });
 
   tearDown(() {
@@ -36,21 +35,25 @@ void main() {
   });
 
   ReaderTranslationCubit buildCubit() => ReaderTranslationCubit(
-        providerRepository: FakeAiProviderRepository()
-          ..addOnly(FakeAiProviderRepository.testProvider),
-        providerFactory: FakeAiProviderFactory(),
-        preferencesRepository: FakeAiPreferencesRepository(),
-        cacheRepository: FakeCacheRepository(),
-        mosaicBuilder: FakeMosaicBuilder(),
-        fallbackHandler: FallbackImageHandler(),
-        heavyRunner: syncHeavyRunner,
-        logger: Logger(level: Level.off),
-      );
+    providerRepository: FakeAiProviderRepository()
+      ..addOnly(FakeAiProviderRepository.testProvider),
+    providerFactory: FakeAiProviderFactory(),
+    preferencesRepository: FakeAiPreferencesRepository(),
+    cacheRepository: FakeCacheRepository(),
+    mosaicBuilder: FakeMosaicBuilder(),
+    fallbackHandler: FallbackImageHandler(),
+    heavyRunner: syncHeavyRunner,
+    logger: Logger(level: Level.off),
+  );
 
   /// Renders [ReaderTranslationDrawMode] as a full-screen Stack so
   /// CoordinateMapping reflects fitWidth (like the real reader).
-  Future<void> pump(WidgetTester tester, ReaderTranslationCubit cubit,
-      {double screenW = 400, double screenH = 800}) async {
+  Future<void> pump(
+    WidgetTester tester,
+    ReaderTranslationCubit cubit, {
+    double screenW = 400,
+    double screenH = 800,
+  }) async {
     await tester.binding.setSurfaceSize(Size(screenW, screenH));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -72,8 +75,9 @@ void main() {
     );
   }
 
-  testWidgets('draw off: locked, no controls, no crash with no page',
-      (tester) async {
+  testWidgets('draw off: locked, no controls, no crash with no page', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     await pump(tester, cubit);
@@ -86,8 +90,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('detected reference lines remain visible outside draw mode',
-      (tester) async {
+  testWidgets('detected reference lines remain visible outside draw mode', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     cubit.capturePage(
@@ -101,24 +106,27 @@ void main() {
     await pump(tester, cubit);
     expect(cubit.drawMode, isFalse);
     expect(
-        find.descendant(
-          of: find.byType(ReaderTranslationDrawMode),
-          matching: find.byType(CustomPaint),
-        ),
-        findsOneWidget);
+      find.descendant(
+        of: find.byType(ReaderTranslationDrawMode),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+    );
 
     cubit.setDrawMode(true);
     await tester.pump();
     expect(
-        find.descendant(
-          of: find.byType(ReaderTranslationDrawMode),
-          matching: find.byType(CustomPaint),
-        ),
-        findsOneWidget);
+      find.descendant(
+        of: find.byType(ReaderTranslationDrawMode),
+        matching: find.byType(CustomPaint),
+      ),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('draw mode shows control pill; expand/collapse actions',
-      (tester) async {
+  testWidgets('draw mode shows control pill; expand/collapse actions', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     cubit.capturePage(
@@ -153,8 +161,9 @@ void main() {
     expect(cubit.drawMode, isFalse);
   });
 
-  testWidgets('pan adds manual bubble; undo/clear mutate cubit list',
-      (tester) async {
+  testWidgets('pan adds manual bubble; undo/clear mutate cubit list', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     cubit.capturePage(
@@ -180,7 +189,8 @@ void main() {
     expect(cubit.manualBubbles, isEmpty);
 
     cubit.addManualBubble(
-        const BubbleBox(x: 0, y: 0, w: 10, h: 10, confidence: 1.0));
+      const BubbleBox(x: 0, y: 0, w: 10, h: 10, confidence: 1.0),
+    );
     cubit.clearManualBubbles();
     expect(cubit.manualBubbles, isEmpty);
   });
@@ -234,7 +244,7 @@ void main() {
     await tester.pump();
 
     // A wiggle path: many small moves over 400ms, ends far from start — the
-// pan gesture wins the arena and the traced loop stays open.
+    // pan gesture wins the arena and the traced loop stays open.
     await tester.timedDragFrom(
       const Offset(50, 100),
       const Offset(100, 30),
@@ -253,8 +263,9 @@ void main() {
     }
   });
 
-  testWidgets('tool buttons show in expanded controls (l10n tooltips)',
-      (tester) async {
+  testWidgets('tool buttons show in expanded controls (l10n tooltips)', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     cubit.capturePage(
@@ -278,8 +289,9 @@ void main() {
     expect(freeform, findsOneWidget);
   });
 
-  testWidgets('detectBubblesOnly renders reference rects from channel',
-      (tester) async {
+  testWidgets('detectBubblesOnly renders reference rects from channel', (
+    tester,
+  ) async {
     final cubit = buildCubit();
     addTearDown(cubit.close);
     cubit.capturePage(

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/services/app_update_service.dart';
 
 // Test script to verify AppUpdateService behavior
@@ -17,8 +17,10 @@ class AppUpdateTest {
 
     messenger.showSnackBar(
       SnackBar(
-          content: Text(
-              '📱 Current: $currentVersion, Last: ${lastVersion ?? 'null'}')),
+        content: Text(
+          '📱 Current: $currentVersion, Last: ${lastVersion ?? 'null'}',
+        ),
+      ),
     );
 
     await Future.delayed(const Duration(seconds: 2));

@@ -5,6 +5,8 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "lib/generated_plugin_registrant.dart"
+    # flutter gen-l10n still emits the legacy localizations delegates (Flutter 3.50)
+    - "lib/l10n/app_localizations*.dart"
     - build/**
     - android/**
     - ios/**

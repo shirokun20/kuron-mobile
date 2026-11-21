@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:intl/intl.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
@@ -10,10 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 class CommentItemWidget extends StatelessWidget {
   final Comment comment;
 
-  const CommentItemWidget({
-    super.key,
-    required this.comment,
-  });
+  const CommentItemWidget({super.key, required this.comment});
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +45,13 @@ class CommentItemWidget extends StatelessWidget {
                       color: theme.colorScheme.outlineVariant,
                       width: 1,
                     ),
-                    image: comment.avatarUrl != null &&
+                    image:
+                        comment.avatarUrl != null &&
                             comment.avatarUrl!.isNotEmpty
                         ? DecorationImage(
-                            image:
-                                CachedNetworkImageProvider(comment.avatarUrl!),
+                            image: CachedNetworkImageProvider(
+                              comment.avatarUrl!,
+                            ),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -114,8 +113,10 @@ class CommentItemWidget extends StatelessWidget {
                       if (url.isNotEmpty) {
                         final uri = Uri.tryParse(url);
                         if (uri != null && await canLaunchUrl(uri)) {
-                          await launchUrl(uri,
-                              mode: LaunchMode.externalApplication);
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       }
                     },

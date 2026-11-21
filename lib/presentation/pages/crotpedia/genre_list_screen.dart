@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
@@ -78,13 +78,16 @@ class CrotpediaGenreListScreen extends StatelessWidget {
                             const Spacer(),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: Theme.of(context)
                                     .colorScheme
                                     .secondaryContainer,
                                 borderRadius: BorderRadius.circular(
-                                    DesignTokens.radiusLg),
+                                  DesignTokens.radiusLg,
+                                ),
                               ),
                               child: Text(
                                 '${state.genres.length}',
@@ -105,38 +108,34 @@ class CrotpediaGenreListScreen extends StatelessWidget {
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 2.8,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (context, index) {
-                            final genre = state.genres[index];
-                            final rawConfig = getIt<RemoteConfigService>()
-                                .getRawConfig('crotpedia');
-                            final navigation = rawConfig?['navigation'];
-                            final genrePrefix = navigation
-                                    is Map<String, dynamic>
-                                ? (navigation['genreQueryPrefix'] as String? ??
+                              crossAxisCount: 2,
+                              childAspectRatio: 2.8,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
+                            ),
+                        delegate: SliverChildBuilderDelegate((context, index) {
+                          final genre = state.genres[index];
+                          final rawConfig = getIt<RemoteConfigService>()
+                              .getRawConfig('crotpedia');
+                          final navigation = rawConfig?['navigation'];
+                          final genrePrefix = navigation is Map<String, dynamic>
+                              ? (navigation['genreQueryPrefix'] as String? ??
                                     'genre:')
-                                : 'genre:';
-                            return _GenreCard(
-                              name: genre.name,
-                              count: genre.count,
-                              icon: _getGenreIcon(genre.name),
-                              onTap: () => AppRouter.goToContentByTag(
-                                  context, '$genrePrefix${genre.slug}'),
-                            );
-                          },
-                          childCount: state.genres.length,
-                        ),
+                              : 'genre:';
+                          return _GenreCard(
+                            name: genre.name,
+                            count: genre.count,
+                            icon: _getGenreIcon(genre.name),
+                            onTap: () => AppRouter.goToContentByTag(
+                              context,
+                              '$genrePrefix${genre.slug}',
+                            ),
+                          );
+                        }, childCount: state.genres.length),
                       ),
                     ),
                     // Bottom padding
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 16),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
                   ],
                 ),
               );
@@ -242,11 +241,7 @@ class _GenreCard extends StatelessWidget {
                   color: colorScheme.primaryContainer.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: colorScheme.primary,
-                ),
+                child: Icon(icon, size: 18, color: colorScheme.primary),
               ),
               const SizedBox(width: 10),
               // Genre name
@@ -263,8 +258,10 @@ class _GenreCard extends StatelessWidget {
               // Count badge
               if (count > 0)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.tertiaryContainer,
                     borderRadius: BorderRadius.circular(10),

@@ -1,8 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:nhasixapp/domain/entities/reader_settings_entity.dart';
@@ -15,14 +16,14 @@ import 'package:nhasixapp/presentation/widgets/extended_image_reader_widget.dart
 
 // Minimal app wrapper providing localizations and direction.
 Widget _wrap(Widget child) => MaterialApp(
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+  localizationsDelegates: const [
+    AppLocalizations.delegate,
+    GlobalMaterialLocalizations.delegate,
+    GlobalWidgetsLocalizations.delegate,
+  ],
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(body: child),
+);
 
 // Build a [ExtendedImageReaderWidget] with sensible defaults.
 Widget _buildWidget({
@@ -32,19 +33,18 @@ Widget _buildWidget({
   Map<String, String>? headers,
   Future<bool> Function()? onRepairBrokenImage,
   Future<bool> Function()? onOpenSourcePageForRepair,
-}) =>
-    _wrap(
-      ExtendedImageReaderWidget(
-        imageUrl: url,
-        contentId: 'test-content',
-        pageNumber: 1,
-        readingMode: mode,
-        sourceId: sourceId,
-        httpHeaders: headers,
-        onRepairBrokenImage: onRepairBrokenImage,
-        onOpenSourcePageForRepair: onOpenSourcePageForRepair,
-      ),
-    );
+}) => _wrap(
+  ExtendedImageReaderWidget(
+    imageUrl: url,
+    contentId: 'test-content',
+    pageNumber: 1,
+    readingMode: mode,
+    sourceId: sourceId,
+    httpHeaders: headers,
+    onRepairBrokenImage: onRepairBrokenImage,
+    onOpenSourcePageForRepair: onOpenSourcePageForRepair,
+  ),
+);
 
 // Force a URL into the heavy-image static set to simulate a second visit.
 void _markHeavy(String url) {
@@ -144,9 +144,7 @@ void main() {
       );
     });
 
-    test(
-        'returns false for .avif when heavy (URL heuristic no longer routes AVIF; brand check post-download handles avis)',
-        () {
+    test('returns false for .avif when heavy (URL heuristic no longer routes AVIF; brand check post-download handles avis)', () {
       expect(
         ExtendedImageReaderWidget.isLikelyAnimatedWebPForTesting(
           url: 'https://example.com/page.avif',
@@ -199,21 +197,21 @@ void main() {
       );
     });
 
-    test('returns true for heavy animated webp when native view is available',
-        () {
-      expect(
-        ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
-          url: 'https://example.com/page.webp',
-          isHeavy: true,
-          nativeViewAvailable: true,
-        ),
-        isTrue,
-      );
-    });
-
     test(
-        'returns false for heavy avif via URL (routing deferred to post-download brand check)',
-        () {
+      'returns true for heavy animated webp when native view is available',
+      () {
+        expect(
+          ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
+            url: 'https://example.com/page.webp',
+            isHeavy: true,
+            nativeViewAvailable: true,
+          ),
+          isTrue,
+        );
+      },
+    );
+
+    test('returns false for heavy avif via URL (routing deferred to post-download brand check)', () {
       expect(
         ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
           url: 'https://example.com/page.avif',
@@ -246,18 +244,20 @@ void main() {
       );
     });
 
-    test('returns true for confirmed animated webp bytes despite jpg filename',
-        () {
-      expect(
-        ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
-          url: '/storage/emulated/0/Asix/nhasix/ehentai/foo/page_001.jpg',
-          isHeavy: true,
-          nativeViewAvailable: true,
-          confirmedAnimatedWebP: true,
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'returns true for confirmed animated webp bytes despite jpg filename',
+      () {
+        expect(
+          ExtendedImageReaderWidget.shouldUseNativeAnimatedViewForTesting(
+            url: '/storage/emulated/0/Asix/nhasix/ehentai/foo/page_001.jpg',
+            isHeavy: true,
+            nativeViewAvailable: true,
+            confirmedAnimatedWebP: true,
+          ),
+          isTrue,
+        );
+      },
+    );
   });
 
   group('animated webp header detection', () {
@@ -302,40 +302,42 @@ void main() {
 
   group('failed page placeholder actions', () {
     testWidgets(
-        'shows redownload button for failed placeholders when repair is available',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildWidget(
-          url: '__failed__:https://e-hentai.org/s/example/123-1',
-          onRepairBrokenImage: () async => true,
-        ),
-      );
+      'shows redownload button for failed placeholders when repair is available',
+      (tester) async {
+        await tester.pumpWidget(
+          _buildWidget(
+            url: '__failed__:https://e-hentai.org/s/example/123-1',
+            onRepairBrokenImage: () async => true,
+          ),
+        );
 
-      final context = tester.element(find.byType(ExtendedImageReaderWidget));
-      final l10n = AppLocalizations.of(context)!;
+        final context = tester.element(find.byType(ExtendedImageReaderWidget));
+        final l10n = AppLocalizations.of(context)!;
 
-      expect(find.text(l10n.readerPageNotDownloaded(1)), findsOneWidget);
-      expect(find.text(l10n.readerRedownloadImage), findsOneWidget);
-      expect(find.text(l10n.readerOpenSourcePage), findsNothing);
-    });
+        expect(find.text(l10n.readerPageNotDownloaded(1)), findsOneWidget);
+        expect(find.text(l10n.readerRedownloadImage), findsOneWidget);
+        expect(find.text(l10n.readerOpenSourcePage), findsNothing);
+      },
+    );
 
     testWidgets(
-        'shows source-page fallback button for failed placeholders when available',
-        (tester) async {
-      await tester.pumpWidget(
-        _buildWidget(
-          url: '__failed__:https://e-hentai.org/s/example/123-1',
-          onRepairBrokenImage: () async => true,
-          onOpenSourcePageForRepair: () async => true,
-        ),
-      );
+      'shows source-page fallback button for failed placeholders when available',
+      (tester) async {
+        await tester.pumpWidget(
+          _buildWidget(
+            url: '__failed__:https://e-hentai.org/s/example/123-1',
+            onRepairBrokenImage: () async => true,
+            onOpenSourcePageForRepair: () async => true,
+          ),
+        );
 
-      final context = tester.element(find.byType(ExtendedImageReaderWidget));
-      final l10n = AppLocalizations.of(context)!;
+        final context = tester.element(find.byType(ExtendedImageReaderWidget));
+        final l10n = AppLocalizations.of(context)!;
 
-      expect(find.text(l10n.readerRedownloadImage), findsOneWidget);
-      expect(find.text(l10n.readerOpenSourcePage), findsOneWidget);
-    });
+        expect(find.text(l10n.readerRedownloadImage), findsOneWidget);
+        expect(find.text(l10n.readerOpenSourcePage), findsOneWidget);
+      },
+    );
   });
 
   group('supported local image payload detection', () {
@@ -415,18 +417,20 @@ void main() {
       );
     });
 
-    test('returns true only for confirmed animated image in continuous scroll',
-        () {
-      expect(
-        ExtendedImageReaderWidget.shouldNotifyHeavyImageDetectedForTesting(
-          readingMode: ReadingMode.continuousScroll,
-          confirmedAnimatedWebP: true,
-          hasCallback: true,
-          alreadyNotified: false,
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'returns true only for confirmed animated image in continuous scroll',
+      () {
+        expect(
+          ExtendedImageReaderWidget.shouldNotifyHeavyImageDetectedForTesting(
+            readingMode: ReadingMode.continuousScroll,
+            confirmedAnimatedWebP: true,
+            hasCallback: true,
+            alreadyNotified: false,
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('returns false when heavy image was already notified', () {
       expect(
@@ -541,18 +545,18 @@ void main() {
     test('uses a smaller target width for ultra-heavy offline files', () {
       final normal =
           ExtendedImageReaderWidget.resolveNativeAnimatedDecodeWidthForTesting(
-        logicalWidth: 360,
-        devicePixelRatio: 3,
-        imageBytes:
-            ExtendedImageReaderWidget.heavyImageThresholdBytesForTesting,
-      );
+            logicalWidth: 360,
+            devicePixelRatio: 3,
+            imageBytes:
+                ExtendedImageReaderWidget.heavyImageThresholdBytesForTesting,
+          );
       final ultraHeavy =
           ExtendedImageReaderWidget.resolveNativeAnimatedDecodeWidthForTesting(
-        logicalWidth: 360,
-        devicePixelRatio: 3,
-        imageBytes: ExtendedImageReaderWidget
-            .ultraHeavyAnimatedImageThresholdBytesForTesting,
-      );
+            logicalWidth: 360,
+            devicePixelRatio: 3,
+            imageBytes: ExtendedImageReaderWidget
+                .ultraHeavyAnimatedImageThresholdBytesForTesting,
+          );
 
       expect(ultraHeavy, equals(540));
       expect(ultraHeavy, lessThan(normal));
@@ -592,8 +596,7 @@ void main() {
   // ── Widget routing tests ──────────────────────────────────────────────────
 
   group('native view routing', () {
-    testWidgets(
-        'shows ExtendedImage.network on first visit (not yet heavy) – '
+    testWidgets('shows ExtendedImage.network on first visit (not yet heavy) – '
         'no AndroidView', (tester) async {
       const url = 'https://example.com/page.webp';
       // URL is NOT in heavy set → should render ExtendedImage
@@ -606,8 +609,7 @@ void main() {
       expect(find.byType(AndroidView), findsNothing);
     });
 
-    testWidgets(
-        'shows AnimatedWebPView (AndroidView) on second visit – '
+    testWidgets('shows AnimatedWebPView (AndroidView) on second visit – '
         'URL already in heavy set', (tester) async {
       const url = 'https://example.com/page.webp';
       _markHeavy(url); // simulate previous visit having detected it as heavy
@@ -623,8 +625,9 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('non-webp URL is never routed to native view even if heavy',
-        (tester) async {
+    testWidgets('non-webp URL is never routed to native view even if heavy', (
+      tester,
+    ) async {
       const url = 'https://example.com/page.jpg';
       _markHeavy(url);
 
@@ -636,26 +639,27 @@ void main() {
     });
 
     testWidgets(
-        'heavy avif URL uses Flutter codec (native routing via post-download brand check)',
-        (tester) async {
-      const url = 'https://example.com/page.avif';
-      _markHeavy(url);
+      'heavy avif URL uses Flutter codec (native routing via post-download brand check)',
+      (tester) async {
+        const url = 'https://example.com/page.avif';
+        _markHeavy(url);
 
-      await tester.pumpWidget(_buildWidget(url: url));
-      await tester.pump();
+        await tester.pumpWidget(_buildWidget(url: url));
+        await tester.pump();
 
-      expect(tester.takeException(), isNull);
-    });
+        expect(tester.takeException(), isNull);
+      },
+    );
 
-    testWidgets('wantKeepAlive true for heavy image in continuousScroll',
-        (tester) async {
+    testWidgets('wantKeepAlive true for heavy image in continuousScroll', (
+      tester,
+    ) async {
       const url = 'https://example.com/page.webp';
       _markHeavy(url);
 
-      await tester.pumpWidget(_buildWidget(
-        url: url,
-        mode: ReadingMode.continuousScroll,
-      ));
+      await tester.pumpWidget(
+        _buildWidget(url: url, mode: ReadingMode.continuousScroll),
+      );
       await tester.pump();
 
       // Widget should still be alive (no crash, no dispose triggered).
@@ -710,16 +714,10 @@ void main() {
 
       const url = 'https://example.com/test_bounded_clear.webp';
       ExtendedImageReaderWidget.addHeavyUrlForTesting(url);
-      expect(
-        ExtendedImageReaderWidget.isHeavyUrlForTesting(url),
-        isTrue,
-      );
+      expect(ExtendedImageReaderWidget.isHeavyUrlForTesting(url), isTrue);
 
       ExtendedImageReaderWidget.clearNativeAnimatedCache();
-      expect(
-        ExtendedImageReaderWidget.isHeavyUrlForTesting(url),
-        isFalse,
-      );
+      expect(ExtendedImageReaderWidget.isHeavyUrlForTesting(url), isFalse);
     });
   });
 
@@ -736,11 +734,15 @@ void main() {
       const tripleKey = ('content_1', 1, 'https://example.com/p1.webp');
 
       expect(
-        ExtendedImageReaderWidget.hasLargeContentLengthHintForTesting(tripleKey),
+        ExtendedImageReaderWidget.hasLargeContentLengthHintForTesting(
+          tripleKey,
+        ),
         isFalse,
       );
       expect(
-        ExtendedImageReaderWidget.isHeavyUrlForTesting('https://example.com/p1.webp'),
+        ExtendedImageReaderWidget.isHeavyUrlForTesting(
+          'https://example.com/p1.webp',
+        ),
         isFalse,
       );
     });

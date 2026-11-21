@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/domain/entities/reader_badge.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_tier_avatar.dart';
@@ -7,11 +7,7 @@ import 'package:nhasixapp/presentation/widgets/kuro_tier_avatar.dart';
 // PNGs (see assets/avatars/README.md). API is tier-based so the render
 // can change without touching callers.
 class ReaderAvatar extends StatelessWidget {
-  const ReaderAvatar({
-    super.key,
-    required this.tier,
-    this.radius = 20,
-  });
+  const ReaderAvatar({super.key, required this.tier, this.radius = 20});
 
   final ReaderTier tier;
   final double radius;

@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
+
 import 'error_log_contract.dart';
 
 /// Screen displaying error-response logs and logging toggle.
@@ -84,9 +85,8 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
       await _loadData();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal menghapus entri: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gagal menghapus entri: $e')));
       }
     }
   }
@@ -97,8 +97,10 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(loc?.errorLogClearAllTitle ?? 'Hapus Semua Log Error'),
-        content: Text(loc?.errorLogClearAllConfirm ??
-            'Apakah Anda yakin ingin menghapus seluruh log error respons?'),
+        content: Text(
+          loc?.errorLogClearAllConfirm ??
+              'Apakah Anda yakin ingin menghapus seluruh log error respons?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -121,9 +123,9 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
         await _loadData();
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Gagal membersihkan log: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Gagal membersihkan log: $e')));
         }
       }
     }
@@ -163,8 +165,11 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                       Navigator.pop(ctx);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text(loc?.errorLogCopied ??
-                                'Log berhasil disalin ke clipboard')),
+                          content: Text(
+                            loc?.errorLogCopied ??
+                                'Log berhasil disalin ke clipboard',
+                          ),
+                        ),
                       );
                     },
               icon: const Icon(Icons.copy),
@@ -175,9 +180,8 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal export log: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Gagal export log: $e')));
       }
     }
   }
@@ -191,7 +195,9 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
       appBar: AppBar(
         title: Text(
           'Log Error Respons',
-          style: TextStyleConst.titleLarge.copyWith(color: colorScheme.onSurface),
+          style: TextStyleConst.titleLarge.copyWith(
+            color: colorScheme.onSurface,
+          ),
         ),
         centerTitle: true,
         elevation: DesignTokens.elevationNone,
@@ -221,7 +227,10 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                 borderRadius: BorderRadius.circular(DesignTokens.radiusXl),
               ),
               child: SwitchListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 title: Text(
                   'Rekam Error Respons',
                   style: TextStyleConst.bodyLarge.copyWith(
@@ -242,9 +251,7 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
             ),
           ),
 
-          Expanded(
-            child: _buildEntriesList(theme),
-          ),
+          Expanded(child: _buildEntriesList(theme)),
         ],
       ),
     );
@@ -262,11 +269,17 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Gagal memuat log error',
-                style: TextStyleConst.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyleConst.titleMedium.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text(_errorMessage!, textAlign: TextAlign.center),
@@ -349,7 +362,10 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: colorScheme.primaryContainer.withValues(alpha: 0.4),
                     borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
@@ -365,10 +381,15 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                 if (hasStatusCode) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: colorScheme.error.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(DesignTokens.radiusSm),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusSm,
+                      ),
                     ),
                     child: Text(
                       'HTTP ${entry.statusCode}',
@@ -382,7 +403,11 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                 ],
                 const Spacer(),
                 IconButton(
-                  icon: Icon(Icons.delete_outline, size: 20, color: colorScheme.error),
+                  icon: Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: colorScheme.error,
+                  ),
                   tooltip: 'Hapus Entri',
                   visualDensity: VisualDensity.compact,
                   onPressed: () => _deleteEntry(entry.id),
@@ -431,16 +456,24 @@ class _ErrorLogScreenState extends State<ErrorLogScreen> {
                       final loc = AppLocalizations.of(context);
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text(loc?.openingGitHubReport ??
-                                'Membuka laporan GitHub...')),
+                          content: Text(
+                            loc?.openingGitHubReport ??
+                                'Membuka laporan GitHub...',
+                          ),
+                        ),
                       );
                     }
                   },
                   icon: const Icon(Icons.send, size: 14),
-                  label: Text(AppLocalizations.of(context)?.reportToGitHub ?? 'Lapor'),
+                  label: Text(
+                    AppLocalizations.of(context)?.reportToGitHub ?? 'Lapor',
+                  ),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                   ),
                 ),
               ],
