@@ -56,6 +56,19 @@ class RemoteConfigService {
   // Source IDs that are bundled into the APK and always available.
   static const Set<String> _bundledSourceIds = {'nhentai'};
 
+  // ── Source ID validation (path traversal guard) ────────────────────────────
+
+  // Allowlist for source IDs used in cache file names. IDs are compared
+  // case-sensitively throughout the codebase (`==`), and all known IDs are
+  // lowercase, so uppercase is rejected.
+  static final RegExp _sourceIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]*$');
+
+  static void _validateSourceId(String sourceId) {
+    if (!_sourceIdPattern.hasMatch(sourceId)) {
+      throw FormatException('Invalid sourceId: "$sourceId"');
+    }
+  }
+
   // ── SharedPreferences keys ───────────────────────────────────────────────────
 
   static const String _prefLastSyncMs = 'config_last_sync_timestamp';
@@ -383,6 +396,7 @@ class RemoteConfigService {
     required String rawJson,
     String sourceLabel = 'raw',
   }) async {
+    _validateSourceId(sourceId);
     if (rawJson.trim().isEmpty) {
       throw const FormatException('Source config JSON is empty');
     }
@@ -404,7 +418,16 @@ class RemoteConfigService {
     final parsed = SourceConfig.fromJson(decoded);
 
     final configDir = await _getConfigDirectory();
-    final cachedFile = File(p.join(configDir.path, '$sourceId-config.json'));
+    final configDirPath = p.normalize(configDir.path);
+    final candidatePath = p.normalize(
+      p.join(configDirPath, '$sourceId-config.json'),
+    );
+    if (!p.isWithin(configDirPath, candidatePath)) {
+      throw FormatException(
+        'Invalid sourceId: path escapes config directory: "$sourceId"',
+      );
+    }
+    final cachedFile = File(candidatePath);
     await cachedFile.writeAsString(jsonEncode(decoded));
 
     final version = decoded['version'] as String?;

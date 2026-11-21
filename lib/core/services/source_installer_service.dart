@@ -20,6 +20,16 @@ import 'package:nhasixapp/core/utils/source_version_utils.dart';
 
 enum ManifestSortMode { updatesFirst, nameAsc, versionDesc }
 
+final RegExp _validSourceIdPattern = RegExp(r'^[a-zA-Z0-9][a-zA-Z0-9_-]*$');
+
+String _validateSourceId(String sourceId) {
+  final trimmed = sourceId.trim();
+  if (!_validSourceIdPattern.hasMatch(trimmed)) {
+    throw FormatException('Invalid source ID: "$sourceId"');
+  }
+  return trimmed;
+}
+
 class SourcePackageManifest {
   const SourcePackageManifest({
     required this.schemaVersion,
@@ -73,7 +83,8 @@ class SourcePackageManifest {
       return normalized;
     }
 
-    final sourceId = readAnyString(const ['sourceId', 'id', 'source']);
+    final sourceId =
+        _validateSourceId(readAnyString(const ['sourceId', 'id', 'source']));
     final version = readAnyString(const ['version']);
     final configPathRaw = readAnyString(const ['configPath', 'path', 'url']);
     final checksum = readAnyString(
@@ -152,7 +163,7 @@ class GlobalManifestEntry {
     }
 
     return GlobalManifestEntry(
-      id: readRequired('id'),
+      id: _validateSourceId(readRequired('id')),
       version: readRequired('version'),
       url: readRequired('url'),
       checksumSha256: (map['checksum'] as String?)?.trim(),
@@ -372,10 +383,12 @@ class SourceInstallerService {
     );
 
     if (manifestMap.containsKey('source')) {
-      final sourceId = _requiredString(
-        manifestMap,
-        'source',
-        'Missing source field in config',
+      final sourceId = _validateSourceId(
+        _requiredString(
+          manifestMap,
+          'source',
+          'Missing source field in config',
+        ),
       );
       final version = (manifestMap['version'] as String?)?.trim() ?? 'unknown';
       final candidates = [
@@ -482,10 +495,12 @@ class SourceInstallerService {
     }
 
     if (manifestMap.containsKey('source')) {
-      final sourceId = _requiredString(
-        manifestMap,
-        'source',
-        'Missing source field in config',
+      final sourceId = _validateSourceId(
+        _requiredString(
+          manifestMap,
+          'source',
+          'Missing source field in config',
+        ),
       );
       final version = (manifestMap['version'] as String?)?.trim() ?? 'unknown';
       final candidates = [
@@ -998,6 +1013,7 @@ class SourceInstallerService {
     required String originalPath,
   }) async {
     try {
+      final validSourceId = _validateSourceId(sourceId);
       final appDir = await getApplicationDocumentsDirectory();
       final iconDir = Directory(p.join(appDir.path, 'source_icons'));
       if (!await iconDir.exists()) {
@@ -1005,7 +1021,20 @@ class SourceInstallerService {
       }
 
       final extension = _resolveImageExtension(originalPath);
-      final filePath = p.join(iconDir.path, '$sourceId$extension');
+      final safeStem = p.basename(validSourceId);
+      if (safeStem.isEmpty || safeStem == '.' || safeStem == '..') {
+        throw FormatException('Invalid source ID: "$sourceId"');
+      }
+
+      final baseDir = p.normalize(iconDir.path);
+      final filePath = p.normalize(
+        p.join(baseDir, '$safeStem$extension'),
+      );
+      if (!p.isWithin(baseDir, filePath)) {
+        _logger.w('Blocked source icon write outside iconDir for $sourceId');
+        return null;
+      }
+
       final iconFile = File(filePath);
       await iconFile.writeAsBytes(iconBytes, flush: true);
       return filePath;
