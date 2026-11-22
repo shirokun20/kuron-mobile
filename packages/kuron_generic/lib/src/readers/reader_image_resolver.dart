@@ -11,6 +11,7 @@ import 'package:logger/logger.dart';
 
 import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
+import '../parsers/html_field_extract.dart' as shared;
 import '../url_builder/generic_url_builder.dart';
 
 class ReaderImageResolver {
@@ -37,10 +38,7 @@ class ReaderImageResolver {
     dotAll: true,
   );
 
-  String? decodeChaoticPayload(
-    String htmlContent, {
-    required String? key,
-  }) {
+  String? decodeChaoticPayload(String htmlContent, {required String? key}) {
     if (key == null || key.isEmpty) return null;
     String? body;
     for (final match in chaoticPushRegex.allMatches(htmlContent)) {
@@ -71,26 +69,11 @@ class ReaderImageResolver {
   }
 
   // Convert a field definition map to a [FieldSelector].
-  FieldSelector? fieldDefToSelector(Map<String, dynamic> def) {
-    final selector = def['selector'] as String?;
-    if (selector == null || selector.isEmpty) return null;
-    final rawAttribute = def['attribute'];
-    // `"attribute": "src"` (legacy) or `"attribute": ["data-src","src"]`
-    // — the chain form is first-non-empty-wins.
-    final chain = rawAttribute is List
-        ? rawAttribute.map((e) => e.toString().trim()).toList()
-        : const <String>[];
-    return FieldSelector(
-      selector: selector,
-      attribute: chain.isNotEmpty ? chain.first : rawAttribute as String?,
-      attributes: chain,
-      type: (def['type'] as String?) ?? 'css',
-      regex: def['regex'] as String?,
-      prefix: def['prefix'] as String?,
-      suffix: def['suffix'] as String?,
-      fallback: def['fallback'] as String?,
-    );
-  }
+  //
+  // Delegates to the shared pure implementation so the adapter's
+  // `Isolate.run()` jobs build identical selectors off-isolate.
+  FieldSelector? fieldDefToSelector(Map<String, dynamic> def) =>
+      shared.fieldDefToSelector(def);
 
   Map<String, dynamic>? extractAjaxRequestFields({
     required dom.Document readerDocument,
@@ -201,14 +184,8 @@ class ReaderImageResolver {
     return null;
   }
 
-  String? decodeBase64(String value) {
-    try {
-      final padded = value.padRight((value.length + 3) ~/ 4 * 4, '=');
-      return utf8.decode(base64.decode(padded));
-    } catch (_) {
-      return null;
-    }
-  }
+  // Delegates to the shared pure implementation (isolate-safe twin).
+  String? decodeBase64(String value) => shared.decodeBase64Value(value);
 
   // Extract image URLs from a `chapterData` JS variable pattern.
   ///
@@ -248,15 +225,20 @@ class ReaderImageResolver {
         ).firstMatch(htmlContent);
         if (cdnHost != null && cdnHost.isNotEmpty && localStatic != null) {
           base64Str = chapterDataNoBaseMatch.group(1);
-          baseUrl = 'https://$cdnHost/${localStatic.group(1)}/'
+          baseUrl =
+              'https://$cdnHost/${localStatic.group(1)}/'
               '${localStatic.group(2)}';
-          _logger.d('$_sourceId chapterDataScript: manhwaread-style '
-              'script, cdnHost=$cdnHost, '
-              'mangaId=${localStatic.group(1)}, '
-              'chapterId=${localStatic.group(2)}');
+          _logger.d(
+            '$_sourceId chapterDataScript: manhwaread-style '
+            'script, cdnHost=$cdnHost, '
+            'mangaId=${localStatic.group(1)}, '
+            'chapterId=${localStatic.group(2)}',
+          );
         } else {
-          _logger.d('$_sourceId chapterDataScript: chapterData found but '
-              'missing cdnHost/localStaticData; skipping');
+          _logger.d(
+            '$_sourceId chapterDataScript: chapterData found but '
+            'missing cdnHost/localStaticData; skipping',
+          );
         }
       }
     }
@@ -277,19 +259,22 @@ class ReaderImageResolver {
 
     if (base64Str == null || baseUrl == null) {
       _logger.d(
-          '$_sourceId chapterDataScript: regex no match in ${htmlContent.length} bytes');
+        '$_sourceId chapterDataScript: regex no match in ${htmlContent.length} bytes',
+      );
       return const [];
     }
 
     _logger.d(
-        '$_sourceId chapterDataScript: regex matched, base=$baseUrl, base64Len=${base64Str.length}');
+      '$_sourceId chapterDataScript: regex matched, base=$baseUrl, base64Len=${base64Str.length}',
+    );
 
     String? decodedJson;
     try {
       final padded = base64Str.padRight((base64Str.length + 3) ~/ 4 * 4, '=');
       decodedJson = utf8.decode(base64.decode(padded));
       _logger.d(
-          '$_sourceId chapterDataScript: base64 decoded OK, len=${decodedJson.length}');
+        '$_sourceId chapterDataScript: base64 decoded OK, len=${decodedJson.length}',
+      );
     } catch (e) {
       _logger.w('$_sourceId chapterDataScript: base64 decode FAILED', error: e);
       return const [];
@@ -301,12 +286,14 @@ class ReaderImageResolver {
         final List<dynamic> list => list,
         final Map<String, dynamic> object =>
           (((object['data'] as Map<String, dynamic>?)?['chapter']
-                  as Map<String, dynamic>?)?['images'] as List<dynamic>?) ??
+                      as Map<String, dynamic>?)?['images']
+                  as List<dynamic>?) ??
               const <dynamic>[],
         _ => const <dynamic>[],
       };
       _logger.d(
-          '$_sourceId chapterDataScript: JSON parsed OK, ${items.length} images');
+        '$_sourceId chapterDataScript: JSON parsed OK, ${items.length} images',
+      );
       final resolvedBaseUrl = baseUrl;
       return items
           .map((item) {
@@ -542,7 +529,8 @@ class ReaderImageResolver {
   /// for a TAG named x, find nothing, and gate every stream away.
   static String _markerSelector(String marker) {
     final m = marker.trim();
-    final looksLikeSelector = m.startsWith('.') ||
+    final looksLikeSelector =
+        m.startsWith('.') ||
         m.startsWith('#') ||
         m.startsWith('[') ||
         m.contains(' ') ||
@@ -658,14 +646,16 @@ class ReaderImageResolver {
       return (urls: urls, index: null);
     }
 
-    for (final scope in container
-        .split(',')
-        .map((s) => s.trim())
-        .where((s) => s.isNotEmpty)) {
+    for (final scope
+        in container
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)) {
       final scopeElement = doc.querySelector(scope);
       if (scopeElement == null) continue;
-      final first =
-          _parser.selectAll(doc, _scopedTo(scope, videoSelector)).firstOrNull;
+      final first = _parser
+          .selectAll(doc, _scopedTo(scope, videoSelector))
+          .firstOrNull;
       if (first == null) continue;
 
       // Document order IS the site's order: count the page images that precede
@@ -744,77 +734,20 @@ class ReaderImageResolver {
     return RegExp(r'\.(m3u8|mp4|webm|mov)$').hasMatch(path);
   }
 
-  String sanitizeImageUrl(String value) {
-    var cleaned = value.trim();
-    if (cleaned.length >= 2 &&
-        ((cleaned.startsWith('"') && cleaned.endsWith('"')) ||
-            (cleaned.startsWith("'") && cleaned.endsWith("'")))) {
-      cleaned = cleaned.substring(1, cleaned.length - 1);
-    }
-
-    cleaned = cleaned
-        .replaceAll(r'\/', '/')
-        .replaceAll(r'\n', '')
-        .replaceAll(r'\r', '')
-        .replaceAll('\n', '')
-        .replaceAll('\r', '')
-        .trim();
-
-    //  fix broken hostname in HTML (missing dot). Known cases:
-    // "images2/imgbox.com" -> "images2.imgbox.com"
-    cleaned = cleaned.replaceAllMapped(
-      RegExp(r'//([^./]+)/((?:imgbox|imgbb|pixhost|ibucket|imagebam)\.com/)'),
-      (m) => '//${m[1]}.${m[2]}',
-    );
-
-    if (cleaned.startsWith('//')) {
-      cleaned = 'https:$cleaned';
-    }
-
-    // Relative paths (e.g. photos18 `/images/node/...avif`) resolve against
-    // the source baseUrl so list covers are always fetchable.
-    if (cleaned.startsWith('/') &&
-        !cleaned.startsWith('//') &&
-        !_urlBuilder.baseUrl.startsWith('/')) {
-      cleaned = '${_urlBuilder.baseUrl}$cleaned';
-    }
-
-    // Bare relative paths (e.g. hentairead `upload/pages/...jpg`, no leading
-    // slash) resolve against the source baseUrl the same way. An empty value
-    // is NOT a relative path — resolving it would fabricate the baseUrl as an
-    // image URL.
-    final hasScheme = RegExp(r'^[a-zA-Z][a-zA-Z0-9+.-]*:').hasMatch(cleaned);
-    if (cleaned.isNotEmpty &&
-        !hasScheme &&
-        !cleaned.startsWith('/') &&
-        !_urlBuilder.baseUrl.startsWith('/')) {
-      cleaned = '${_urlBuilder.baseUrl}/$cleaned';
-    }
-
-    // Android network_security_config blocks cleartext http:// — native
-    // image downloads fail with a transport error. Sites serving page markup
-    // over https but embedding `http://` image srcs (madara themes:
-    // manhwaclub.net) always also answer on https (301 at worst), so upgrade
-    // when the host matches the source baseUrl.
-    if (cleaned.startsWith('http://')) {
-      final baseHost = Uri.tryParse(_urlBuilder.baseUrl)?.host ?? '';
-      final imgHost = Uri.tryParse(cleaned)?.host ?? '';
-      if (baseHost.isNotEmpty && imgHost == baseHost) {
-        cleaned = 'https:${cleaned.substring(5)}';
-      }
-    }
-
-    return cleaned;
-  }
+  // Delegates to the shared pure implementation; [baseUrl] replaces the
+  // resolver's `_urlBuilder.baseUrl` so `Isolate.run()` jobs sanitize
+  // identically off-isolate.
+  String sanitizeImageUrl(String value) =>
+      shared.sanitizeImageUrl(value, _urlBuilder.baseUrl);
 
   String inferImageExtension(String? imageUrl) {
     if (imageUrl == null || imageUrl.isEmpty) return 'jpg';
 
     final clean = imageUrl.split('?').first;
     final extMatch = RegExp(
-            r'\.(jpg|jpeg|webp|png|gif)$|\d+t\.(jpg|jpeg|webp|png|gif)$',
-            caseSensitive: false)
-        .firstMatch(clean);
+      r'\.(jpg|jpeg|webp|png|gif)$|\d+t\.(jpg|jpeg|webp|png|gif)$',
+      caseSensitive: false,
+    ).firstMatch(clean);
     return (extMatch?.group(1) ?? extMatch?.group(2) ?? 'jpg').toLowerCase();
   }
 
@@ -826,8 +759,9 @@ class ReaderImageResolver {
   ) {
     if (sampleUrl.isEmpty || pageCount <= 0) return const [];
 
-    final normalized =
-        sampleUrl.startsWith('//') ? 'https:$sampleUrl' : sampleUrl;
+    final normalized = sampleUrl.startsWith('//')
+        ? 'https:$sampleUrl'
+        : sampleUrl;
     final uri = Uri.tryParse(normalized);
     if (uri == null || uri.host.isEmpty || uri.pathSegments.isEmpty) {
       return const [];
@@ -835,9 +769,10 @@ class ReaderImageResolver {
 
     final segments = List<String>.from(uri.pathSegments);
     final fileName = segments.removeLast();
-    final defaultExtMatch =
-        RegExp(r'^\d+\.(jpg|jpeg|webp|png|gif)$', caseSensitive: false)
-            .firstMatch(fileName);
+    final defaultExtMatch = RegExp(
+      r'^\d+\.(jpg|jpeg|webp|png|gif)$',
+      caseSensitive: false,
+    ).firstMatch(fileName);
     final defaultExt = (defaultExtMatch?.group(1) ?? 'jpg').toLowerCase();
 
     final scheme = uri.scheme.isEmpty ? 'https' : uri.scheme;
@@ -846,15 +781,11 @@ class ReaderImageResolver {
         : '$scheme://${uri.host}';
     final pathPrefix = '/${segments.join('/')}';
 
-    return List<String>.generate(
-      pageCount,
-      (index) {
-        final page = index + 1;
-        final ext = (extByPage[page] ?? defaultExt).toLowerCase();
-        return '$origin$pathPrefix/$page.$ext';
-      },
-      growable: false,
-    );
+    return List<String>.generate(pageCount, (index) {
+      final page = index + 1;
+      final ext = (extByPage[page] ?? defaultExt).toLowerCase();
+      return '$origin$pathPrefix/$page.$ext';
+    }, growable: false);
   }
 
   // Parse HentaiFox `g_th` map and return image extension by page number.

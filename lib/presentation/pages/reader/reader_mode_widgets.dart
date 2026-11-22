@@ -161,7 +161,14 @@ class _ReaderContentWidget extends StatefulWidget {
     String? contentId,
   })
   prefetchImages;
-  final void Function(int, List<String>, {bool isOffline}) evictDistantPages;
+  final void Function(
+    int,
+    List<String>, {
+    bool isOffline,
+    String? sourceId,
+    String? contentId,
+  })
+  evictDistantPages;
   final double Function(int, double) resolveContinuousItemHeight;
   final bool Function(String?) isHeavyPrefetchSource;
   final bool Function() isContinuousScrollDisabled;
@@ -450,6 +457,8 @@ class _ReaderContentWidgetState extends State<_ReaderContentWidget> {
             reportPage,
             imageUrls,
             isOffline: state.isOfflineMode ?? false,
+            sourceId: state.content?.sourceId,
+            contentId: state.content?.id,
           );
         }
 

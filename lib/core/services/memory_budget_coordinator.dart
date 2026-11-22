@@ -33,6 +33,12 @@ class MemoryBudgetCoordinator {
   static const double _readerIdleRatio = 0.30;
   static const double _cacheIdleRatio = 0.35;
 
+  /// True when [estimatedDecodedBytes] meets or exceeds the reader decoded
+  /// budget — genuine memory pressure. The reader answers by collapsing to
+  /// the tight keep window and evicting far pages aggressively.
+  bool isOverReaderBudget(int estimatedDecodedBytes) =>
+      estimatedDecodedBytes >= _readerDecodedBudgetBytes;
+
   bool get isReaderActive => _isReaderActive;
   int get activeReaderCount => _activeReaderCount;
   int get activeOnlineReaderCount => _activeOnlineReaderCount;
@@ -53,11 +59,13 @@ class MemoryBudgetCoordinator {
     }
     _recalculate();
     _applyImageCacheBudget();
-    _logger.i('MemoryBudgetCoordinator: init — '
-        'ram=${_totalRamMB}MB heap=${_appHeapEstimateMB}MB '
-        'reader=${_readerDecodedBudgetBytes >> 20}MB '
-        'cache=${_imageCacheBudgetBytes >> 20}MB '
-        'dl=$_maxDownloadParallel');
+    _logger.i(
+      'MemoryBudgetCoordinator: init — '
+      'ram=${_totalRamMB}MB heap=${_appHeapEstimateMB}MB '
+      'reader=${_readerDecodedBudgetBytes >> 20}MB '
+      'cache=${_imageCacheBudgetBytes >> 20}MB '
+      'dl=$_maxDownloadParallel',
+    );
   }
 
   int _estimateAppHeap(int totalMB) {
@@ -110,8 +118,9 @@ class MemoryBudgetCoordinator {
   void _syncReaderActive() {
     final active = _activeReaderCount > 0;
     try {
-      final notifier =
-          getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
+      final notifier = getIt<ValueNotifier<bool>>(
+        instanceName: 'globalReaderActive',
+      );
       if (notifier.value != active) {
         notifier.value = active;
       }
@@ -123,8 +132,9 @@ class MemoryBudgetCoordinator {
   void _syncOnlineReaderActive() {
     final onlineActive = _activeOnlineReaderCount > 0;
     try {
-      final notifier =
-          getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive');
+      final notifier = getIt<ValueNotifier<bool>>(
+        instanceName: 'globalOnlineReaderActive',
+      );
       if (notifier.value != onlineActive) {
         notifier.value = onlineActive;
       }
@@ -143,9 +153,11 @@ class MemoryBudgetCoordinator {
     _isReaderActive = active;
     _recalculate();
     _applyImageCacheBudget();
-    _logger.i('MemoryBudgetCoordinator: rebalance — '
-        'active=$active reader=${_readerDecodedBudgetBytes >> 20}MB '
-        'cache=${_imageCacheBudgetBytes >> 20}MB dl=$_maxDownloadParallel');
+    _logger.i(
+      'MemoryBudgetCoordinator: rebalance — '
+      'active=$active reader=${_readerDecodedBudgetBytes >> 20}MB '
+      'cache=${_imageCacheBudgetBytes >> 20}MB dl=$_maxDownloadParallel',
+    );
   }
 
   void _applyImageCacheBudget() {

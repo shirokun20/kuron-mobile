@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:extended_image/extended_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
@@ -599,7 +599,7 @@ class LocalImagePreloader {
         }
       }
 
-      // Priority 3: Check CachedNetworkImage cache (legacy cache system)
+      // Priority 3: Check extended_image disk cache (unified cache system)
       final cachePath = await _getCachedImagePath(contentId, pageNumber);
       if (cachePath != null && await File(cachePath).exists()) {
         if (kDebugMode) {
@@ -774,7 +774,13 @@ class LocalImagePreloader {
     _logger.d(
       '🐛 Using network image provider with cache fallback: $networkUrl',
     );
-    return CachedNetworkImageProvider(networkUrl);
+    // Unified cache: extended_image disk cache (14-day TTL, same as the
+    // reader) + the global ImageCache budgeted by MemoryBudgetCoordinator.
+    return ExtendedNetworkImageProvider(
+      networkUrl,
+      cache: true,
+      cacheMaxAge: const Duration(days: 14),
+    );
   }
 
   // Download and cache image from network to internal cache
@@ -1079,8 +1085,9 @@ class LocalImagePreloader {
         return cachePath;
       }
 
-      // Check CachedNetworkImage cache directory if available
-      // This is a simplified approach - actual implementation might need CachedNetworkImage's cache manager
+      // Check extended_image disk cache directory if available.
+      // ExtendedImage.network(cache: true) already serves disk hits before
+      // this lookup runs, so a miss here just falls through to network.
       return null;
     } catch (e) {
       _logger.e('Error getting cached image path: $e');
@@ -1185,6 +1192,13 @@ class LocalImagePreloader {
         await cacheDir.delete(recursive: true);
         _logger.i('🗑️ Cleared all internal image cache');
       }
+
+      // Clear the unified extended_image disk cache (cards, avatars, reader
+      // pages share it) and drop decoded entries from the global ImageCache
+      // whose budget is owned by MemoryBudgetCoordinator.
+      await clearDiskCachedImages();
+      PaintingBinding.instance.imageCache.clear();
+      _logger.i('🗑️ Cleared extended_image disk + memory caches');
     } catch (e) {
       _logger.e('Error clearing all image cache: $e');
     }

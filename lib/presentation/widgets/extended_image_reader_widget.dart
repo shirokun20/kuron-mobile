@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:extended_image/extended_image.dart';
@@ -206,15 +208,85 @@ class ExtendedImageReaderWidget extends StatefulWidget {
     return readingMode != ReadingMode.continuousScroll || isHeavy;
   }
 
+  /// Pages kept decoded around the viewport in continuous scroll. Scrolling
+  /// to page 8 and back to pages 1-5 stays instant in memory because
+  /// 8 - 1 = 7 <= this radius. Far pages are evicted by
+  /// [evictPageMemoryImage] + the global [ImageCache] LRU budget.
+  static const int scrollBackKeepRadiusPages = 10;
+
+  /// Tight window for heavy sources, oversized pages, or genuine memory
+  /// pressure — aggressive eviction stays on for these.
+  static const int tightKeepRadiusPages = 4;
+
+  /// Canonical form of a reader image URL for disk-cache keying.
+  ///
+  /// Strips the `url|fallback` suffix and `#fragment` (never sent over HTTP)
+  /// and normalizes scheme/host case. Hitomi rotates its CDN subdomain
+  /// (`w1`/`w2`/`a3`… from gg.js) across reloads while the path already
+  /// identifies the bytes, so `*.gold-usergeneratedcontent.net` collapses to
+  /// one host. Query strings are preserved — they can address content.
+  static String canonicalReaderCacheUrl(String url) {
+    final withoutPipe = url.split('|').first;
+    final withoutFragment = withoutPipe.split('#').first;
+    final uri = Uri.tryParse(withoutFragment);
+    if (uri == null || !uri.hasAuthority) return withoutFragment;
+    var host = uri.host.toLowerCase();
+    if (host.endsWith('gold-usergeneratedcontent.net')) {
+      host = 'hitomi.gold-usergeneratedcontent.net';
+    }
+    return uri.replace(scheme: uri.scheme.toLowerCase(), host: host).toString();
+  }
+
+  /// Filesystem-safe disk `cacheKey` for a reader image URL: md5 of the
+  /// canonical URL. `ExtendedImage` uses the key raw as a filename, so the
+  /// raw URL (slashes, query) must never be passed directly.
+  static String stableReaderCacheKey(String url) {
+    final canonical = canonicalReaderCacheUrl(url);
+    return md5.convert(utf8.encode(canonical)).toString();
+  }
+
   @visibleForTesting
   static bool shouldClearMemoryCacheOnDisposeForTesting({
     required ReadingMode readingMode,
     required bool isHeavy,
     required bool isHeavyReaderSource,
+    int? visiblePageNumber,
+    int? pageNumber,
   }) {
-    return readingMode == ReadingMode.continuousScroll &&
-        !(isHeavy || isHeavyReaderSource);
+    if (readingMode != ReadingMode.continuousScroll) return false;
+    if (isHeavy || isHeavyReaderSource) return false;
+    // Pages near the viewport stay decoded for instant scroll-back.
+    // `visiblePageNumber` 0 is the scrolling sentinel (animated-pause
+    // notifier) — treat as unknown, i.e. keep; far eviction is enforced
+    // separately by [evictPageMemoryImage] + ImageCache LRU.
+    if (visiblePageNumber == null || pageNumber == null) return true;
+    // `visiblePageNumber` 0 is the scrolling sentinel (animated-pause
+    // notifier zeroes it while the list moves) — keep; far eviction is
+    // enforced separately by [evictPageMemoryImage] + ImageCache LRU.
+    if (visiblePageNumber <= 0) return false;
+    return (visiblePageNumber - pageNumber).abs() > scrollBackKeepRadiusPages;
   }
+
+  /// Evicts one far page's decoded entry from the [ImageCache] using the
+  /// exact key the widget registered when it rendered the page
+  /// (resize-wrapped `ExtendedFileImageProvider`). A plain
+  /// `NetworkImage(url)` never matches those entries, so it evicted
+  /// nothing. Returns true when a registered key was evicted.
+  static bool evictPageMemoryImage(PageImageTripleKey key) {
+    final provider = _ExtendedImageReaderWidgetState._memoryImageKeys.remove(
+      key,
+    );
+    if (provider == null) return false;
+    try {
+      return PaintingBinding.instance.imageCache.evict(provider);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @visibleForTesting
+  static bool hasMemoryKeyForTesting(PageImageTripleKey key) =>
+      _ExtendedImageReaderWidgetState._memoryImageKeys.containsKey(key);
 
   @visibleForTesting
   static int resolveNativeAnimatedDecodeWidthForTesting({
@@ -329,7 +401,23 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       AnimatedWebPView.isAvailable;
 
   static const int _maxHeavyImageUrls = 500;
+  static const int _maxMemoryImageKeys = 200;
   static const int _maxCachedFilePathByUrl = 200;
+
+  /// Exact in-memory image keys of live file-backed pages, by triple key.
+  static final Map<PageImageTripleKey, ImageProvider<Object>> _memoryImageKeys =
+      <PageImageTripleKey, ImageProvider<Object>>{};
+
+  static void _registerMemoryKey(
+    PageImageTripleKey key,
+    ImageProvider<Object> provider,
+  ) {
+    _memoryImageKeys[key] = provider;
+    if (_memoryImageKeys.length > _maxMemoryImageKeys) {
+      _memoryImageKeys.remove(_memoryImageKeys.keys.first);
+    }
+  }
+
   static const int _maxConfirmedAnimatedWebPUrls = 300;
   static const int _maxNotifiedHeavyContentIds = 100;
 
@@ -935,6 +1023,7 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
     if (_resolveCancellation != null && !_resolveCancellation!.isCancelled) {
       _resolveCancellation!.cancel('Widget dispose');
     }
+    _memoryImageKeys.remove(_currentTripleKey);
     _pinchHintController.dispose();
     _zoomController.dispose();
     super.dispose();
@@ -1059,6 +1148,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
               readingMode: widget.readingMode,
               isHeavy: _isHeavyImage,
               isHeavyReaderSource: false,
+              visiblePageNumber: widget.visiblePageNotifier?.value,
+              pageNumber: widget.pageNumber,
             ),
         enableLoadState: true,
         extendedImageGestureKey: _gestureKey,
@@ -1317,13 +1408,26 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 convertedPath: _staticConvertedFilePath,
                 resolvedPath: path,
               );
+          final fileDecodeWidth = _targetDecodeWidth(
+            context,
+            imageUrl: renderPath,
+          );
+          // Register the exact in-memory key so far-page eviction removes
+          // this entry (same provider + width the widget renders with).
+          _registerMemoryKey(
+            _currentTripleKey,
+            ExtendedResizeImage.resizeIfNeeded(
+              provider: ExtendedFileImageProvider(File(renderPath)),
+              cacheWidth: fileDecodeWidth,
+            ),
+          );
           return ExtendedImage.file(
             File(renderPath),
             key: ValueKey(
               'extended_image_${widget.contentId}_${widget.pageNumber}',
             ),
             fit: _getAdaptiveBoxFit(),
-            cacheWidth: _targetDecodeWidth(context, imageUrl: renderPath),
+            cacheWidth: fileDecodeWidth,
             mode:
                 widget.enableZoom &&
                     widget.readingMode != ReadingMode.continuousScroll
@@ -1456,6 +1560,10 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
       url,
       key: ValueKey('extended_image_${widget.contentId}_${widget.pageNumber}'),
       headers: headers,
+      // Stable disk key: the URL host can rotate across reloads (hitomi
+      // CDN subdomains, mirrored CDNs) while the bytes stay identical.
+      // Without this, scroll-back re-downloads instead of hitting disk.
+      cacheKey: ExtendedImageReaderWidget.stableReaderCacheKey(url),
       fit: _getAdaptiveBoxFit(),
       //  ALL static images use FilterQuality.low (bilinear) —
       // cacheWidth at display size makes nearest-neighbor (none) acceptable.
@@ -1468,13 +1576,16 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
               widget.readingMode != ReadingMode.continuousScroll
           ? ExtendedImageMode.gesture
           : ExtendedImageMode.none,
-      // Let ordinary pages in long continuous-scroll sessions recycle their
-      // decoded frame buffers, while heavy/native pages stay warm.
+      // Far pages recycle their decoded frame buffers on dispose; pages
+      // near the viewport stay warm for instant scroll-back, while
+      // heavy/native pages are always kept.
       clearMemoryCacheWhenDispose:
           ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
             readingMode: widget.readingMode,
             isHeavy: _isHeavyImage,
             isHeavyReaderSource: _isHeavyReaderSource(),
+            visiblePageNumber: widget.visiblePageNotifier?.value,
+            pageNumber: widget.pageNumber,
           ),
       cache: true,
       cacheMaxAge: const Duration(days: 14),
@@ -1566,7 +1677,12 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
               final gen = _pageGen;
               final capturedKey = _currentTripleKey;
               final capturedPageNumber = widget.pageNumber;
-              getCachedImageFile(url)
+              getCachedImageFile(
+                    url,
+                    cacheKey: ExtendedImageReaderWidget.stableReaderCacheKey(
+                      url,
+                    ),
+                  )
                   .then((cacheFile) {
                     if (cacheFile == null || !mounted || _pageGen != gen) {
                       return;
@@ -1904,6 +2020,8 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
             readingMode: widget.readingMode,
             isHeavy: _isHeavyImage,
             isHeavyReaderSource: _isHeavyReaderSource(),
+            visiblePageNumber: widget.visiblePageNotifier?.value,
+            pageNumber: widget.pageNumber,
           ),
       cacheWidth: decodeWidth,
       extendedImageGestureKey: _gestureKey,

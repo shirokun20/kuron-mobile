@@ -137,6 +137,29 @@ class ReaderScreen extends StatefulWidget {
             false);
   }
 
+  /// Pages wider than ~24 MB decoded are "oversized": a single one can eat
+  /// half the reader budget, so they always use the tight window.
+  @visibleForTesting
+  static const int oversizedPageBytes = 24 * 1024 * 1024;
+
+  /// Resolves the keep window around the current page. Normal pages get the
+  /// wide [ExtendedImageReaderWidget.scrollBackKeepRadiusPages] window so
+  /// scrolling to page 8 and back to pages 1-5 stays instant in memory;
+  /// heavy sources, oversized pages, or genuine memory pressure collapse to
+  /// [ExtendedImageReaderWidget.tightKeepRadiusPages] with aggressive
+  /// far-page eviction.
+  @visibleForTesting
+  static int resolveKeepRadius({
+    required bool isHeavySource,
+    required bool hasOversizedImage,
+    required bool isMemoryTight,
+  }) {
+    if (isHeavySource || hasOversizedImage || isMemoryTight) {
+      return ExtendedImageReaderWidget.tightKeepRadiusPages;
+    }
+    return ExtendedImageReaderWidget.scrollBackKeepRadiusPages;
+  }
+
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
 }
@@ -511,6 +534,8 @@ class _ReaderScreenState extends State<ReaderScreen>
       estimatedPage,
       state.content!.imageUrls,
       isOffline: state.isOfflineMode ?? false,
+      sourceId: state.content?.sourceId,
+      contentId: state.content!.id,
     );
 
     if (notification.scrollDelta != null && notification.scrollDelta! > 5) {
@@ -1048,9 +1073,13 @@ class _ReaderScreenState extends State<ReaderScreen>
             if (localPath != null) {
               provider = ExtendedFileImageProvider(File(localPath));
             } else {
+              // Same stable disk key the reader widget renders with, so a
+              // fallback-path precache warms the same disk entry instead of
+              // a second file keyed by the raw (possibly rotated) URL.
               provider = ExtendedNetworkImageProvider(
                 url,
                 headers: prefetchHeaders,
+                cacheKey: ExtendedImageReaderWidget.stableReaderCacheKey(url),
               );
             }
             // Direct mounted guard for the lint: decodeStale() above already
@@ -1086,6 +1115,8 @@ class _ReaderScreenState extends State<ReaderScreen>
     int currentPage,
     List<String> imageUrls, {
     bool isOffline = false,
+    String? sourceId,
+    String? contentId,
   }) {
     if (isOffline || imageUrls.isEmpty) return;
 
@@ -1097,21 +1128,55 @@ class _ReaderScreenState extends State<ReaderScreen>
       _estimatedDecodedBytes = 0;
     });
 
-    // Real byte estimator: sum of window visible ± keepRadius (not tick accumulation)
-    const keepRadius = 4;
+    final effectiveContentId = contentId ?? widget.contentId;
+    final isHeavySource = _isHeavyPrefetchSource(sourceId);
+
+    // Wide window first: sum visible ± normal radius, then collapse to the
+    // tight window when the source is heavy, a window page is oversized,
+    // or the wide window itself busts the decoded budget.
+    var keepRadius = ExtendedImageReaderWidget.scrollBackKeepRadiusPages;
     int windowBytes = 0;
+    bool hasOversizedImage = false;
     for (int p = currentPage - keepRadius; p <= currentPage + keepRadius; p++) {
       if (p >= 1 && p <= imageUrls.length) {
-        windowBytes += _estimatePageBytes(p);
+        final bytes = _estimatePageBytes(p);
+        windowBytes += bytes;
+        if (bytes >= ReaderScreen.oversizedPageBytes) {
+          hasOversizedImage = true;
+        }
+      }
+    }
+    final isMemoryTight = coordinator.isOverReaderBudget(windowBytes);
+    keepRadius = ReaderScreen.resolveKeepRadius(
+      isHeavySource: isHeavySource,
+      hasOversizedImage: hasOversizedImage,
+      isMemoryTight: isMemoryTight,
+    );
+    if (keepRadius != ExtendedImageReaderWidget.scrollBackKeepRadiusPages) {
+      windowBytes = 0;
+      for (
+        int p = currentPage - keepRadius;
+        p <= currentPage + keepRadius;
+        p++
+      ) {
+        if (p >= 1 && p <= imageUrls.length) {
+          windowBytes += _estimatePageBytes(p);
+        }
       }
     }
     _estimatedDecodedBytes = windowBytes;
 
-    if (_estimatedDecodedBytes < budget) return;
+    if (!coordinator.isOverReaderBudget(_estimatedDecodedBytes)) return;
 
     // Budget exceeded: evict farthest pages until ≤ 80% of budget.
     final target = (budget * 0.8).round();
-    _evictFarthestBytes(currentPage, imageUrls, target);
+    _evictFarthestBytes(
+      currentPage,
+      imageUrls,
+      target,
+      keepRadius: keepRadius,
+      contentId: effectiveContentId,
+    );
     _estimatedDecodedBytes = target;
   }
 
@@ -1137,12 +1202,14 @@ class _ReaderScreenState extends State<ReaderScreen>
   void _evictFarthestBytes(
     int currentPage,
     List<String> imageUrls,
-    int targetBytes,
-  ) {
-    const keepRadius = 4;
+    int targetBytes, {
+    int keepRadius = ExtendedImageReaderWidget.scrollBackKeepRadiusPages,
+    String? contentId,
+  }) {
     final total = imageUrls.length;
     if (total <= keepRadius * 2 + 1) return;
 
+    final effectiveContentId = contentId ?? widget.contentId;
     final sorted = List.generate(total, (i) => i + 1);
     sorted.sort(
       (a, b) => (b - currentPage).abs().compareTo((a - currentPage).abs()),
@@ -1154,7 +1221,15 @@ class _ReaderScreenState extends State<ReaderScreen>
       final url = imageUrls[page - 1];
       if (!url.startsWith('http')) continue;
 
-      NetworkImage(url).evict();
+      // Evict via the exact key the widget registered when it rendered
+      // this page (resize-wrapped file provider). A plain
+      // `NetworkImage(url)` never matches those entries, so it evicted
+      // nothing — pages that were never rendered simply have no key.
+      ExtendedImageReaderWidget.evictPageMemoryImage((
+        effectiveContentId,
+        page,
+        url,
+      ));
       accumulated += _estimatePageBytes(page);
       if (accumulated >= (_estimatedDecodedBytes - targetBytes)) break;
     }

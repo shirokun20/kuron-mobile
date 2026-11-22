@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/utils/content_id_display.dart';
-import 'package:nhasixapp/core/utils/download_storage_utils.dart';
 import 'package:nhasixapp/presentation/pages/detail/widgets/detail_info_sections.dart';
 
 Content sampleContent({required String id, required String title}) => Content(
@@ -27,6 +26,9 @@ Widget wrap(Widget child) => MaterialApp(
 
 void main() {
   const longSlug = 'one-piece-chapter-1000-bahasa-indonesia';
+  const longSlugHash = 'ke1a6ys4a';
+  const shortSlug = 'mahiru-no-tsuki';
+  const shortSlugHash = 'qbpwf9zkg';
   const uuid = 'f9c3d6a4-1b2c-4d3e-8f90-1234567890ab';
 
   testWidgets('slug-based Detail ID row shows the short elegant id', (
@@ -44,11 +46,27 @@ void main() {
       ),
     );
 
-    expect(
-      find.text(DownloadStorageUtils.getElegantId(longSlug)),
-      findsOneWidget,
-    );
+    expect(find.text(longSlugHash), findsOneWidget);
     expect(find.text(longSlug), findsNothing);
+  });
+
+  testWidgets('short slug Detail ID row shows the hashed display id', (
+    tester,
+  ) async {
+    final display = displayContentId(shortSlug, rawConfig: {'idType': 'slug'});
+    await tester.pumpWidget(
+      wrap(
+        DetailMetadataSection(
+          title: 'Informasi Konten',
+          items: [
+            DetailMetadataItem(label: 'ID', value: display, icon: Icons.tag),
+          ],
+        ),
+      ),
+    );
+
+    expect(find.text(shortSlugHash), findsOneWidget);
+    expect(find.text(shortSlug), findsNothing);
   });
 
   testWidgets('real-ID Detail ID row shows the raw id unchanged', (

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/painting.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
@@ -10,6 +11,7 @@ import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:kuron_core/kuron_core.dart';
+
 import '../../../domain/entities/reader_position.dart';
 import '../../../domain/usecases/reader/get_reader_settings_usecase.dart';
 import '../../../domain/usecases/reader/save_reader_settings_usecase.dart';
@@ -78,8 +80,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     required this.remoteConfigService,
     required super.logger,
     this.userDataRepository,
-  })  : _logger = logger,
-        super(initialState: const ReaderState());
+  }) : _logger = logger,
+       super(initialState: const ReaderState());
 
   @override
   void emit(ReaderState state) {
@@ -183,13 +185,16 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       _logger.i('  allChapters: ${allChapters?.length ?? 0} chapters');
       if (allChapters != null && allChapters.isNotEmpty) {
         _logger.i(
-            '    First: ${allChapters.first.title} (${allChapters.first.id})');
-        _logger
-            .i('    Last: ${allChapters.last.title} (${allChapters.last.id})');
+          '    First: ${allChapters.first.title} (${allChapters.first.id})',
+        );
+        _logger.i(
+          '    Last: ${allChapters.last.title} (${allChapters.last.id})',
+        );
       }
       _logger.i('  currentChapter: ${currentChapter?.title ?? "NULL"}');
       _logger.i(
-          '  chapterData: prev=${chapterData?.prevChapterId}, next=${chapterData?.nextChapterId}');
+        '  chapterData: prev=${chapterData?.prevChapterId}, next=${chapterData?.nextChapterId}',
+      );
       _logger.i('');
       _logger.i('  Stored in ReaderCubit:');
       _logger.i('  _parentContent: ${_parentContent?.title ?? "NULL"}');
@@ -200,14 +205,16 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         preloadedContent: preloadedContent,
         parentContent: parentContent,
       );
-      final isCrotpediaChapter =
-          _isCrotpediaChapterId(contentId, sourceId: sourceHint);
+      final isCrotpediaChapter = _isCrotpediaChapterId(
+        contentId,
+        sourceId: sourceHint,
+      );
 
       // Fast-path: skip offline scan, assume remote for now, background check updates badge later
       bool? isOfflineAvailable;
       if (!fastPathEligible) {
-        isOfflineAvailable =
-            await offlineContentManager.isContentAvailableOffline(contentId);
+        isOfflineAvailable = await offlineContentManager
+            .isContentAvailableOffline(contentId);
       }
 
       final localResults = await Future.wait([
@@ -234,31 +241,38 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final hasPreloadedContent = preloadedContent != null;
       final shouldUseImagePreloaded =
           hasPreloadedContent && preloadedContent.imageUrls.isNotEmpty;
-      final shouldUseNoChapterPreloaded = hasPreloadedContent &&
+      final shouldUseNoChapterPreloaded =
+          hasPreloadedContent &&
           preloadedContent.imageUrls.isEmpty &&
           chapterData == null &&
           (allChapters == null || allChapters.isEmpty);
       if (shouldUseImagePreloaded) {
-        final hasLocalPaths =
-            preloadedContent.imageUrls.any((url) => url.startsWith('/'));
+        final hasLocalPaths = preloadedContent.imageUrls.any(
+          (url) => url.startsWith('/'),
+        );
         if (hasLocalPaths) {
-          _logger
-              .i('✅ Strategy A: Using preloaded OFFLINE content: $contentId');
+          _logger.i(
+            '✅ Strategy A: Using preloaded OFFLINE content: $contentId',
+          );
           content = preloadedContent;
           isOfflineMode = true;
         } else {
-          final hasRemoteUrls =
-              preloadedContent.imageUrls.any((url) => url.startsWith('http'));
+          final hasRemoteUrls = preloadedContent.imageUrls.any(
+            (url) => url.startsWith('http'),
+          );
 
           if (isOfflineAvailable == true && hasRemoteUrls) {
             _logger.i(
-                '💾 Strategy A2: Found offline available, loading from local storage');
-            content =
-                await offlineContentManager.createOfflineContent(contentId);
+              '💾 Strategy A2: Found offline available, loading from local storage',
+            );
+            content = await offlineContentManager.createOfflineContent(
+              contentId,
+            );
             isOfflineMode = true;
           } else if (hasRemoteUrls) {
             _logger.i(
-                '✅ Strategy A3: Using preloaded content with remote URLs: $contentId');
+              '✅ Strategy A3: Using preloaded content with remote URLs: $contentId',
+            );
             content = preloadedContent;
             isOfflineMode = !isConnected;
             // Fast-path: schedule background offline check to update badge without blocking
@@ -273,12 +287,13 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       //  single fallback path, add multi-source retry if needed.
       if (content == null && shouldUseNoChapterPreloaded) {
         _logger.i(
-            '✅ Strategy A4: Using preloaded no-chapters content shell: $contentId');
+          '✅ Strategy A4: Using preloaded no-chapters content shell: $contentId',
+        );
         content = preloadedContent;
         isOfflineMode = !isConnected;
         if (isOfflineAvailable == true) {
-          final offlineContent =
-              await offlineContentManager.createOfflineContent(contentId);
+          final offlineContent = await offlineContentManager
+              .createOfflineContent(contentId);
           if (offlineContent != null) {
             content = offlineContent;
             isOfflineMode = true;
@@ -289,7 +304,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // Strategy B: Offline Content
       if (content == null && isOfflineAvailable == true) {
         _logger.i(
-            '💾 Strategy B: Loading content from offline storage: $contentId');
+          '💾 Strategy B: Loading content from offline storage: $contentId',
+        );
         content = await offlineContentManager.createOfflineContent(contentId);
         isOfflineMode = true;
 
@@ -302,8 +318,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         _logger.i('🌐 Strategy C: Fetching online content: $contentId');
         try {
           content = await getContentDetailUseCase(
-              GetContentDetailParams.fromString(contentId,
-                  sourceId: sourceHint));
+            GetContentDetailParams.fromString(contentId, sourceId: sourceHint),
+          );
           isOfflineMode = false;
         } catch (e) {
           _logger.w('Online fetch failed: $e');
@@ -314,15 +330,18 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         _logger.i('🔍 READER_CUBIT all strategies failed, entering Strategy D');
         if (preloadedContent != null && preloadedContent.imageUrls.isNotEmpty) {
           _logger.i(
-              '🔍 READER_CUBIT Strategy D using preloaded fallback imageUrls=${preloadedContent.imageUrls.length}');
+            '🔍 READER_CUBIT Strategy D using preloaded fallback imageUrls=${preloadedContent.imageUrls.length}',
+          );
           _logger.w(
-              '⚠️ Strategy D: Using preloaded content as fallback: $contentId');
+            '⚠️ Strategy D: Using preloaded content as fallback: $contentId',
+          );
           content = preloadedContent;
           isOfflineMode = !isConnected;
         } else {
           try {
-            content =
-                await offlineContentManager.createOfflineContent(contentId);
+            content = await offlineContentManager.createOfflineContent(
+              contentId,
+            );
             if (content != null) isOfflineMode = true;
           } catch (_) {
             _logger.w('Offline content creation fallback failed');
@@ -333,7 +352,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       if (content == null) {
         if (isCrotpediaChapter) {
           throw Exception(
-              'Chapter not available offline. Please access this chapter from the series detail page to read online.');
+            'Chapter not available offline. Please access this chapter from the series detail page to read online.',
+          );
         }
         throw Exception('Content not available online or offline');
       }
@@ -341,13 +361,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // Fetch ChapterData if missing (for navigation)
       if (chapterData == null && isConnected && isCrotpediaChapter) {
         try {
-          _logger
-              .i('🔍 Fetching missing chapter data for navigation: $contentId');
-          final fetchedChapterData =
-              await getChapterImagesUseCase(GetChapterImagesParams.fromString(
-            contentId,
-            sourceId: content.sourceId,
-          ));
+          _logger.i(
+            '🔍 Fetching missing chapter data for navigation: $contentId',
+          );
+          final fetchedChapterData = await getChapterImagesUseCase(
+            GetChapterImagesParams.fromString(
+              contentId,
+              sourceId: content.sourceId,
+            ),
+          );
           chapterData = fetchedChapterData;
         } catch (e) {
           _logger.w('Failed to fetch chapter navigation data: $e');
@@ -364,7 +386,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // hydrates `content.imageUrls` from that same page — so an
       // `imageUrls.isEmpty` gate never fires, the video block is never read,
       // and the reader shows 110 photos with no video card at all.
-      final missingVideoMetadata = chapterData == null &&
+      final missingVideoMetadata =
+          chapterData == null &&
           _sourceDeclaresReaderVideo(content.sourceId) &&
           isConnected;
 
@@ -376,11 +399,12 @@ class ReaderCubit extends BaseCubit<ReaderState> {
                 ? '🎬 Reader video metadata: fetching chapter data for: $contentId'
                 : '🖼️ Content has no imageUrls, fetching chapter images fallback: $contentId',
           );
-          final fallbackChapterData =
-              await getChapterImagesUseCase(GetChapterImagesParams.fromString(
-            contentId,
-            sourceId: content.sourceId,
-          ));
+          final fallbackChapterData = await getChapterImagesUseCase(
+            GetChapterImagesParams.fromString(
+              contentId,
+              sourceId: content.sourceId,
+            ),
+          );
 
           if (fallbackChapterData.images.isNotEmpty) {
             if (content.imageUrls.isEmpty) {
@@ -414,16 +438,19 @@ class ReaderCubit extends BaseCubit<ReaderState> {
             }
 
             _logger.i(
-                '✅ Fallback loaded ${fallbackChapterData.images.length} images for: $contentId');
+              '✅ Fallback loaded ${fallbackChapterData.images.length} images for: $contentId',
+            );
           } else {
             _logger.w(
-                '⚠️ Fallback chapter image fetch returned empty for: $contentId');
+              '⚠️ Fallback chapter image fetch returned empty for: $contentId',
+            );
             // Video/HLS chapter (issue #68): 0 images is the *expected* result,
             // not a failure — keep the stream so the reader can play it.
             if (fallbackChapterData.videoUrls.isNotEmpty) {
               chapterData ??= fallbackChapterData;
               _logger.i(
-                  '🎬 Video chapter with ${fallbackChapterData.videoUrls.length} stream(s) for: $contentId');
+                '🎬 Video chapter with ${fallbackChapterData.videoUrls.length} stream(s) for: $contentId',
+              );
             }
           }
         } catch (e) {
@@ -434,20 +461,22 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       if (isClosed) return;
 
       // Emit Loaded State
-      emit(ReaderState(
-        status: ReaderStatus.loaded,
-        content: content!,
-        currentPage: startPage,
-        readingMode: savedSettings.readingMode,
-        showUI: savedSettings.showUI,
-        keepScreenOn: savedSettings.keepScreenOn,
-        readingTimer: Duration.zero,
-        isOfflineMode: isOfflineMode,
-        imageMetadata: imageMetadata,
-        chapterData: chapterData,
-        currentChapter: currentChapter,
-        tapDirection: savedSettings.tapDirection,
-      ));
+      emit(
+        ReaderState(
+          status: ReaderStatus.loaded,
+          content: content!,
+          currentPage: startPage,
+          readingMode: savedSettings.readingMode,
+          showUI: savedSettings.showUI,
+          keepScreenOn: savedSettings.keepScreenOn,
+          readingTimer: Duration.zero,
+          isOfflineMode: isOfflineMode,
+          imageMetadata: imageMetadata,
+          chapterData: chapterData,
+          currentChapter: currentChapter,
+          tapDirection: savedSettings.tapDirection,
+        ),
+      );
 
       _logImageUrlMapping(content);
       emit(_withStatus(ReaderStatus.loaded));
@@ -458,8 +487,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       _logger.e('Reader Cubit Error: $e', error: e, stackTrace: stackTrace);
       _stopAutoHideTimer();
       if (!isClosed) {
-        emit(_withStatus(ReaderStatus.error)
-            .copyWithMessage('failedLoadContentError'));
+        emit(
+          _withStatus(ReaderStatus.error)
+              .copyWithMessage('failedLoadContentError'),
+        );
       }
     }
   }
@@ -493,7 +524,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         final cloudflareBypass = cf?['bypassEnabled'] == true;
         if (!requiresBypass && !cloudflareBypass) continue;
         if (getIt.isRegistered<WebViewSessionAdapter>(
-            instanceName: 'cf_$sourceId')) {
+          instanceName: 'cf_$sourceId',
+        )) {
           await getIt<WebViewSessionAdapter>(instanceName: 'cf_$sourceId')
               .seedBypassHeaderCacheFromJar();
         }
@@ -503,12 +535,14 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
   Future<void> _backgroundOfflineCheck(String contentId) async {
     try {
-      final available =
-          await offlineContentManager.isContentAvailableOffline(contentId);
+      final available = await offlineContentManager.isContentAvailableOffline(
+        contentId,
+      );
       if (available && !isClosed && state.content?.id == contentId) {
         // Update badge only, don't reload content while reading
-        _logger
-            .i('🔄 Background offline check: $contentId is offline available');
+        _logger.i(
+          '🔄 Background offline check: $contentId is offline available',
+        );
       }
     } catch (_) {}
   }
@@ -520,7 +554,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // ID would build an invalid URL like /series/doctors-rebirth/234 → 404.
       final parentId = _extractParentContentId(contentId);
       await getContentDetailUseCase(
-          GetContentDetailParams.fromString(parentId));
+        GetContentDetailParams.fromString(parentId),
+      );
       // Results are cached by repository, so next load handles it.
       // We don't update current UI to avoid jarring changes while reading.
     } catch (e) {
@@ -539,7 +574,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
   Future<void> _recordReadingStreak(String contentId) async {
     try {
-      final repo = userDataRepository ??
+      final repo =
+          userDataRepository ??
           (getIt.isRegistered<UserDataRepository>()
               ? getIt<UserDataRepository>()
               : null);
@@ -569,7 +605,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final pageCount = state.content!.pageCount;
 
       // Allow +1 for navigation page if exists
-      final hasNavigationPage = !(state.isOfflineMode ?? false) &&
+      final hasNavigationPage =
+          !(state.isOfflineMode ?? false) &&
           state.content!.imageUrls.isNotEmpty;
 
       final maxPage = hasNavigationPage ? pageCount + 1 : pageCount;
@@ -578,7 +615,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         final newPage = _clampToPages(currentPage + 1, maxPage);
 
         _logger.d(
-            'Next page: $currentPage -> $newPage (total: $pageCount, max with nav: $maxPage)');
+          'Next page: $currentPage -> $newPage (total: $pageCount, max with nav: $maxPage)',
+        );
 
         _lastTrackedPage = newPage;
         emit(state.copyWithPage(newPage));
@@ -596,7 +634,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final newPage = _clampToPages(currentPage - 1, state.content!.pageCount);
 
       _logger.d(
-          'Previous page: $currentPage -> $newPage (total: ${state.content!.pageCount})');
+        'Previous page: $currentPage -> $newPage (total: ${state.content!.pageCount})',
+      );
 
       _lastTrackedPage = newPage;
       emit(state.copyWithPage(newPage));
@@ -695,11 +734,9 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     final beforeCount = state.content!.imageUrls.length;
 
     try {
-      final chunkData =
-          await getChapterImagesUseCase(GetChapterImagesParams.fromString(
-        chunkId,
-        sourceId: sourceId,
-      ));
+      final chunkData = await getChapterImagesUseCase(
+        GetChapterImagesParams.fromString(chunkId, sourceId: sourceId),
+      );
 
       if (chunkData.images.isEmpty) {
         _logger.w('EHentai chunk returned no images: $chunkId');
@@ -727,12 +764,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       _lastTrackedPage = targetPage;
 
-      emit(_withStatus(ReaderStatus.loaded)
-          .copyWithContent(content: newContent, chapterData: chunkData)
-          .copyWithPage(targetPage));
+      emit(
+        _withStatus(ReaderStatus.loaded)
+            .copyWithContent(content: newContent, chapterData: chunkData)
+            .copyWithPage(targetPage),
+      );
 
       _logger.i(
-          'Appended EHentai chunk: +${chunkData.images.length} images (total ${merged.length})');
+        'Appended EHentai chunk: +${chunkData.images.length} images (total ${merged.length})',
+      );
 
       await _saveReaderPosition();
       await _saveToHistory();
@@ -755,7 +795,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     final sourceId = _parentContent?.sourceId ?? state.content?.sourceId;
     if (sourceId == null) return 100;
     final rawCfg = remoteConfigService.getRawConfig(sourceId);
-    final chapterCfg = rawCfg?['api']?['detail']?['chapters'] as Map? ??
+    final chapterCfg =
+        rawCfg?['api']?['detail']?['chapters'] as Map? ??
         rawCfg?['api']?['chapters'] as Map?;
     final endpoint = chapterCfg?['endpoint']?.toString() ?? '';
     final match = RegExp(r'limit=(\d+)').firstMatch(endpoint);
@@ -900,8 +941,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     var chapterPool = currentScanGroup == null
         ? _allChapters!
         : _allChapters!
-            .where((chapter) => chapter.scanGroup == currentScanGroup)
-            .toList();
+              .where((chapter) => chapter.scanGroup == currentScanGroup)
+              .toList();
 
     if (chapterPool.isEmpty) {
       return null;
@@ -909,8 +950,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
     if (preferredLanguage != null) {
       chapterPool = chapterPool
-          .where((chapter) =>
-              _normalizeLanguageKey(chapter.language) == preferredLanguage)
+          .where(
+            (chapter) =>
+                _normalizeLanguageKey(chapter.language) == preferredLanguage,
+          )
           .toList();
     }
 
@@ -955,8 +998,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     try {
       if (_allChapters == null || _allChapters!.isEmpty) {
         _logger.e('⛔ Cannot navigate: No chapter list available');
-        emit(_withStatus(ReaderStatus.error)
-            .copyWithMessage('chapterNavNotAvailable'));
+        emit(
+          _withStatus(ReaderStatus.error)
+              .copyWithMessage('chapterNavNotAvailable'),
+        );
         return;
       }
 
@@ -977,22 +1022,25 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       _logger.i('Loading chapter: ${chapter.title} (${chapter.id})');
 
       // Check offline availability first
-      final isOfflineAvailable =
-          await offlineContentManager.isContentAvailableOffline(chapterId);
+      final isOfflineAvailable = await offlineContentManager
+          .isContentAvailableOffline(chapterId);
 
       List<String> chapterImages = [];
       bool loadedFromOffline = false;
 
       if (isOfflineAvailable) {
         _logger.i(
-            '✅ Chapter $chapterId found offline, loading from local storage');
-        chapterImages =
-            await offlineContentManager.getOfflineImageUrls(chapterId);
+          '✅ Chapter $chapterId found offline, loading from local storage',
+        );
+        chapterImages = await offlineContentManager.getOfflineImageUrls(
+          chapterId,
+        );
 
         if (chapterImages.isNotEmpty) {
           loadedFromOffline = true;
           _logger.i(
-              '✅ Loaded ${chapterImages.length} images from offline storage');
+            '✅ Loaded ${chapterImages.length} images from offline storage',
+          );
         } else {
           _logger.w('⚠️ Offline chapter directory exists but no images found');
         }
@@ -1012,33 +1060,42 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         final hasConnection = networkCubit.isConnected;
 
         if (!hasConnection) {
-          _logger
-              .e('❌ No internet connection and chapter not available offline');
-          emit(_withStatus(ReaderStatus.error).copyWithMessage(
-              'Cannot load chapter: No internet connection and chapter not downloaded'));
+          _logger.e(
+            '❌ No internet connection and chapter not available offline',
+          );
+          emit(
+            _withStatus(ReaderStatus.error).copyWithMessage(
+              'Cannot load chapter: No internet connection and chapter not downloaded',
+            ),
+          );
           return;
         }
 
         try {
-          chapterData =
-              await getChapterImagesUseCase(GetChapterImagesParams.fromString(
-            chapterId,
-            sourceId: _parentContent?.sourceId ?? state.content?.sourceId,
-          ));
+          chapterData = await getChapterImagesUseCase(
+            GetChapterImagesParams.fromString(
+              chapterId,
+              sourceId: _parentContent?.sourceId ?? state.content?.sourceId,
+            ),
+          );
 
           if (isClosed) return;
 
           if (chapterData.images.isEmpty && chapterData.videoUrls.isEmpty) {
-            emit(_withStatus(ReaderStatus.error)
-                .copyWithMessage('failedLoadChapterImages'));
+            emit(
+              _withStatus(ReaderStatus.error)
+                  .copyWithMessage('failedLoadChapterImages'),
+            );
             return;
           }
 
           chapterImages = chapterData.images;
         } catch (e) {
           _logger.e('Failed to load chapter from online API: $e');
-          emit(_withStatus(ReaderStatus.error)
-              .copyWithMessage('failedLoadChapter'));
+          emit(
+            _withStatus(ReaderStatus.error)
+                .copyWithMessage('failedLoadChapter'),
+          );
           return;
         }
       }
@@ -1058,21 +1115,25 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       _lastTrackedPage = 1;
 
-      emit(_withStatus(ReaderStatus.loaded)
-          .copyWithContent(
+      emit(
+        _withStatus(ReaderStatus.loaded)
+            .copyWithContent(
               content: newContent,
               chapterData: wasVideoChapter ? null : chapterData,
-              currentChapter: chapter)
-          .copyWithPage(1)
-          .copyWithTimer(Duration.zero)
-          .copyWithOffline(loadedFromOffline));
+              currentChapter: chapter,
+            )
+            .copyWithPage(1)
+            .copyWithTimer(Duration.zero)
+            .copyWithOffline(loadedFromOffline),
+      );
 
       // Save to history
       await _saveToHistory();
     } catch (e) {
       _logger.e('Failed to load chapter: $e');
       emit(
-          _withStatus(ReaderStatus.error).copyWithMessage('failedLoadChapter'));
+        _withStatus(ReaderStatus.error).copyWithMessage('failedLoadChapter'),
+      );
     }
   }
 
@@ -1093,11 +1154,13 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       if (page != validPage) {
         _logger.w(
-            'Invalid page requested: $page, clamped to: $validPage (total: $totalPages)');
+          'Invalid page requested: $page, clamped to: $validPage (total: $totalPages)',
+        );
       }
 
       _logger.d(
-          'Navigating to page: $validPage (requested: $page, total: $totalPages)');
+        'Navigating to page: $validPage (requested: $page, total: $totalPages)',
+      );
 
       _lastTrackedPage = validPage;
       emit(state.copyWithPage(validPage));
@@ -1105,7 +1168,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       _saveToHistory();
     } else {
       _logger.e(
-          'Cannot navigate to page $page - cubit closed or content not loaded');
+        'Cannot navigate to page $page - cubit closed or content not loaded',
+      );
     }
   }
 
@@ -1114,14 +1178,16 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final totalPages = state.content!.pageCount;
 
       // Allow +1 for navigation page (if exists)
-      final hasNavigationPage = !(state.isOfflineMode ?? false) &&
+      final hasNavigationPage =
+          !(state.isOfflineMode ?? false) &&
           state.content!.imageUrls.isNotEmpty;
       final maxPage = hasNavigationPage ? totalPages + 1 : totalPages;
 
       final validPage = _clampToPages(page, maxPage);
 
       _logger.d(
-          'Updating page from swipe: $validPage (total: $totalPages, max with nav: $maxPage)');
+        'Updating page from swipe: $validPage (total: $totalPages, max with nav: $maxPage)',
+      );
 
       _lastTrackedPage = validPage;
 
@@ -1148,14 +1214,16 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     if (validPage == _lastSilentSavedPage &&
         now.difference(_lastSilentSaveAt) < _silentSaveThrottle) {
       _logger.d(
-          '📍 Skipping silent DB save for $validPage (throttled, last saved $_lastSilentSavedPage)');
+        '📍 Skipping silent DB save for $validPage (throttled, last saved $_lastSilentSavedPage)',
+      );
       return;
     }
     _lastSilentSavedPage = validPage;
     _lastSilentSaveAt = now;
 
     _logger.d(
-        '📍 Silent page update for continuous scroll: $validPage (total: $totalPages)');
+      '📍 Silent page update for continuous scroll: $validPage (total: $totalPages)',
+    );
 
     // Don't emit state — prevents BlocBuilder rebuilds, still save position + history
     try {
@@ -1174,8 +1242,9 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       int? chapterIndex;
       if (state.currentChapter != null && state.content?.chapters != null) {
-        chapterIndex = state.content!.chapters!
-            .indexWhere((c) => c.id == state.currentChapter!.id);
+        chapterIndex = state.content!.chapters!.indexWhere(
+          (c) => c.id == state.currentChapter!.id,
+        );
       }
 
       String? chapterId = state.currentChapter?.id;
@@ -1232,7 +1301,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       );
       await addToHistoryUseCase(params);
       _maybeRequestRecommendationRefresh(
-          historyContentId, validPage, totalPages, state.content!.sourceId);
+        historyContentId,
+        validPage,
+        totalPages,
+        state.content!.sourceId,
+      );
       ContentReadCache.invalidateCache(
         historyContentId,
         sourceId: state.content!.sourceId,
@@ -1244,8 +1317,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         );
       }
     } catch (e, stackTrace) {
-      _logger.e('Failed to save silent page update to history',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to save silent page update to history',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // Don't emit error state
     }
   }
@@ -1255,11 +1331,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final newShowUI = !(state.showUI ?? true);
       emit(state.copyWithUI(showUI: newShowUI));
 
-      readerSettingsEntityRepository
-          .saveShowUI(newShowUI)
-          .catchError((e, stackTrace) {
-        _logger.e('Failed to save show UI setting: $e',
-            error: e, stackTrace: stackTrace);
+      readerSettingsEntityRepository.saveShowUI(newShowUI).catchError((
+        e,
+        stackTrace,
+      ) {
+        _logger.e(
+          'Failed to save show UI setting: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
         // Settings will still apply for current session
       });
 
@@ -1299,9 +1379,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final currentMode = state.readingMode ?? ReadingMode.singlePage;
 
       if (currentMode != ReadingMode.continuousScroll) {
-        _logger.i('🎨 Webtoon/Manhwa detected on page $pageNumber! '
-            'AR=${aspectRatio?.toStringAsFixed(2)} (${imageSize.width.toInt()}x${imageSize.height.toInt()}px) '
-            '→ Auto-switching from ${currentMode.name} to continuousScroll');
+        _logger.i(
+          '🎨 Webtoon/Manhwa detected on page $pageNumber! '
+          'AR=${aspectRatio?.toStringAsFixed(2)} (${imageSize.width.toInt()}x${imageSize.height.toInt()}px) '
+          '→ Auto-switching from ${currentMode.name} to continuousScroll',
+        );
 
         if (!isClosed) {
           emit(state.copyWithMode(readingMode: ReadingMode.continuousScroll));
@@ -1336,8 +1418,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       await readerSettingsEntityRepository.saveReadingMode(mode);
       _logger.i('Successfully saved reading mode: ${mode.name}');
     } catch (e, stackTrace) {
-      _logger.e('Failed to save reading mode: $e',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to save reading mode: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // Settings will still apply for current session
     }
   }
@@ -1350,11 +1435,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     try {
       final current = await getReaderSettingsUseCase();
       await saveReaderSettingsUseCase(
-          current.copyWith(enableZoom: newEnableZoom));
+        current.copyWith(enableZoom: newEnableZoom),
+      );
       _logger.i('Successfully saved enable zoom: $newEnableZoom');
     } catch (e, stackTrace) {
-      _logger.e('Failed to save enable zoom: $e',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to save enable zoom: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -1366,8 +1455,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       await readerSettingsEntityRepository.saveTapDirection(direction);
       _logger.i('Successfully saved tap direction: ${direction.name}');
     } catch (e, stackTrace) {
-      _logger.e('Failed to save tap direction: $e',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to save tap direction: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -1389,13 +1481,19 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         await readerSettingsEntityRepository.saveKeepScreenOn(newKeepScreenOn);
         _logger.i('Successfully saved keep screen on: $newKeepScreenOn');
       } catch (e, stackTrace) {
-        _logger.e('Failed to save keep screen on setting: $e',
-            error: e, stackTrace: stackTrace);
+        _logger.e(
+          'Failed to save keep screen on setting: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
         // Settings will still apply for current session
       }
     } catch (e, stackTrace) {
-      _logger.e('Failed to toggle wakelock: $e',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to toggle wakelock: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // Don't update state if wakelock operation failed
     }
   }
@@ -1423,10 +1521,12 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       await LocalImagePreloader.clearContentCache(contentId);
       _logger.i('🖼️ Cleared image cache for content: $contentId');
 
-      // Note: CachedNetworkImage cache clearing requires DefaultCacheManager
-      // Users can manually clear app data if needed
-      _logger
-          .i('ℹ️ To clear network image cache, clear app data or restart app');
+      // Note: extended_image disk entries are untouched here (content-scoped
+      // clear only); a full clear lives in LocalImagePreloader
+      // behind Settings.
+      _logger.i(
+        'ℹ️ To clear network image cache, clear app data or restart app',
+      );
     } catch (e) {
       _logger.e('Failed to clear image cache: $e');
     }
@@ -1480,18 +1580,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     _ReaderRepairTarget? overrideTarget,
   }) async {
     try {
-      final repairTarget = overrideTarget ??
+      final repairTarget =
+          overrideTarget ??
           await _resolveRepairTarget(
             content: currentContent,
             sourceId: sourceId,
             pageNumber: pageNumber,
           );
       if (repairTarget == null) {
-        return (
-          success: false,
-          reason: 'remote_unavailable',
-          statusCode: null,
-        );
+        return (success: false, reason: 'remote_unavailable', statusCode: null);
       }
 
       final headers = _buildRepairHeaders(
@@ -1516,11 +1613,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
           'Reader repair rejected for page $pageNumber: '
           'status=$statusCode url=${repairTarget.requestUrl}',
         );
-        return (
-          success: false,
-          reason: 'http_status',
-          statusCode: statusCode,
-        );
+        return (success: false, reason: 'http_status', statusCode: statusCode);
       }
 
       final bytes = response.data;
@@ -1566,8 +1659,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final updatedContent = currentContent.copyWith(
         coverUrl:
             pageNumber == 1 && isLocalReaderImagePath(currentContent.coverUrl)
-                ? repairedImagePath
-                : currentContent.coverUrl,
+            ? repairedImagePath
+            : currentContent.coverUrl,
         imageUrls: updatedImageUrls,
       );
 
@@ -1577,8 +1670,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         pageNumber,
       );
 
-      emit(_withStatus(ReaderStatus.loaded)
-          .copyWithContent(content: updatedContent));
+      emit(
+        _withStatus(ReaderStatus.loaded)
+            .copyWithContent(content: updatedContent),
+      );
 
       _logger.i(
         'Reader repair succeeded for ${currentContent.id} '
@@ -1711,11 +1806,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       }
 
       if (pageNumber <= 0 || pageNumber > currentContent.imageUrls.length) {
-        return (
-          success: false,
-          reason: 'page_unavailable',
-          statusCode: null,
-        );
+        return (success: false, reason: 'page_unavailable', statusCode: null);
       }
 
       final currentImagePath = await _resolveCurrentImagePathForRepair(
@@ -1808,8 +1899,9 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       return rawUrl;
     }
 
-    final originalUrl =
-        OfflineContentManager.extractOriginalUrlFromPlaceholder(rawUrl);
+    final originalUrl = OfflineContentManager.extractOriginalUrlFromPlaceholder(
+      rawUrl,
+    );
     if (originalUrl == null || originalUrl.trim().isEmpty) {
       return null;
     }
@@ -1849,8 +1941,9 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     }
 
     final imagesDir = path.join(contentPath, 'images');
-    final targetDirectory =
-        await Directory(imagesDir).exists() ? imagesDir : contentPath;
+    final targetDirectory = await Directory(imagesDir).exists()
+        ? imagesDir
+        : contentPath;
 
     return path.join(
       targetDirectory,
@@ -1873,10 +1966,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       }
 
       final chapterData = await getChapterImagesUseCase(
-        GetChapterImagesParams.fromString(
-          chapterId,
-          sourceId: sourceId,
-        ),
+        GetChapterImagesParams.fromString(chapterId, sourceId: sourceId),
       );
       if (pageNumber <= 0 || pageNumber > chapterData.images.length) {
         return null;
@@ -1909,10 +1999,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         nextChapterId.isNotEmpty &&
         chunkCount < _maxEhentaiRepairChunks) {
       final chunkData = await getChapterImagesUseCase(
-        GetChapterImagesParams.fromString(
-          nextChapterId,
-          sourceId: sourceId,
-        ),
+        GetChapterImagesParams.fromString(nextChapterId, sourceId: sourceId),
       );
       chunkCount++;
 
@@ -2254,8 +2341,9 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
     final hosts = <String>{};
     for (final candidate in candidates) {
-      final normalizedCandidate =
-          candidate.contains('://') ? candidate : 'https://$candidate';
+      final normalizedCandidate = candidate.contains('://')
+          ? candidate
+          : 'https://$candidate';
       final uri = Uri.tryParse(normalizedCandidate);
       if (uri != null && uri.host.isNotEmpty) {
         hosts.add(uri.host.toLowerCase());
@@ -2269,9 +2357,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       return value;
     }
     if (value is Map) {
-      return value.map(
-        (key, entry) => MapEntry(key.toString(), entry),
-      );
+      return value.map((key, entry) => MapEntry(key.toString(), entry));
     }
     return <String, dynamic>{};
   }
@@ -2334,7 +2420,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     }
 
     _logger.i(
-        '🖼️ Image URL Mapping for ${content.id} (${content.imageUrls.length} pages):');
+      '🖼️ Image URL Mapping for ${content.id} (${content.imageUrls.length} pages):',
+    );
 
     for (int i = 0; i < content.imageUrls.length && i < 10; i++) {
       final pageNumber = i + 1;
@@ -2369,7 +2456,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // Allow local file paths (start with /)
       if (url.startsWith('/')) {
         _logger.d(
-            '✅ Local file path validation passed for page $expectedPage: $url');
+          '✅ Local file path validation passed for page $expectedPage: $url',
+        );
         return;
       }
 
@@ -2385,7 +2473,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         final galleryId = galleryMatch.group(1);
         if (galleryId != contentId) {
           _logger.w(
-              '⚠️ URL gallery ID mismatch! Expected $contentId, got $galleryId in URL: $url');
+            '⚠️ URL gallery ID mismatch! Expected $contentId, got $galleryId in URL: $url',
+          );
         }
       }
 
@@ -2445,35 +2534,46 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       _logger.i('Successfully reset reader settings to defaults');
 
       if (!isClosed) {
-        emit(state
-            .copyWithUI(showUI: true, keepScreenOn: false)
-            .copyWithMode(readingMode: ReadingMode.singlePage));
+        emit(
+          state
+              .copyWithUI(showUI: true, keepScreenOn: false)
+              .copyWithMode(readingMode: ReadingMode.singlePage),
+        );
       }
 
       // Disable wakelock
       try {
         await WakelockPlus.disable();
       } catch (e, stackTrace) {
-        _logger.e('Failed to disable wakelock during reset: $e',
-            error: e, stackTrace: stackTrace);
+        _logger.e(
+          'Failed to disable wakelock during reset: $e',
+          error: e,
+          stackTrace: stackTrace,
+        );
       }
     } catch (e, stackTrace) {
-      _logger.e('Failed to reset reader settings: $e',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to reset reader settings: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       // Still apply default settings to current state even if persistence failed
       if (!isClosed) {
-        emit(state
-            .copyWithUI(showUI: true, keepScreenOn: false)
-            .copyWithMode(readingMode: ReadingMode.singlePage));
+        emit(
+          state
+              .copyWithUI(showUI: true, keepScreenOn: false)
+              .copyWithMode(readingMode: ReadingMode.singlePage),
+        );
       }
 
       // Try to disable wakelock anyway
       try {
         await WakelockPlus.disable();
       } catch (wakelockError) {
-        _logger
-            .e('Failed to disable wakelock after reset error: $wakelockError');
+        _logger.e(
+          'Failed to disable wakelock after reset error: $wakelockError',
+        );
       }
 
       // Re-throw to let UI handle the error
@@ -2504,15 +2604,18 @@ class ReaderCubit extends BaseCubit<ReaderState> {
     try {
       _logger.d('📝 _saveToHistory called');
       _logger.d(
-          '   state.currentChapter: ${state.currentChapter?.title ?? "NULL"}');
+        '   state.currentChapter: ${state.currentChapter?.title ?? "NULL"}',
+      );
       _logger.d(
-          '   state.currentChapter.id: ${state.currentChapter?.id ?? "NULL"}');
+        '   state.currentChapter.id: ${state.currentChapter?.id ?? "NULL"}',
+      );
       _logger.d('   state.content.id: ${state.content!.id}');
 
       int? chapterIndex;
       if (state.currentChapter != null && state.content?.chapters != null) {
-        chapterIndex = state.content!.chapters!
-            .indexWhere((c) => c.id == state.currentChapter!.id);
+        chapterIndex = state.content!.chapters!.indexWhere(
+          (c) => c.id == state.currentChapter!.id,
+        );
       }
 
       String? chapterId = state.currentChapter?.id;
@@ -2564,8 +2667,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         _logger.d('📖 NON-CHAPTER MODE: contentId=$historyContentId');
       }
 
-      final safePage =
-          _clampToPages(_lastTrackedPage, state.content!.pageCount);
+      final safePage = _clampToPages(
+        _lastTrackedPage,
+        state.content!.pageCount,
+      );
 
       final params = AddToHistoryParams.fromString(
         historyContentId,
@@ -2583,10 +2688,15 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       );
 
       _logger.d(
-          '📤 Saving history with contentId: ${params.contentId.value}, parentId: ${params.parentId}, chapterId: ${params.chapterId}');
+        '📤 Saving history with contentId: ${params.contentId.value}, parentId: ${params.parentId}, chapterId: ${params.chapterId}',
+      );
       await addToHistoryUseCase(params);
-      _maybeRequestRecommendationRefresh(historyContentId, safePage,
-          state.content!.pageCount, state.content!.sourceId);
+      _maybeRequestRecommendationRefresh(
+        historyContentId,
+        safePage,
+        state.content!.pageCount,
+        state.content!.sourceId,
+      );
       ContentReadCache.invalidateCache(
         historyContentId,
         sourceId: state.content!.sourceId,
@@ -2598,8 +2708,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
         );
       }
     } catch (e, stackTrace) {
-      _logger.e('Failed to save reading progress to history',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'Failed to save reading progress to history',
+        error: e,
+        stackTrace: stackTrace,
+      );
       // Log error but don't emit error state for history saving
     }
   }
@@ -2632,7 +2745,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       final position = await getReaderPositionUseCase(contentId);
       if (position != null) {
         _logger.i(
-            '📖 Restored reader position: $contentId at page ${position.currentPage}/${position.totalPages}');
+          '📖 Restored reader position: $contentId at page ${position.currentPage}/${position.totalPages}',
+        );
         return position.currentPage;
       }
     } catch (e) {
@@ -2689,10 +2803,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
   // Check if contentId is a Crotpedia chapter ID
   // Crotpedia chapter IDs typically contain "chapter" in the slug
   // e.g., "manga-name-chapter-1-bahasa-indonesia"
-  bool _isCrotpediaChapterId(
-    String contentId, {
-    String? sourceId,
-  }) {
+  bool _isCrotpediaChapterId(String contentId, {String? sourceId}) {
     return ChapterIdClassifier.isCrotpediaChapterId(
       contentId,
       sourceId: sourceId,
@@ -2770,10 +2881,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 }
 
 class _ReaderRepairTarget {
-  const _ReaderRepairTarget({
-    required this.requestUrl,
-    this.readerPageUrl,
-  });
+  const _ReaderRepairTarget({required this.requestUrl, this.readerPageUrl});
 
   final String requestUrl;
   final String? readerPageUrl;

@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/foundation.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:extended_image/extended_image.dart';
+import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
@@ -107,6 +109,32 @@ class ProgressiveImageWidget extends StatefulWidget {
     );
   }
 
+  /// Filesystem-safe disk cache key for network images.
+  ///
+  /// `ExtendedNetworkImageProvider` uses an explicit `cacheKey` verbatim as a
+  /// filename under `tempDir/cacheimage`, so a raw URL (slashes, colons, query
+  /// strings, header text) is not a valid filename and makes the disk write
+  /// throw on every platform. Hashing keeps header-specific variants distinct
+  /// while producing a safe 32-hex name, matching the reader's
+  /// `ExtendedImageReaderWidget.stableReaderCacheKey` scheme.
+  @visibleForTesting
+  static String buildSafeDiskCacheKey(
+    String url, {
+    Map<String, String>? headers,
+  }) {
+    final String rawKey;
+    if (headers == null || headers.isEmpty) {
+      rawKey = url;
+    } else {
+      final keys = headers.keys.toList()..sort();
+      final normalized = keys
+          .map((key) => '$key=${headers[key] ?? ''}')
+          .join('&');
+      rawKey = '$url::h=$normalized';
+    }
+    return md5.convert(utf8.encode(rawKey)).toString();
+  }
+
   static _LocalThumbnailPreviewMode _computeLocalThumbnailPreviewMode({
     required String localPath,
     required int fileBytes,
@@ -208,21 +236,22 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
   void _notifyImageLoaded() {
     if (_imageLoadedNotified) return;
     _imageLoadedNotified = true;
-    widget.onImageLoaded?.call();
+    final callback = widget.onImageLoaded;
+    if (callback == null) return;
+    // loadStateChanged runs during build. Defer the callback to the next
+    // frame so a parent setState cannot mark this subtree dirty mid-build
+    // (which caused rebuild/flicker loops on grid cards).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) callback();
+    });
   }
 
   String _networkCacheKey({String? urlToHash}) {
     final targetUrl = urlToHash ?? widget.networkUrl.split('|').first;
-    final headers = widget.httpHeaders;
-    if (headers == null || headers.isEmpty) {
-      return targetUrl;
-    }
-
-    final keys = headers.keys.toList()..sort();
-    final normalized = keys
-        .map((key) => '$key=${headers[key] ?? ''}')
-        .join('&');
-    return '$targetUrl::h=$normalized';
+    return ProgressiveImageWidget.buildSafeDiskCacheKey(
+      targetUrl,
+      headers: widget.httpHeaders,
+    );
   }
 
   @override
@@ -656,7 +685,7 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
     final targetUrl = forceUrl ?? widget.networkUrl;
     final urlParts = targetUrl.split('|');
     final primaryUrl = urlParts[0];
-    // Blank URL can never load: skip CachedNetworkImage entirely so we don't
+    // Blank URL can never load: skip the network image entirely so we don't
     // park a perpetual shimmer ticker (battery + pumpAndSettle hangs).
     if (primaryUrl.trim().isEmpty) {
       return widget.errorWidget ?? _buildErrorWidget();
@@ -712,55 +741,56 @@ class _ProgressiveImageWidgetState extends State<ProgressiveImageWidget> {
       );
     }
 
-    Widget imageWidget = CachedNetworkImage(
-      imageUrl: primaryUrl,
+    // Unified cache: extended_image disk cache (header-aware 32-hex stable
+    // key, 14-day TTL like the reader) + the global ImageCache budgeted by
+    // MemoryBudgetCoordinator. memCacheWidth/Height become decode-time
+    // cacheWidth/cacheHeight hints. gaplessPlayback keeps the last decoded
+    // frame visible if the provider key ever changes, avoiding card flicker.
+    Widget imageWidget = ExtendedImage.network(
+      primaryUrl,
+      cache: true,
       cacheKey: _networkCacheKey(urlToHash: primaryUrl),
+      cacheMaxAge: const Duration(days: 14),
+      gaplessPlayback: true,
       width: widget.width,
       height: widget.height,
       fit: widget.fit,
-      memCacheWidth: widget.memCacheWidth ?? (widget.isThumbnail ? 400 : 800),
-      memCacheHeight:
-          widget.memCacheHeight ?? (widget.isThumbnail ? 600 : 1200),
-      placeholder: (context, url) => widget.placeholder ?? _buildPlaceholder(),
-      imageBuilder: (context, imageProvider) => Image(
-        image: imageProvider,
-        width: widget.width,
-        height: widget.height,
-        fit: widget.fit,
-        frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) {
+      headers: widget.httpHeaders,
+      cacheWidth: widget.memCacheWidth ?? (widget.isThumbnail ? 400 : 800),
+      cacheHeight: widget.memCacheHeight ?? (widget.isThumbnail ? 600 : 1200),
+      loadStateChanged: (ExtendedImageState state) {
+        switch (state.extendedImageLoadState) {
+          case LoadState.loading:
+            return widget.placeholder ?? _buildPlaceholder();
+          case LoadState.failed:
+            if (kDebugMode) {
+              _logger.w('Network image load failed for $primaryUrl');
+            }
+
+            // If primary fails and we have a fallback URL, retry with fallback
+            if (fallbackUrl != null) {
+              if (kDebugMode) {
+                _logger.w(
+                  '🔄 Falling back to secondary network URL: $fallbackUrl',
+                );
+              }
+              return _buildNetworkImage(forceUrl: fallbackUrl);
+            }
+
+            if (shouldUseStaticNetworkDecodeFallback(
+              primaryUrl,
+              pageNumber: widget.pageNumber,
+              isThumbnail: widget.isThumbnail,
+            )) {
+              return _buildStaticNetworkDecodeFallback(primaryUrl);
+            }
+
+            return widget.errorWidget ?? _buildErrorWidget();
+          case LoadState.completed:
             _notifyImageLoaded();
-            return child;
-          }
-          return widget.placeholder ?? _buildPlaceholder();
-        },
-      ),
-      errorWidget: (context, url, error) {
-        if (kDebugMode) {
-          _logger.w('Network image load failed for $url: $error');
+            return state.completedWidget;
         }
-
-        // If primary fails and we have a fallback URL, retry with fallback
-        if (fallbackUrl != null) {
-          if (kDebugMode) {
-            _logger.w('🔄 Falling back to secondary network URL: $fallbackUrl');
-          }
-          return _buildNetworkImage(forceUrl: fallbackUrl);
-        }
-
-        if (shouldUseStaticNetworkDecodeFallback(
-          url,
-          pageNumber: widget.pageNumber,
-          isThumbnail: widget.isThumbnail,
-        )) {
-          return _buildStaticNetworkDecodeFallback(primaryUrl);
-        }
-
-        return widget.errorWidget ?? _buildErrorWidget();
       },
-      fadeInDuration: widget.fadeInDuration,
-      fadeOutDuration: widget.fadeOutDuration,
-      httpHeaders: widget.httpHeaders,
     );
 
     // Apply border radius if specified
@@ -1071,45 +1101,58 @@ class _ProgressiveReaderImageWidgetState
     final uniqueCacheKey =
         '${widget.contentId}_page_${widget.pageNumber}_${primaryUrl.hashCode}';
 
-    return CachedNetworkImage(
-      key: ValueKey(uniqueCacheKey),
-      imageUrl: primaryUrl,
-      cacheKey: uniqueCacheKey, // Force unique cache per page
-      fit: BoxFit.none, // Use BoxFit.none for custom sizing
-      width: _getDisplaySize().width,
-      height: _getDisplaySize().height,
-      memCacheWidth: 800,
-      memCacheHeight: 1200,
-      placeholder: (context, url) => _buildReaderPlaceholder(context),
-      errorWidget: (context, url, error) {
-        if (fallbackUrl != null) {
-          if (kDebugMode) {
-            _logger.w(
-              '🔄 Reader falling back to secondary network URL: $fallbackUrl',
-            );
-          }
-          return _buildNetworkImageWithDynamicSize(
-            context,
-            forceUrl: fallbackUrl,
-          );
-        }
-        return _buildReaderErrorWidget(context);
-      },
-      fadeInDuration: DesignTokens.durationPageTurn,
-      // Cache image in ImageCacheService when loaded
-      imageBuilder: (context, imageProvider) {
-        // Listen to image stream to get dimensions
-        final imageStream = imageProvider.resolve(ImageConfiguration.empty);
-        imageStream.addListener(ImageStreamListener(_calculateImageSize));
+    // Decode at viewport size × DPR so the reader decodes exactly what the
+    // screen shows (was a fixed 800x1200 memCache before).
+    final displaySize = _getDisplaySize();
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    final decodeWidth = (displaySize.width * dpr).round().clamp(1, 4096);
+    final decodeHeight = (displaySize.height * dpr).round().clamp(1, 4096);
 
-        // Cache the image data in ImageCacheService for future use
-        _cacheNetworkImage(primaryUrl);
-        return Image(
-          image: imageProvider,
-          fit: BoxFit.fitWidth,
-          width: _getDisplaySize().width,
-          height: _getDisplaySize().height,
-        );
+    return ExtendedImage.network(
+      primaryUrl,
+      key: ValueKey(uniqueCacheKey),
+      cache: true,
+      // The composite key stays in ValueKey for widget identity; the disk
+      // key must be a filesystem-safe 32-hex MD5 (never a raw URL/id).
+      cacheKey: ProgressiveImageWidget.buildSafeDiskCacheKey(uniqueCacheKey),
+      cacheMaxAge: const Duration(days: 14),
+      gaplessPlayback: true,
+      fit: BoxFit.fitWidth,
+      width: displaySize.width,
+      height: displaySize.height,
+      cacheWidth: decodeWidth,
+      cacheHeight: decodeHeight,
+      loadStateChanged: (ExtendedImageState state) {
+        switch (state.extendedImageLoadState) {
+          case LoadState.loading:
+            return _buildReaderPlaceholder(context);
+          case LoadState.failed:
+            if (fallbackUrl != null) {
+              if (kDebugMode) {
+                _logger.w(
+                  '🔄 Reader falling back to secondary network URL: $fallbackUrl',
+                );
+              }
+              return _buildNetworkImageWithDynamicSize(
+                context,
+                forceUrl: fallbackUrl,
+              );
+            }
+            return _buildReaderErrorWidget(context);
+          case LoadState.completed:
+            final info = state.extendedImageInfo;
+            if (info != null) {
+              // loadStateChanged runs during build: defer the setState
+              // inside _calculateImageSize to the next frame (the old
+              // imageBuilder used an async stream listener for the same).
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _calculateImageSize(info, false);
+              });
+            }
+            // Cache the image data in ImageCacheService for future use
+            _cacheNetworkImage(primaryUrl);
+            return state.completedWidget;
+        }
       },
     );
   }

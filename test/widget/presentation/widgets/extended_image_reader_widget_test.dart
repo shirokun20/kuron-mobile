@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:extended_image/extended_image.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart'
@@ -745,6 +746,138 @@ void main() {
         ),
         isFalse,
       );
+    });
+  });
+
+  group('shouldClearMemoryCacheOnDispose proximity (scroll-back)', () {
+    bool clear({int? visible, int? page}) =>
+        ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
+          readingMode: ReadingMode.continuousScroll,
+          isHeavy: false,
+          isHeavyReaderSource: false,
+          visiblePageNumber: visible,
+          pageNumber: page,
+        );
+
+    test('pages 1-5 stay decoded when page 8 is visible', () {
+      // 8 - 1 = 7 <= scrollBackKeepRadiusPages(10): scroll-back is instant.
+      for (final page in [1, 2, 3, 4, 5]) {
+        expect(
+          clear(visible: 8, page: page),
+          isFalse,
+          reason: 'page $page at visible 8 must stay decoded',
+        );
+      }
+    });
+
+    test('boundary page at exactly the radius is kept', () {
+      expect(clear(visible: 8, page: 18), isFalse);
+    });
+
+    test('pages past the radius are cleared on dispose', () {
+      expect(clear(visible: 8, page: 19), isTrue);
+      expect(clear(visible: 8, page: 40), isTrue);
+    });
+
+    test('scrolling sentinel (visible 0) keeps; far eviction is separate', () {
+      expect(clear(visible: 0, page: 40), isFalse);
+    });
+
+    test('unknown visibility falls back to clearing (legacy behavior)', () {
+      expect(clear(), isTrue);
+    });
+
+    test('single-page mode never clears, even with page params', () {
+      expect(
+        ExtendedImageReaderWidget.shouldClearMemoryCacheOnDisposeForTesting(
+          readingMode: ReadingMode.singlePage,
+          isHeavy: false,
+          isHeavyReaderSource: false,
+          visiblePageNumber: 1,
+          pageNumber: 40,
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('stableReaderCacheKey (disk)', () {
+    String key(String url) =>
+        ExtendedImageReaderWidget.stableReaderCacheKey(url);
+
+    test('hitomi CDN subdomain rotation maps to one key', () {
+      const a = 'https://w1.gold-usergeneratedcontent.net/c/ab12cd/hash1.webp';
+      const b = 'https://w2.gold-usergeneratedcontent.net/c/ab12cd/hash1.webp';
+      const c =
+          'https://a3tn.gold-usergeneratedcontent.net/c/ab12cd/hash1.webp';
+      expect(key(a), equals(key(b)));
+      expect(key(a), equals(key(c)));
+    });
+
+    test('fragment and pipe suffix are stripped', () {
+      const base = 'https://cdn.example.com/manga/12.jpg';
+      expect(key('$base#scrambled_0'), equals(key(base)));
+      expect(
+        key('$base|https://cdn.example.com/manga/12b.jpg'),
+        equals(key(base)),
+      );
+    });
+
+    test('scheme and host case are normalized', () {
+      expect(
+        key('HTTPS://CDN.EXAMPLE.COM/manga/12.jpg'),
+        equals(key('https://cdn.example.com/manga/12.jpg')),
+      );
+    });
+
+    test('query strings are preserved (they can address content)', () {
+      const plain = 'https://cdn.example.com/img.jpg';
+      expect(key('$plain?token=abc'), isNot(equals(key(plain))));
+      expect(key('$plain?token=abc'), equals(key('$plain?token=abc')));
+    });
+
+    test('different pages get different keys; key is 32-char md5 hex', () {
+      const a = 'https://cdn.example.com/manga/12.jpg';
+      const b = 'https://cdn.example.com/manga/13.jpg';
+      expect(key(a), isNot(equals(key(b))));
+      expect(RegExp(r'^[0-9a-f]{32}$').hasMatch(key(a)), isTrue);
+    });
+
+    test('non-URL input degrades to a stable key instead of throwing', () {
+      expect(key('not a url'), equals(key('not a url')));
+    });
+  });
+
+  group('evictPageMemoryImage', () {
+    test('unknown triple returns false', () {
+      expect(
+        ExtendedImageReaderWidget.evictPageMemoryImage((
+          'nope',
+          999,
+          'https://example.com/x.jpg',
+        )),
+        isFalse,
+      );
+      expect(
+        ExtendedImageReaderWidget.hasMemoryKeyForTesting((
+          'nope',
+          999,
+          'https://example.com/x.jpg',
+        )),
+        isFalse,
+      );
+    });
+
+    test('reconstructed file keys are value-equal (eviction premise)', () {
+      // Mirrors the widget registration: same path + cacheWidth must hit
+      // the same ImageCache entry the widget rendered.
+      ImageProvider<Object> build(int width) =>
+          ExtendedResizeImage.resizeIfNeeded(
+            provider: ExtendedFileImageProvider(File('/tmp/p.jpg')),
+            cacheWidth: width,
+          );
+      expect(build(1080), equals(build(1080)));
+      expect(build(1080) == build(900), isFalse);
     });
   });
 }

@@ -59,9 +59,8 @@ dependencies:
   path: ^1.9.0
 
   # Image Handling & Caching
-  cached_network_image: ^4.0.4
-  extended_image: ^10.1.0  # Enhanced image viewer with gesture control
-  # extended_image_library: ^5.0.1  # Disk-cache utilities (getCachedImageFile)
+  extended_image: ^10.1.0  # Unified image cache: disk + gestures (replaces cached_network_image)
+  extended_image_library: ^5.0.1  # Disk-cache utilities (clearDiskCachedImages)
   image: ^4.5.4
   flutter_cache_manager: ^3.4.1
 
@@ -99,12 +98,12 @@ dependencies:
   package_info_plus: ^10.2.1
   markdown_widget: ^2.3.2+8
 
-  scrollable_positioned_list: ^0.3.8
   kuron_special:
     path: packages/kuron_special
   cookie_jar: ^4.0.9
   material_ui: ^1.11.1
   cupertino_ui: ^1.1.7
+  super_sliver_list: ^0.4.1
 
 dev_dependencies:
   flutter_test:

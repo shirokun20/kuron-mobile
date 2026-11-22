@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/domain/entities/entities.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:extended_image/extended_image.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -49,8 +49,14 @@ class CommentItemWidget extends StatelessWidget {
                         comment.avatarUrl != null &&
                             comment.avatarUrl!.isNotEmpty
                         ? DecorationImage(
-                            image: CachedNetworkImageProvider(
+                            // Unified image cache: extended_image disk cache
+                            // + the global ImageCache budgeted by
+                            // MemoryBudgetCoordinator (replaces
+                            // legacy provider).
+                            image: ExtendedNetworkImageProvider(
                               comment.avatarUrl!,
+                              cache: true,
+                              cacheMaxAge: const Duration(days: 14),
                             ),
                             fit: BoxFit.cover,
                           )

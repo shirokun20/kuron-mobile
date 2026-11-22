@@ -16,7 +16,7 @@ import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
-import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+import 'package:super_sliver_list/super_sliver_list.dart';
 
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
@@ -48,7 +48,8 @@ class _DoujinListBody extends StatefulWidget {
 }
 
 class _DoujinListBodyState extends State<_DoujinListBody> {
-  final ItemScrollController _itemScrollController = ItemScrollController();
+  final ListController _listController = ListController();
+  final ScrollController _scrollController = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   final List<String> _sections = [
@@ -74,6 +75,8 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
+    _listController.dispose();
     super.dispose();
   }
 
@@ -126,10 +129,14 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
       (item) => item.isHeader && item.section == section,
     );
     if (index != -1) {
-      _itemScrollController.scrollTo(
+      // alignment 0 pins the section header to the leading edge, matching
+      // the old jump-to-index behavior.
+      _listController.animateToItem(
         index: index,
-        duration: DesignTokens.durationNormal,
-        curve: Curves.easeInOut,
+        scrollController: _scrollController,
+        alignment: 0,
+        duration: (_) => DesignTokens.durationNormal,
+        curve: (_) => Curves.easeInOut,
       );
       HapticFeedback.selectionClick();
     }
@@ -315,8 +322,9 @@ class _DoujinListBodyState extends State<_DoujinListBody> {
                                 ],
                               ),
                             )
-                          : ScrollablePositionedList.builder(
-                              itemScrollController: _itemScrollController,
+                          : SuperListView.builder(
+                              controller: _scrollController,
+                              listController: _listController,
                               padding: const EdgeInsets.only(
                                 right: 36,
                                 bottom: 16,

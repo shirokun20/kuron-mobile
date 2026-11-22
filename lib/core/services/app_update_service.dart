@@ -2,6 +2,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
+
 import 'local_image_preloader.dart';
 
 // Service to detect app updates and clear cache when needed
@@ -23,8 +24,9 @@ class AppUpdateService {
       final lastVersion = prefs.getString(_lastAppVersionKey);
       if (lastVersion == null) {
         // First time running the app
-        _logger
-            .i('🎯 First app launch detected, saving version: $currentVersion');
+        _logger.i(
+          '🎯 First app launch detected, saving version: $currentVersion',
+        );
         await prefs.setString(_lastAppVersionKey, currentVersion);
       } else if (lastVersion != currentVersion) {
         // App was updated
@@ -44,17 +46,19 @@ class AppUpdateService {
 
   // Handle app update by clearing caches
   static Future<void> _handleAppUpdate(
-      String oldVersion, String newVersion) async {
+    String oldVersion,
+    String newVersion,
+  ) async {
     try {
       _logger.i(
-          '🧹 Clearing caches due to app update ($oldVersion → $newVersion)');
+        '🧹 Clearing caches due to app update ($oldVersion → $newVersion)',
+      );
 
       // Clear all image caches
       await LocalImagePreloader.clearAllImageCache();
 
-      // Clear CachedNetworkImage cache if possible
-      // Note: CachedNetworkImage doesn't provide a direct clear method
-      // The cache will be invalidated naturally due to different cache keys
+      // LocalImagePreloader.clearAllImageCache covers the unified
+      // extended_image disk + memory caches.
 
       _logger.i('✅ Cache clearing completed for app update');
     } catch (e) {

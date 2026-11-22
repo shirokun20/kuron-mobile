@@ -88,8 +88,7 @@ void main() {
       expect(c.maxDownloadParallel, 3);
     });
 
-    test('appHeap 256MB active → budget 61MB reader, 20MB cache, parallel 1',
-        () {
+    test('appHeap 256MB active → budget 61MB reader, 20MB cache, parallel 1', () {
       final c = MemoryBudgetCoordinator();
       c.onReaderActiveChanged(true);
       // active: budget=102, reader=102*0.6=61.2→round=61→61*1024*1024=63963136
@@ -114,7 +113,9 @@ void main() {
       // active: budget=102, reader=61MB (karena appHeap default 256)
       // verification: reader cache ratio 60%/20%
       expect(
-          c.readerDecodedBudgetBytes, greaterThanOrEqualTo(60 * 1024 * 1024));
+        c.readerDecodedBudgetBytes,
+        greaterThanOrEqualTo(60 * 1024 * 1024),
+      );
       expect(c.imageCacheBudgetBytes, lessThan(c.readerDecodedBudgetBytes));
     });
   });
@@ -133,10 +134,29 @@ void main() {
     });
   });
 
+  group('isOverReaderBudget (memory pressure signal)', () {
+    test('below the decoded budget is not pressure', () {
+      final c = MemoryBudgetCoordinator();
+      c.onReaderActiveChanged(true);
+      c.onReaderActiveChanged(false);
+      final budget = c.readerDecodedBudgetBytes;
+      expect(budget, equals(32505856));
+      expect(c.isOverReaderBudget(budget - 1), isFalse);
+      expect(c.isOverReaderBudget(0), isFalse);
+    });
+
+    test('at and above the budget is pressure (boundary inclusive)', () {
+      final c = MemoryBudgetCoordinator();
+      c.onReaderActiveChanged(true);
+      c.onReaderActiveChanged(false);
+      final budget = c.readerDecodedBudgetBytes;
+      expect(c.isOverReaderBudget(budget), isTrue);
+      expect(c.isOverReaderBudget(budget + 1), isTrue);
+    });
+  });
+
   group('_readTotalRamMB error paths', () {
-    test(
-        'KuronNative.getSystemInfo gagal → fallback 0 → _estimateAppHeap(0) = 256',
-        () async {
+    test('KuronNative.getSystemInfo gagal → fallback 0 → _estimateAppHeap(0) = 256', () async {
       // Integration test: butuh method channel mock
       // Unit: fallback sudah diverifikasi di default state test
     });
@@ -215,20 +235,28 @@ void main() {
 
     test('online vs offline reader tracking and idempotency', () {
       final c = MemoryBudgetCoordinator();
-      if (!getIt.isRegistered<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive')) {
+      if (!getIt.isRegistered<ValueNotifier<bool>>(
+        instanceName: 'globalOnlineReaderActive',
+      )) {
         getIt.registerSingleton<ValueNotifier<bool>>(
           ValueNotifier<bool>(false),
           instanceName: 'globalOnlineReaderActive',
         );
       }
-      if (!getIt.isRegistered<ValueNotifier<bool>>(instanceName: 'globalReaderActive')) {
+      if (!getIt.isRegistered<ValueNotifier<bool>>(
+        instanceName: 'globalReaderActive',
+      )) {
         getIt.registerSingleton<ValueNotifier<bool>>(
           ValueNotifier<bool>(false),
           instanceName: 'globalReaderActive',
         );
       }
-      final onlineNotifier = getIt<ValueNotifier<bool>>(instanceName: 'globalOnlineReaderActive');
-      final anyNotifier = getIt<ValueNotifier<bool>>(instanceName: 'globalReaderActive');
+      final onlineNotifier = getIt<ValueNotifier<bool>>(
+        instanceName: 'globalOnlineReaderActive',
+      );
+      final anyNotifier = getIt<ValueNotifier<bool>>(
+        instanceName: 'globalReaderActive',
+      );
 
       c.resetReaderCountForTesting();
       expect(c.activeReaderCount, 0);
