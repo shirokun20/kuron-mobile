@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:material_ui/material_ui.dart';
+import 'package:kuron_core/kuron_core.dart' show normalizeWhitespace;
 import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -26,7 +27,7 @@ class DetailTitleSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          content.title,
+          normalizeWhitespace(content.title),
           style: TextStyleConst.headingLarge.copyWith(
             color: colorScheme.onSurface,
             height: 1.3,
@@ -36,7 +37,7 @@ class DetailTitleSection extends StatelessWidget {
             content.englishTitle != content.title) ...[
           const SizedBox(height: 8),
           Text(
-            content.englishTitle!,
+            normalizeWhitespace(content.englishTitle!),
             style: TextStyleConst.bodyLarge.copyWith(
               color: colorScheme.onSurfaceVariant,
               fontStyle: FontStyle.italic,
@@ -47,7 +48,7 @@ class DetailTitleSection extends StatelessWidget {
             content.japaneseTitle != content.title) ...[
           const SizedBox(height: 4),
           Text(
-            content.japaneseTitle!,
+            normalizeWhitespace(content.japaneseTitle!),
             style: TextStyleConst.bodyMedium.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),

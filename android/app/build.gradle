@@ -11,8 +11,8 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
         coreLibraryDesugaringEnabled true
     }
 
@@ -78,12 +78,18 @@ android {
             applicationIdSuffix ".debug"
         }
         release {
-            // Fallback to debug signing if release keys are missing
+            // Fail-fast release signing: a release APK must never ship debug-signed silently.
+            // Provide android/key.properties or KEYSTORE_BASE64/KEYSTORE_PATH.
+            // ALLOW_DEBUG_SIGNING=true is only for local throwaway builds.
             if (signingConfigs.release.storeFile != null && signingConfigs.release.storeFile.exists()) {
                 signingConfig signingConfigs.release
-            } else {
-                println "Release signing keys not found. Falling back to debug signing config."
+            } else if (System.getenv("ALLOW_DEBUG_SIGNING") == "true") {
+                logger.warn("Release signing keys missing — debug signing explicitly allowed via ALLOW_DEBUG_SIGNING=true (local throwaway builds only).")
                 signingConfig signingConfigs.debug
+            } else {
+                throw new GradleException(
+                    "Release keystore missing. Provide android/key.properties or KEYSTORE_BASE64/KEYSTORE_PATH. " +
+                    "Set ALLOW_DEBUG_SIGNING=true only for local throwaway builds.")
             }
             minifyEnabled true
             shrinkResources true
@@ -128,7 +134,7 @@ android {
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 

@@ -90,7 +90,7 @@
         <activity
             android:name=".pdf.PdfReaderActivity"
             android:theme="@style/Theme.AppCompat.NoActionBar"
-            android:configChanges="orientation|screenSize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode"
             android:exported="false" />
 
         <!-- Kuro streak launcher widgets: 3 fixed-size variants (4x2, 4x1, 2x2) -->

@@ -62,3 +62,6 @@ export 'src/pages/resolved_chapter_pages.dart';
 
 // Secret redaction utilities for diagnostics + persisted reports
 export 'src/redaction/secret_redactor.dart';
+
+// Shared text utilities (title whitespace normalization, etc.)
+export 'src/utils/text_utils.dart';

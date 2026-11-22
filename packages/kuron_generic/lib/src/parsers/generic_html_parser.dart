@@ -6,6 +6,7 @@ library;
 
 import 'package:html/dom.dart' as dom;
 import 'package:html/parser.dart' as html_parser;
+import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
 import '../models/source_config_runtime.dart';
@@ -68,7 +69,7 @@ class GenericHtmlParser {
         for (final element in elements) {
           final value = selector.attributeChain.isNotEmpty
               ? _resolveAttributeChain(element, selector.attributeChain)
-              : element.text.trim();
+              : normalizeWhitespace(element.text);
           if (value == null || value.isEmpty) continue;
 
           final matched = _applyRegex(value, selector.regex!);
@@ -92,7 +93,7 @@ class GenericHtmlParser {
       final element = elements.first;
       final value = selector.attributeChain.isNotEmpty
           ? _resolveAttributeChain(element, selector.attributeChain)
-          : element.text.trim();
+          : normalizeWhitespace(element.text);
       if (value == null || value.isEmpty) {
         _logger.t(
             'GenericHtmlParser.extractString: selector "${selector.selector}" matched element but value empty');
@@ -117,7 +118,7 @@ class GenericHtmlParser {
       final rawValues = elements
           .map((el) => selector.attributeChain.isNotEmpty
               ? (_resolveAttributeChain(el, selector.attributeChain) ?? '')
-              : el.text.trim())
+              : normalizeWhitespace(el.text))
           .where((s) => s.isNotEmpty)
           .toList();
 
@@ -166,7 +167,7 @@ class GenericHtmlParser {
       final target = children.isNotEmpty ? children.first : element;
       final value = selector.attributeChain.isNotEmpty
           ? _resolveAttributeChain(target, selector.attributeChain)
-          : target.text.trim();
+          : normalizeWhitespace(target.text);
       if (value == null || value.isEmpty) return selector.fallback;
       if (selector.regex != null) return _applyRegex(value, selector.regex!);
       return value;

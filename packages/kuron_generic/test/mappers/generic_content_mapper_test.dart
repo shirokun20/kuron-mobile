@@ -686,4 +686,72 @@ void main() {
       expect(result.tags.every((t) => t.type == 'tag'), isTrue);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Title whitespace normalization (all mapping paths, all source types)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  group('title whitespace normalization', () {
+    const dirty = '  Komik\n   Indo   Chapter 1  ';
+    const clean = 'Komik Indo Chapter 1';
+
+    test('scalar title via _str is normalized', () {
+      final item = GenericContentMapper.toListItem(
+        {'id': 'slug', 'title': dirty},
+        sourceId: sourceId,
+      );
+      expect(item.title, clean);
+    });
+
+    test('API title map {en: ...} is normalized', () {
+      final item = GenericContentMapper.toListItem(
+        {'id': 'uuid', 'title': {'en': dirty}},
+        sourceId: sourceId,
+      );
+      expect(item.title, clean);
+    });
+
+    test('altTitles {en: ...} is normalized', () {
+      final item = GenericContentMapper.toListItem(
+        {
+          'id': 'uuid',
+          'title': {'ja': '日本語'},
+          'altTitles': [{'en': dirty}],
+        },
+        sourceId: sourceId,
+      );
+      expect(item.title, clean);
+    });
+
+    test('detail englishTitle and japaneseTitle are normalized', () {
+      final detail = GenericContentMapper.toDetail(
+        'uuid',
+        {
+          'id': 'uuid',
+          'title': dirty,
+          'englishTitle': dirty,
+          'japaneseTitle': '  \n 日本語  \n ',
+        },
+        sourceId: sourceId,
+      );
+      expect(detail.title, clean);
+      expect(detail.englishTitle, clean);
+      expect(detail.japaneseTitle, '日本語');
+    });
+
+    test('slug-based and real-ID sources normalize identically', () {
+      for (final id in [
+        'one-piece-chapter-1',
+        '1234567',
+        'f9c3d6a4-0000-4000-8000-000000000000'
+      ]) {
+        final item = GenericContentMapper.toListItem(
+          {'id': id, 'title': dirty},
+          sourceId: sourceId,
+        );
+        expect(item.title, clean, reason: 'id=$id');
+        expect(item.id, id); // raw id must never be rewritten
+      }
+    });
+  });
 }

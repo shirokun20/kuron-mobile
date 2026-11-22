@@ -18,6 +18,7 @@ import 'package:nhasixapp/presentation/cubits/detail/detail_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/favorite/favorite_cubit.dart';
 import 'package:nhasixapp/presentation/blocs/download/download_bloc.dart';
 import 'package:nhasixapp/core/utils/app_state_manager.dart';
+import 'package:nhasixapp/core/utils/content_id_display.dart';
 import 'package:nhasixapp/presentation/cubits/source/source_cubit.dart';
 import 'package:nhasixapp/core/utils/tag_color_palette.dart';
 import 'package:nhasixapp/core/services/tag_blacklist_service.dart';
@@ -1145,7 +1146,12 @@ class _DetailScreenState extends State<DetailScreen> {
       ),
       DetailMetadataItem(
         label: l10n.idLabel,
-        value: content.id,
+        // Display only — content.id itself stays untouched for routing,
+        // API/scraper calls, bookmarks and storage.
+        value: displayContentId(
+          content.id,
+          rawConfig: _detailCubit.getRawConfig(content.sourceId),
+        ),
         icon: Icons.tag,
       ),
       if (content.chapters != null && content.chapters!.isNotEmpty)

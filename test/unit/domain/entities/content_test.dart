@@ -233,5 +233,49 @@ void main() {
         expect(content1, equals(content2));
       });
     });
+
+    group('getDisplayTitle whitespace normalization', () {
+      Content dirtyContent({
+        required String title,
+        String? englishTitle,
+        String? japaneseTitle,
+      }) {
+        return Content(
+          sourceId: 'komikindo',
+          id: 'one-piece-chapter-1',
+          title: title,
+          coverUrl: '',
+          tags: const [],
+          artists: const [],
+          characters: const [],
+          parodies: const [],
+          groups: const [],
+          language: 'id',
+          pageCount: 0,
+          imageUrls: const [],
+          uploadDate: DateTime(2024, 1, 1),
+          englishTitle: englishTitle,
+          japaneseTitle: japaneseTitle,
+        );
+      }
+
+      test('dirty primary title renders on one line in the Reader app bar', () {
+        final content = dirtyContent(title: '  Komik\n   Indo   Chapter 1  ');
+        expect(content.getDisplayTitle(), 'Komik Indo Chapter 1');
+      });
+
+      test('dirty englishTitle is normalized when preferred', () {
+        final content = dirtyContent(
+          title: 'Judul',
+          englishTitle: '  One \n Piece   Vol. 1 ',
+        );
+        expect(content.getDisplayTitle(), 'One Piece Vol. 1');
+      });
+
+      test('dirty title is normalized for real-ID sources too', () {
+        final content = dirtyContent(title: '  Nhentai \n 12345 ');
+        expect(content.getDisplayTitle(), 'Nhentai 12345');
+      });
+    });
   });
 }

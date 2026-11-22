@@ -87,6 +87,9 @@ fi
 if [ "$BUILD_TYPE" = "release" ]; then
     # Universal-diet: ARM only (all real phones). Drops x86_64 (~100MB of .so);
     # use debug builds (unfiltered) or SPLIT_ABI for x86_64 emulators/Chromebooks.
+    # CAVEAT (P4 §5 Phase 1): release APKs are ARM-only (android-arm,android-arm64).
+    # x86_64 emulators cannot install/run them — use a debug build (no
+    # --target-platform filter) for emulator testing.
     # Strip Dart debug symbols out of libapp.so (~15-20MB).
     # Keep build/app/outputs/symbols/<flavor>Release for crash symbolication.
     $FLUTTER_CMD build apk --release --flavor "$FLAVOR" $SPLIT_ABI_FLAG --target-platform android-arm,android-arm64 --split-debug-info=build/symbols "${DART_DEFINES[@]}"

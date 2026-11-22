@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'tag.dart';
 import 'chapter.dart';
 import '../enums/content_type.dart';
+import '../utils/text_utils.dart';
 
 // Core content entity representing a manga/doujinshi.
 ///
@@ -199,15 +200,19 @@ class Content extends Equatable {
     );
   }
 
-  // Get display title based on preference
+  // Get display title based on preference.
+  //
+  // Normalized here as a display-level safety net: cached content produced
+  // before the parser fix (or by a non-generic source) may still carry
+  // newlines/repeated spaces, which would clip the one-line Reader app bar.
   String getDisplayTitle({bool preferEnglish = true}) {
     if (preferEnglish && englishTitle != null && englishTitle!.isNotEmpty) {
-      return englishTitle!;
+      return normalizeWhitespace(englishTitle!);
     }
     if (japaneseTitle != null && japaneseTitle!.isNotEmpty) {
-      return japaneseTitle!;
+      return normalizeWhitespace(japaneseTitle!);
     }
-    return title;
+    return normalizeWhitespace(title);
   }
 
   // Check if content has specific tag

@@ -3436,9 +3436,9 @@ class GenericScraperAdapter implements GenericAdapter {
 
       if (multi) {
         var values = _parser.extractList(doc, sel);
-        if (transform == 'slug') {
+        if (transform == 'slug' || transform == 'cleanText') {
           values = values
-              .map(_extractSlugFromUrl)
+              .map((v) => _applyFieldTransform(v, transform))
               .where((v) => v.isNotEmpty)
               .toList();
         } else if (transform == 'base64') {
@@ -3481,6 +3481,8 @@ class GenericScraperAdapter implements GenericAdapter {
         var value = _parser.extractString(doc, sel) ?? '';
         if (transform == 'slug' && value.isNotEmpty) {
           value = _extractSlugFromUrl(value);
+        } else if (transform == 'cleanText' && value.isNotEmpty) {
+          value = normalizeWhitespace(value);
         } else if (transform == 'base64' && value.isNotEmpty) {
           value = _readerImages.decodeBase64(value) ?? value;
         }
@@ -3619,9 +3621,9 @@ class GenericScraperAdapter implements GenericAdapter {
               .toList();
         }
 
-        if (transform == 'slug') {
+        if (transform == 'slug' || transform == 'cleanText') {
           values = values
-              .map(_extractSlugFromUrl)
+              .map((v) => _applyFieldTransform(v, transform))
               .where((v) => v.isNotEmpty)
               .toList();
         }
@@ -3629,7 +3631,7 @@ class GenericScraperAdapter implements GenericAdapter {
       } else if (sel.selector == 'self') {
         var value = sel.attribute != null
             ? (el.attributes[sel.attribute] ?? '')
-            : el.text.trim();
+            : normalizeWhitespace(el.text);
         if (value.isEmpty) continue;
         if (sel.regex != null) {
           final matched = _applyRegex(value, sel.regex!);
@@ -3637,12 +3639,16 @@ class GenericScraperAdapter implements GenericAdapter {
         }
         if (transform == 'slug' && value.isNotEmpty) {
           value = _extractSlugFromUrl(value);
+        } else if (transform == 'cleanText' && value.isNotEmpty) {
+          value = normalizeWhitespace(value);
         }
         result[entry.key] = value;
       } else {
         var value = _parser.extractFromElement(el, sel) ?? '';
         if (transform == 'slug' && value.isNotEmpty) {
           value = _extractSlugFromUrl(value);
+        } else if (transform == 'cleanText' && value.isNotEmpty) {
+          value = normalizeWhitespace(value);
         }
         if (entry.key == 'coverUrl' && value.isNotEmpty) {
           value = _readerImages.sanitizeImageUrl(value);
@@ -3777,6 +3783,24 @@ class GenericScraperAdapter implements GenericAdapter {
   //   `title-〜special〜`
   // - `https://komiku.org/nishuume-cheat-〜-chapter-1/` ->
   //   `nishuume-cheat-〜-chapter-1`
+
+  // Config contract (kuron-extensions): `transform: 'cleanText'` trims and
+  // collapses internal whitespace on title fields. The global normalization
+  // in GenericHtmlParser / GenericContentMapper remains the defensive
+  // fallback for configs that do not declare the transform.
+  String _applyFieldTransform(String value, String? transform) {
+    switch (transform) {
+      case 'cleanText':
+        return normalizeWhitespace(value);
+      case 'slug':
+        return _extractSlugFromUrl(value);
+      case 'base64':
+        return _readerImages.decodeBase64(value) ?? value;
+      default:
+        return value;
+    }
+  }
+
   String _extractSlugFromUrl(String url) {
     if (url.isEmpty) return '';
 
@@ -3854,6 +3878,8 @@ class GenericScraperAdapter implements GenericAdapter {
     if (value.isEmpty || value == '#') return null;
     if (transform == 'slug') {
       value = _extractSlugFromUrl(value);
+    } else if (transform == 'cleanText') {
+      value = normalizeWhitespace(value);
     }
 
     return value.isEmpty ? null : value;

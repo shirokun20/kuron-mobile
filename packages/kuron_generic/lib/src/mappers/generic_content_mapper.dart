@@ -198,8 +198,8 @@ class GenericContentMapper {
       uploadDate: _resolveUploadDate(fields),
       favorites: _int(fields, 'favorites'),
       mediaId: _nullableString(fields['mediaId']),
-      englishTitle: _nullableString(fields['englishTitle']),
-      japaneseTitle: _nullableString(fields['japaneseTitle']),
+      englishTitle: _normalizeNullable(fields['englishTitle']),
+      japaneseTitle: _normalizeNullable(fields['japaneseTitle']),
       subTitle: _extractDescription(fields),
       status: _status(fields),
       totalChapters: rawPageCount > 0 ? rawPageCount : null,
@@ -352,18 +352,24 @@ class GenericContentMapper {
     String fallback = '',
   }) {
     final v = f[key];
-    if (v is String) return v.isEmpty ? fallback : v;
+    if (v is String) {
+      return v.isEmpty ? fallback : normalizeWhitespace(v);
+    }
     if (v is num || v is bool) {
       final asString = v.toString();
       return asString.isEmpty ? fallback : asString;
     }
     if (v is Map && v.isNotEmpty) {
       final firstVal = v.values.first;
-      if (firstVal is String && firstVal.isNotEmpty) return firstVal;
+      if (firstVal is String && firstVal.isNotEmpty) {
+        return normalizeWhitespace(firstVal);
+      }
     }
     if (v is List && v.isNotEmpty) {
       final firstVal = v.first;
-      if (firstVal is String && firstVal.isNotEmpty) return firstVal;
+      if (firstVal is String && firstVal.isNotEmpty) {
+        return normalizeWhitespace(firstVal);
+      }
     }
     return fallback;
   }
@@ -409,6 +415,13 @@ class GenericContentMapper {
     return cleaned.replaceFirst(RegExp(r'\s*\([0-9,]+\)\s*$'), '').trim();
   }
 
+  // Title fields only: resolve via the generic nullable extractor, then
+  // collapse source-markup whitespace before it reaches the UI.
+  static String? _normalizeNullable(dynamic value) {
+    final resolved = _nullableString(value);
+    return resolved == null ? null : normalizeWhitespace(resolved);
+  }
+
   static String? _nullableString(dynamic value) {
     if (value == null) return null;
     if (value is String) {
@@ -447,7 +460,7 @@ class GenericContentMapper {
     // 1. Try the main title object, prioritize english if available.
     final t = fields['title'];
     if (t is Map && t['en'] != null && t['en'].toString().isNotEmpty) {
-      return t['en'].toString();
+      return normalizeWhitespace(t['en'].toString());
     }
 
     // 2. Try to find an English title in altTitles.
@@ -457,13 +470,13 @@ class GenericContentMapper {
         if (alt is Map &&
             alt['en'] != null &&
             alt['en'].toString().isNotEmpty) {
-          return alt['en'].toString();
+          return normalizeWhitespace(alt['en'].toString());
         }
       }
     }
 
     // 3. Fallback to generic map/list-aware string extraction.
-    return _str(fields, 'title', fallback: 'Unknown');
+    return normalizeWhitespace(_str(fields, 'title', fallback: 'Unknown'));
   }
 
   static String _extractDescription(Map<String, dynamic> fields) {
@@ -502,7 +515,7 @@ class GenericContentMapper {
   static String _buildChapterTitle(Map<String, dynamic> fields) {
     final chapterNum = _str(fields, 'chapterNum').trim();
     final volume = _str(fields, 'volume').trim();
-    final title = _str(fields, 'title').trim();
+    final title = normalizeWhitespace(_str(fields, 'title'));
 
     if (volume.isNotEmpty && chapterNum.isNotEmpty) {
       return 'Vol.$volume Ch.$chapterNum';
