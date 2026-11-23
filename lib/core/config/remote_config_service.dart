@@ -71,11 +71,27 @@ class RemoteConfigService {
 
   // Allowlist for source IDs used in cache file names. IDs are compared
   // case-sensitively throughout the codebase (`==`), and all known IDs are
-  // lowercase, so uppercase is rejected.
-  static final RegExp _sourceIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]*$');
+  // lowercase, so uppercase is rejected. Dots are allowed so dotted IDs such
+  // as `manga18.club` pass; `..` segments, leading/trailing separators, and
+  // path separators are rejected. Traversal is additionally guarded by
+  // `p.isWithin` at every file-write site.
+  static final RegExp _sourceIdPattern = RegExp(
+    r'^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$',
+  );
+
+  // Shared source-ID allowlist (also used by `SourceInstallerService` — keep
+  // the two validators aligned through this single helper).
+  static bool isValidSourceId(String sourceId) {
+    final trimmed = sourceId.trim();
+    if (trimmed.isEmpty) return false;
+    if (!_sourceIdPattern.hasMatch(trimmed)) return false;
+    if (trimmed.contains('..')) return false;
+    if (isReservedConfigId(trimmed)) return false;
+    return true;
+  }
 
   static void _validateSourceId(String sourceId) {
-    if (!_sourceIdPattern.hasMatch(sourceId) || isReservedConfigId(sourceId)) {
+    if (!isValidSourceId(sourceId)) {
       throw FormatException('Invalid sourceId: "$sourceId"');
     }
   }
@@ -634,8 +650,7 @@ class RemoteConfigService {
     );
 
     for (final sourceId in installedIds) {
-      if (!_sourceIdPattern.hasMatch(sourceId) ||
-          isReservedConfigId(sourceId)) {
+      if (!isValidSourceId(sourceId)) {
         _logger.w(
           'Skipping invalid or reserved installed sourceId in cache: $sourceId',
         );

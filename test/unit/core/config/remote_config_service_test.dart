@@ -129,6 +129,97 @@ void main() {
     );
   });
 
+  group('dotted source IDs (Item #17: manga18.club)', () {
+    test('isValidSourceId accepts manga18.club and rejects malformed IDs', () {
+      for (final id in [
+        'a',
+        'komikcast',
+        'schale-network',
+        'doujindesu_v2',
+        'manga18.club',
+      ]) {
+        expect(
+          RemoteConfigService.isValidSourceId(id),
+          isTrue,
+          reason: 'expected $id to be valid',
+        );
+      }
+      for (final id in [
+        '..',
+        'a..b',
+        'foo..bar',
+        '.manga18',
+        'manga18.',
+        '.',
+        'foo/bar',
+        '../evil',
+        'foo\\bar',
+        '',
+        '   ',
+        'FOO',
+        'foo bar',
+        '-foo',
+        'foo-',
+        '_foo',
+        'foo_',
+        'app',
+        'nhentai',
+      ]) {
+        expect(
+          RemoteConfigService.isValidSourceId(id),
+          isFalse,
+          reason: 'expected "$id" to be invalid',
+        );
+      }
+    });
+
+    test('applySourceConfigFromJson installs dotted source ID', () async {
+      const rawJson = '{"source":"manga18.club","version":"1.0.5"}';
+      final config = await service.applySourceConfigFromJson(
+        sourceId: 'manga18.club',
+        rawJson: rawJson,
+        sourceLabel: 'test',
+      );
+
+      expect(config.source, 'manga18.club');
+      expect(service.getConfig('manga18.club'), isNotNull);
+      expect(service.getInstalledVersion('manga18.club'), '1.0.5');
+      expect(
+        await File(
+          p.join(tempDir.path, 'configs', 'manga18.club-config.json'),
+        ).exists(),
+        isTrue,
+      );
+
+      await service.markSourceInstalled('manga18.club');
+      expect(
+        (await service.getInstalledSourceIds()).contains('manga18.club'),
+        isTrue,
+      );
+
+      await service.uninstallSourceConfig('manga18.club');
+      expect(service.getConfig('manga18.club'), isNull);
+    });
+
+    test('applySourceConfigFromJson rejects traversal IDs without writing', () async {
+      for (final id in ['..', 'a..b', '.foo', 'foo.', 'foo/bar']) {
+        await expectLater(
+          () => service.applySourceConfigFromJson(
+            sourceId: id,
+            rawJson: '{"source":"$id","version":"1.0.0"}',
+            sourceLabel: 'test',
+          ),
+          throwsA(isA<FormatException>()),
+          reason: 'expected "$id" to be rejected',
+        );
+      }
+      expect(
+        await File(p.join(tempDir.path, 'configs')).exists(),
+        isFalse,
+      );
+    });
+  });
+
   test('rejects reserved and bundled config identifiers (app, tags, nhentai) on install', () async {
     for (final reserved in ['app', 'tags', 'nhentai', 'APP', ' app ']) {
       await expectLater(

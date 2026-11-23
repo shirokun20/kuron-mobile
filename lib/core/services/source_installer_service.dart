@@ -20,12 +20,11 @@ import 'package:nhasixapp/core/utils/source_version_utils.dart';
 
 enum ManifestSortMode { updatesFirst, nameAsc, versionDesc }
 
-final RegExp _validSourceIdPattern = RegExp(r'^[a-z0-9][a-z0-9_-]*$');
-
+// Source-ID validation lives in [RemoteConfigService.isValidSourceId] (single
+// shared allowlist) so the installer can never drift from the cache layer.
 String _validateSourceId(String sourceId) {
   final trimmed = sourceId.trim();
-  if (!_validSourceIdPattern.hasMatch(trimmed) ||
-      RemoteConfigService.isReservedConfigId(trimmed)) {
+  if (!RemoteConfigService.isValidSourceId(trimmed)) {
     throw FormatException('Invalid source ID: "$sourceId"');
   }
   return trimmed;
