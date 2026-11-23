@@ -70,12 +70,12 @@ void main() {
 
   group('phase1 structural checks', () {
     test('komikindo home list + inherited search + reader images', () async {
-      // Current published config (config/id/komikindo-config.json, v1.0.5):
+      // Current published config (config/id/komikindo-config.json, v1.0.6):
       // the site moved off the old "Latest Update" bixbox markup to plain
       // .animepost cards, search inherits the home list block, and the
       // reader uses a CSS image selector (no ts_reader payload anymore).
       final Map<String, Object?> config = await loadConfigRemote('komikindo-config.json');
-      expect(config['version'], '1.0.5');
+      expect(config['version'], '1.0.6');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> urlPatterns =
@@ -164,6 +164,10 @@ void main() {
     test('hentaienvy reader page url + tags selector', () async {
       final Map<String, Object?> config =
           await loadConfigRemote('hentaienvy-config.json');
+      // Current published config (config/en/hentaienvy-config.json, v1.0.4):
+      // site redesign uses hnv-gallery-* markup with /category/ + /language/
+      // taxonomy routes and a.hnv-gallery-tag tag links.
+      expect(config['version'], '1.0.4');
       final Map<String, Object?> scraper =
           (config['scraper'] as Map).cast<String, Object?>();
       final Map<String, Object?> selectors =
@@ -178,7 +182,7 @@ void main() {
           (fields['tags'] as Map).cast<String, Object?>();
 
       expect(reader['readerPageUrlPattern'], '/g/{id}/1/');
-      expect(tags['selector'] as String, contains('gp_tag'));
+      expect(tags['selector'] as String, contains('a.hnv-gallery-tag'));
     });
 
     test('asmhentai detail + reader page urls', () async {
