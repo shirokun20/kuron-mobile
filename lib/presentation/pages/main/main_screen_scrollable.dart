@@ -104,8 +104,15 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       downloadBloc.add(const DownloadInitializeEvent());
     }
 
-    // Initialize UpdateCubit and check for updates
-    _updateCubit = getIt<UpdateCubit>()..checkForUpdate();
+    // Initialize UpdateCubit; the GitHub release check is non-urgent
+    // cold-start network work, so it waits for first paint + a short delay
+    // instead of contending with the grid load.
+    _updateCubit = getIt<UpdateCubit>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 3), () {
+        if (mounted) _updateCubit.checkForUpdate();
+      }).ignore();
+    });
     _tagBlacklistService = getIt<TagBlacklistService>()
       ..addListener(_handleTagBlacklistChanged);
 

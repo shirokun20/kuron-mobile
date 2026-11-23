@@ -29,7 +29,16 @@ class RecommendationCubit extends BaseCubit<RecommendationState> {
     bool forceRefresh = false,
   }) async {
     _lastExcludeIds = excludeIds;
+    // Skip no-op reloads: items already shown and the repository cache is
+    // still valid, so a recompute would return the same list while churning
+    // Loading/Loaded states (carousel + card rebuilds) for nothing.
     final current = state;
+    if (!forceRefresh &&
+        current is RecommendationLoaded &&
+        current.items.isNotEmpty &&
+        _getRecommendations.isCacheValid) {
+      return;
+    }
     final hasItems =
         current is RecommendationLoaded && current.items.isNotEmpty;
     if (!hasItems) emit(const RecommendationLoading());

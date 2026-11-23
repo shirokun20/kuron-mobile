@@ -16,6 +16,7 @@ class GetRelatedContentUseCase
       contentId: params.contentId,
       limit: params.limit,
       sourceId: params.sourceId,
+      onCancel: params.onCancel,
     );
   }
 }
@@ -25,11 +26,16 @@ class GetRelatedContentParams extends UseCaseParams {
     required this.contentId,
     this.limit = 10,
     this.sourceId,
+    this.onCancel,
   });
 
   final ContentId contentId;
   final int limit;
   final String? sourceId;
+
+  /// Cancellation hook for this fetch. Excluded from [props] (closure
+  /// identity would break value equality of otherwise identical params).
+  final OnCancelRegister? onCancel;
 
   @override
   List<Object?> get props => [contentId, limit, sourceId];

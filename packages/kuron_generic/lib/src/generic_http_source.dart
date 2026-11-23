@@ -138,9 +138,27 @@ class GenericHttpSource implements ContentSource {
 
   // ── Core operations ────────────────────────────────────────────────────────
 
+  /// Bridges the pure-Dart [OnCancelRegister] hook to a Dio [CancelToken].
+  /// Null when no hook is registered, so adapter calls stay token-free.
+  static CancelToken? _bridgeCancelToken(OnCancelRegister? onCancel) {
+    if (onCancel == null) return null;
+    final token = CancelToken();
+    onCancel(() {
+      if (!token.isCancelled) token.cancel('Cancelled by caller');
+    });
+    return token;
+  }
+
   @override
-  Future<ContentListResult> search(SearchFilter filter) async {
-    final result = await _adapter.search(filter, _rawConfig);
+  Future<ContentListResult> search(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  }) async {
+    final result = await _adapter.search(
+      filter,
+      _rawConfig,
+      cancelToken: _bridgeCancelToken(onCancel),
+    );
     return ContentListResult(
       contents: result.items,
       currentPage: filter.page,
@@ -154,8 +172,15 @@ class GenericHttpSource implements ContentSource {
   }
 
   @override
-  Future<Content> getDetail(String contentId) async {
-    final result = await _adapter.fetchDetail(contentId, _rawConfig);
+  Future<Content> getDetail(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) async {
+    final result = await _adapter.fetchDetail(
+      contentId,
+      _rawConfig,
+      cancelToken: _bridgeCancelToken(onCancel),
+    );
     return result.content.copyWith(imageUrls: result.imageUrls);
   }
 
@@ -168,18 +193,20 @@ class GenericHttpSource implements ContentSource {
   Future<ContentListResult> getList({
     int page = 1,
     SortOption sort = SortOption.newest,
+    OnCancelRegister? onCancel,
   }) async {
     final filter = SearchFilter(query: '', page: page, sort: sort);
-    return search(filter);
+    return search(filter, onCancel: onCancel);
   }
 
   @override
   Future<ContentListResult> getPopular({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
+    OnCancelRegister? onCancel,
   }) async {
     final sort = _timeframeToSort(timeframe);
-    return getList(page: page, sort: sort);
+    return getList(page: page, sort: sort, onCancel: onCancel);
   }
 
   @override
@@ -372,8 +399,15 @@ class GenericHttpSource implements ContentSource {
   }
 
   @override
-  Future<List<Content>> getRelated(String contentId) async {
-    return _adapter.fetchRelated(contentId, _rawConfig);
+  Future<List<Content>> getRelated(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) async {
+    return _adapter.fetchRelated(
+      contentId,
+      _rawConfig,
+      cancelToken: _bridgeCancelToken(onCancel),
+    );
   }
 
   @override
@@ -386,18 +420,10 @@ class GenericHttpSource implements ContentSource {
     String chapterId, {
     OnCancelRegister? onCancel,
   }) async {
-    CancelToken? cancelToken;
-    if (onCancel != null) {
-      final token = CancelToken();
-      cancelToken = token;
-      onCancel(() {
-        if (!token.isCancelled) token.cancel('Cancelled by caller');
-      });
-    }
     final data = await _adapter.fetchChapterImages(
       chapterId,
       _rawConfig,
-      cancelToken: cancelToken,
+      cancelToken: _bridgeCancelToken(onCancel),
     );
     if (data == null) return null;
     // Plugin seam (conformance-loop 4.2): a registered

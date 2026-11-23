@@ -8,12 +8,10 @@ import '../entities/autocomplete_suggestion.dart';
 import '../filters/source_filter.dart';
 import '../value_objects/sort_option.dart';
 import '../value_objects/popular_timeframe.dart';
+import 'cancel_hook.dart';
 import 'search_capabilities.dart';
 
-/// Pure-Dart cancellation hook: registers an [onCancel] callback that fires
-/// when the caller cancels. Bridges to Dio `CancelToken` in adapter packages
-/// without leaking `package:dio` into `kuron_core`.
-typedef OnCancelRegister = void Function(void Function() onCancel);
+export 'cancel_hook.dart';
 
 // Abstract interface for content sources.
 ///
@@ -38,29 +36,44 @@ abstract class ContentSource {
   // Search capabilities supported by this source
   SearchCapabilities get searchCapabilities;
 
-  // Search content with the given filter
-  Future<ContentListResult> search(SearchFilter filter);
+  // Search content with the given filter.
+  //
+  // [onCancel] lets callers abort an in-flight fetch (e.g. a superseded
+  // home-grid load). Pure-Dart bridge: adapters convert it to their own
+  // cancellation primitive (Dio `CancelToken`).
+  Future<ContentListResult> search(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  });
 
   // Get content detail by ID
-  Future<Content> getDetail(String contentId);
+  Future<Content> getDetail(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  });
 
   // Get paginated list of content
   Future<ContentListResult> getList({
     int page = 1,
     SortOption sort = SortOption.newest,
+    OnCancelRegister? onCancel,
   });
 
   // Get popular content
   Future<ContentListResult> getPopular({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
+    OnCancelRegister? onCancel,
   });
 
   // Get random content
   Future<List<Content>> getRandom({int count = 1});
 
   // Get related content for a specific content ID
-  Future<List<Content>> getRelated(String contentId);
+  Future<List<Content>> getRelated(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  });
 
   // Get comments for a specific content ID
   Future<List<Comment>> getComments(String contentId) async => [];

@@ -28,6 +28,105 @@ class ReaderImageResolver {
     required this._sourceId,
   });
 
+  // ── Compiled pattern cache ─────────────────────────────────────────────
+  // These extractors run per chapter over full page HTML on the UI isolate;
+  // compiling every literal per call wasted CPU on every reader open.
+  // Literals live as `static final` below; patterns with interpolated
+  // segments (script/variable names) go through [_rx], keyed by pattern +
+  // flags with a bounded size.
+
+  static final Map<String, RegExp> _patternCache = {};
+  static const int _maxPatternCacheEntries = 128;
+
+  static RegExp _rx(
+    String pattern, {
+    bool caseSensitive = true,
+    bool multiLine = false,
+    bool dotAll = false,
+    bool unicode = false,
+  }) {
+    final key = '$pattern|$caseSensitive|$multiLine|$dotAll|$unicode';
+    final hit = _patternCache[key];
+    if (hit != null) return hit;
+    if (_patternCache.length >= _maxPatternCacheEntries) {
+      _patternCache.clear();
+    }
+    final compiled = RegExp(
+      pattern,
+      caseSensitive: caseSensitive,
+      multiLine: multiLine,
+      dotAll: dotAll,
+      unicode: unicode,
+    );
+    _patternCache[key] = compiled;
+    return compiled;
+  }
+
+  static final _slidesPathPattern = RegExp(
+    r'slides_p_path\s*=\s*\[(.*?)\]\s*;',
+    caseSensitive: false,
+    dotAll: true,
+  );
+
+  static final _quotedStringPattern = RegExp(r"""["']([^"']+)["']""");
+
+  static final _chapterDataPattern = RegExp(
+    r'''chapterData\s*=\s*\{[^}]*?"data"\s*:\s*"([^"]+)"\s*,\s*"base"\s*:\s*"([^"]+)"\s*\}''',
+    dotAll: true,
+  );
+
+  static final _chapterDataNoBasePattern = RegExp(
+    r'''chapterData\s*=\s*\{[^}]*?"data"\s*:\s*"([^"]+)"\s*\}''',
+    dotAll: true,
+  );
+
+  static final _localStaticPattern = RegExp(
+    r'''localStaticData\s*=\s*\{.*?"currentId"\s*:\s*(\d+).*?"chapterId"\s*:\s*(\d+)''',
+    dotAll: true,
+  );
+
+  static final _baseUrlExtraPattern = RegExp(
+    r'''single-chapter-js-extra[^>]*>[\s\S]*?"baseUrl"\s*:\s*"([^"]+)"''',
+    dotAll: true,
+  );
+
+  static final _scriptDataPattern = RegExp(
+    r'''single-chapter-js-before[^>]*>[\s\S]*?([A-Za-z0-9+/=]*ey[A-Za-z0-9+/=]+)''',
+    dotAll: true,
+  );
+
+  static final _previewCdnPattern = RegExp(
+    r'''https?:\/\/hencover\.xyz\/preview\/[^"' <]+''',
+    caseSensitive: false,
+  );
+
+  static final _videoUrlPattern = RegExp(
+    r'''["'(]\s*((?:https?:)?//[^"' <>\s]+\.(?:m3u8|mp4|webm|mov)(?:\?[^"' <>\s]*)?)''',
+    caseSensitive: false,
+  );
+
+  static final _videoExtPattern = RegExp(r'\.(m3u8|mp4|webm|mov)$');
+
+  static final _imageExtPattern = RegExp(
+    r'\.(jpg|jpeg|webp|png|gif)$|\d+t\.(jpg|jpeg|webp|png|gif)$',
+    caseSensitive: false,
+  );
+
+  static final _hentaiFoxFilePattern = RegExp(
+    r'^\d+\.(jpg|jpeg|webp|png|gif)$',
+    caseSensitive: false,
+  );
+
+  static final _gthParseJsonPattern = RegExp(
+    r"var\s+g_th\s*=\s*\$\.parseJSON\(\s*'(.+?)'\s*\)\s*;",
+    dotAll: true,
+  );
+
+  static final _gthBracePattern = RegExp(
+    r'var\s+g_th\s*=\s*(\{.+?\})\s*;',
+    dotAll: true,
+  );
+
   // Returns the decoded JSON string, or null when not present / garbled.
 
   // The page references the payload as `"chaotic_payload":"$17"` (a Next.js
@@ -132,11 +231,7 @@ class ReaderImageResolver {
   }
 
   List<String> extractScriptSlidesImageUrls(String htmlContent) {
-    final slidesMatch = RegExp(
-      r'slides_p_path\s*=\s*\[(.*?)\]\s*;',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(htmlContent);
+    final slidesMatch = _slidesPathPattern.firstMatch(htmlContent);
     if (slidesMatch == null) {
       return const [];
     }
@@ -146,7 +241,7 @@ class ReaderImageResolver {
       return const [];
     }
 
-    final encodedItems = RegExp(r"""["']([^"']+)["']""")
+    final encodedItems = _quotedStringPattern
         .allMatches(rawArray)
         .map((match) => match.group(1))
         .whereType<String>()
@@ -197,10 +292,8 @@ class ReaderImageResolver {
     String htmlContent, {
     required Map<String, dynamic> readerConfig,
   }) {
-    final inlineChapterDataMatch = RegExp(
-      r'''chapterData\s*=\s*\{[^}]*?"data"\s*:\s*"([^"]+)"\s*,\s*"base"\s*:\s*"([^"]+)"\s*\}''',
-      dotAll: true,
-    ).firstMatch(htmlContent);
+    final inlineChapterDataMatch =
+        _chapterDataPattern.firstMatch(htmlContent);
 
     String? base64Str;
     String? baseUrl;
@@ -214,16 +307,11 @@ class ReaderImageResolver {
       // like `94297/mr_001.jpg` resolve against the CDN host:
       // `https://{cdnHost}/{currentId}/{chapterId}/{src}`, where
       // `currentId` (manga id) and `chapterId` come from `localStaticData`.
-      final chapterDataNoBaseMatch = RegExp(
-        r'''chapterData\s*=\s*\{[^}]*?"data"\s*:\s*"([^"]+)"\s*\}''',
-        dotAll: true,
-      ).firstMatch(htmlContent);
+      final chapterDataNoBaseMatch =
+          _chapterDataNoBasePattern.firstMatch(htmlContent);
       if (chapterDataNoBaseMatch != null) {
         final cdnHost = readerConfig['cdnHost'] as String?;
-        final localStatic = RegExp(
-          r'''localStaticData\s*=\s*\{.*?"currentId"\s*:\s*(\d+).*?"chapterId"\s*:\s*(\d+)''',
-          dotAll: true,
-        ).firstMatch(htmlContent);
+        final localStatic = _localStaticPattern.firstMatch(htmlContent);
         if (cdnHost != null && cdnHost.isNotEmpty && localStatic != null) {
           base64Str = chapterDataNoBaseMatch.group(1);
           baseUrl =
@@ -245,14 +333,9 @@ class ReaderImageResolver {
     }
 
     if (base64Str == null) {
-      final scriptBaseUrlMatch = RegExp(
-        r'''single-chapter-js-extra[^>]*>[\s\S]*?"baseUrl"\s*:\s*"([^"]+)"''',
-        dotAll: true,
-      ).firstMatch(htmlContent);
-      final scriptDataMatch = RegExp(
-        r'''single-chapter-js-before[^>]*>[\s\S]*?([A-Za-z0-9+/=]*ey[A-Za-z0-9+/=]+)''',
-        dotAll: true,
-      ).firstMatch(htmlContent);
+      final scriptBaseUrlMatch =
+          _baseUrlExtraPattern.firstMatch(htmlContent);
+      final scriptDataMatch = _scriptDataPattern.firstMatch(htmlContent);
 
       baseUrl = scriptBaseUrlMatch?.group(1);
       base64Str = scriptDataMatch?.group(1);
@@ -357,10 +440,7 @@ class ReaderImageResolver {
   }
 
   List<String> extractPreviewCdnImageUrls(String htmlContent) {
-    final matches = RegExp(
-      r'''https?:\/\/hencover\.xyz\/preview\/[^"' <]+''',
-      caseSensitive: false,
-    ).allMatches(htmlContent);
+    final matches = _previewCdnPattern.allMatches(htmlContent);
 
     final urls = <String>[];
     final seen = <String>{};
@@ -393,7 +473,8 @@ class ReaderImageResolver {
   }) {
     if (scriptId.isEmpty) return const [];
 
-    final elementMatch = RegExp(
+    // Dynamic id: cached by pattern+flags instead of a static field.
+    final elementMatch = _rx(
       '<script[^>]*id="$scriptId"[^>]*>(.*?)</script>',
       caseSensitive: false,
       dotAll: true,
@@ -444,7 +525,8 @@ class ReaderImageResolver {
   /// Body of `name = <json>` inside any `<script>` block. Quote/bracket aware
   /// so a `;` or `}` inside a string or nested object doesn't truncate it.
   String? _jsVariableBody(String htmlContent, String name) {
-    final assign = RegExp(
+    // Dynamic name: cached by pattern instead of recompiled per call.
+    final assign = _rx(
       '(?:var|let|const)?\\s*${RegExp.escape(name)}\\s*(?:\\.\\w+)*\\s*=\\s*',
     ).firstMatch(htmlContent);
     if (assign == null) return null;
@@ -725,14 +807,9 @@ class ReaderImageResolver {
     return ranks;
   }
 
-  final _videoUrlPattern = RegExp(
-    r'''["'(]\s*((?:https?:)?//[^"' <>\s]+\.(?:m3u8|mp4|webm|mov)(?:\?[^"' <>\s]*)?)''',
-    caseSensitive: false,
-  );
-
   static bool _isVideoUrl(String url) {
     final path = Uri.tryParse(url)?.path.toLowerCase() ?? url.toLowerCase();
-    return RegExp(r'\.(m3u8|mp4|webm|mov)$').hasMatch(path);
+    return _videoExtPattern.hasMatch(path);
   }
 
   // Delegates to the shared pure implementation; [baseUrl] replaces the
@@ -745,10 +822,7 @@ class ReaderImageResolver {
     if (imageUrl == null || imageUrl.isEmpty) return 'jpg';
 
     final clean = imageUrl.split('?').first;
-    final extMatch = RegExp(
-      r'\.(jpg|jpeg|webp|png|gif)$|\d+t\.(jpg|jpeg|webp|png|gif)$',
-      caseSensitive: false,
-    ).firstMatch(clean);
+    final extMatch = _imageExtPattern.firstMatch(clean);
     return (extMatch?.group(1) ?? extMatch?.group(2) ?? 'jpg').toLowerCase();
   }
 
@@ -770,10 +844,7 @@ class ReaderImageResolver {
 
     final segments = List<String>.from(uri.pathSegments);
     final fileName = segments.removeLast();
-    final defaultExtMatch = RegExp(
-      r'^\d+\.(jpg|jpeg|webp|png|gif)$',
-      caseSensitive: false,
-    ).firstMatch(fileName);
+    final defaultExtMatch = _hentaiFoxFilePattern.firstMatch(fileName);
     final defaultExt = (defaultExtMatch?.group(1) ?? 'jpg').toLowerCase();
 
     final scheme = uri.scheme.isEmpty ? 'https' : uri.scheme;
@@ -794,18 +865,12 @@ class ReaderImageResolver {
     if (html.isEmpty) return const {};
 
     String? rawJson;
-    final parseJsonMatch = RegExp(
-      r"var\s+g_th\s*=\s*\$\.parseJSON\(\s*'(.+?)'\s*\)\s*;",
-      dotAll: true,
-    ).firstMatch(html);
+    final parseJsonMatch = _gthParseJsonPattern.firstMatch(html);
     if (parseJsonMatch != null) {
       rawJson = parseJsonMatch.group(1);
     }
 
-    rawJson ??= RegExp(
-      r'var\s+g_th\s*=\s*(\{.+?\})\s*;',
-      dotAll: true,
-    ).firstMatch(html)?.group(1);
+    rawJson ??= _gthBracePattern.firstMatch(html)?.group(1);
 
     if (rawJson == null || rawJson.isEmpty) {
       return const {};

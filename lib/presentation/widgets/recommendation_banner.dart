@@ -34,7 +34,8 @@ class RecommendationBannerCarousel extends StatefulWidget {
 }
 
 class _RecommendationBannerCarouselState
-    extends State<RecommendationBannerCarousel> {
+    extends State<RecommendationBannerCarousel>
+    with WidgetsBindingObserver {
   static const _autoPlayInterval = Duration(seconds: 5);
   static const _resumeDelay = Duration(seconds: 4);
 
@@ -43,11 +44,31 @@ class _RecommendationBannerCarouselState
   Timer? _resume;
   int _page = 0;
 
+  /// False while the app is backgrounded. The 5s auto-play timer is the only
+  /// perpetual GPU/CPU waker on the idle home screen, so it must never fire
+  /// while the app isn't visible.
+  bool _appActive = true;
+
   @override
   void initState() {
     super.initState();
     _controller = PageController(viewportFraction: 0.92);
+    WidgetsBinding.instance.addObserver(this);
     _startAutoPlay();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appActive = state == AppLifecycleState.resumed;
+    if (!mounted) return;
+    if (_appActive) {
+      _startAutoPlay();
+    } else {
+      _autoPlay?.cancel();
+      _autoPlay = null;
+      _resume?.cancel();
+      _resume = null;
+    }
   }
 
   @override
@@ -63,6 +84,7 @@ class _RecommendationBannerCarouselState
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _autoPlay?.cancel();
     _resume?.cancel();
     _controller.dispose();
@@ -71,9 +93,14 @@ class _RecommendationBannerCarouselState
 
   void _startAutoPlay() {
     _autoPlay?.cancel();
+    _autoPlay = null;
     if (widget.items.length < 2) return;
+    if (!_appActive) return;
     _autoPlay = Timer.periodic(_autoPlayInterval, (_) {
       if (!mounted || !_controller.hasClients) return;
+      // Respect TickerMode (route covered / preview): never animate or
+      // rebuild when this subtree is not supposed to tick.
+      if (!TickerMode.valuesOf(context).enabled) return;
       final next = (_page + 1) % widget.items.length;
       _controller.animateToPage(
         next,

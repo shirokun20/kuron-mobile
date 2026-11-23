@@ -44,6 +44,12 @@ class RecommendationRepositoryImpl implements RecommendationRepository {
   List<Recommendation>? _cached;
   DateTime? _cachedAt;
 
+  @override
+  bool get isCacheValid =>
+      _cached != null &&
+      _cachedAt != null &&
+      DateTime.now().difference(_cachedAt!) < cacheTtl;
+
   // ---------- public API ----------
 
   @override

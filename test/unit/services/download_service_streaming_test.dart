@@ -53,25 +53,39 @@ class _FakeSource extends ContentSource {
       SearchCapabilities.defaultCapabilities;
 
   @override
-  Future<ContentListResult> search(SearchFilter filter) =>
+  Future<ContentListResult> search(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  }) =>
       throw UnimplementedError();
   @override
-  Future<Content> getDetail(String contentId) => throw UnimplementedError();
+  Future<Content> getDetail(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) =>
+      throw UnimplementedError();
   @override
   Future<ContentListResult> getList({
     int page = 1,
     SortOption sort = SortOption.newest,
-  }) => throw UnimplementedError();
+    OnCancelRegister? onCancel,
+  }) =>
+      throw UnimplementedError();
   @override
   Future<ContentListResult> getPopular({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
-  }) => throw UnimplementedError();
+    OnCancelRegister? onCancel,
+  }) =>
+      throw UnimplementedError();
   @override
   Future<List<Content>> getRandom({int count = 1}) =>
       throw UnimplementedError();
   @override
-  Future<List<Content>> getRelated(String contentId) =>
+  Future<List<Content>> getRelated(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) =>
       throw UnimplementedError();
   @override
   String buildImageUrl({

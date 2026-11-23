@@ -21,6 +21,10 @@ class GetRecommendationsUseCase
       throw CacheException('Failed to get recommendations: ${e.toString()}');
     }
   }
+
+  /// Passthrough for [RecommendationRepository.isCacheValid] so presentation
+  /// can skip no-op reloads without importing the data layer.
+  bool get isCacheValid => _repository.isCacheValid;
 }
 
 class GetRecommendationsParams extends UseCaseParams {

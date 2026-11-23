@@ -233,3 +233,15 @@ class UnauthorizedException extends UseCaseException {
 class TimeoutException extends UseCaseException {
   const TimeoutException([super.message = 'Operation timed out']);
 }
+
+/// Thrown when an in-flight fetch is superseded by a newer caller action
+/// (sort/search/page change) via an [OnCancelRegister]-style hook.
+///
+/// Extends [UseCaseException] so existing `on UseCaseException { rethrow; }`
+/// clauses pass it through untouched — it must never be wrapped in
+/// `NetworkException`, recorded as an error, or surfaced as UI state.
+/// Blocs treat it as "stale result, stay silent".
+class OperationCancelledException extends UseCaseException {
+  const OperationCancelledException(
+      [super.message = 'Operation cancelled by caller']);
+}

@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:kuron_core/kuron_core.dart' as core;
 import 'package:logger/logger.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../domain/entities/entities.dart';
+import '../../../domain/usecases/base_usecase.dart';
 import '../../../domain/usecases/content/content_usecases.dart';
 import '../../../domain/repositories/repositories.dart';
 
@@ -46,6 +48,57 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
   SortOption _currentSortBy = SortOption.newest;
   DateTime? _lastFetchTime; // Track when data was actually fetched from server
 
+  // In-flight fetch preemption (restartable-style cancellation without the
+  // bloc_concurrency dependency). Every fetch below runs inside
+  // [_runCancellableFetch]: starting a new fetch aborts the previous Dio
+  // request, which surfaces as [OperationCancelledException] and is
+  // swallowed by each handler — no error UI, no stale emit.
+  int _fetchGeneration = 0;
+  void Function()? _cancelInFlight;
+
+  /// Runs [run] as the single active fetch. Cancels the previous in-flight
+  /// fetch first, then registers this fetch's abort hook. If the fetch is
+  /// cancelled while still the newest (inherited a superseded shared
+  /// deduplicated request), it retries once as a fresh first-mover.
+  Future<T> _runCancellableFetch<T>(
+    Future<T> Function(core.OnCancelRegister? onCancel) run,
+  ) async {
+    _cancelInFlight?.call();
+    _cancelInFlight = null;
+    final generation = ++_fetchGeneration;
+    try {
+      return await run((abort) {
+        if (generation == _fetchGeneration) {
+          _cancelInFlight = abort;
+        } else {
+          // Already superseded while starting: stop our own network at once.
+          abort();
+        }
+      });
+    } on OperationCancelledException {
+      if (generation == _fetchGeneration && !isClosed) {
+        _cancelInFlight = null;
+        return await run((abort) {
+          if (generation == _fetchGeneration) {
+            _cancelInFlight = abort;
+          } else {
+            abort();
+          }
+        });
+      }
+      rethrow;
+    } finally {
+      if (generation == _fetchGeneration) _cancelInFlight = null;
+    }
+  }
+
+  @override
+  Future<void> close() {
+    _cancelInFlight?.call();
+    _cancelInFlight = null;
+    return super.close();
+  }
+
   // Load initial content list
   Future<void> _onContentLoad(
     ContentLoadEvent event,
@@ -86,7 +139,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         sortBy: event.sortBy,
       );
 
-      final result = await _getContentListUseCase(params);
+      final result = await _runCancellableFetch(
+        (onCancel) => _getContentListUseCase(
+          params.copyWith(onCancel: onCancel),
+        ),
+      );
 
       if (result.isEmpty) {
         _logger.w(
@@ -120,6 +177,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       emit(loadedState);
       _logger.i(
           'ContentBloc: ContentLoaded emitted successfully, state type: ${state.runtimeType}');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error loading content',
           error: e, stackTrace: stackTrace);
@@ -185,27 +246,40 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         // Load more search results
         final nextPageFilter = currentState.searchFilter!
             .copyWith(page: currentState.currentPage + 1);
-        result = await _searchContentUseCase(nextPageFilter);
+        result = await _runCancellableFetch(
+          (onCancel) =>
+              _searchContentUseCase(nextPageFilter, onCancel: onCancel),
+        );
       } else if (currentState.tag != null) {
         // Load more content by tag
-        result = await _getContentByTagUseCase(GetContentByTagParams(
-          tag: currentState.tag!,
-          page: currentState.currentPage + 1,
-          sortBy: currentState.sortBy,
-        ));
+        result = await _runCancellableFetch(
+          (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
+            tag: currentState.tag!,
+            page: currentState.currentPage + 1,
+            sortBy: currentState.sortBy,
+            onCancel: onCancel,
+          )),
+        );
       } else if (currentState.timeframe != null) {
         // Load more popular content
-        result = await _getPopularContentUseCase(GetPopularContentParams(
-          timeframe: currentState.timeframe!,
-          page: currentState.currentPage + 1,
-        ));
+        result = await _runCancellableFetch(
+          (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
+            timeframe: currentState.timeframe!,
+            page: currentState.currentPage + 1,
+            onCancel: onCancel,
+          )),
+        );
       } else {
         // Load more regular content
         final params = GetContentListParams(
           page: currentState.currentPage + 1,
           sortBy: currentState.sortBy,
         );
-        result = await _getContentListUseCase(params);
+        result = await _runCancellableFetch(
+          (onCancel) => _getContentListUseCase(
+            params.copyWith(onCancel: onCancel),
+          ),
+        );
       }
 
       // Update fetch time when we get more data from server
@@ -221,6 +295,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       ));
 
       _logger.i('ContentBloc: Loaded ${result.contents.length} more contents');
+    } on OperationCancelledException {
+      // Superseded: drop the loading-more shimmer without touching content.
+      final s = state;
+      if (s is ContentLoadingMore) emit(s.copyWith(isLoadingMore: false));
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error loading more content',
           error: e, stackTrace: stackTrace);
@@ -267,27 +346,40 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
           // Refresh search results from current page
           final refreshFilter =
               currentState.searchFilter!.copyWith(page: event.currentPage);
-          result = await _searchContentUseCase(refreshFilter);
+          result = await _runCancellableFetch(
+            (onCancel) =>
+                _searchContentUseCase(refreshFilter, onCancel: onCancel),
+          );
         } else if (currentState.tag != null) {
           // Refresh content by tag from current page
-          result = await _getContentByTagUseCase(GetContentByTagParams(
-            tag: currentState.tag!,
-            page: event.currentPage,
-            sortBy: currentState.sortBy,
-          ));
+          result = await _runCancellableFetch(
+            (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
+              tag: currentState.tag!,
+              page: event.currentPage,
+              sortBy: currentState.sortBy,
+              onCancel: onCancel,
+            )),
+          );
         } else if (currentState.timeframe != null) {
           // Refresh popular content from current page
-          result = await _getPopularContentUseCase(GetPopularContentParams(
-            timeframe: currentState.timeframe!,
-            page: event.currentPage,
-          ));
+          result = await _runCancellableFetch(
+            (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
+              timeframe: currentState.timeframe!,
+              page: event.currentPage,
+              onCancel: onCancel,
+            )),
+          );
         } else {
           // Refresh regular content from current page
           final params = GetContentListParams(
             page: event.currentPage,
             sortBy: event.sortBy,
           );
-          result = await _getContentListUseCase(params);
+          result = await _runCancellableFetch(
+            (onCancel) => _getContentListUseCase(
+              params.copyWith(onCancel: onCancel),
+            ),
+          );
         }
       } else {
         // Fresh load from page 1
@@ -295,7 +387,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
           page: 1,
           sortBy: event.sortBy,
         );
-        result = await _getContentListUseCase(params);
+        result = await _runCancellableFetch(
+          (onCancel) => _getContentListUseCase(
+            params.copyWith(onCancel: onCancel),
+          ),
+        );
       }
 
       if (result.isEmpty) {
@@ -329,6 +425,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       _logger
           .i('ContentBloc: Refreshed with ${result.contents.length} contents');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error refreshing content',
           error: e, stackTrace: stackTrace);
@@ -559,7 +659,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         sortBy: event.sortBy,
       );
 
-      final result = await _getContentListUseCase(params);
+      final result = await _runCancellableFetch(
+        (onCancel) => _getContentListUseCase(
+          params.copyWith(onCancel: onCancel),
+        ),
+      );
 
       if (result.isEmpty) {
         emit(const ContentEmpty(
@@ -585,6 +689,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       _logger.i(
           'ContentBloc: Successfully cleared search and loaded ${result.contents.length} normal contents');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error clearing search results',
           error: e, stackTrace: stackTrace);
@@ -613,7 +721,9 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // Show loading state
       emit(const ContentLoading(message: 'searchingContentMsg'));
 
-      final result = await _searchContentUseCase(event.filter);
+      final result = await _runCancellableFetch(
+        (onCancel) => _searchContentUseCase(event.filter, onCancel: onCancel),
+      );
 
       if (result.isEmpty) {
         emit(ContentEmpty(
@@ -642,6 +752,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       ));
 
       _logger.i('ContentBloc: Found ${result.contents.length} search results');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error searching content',
           error: e, stackTrace: stackTrace);
@@ -685,10 +799,13 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         emit(const ContentLoading(message: 'loadingPopularContent'));
       }
 
-      final result = await _getPopularContentUseCase(GetPopularContentParams(
-        timeframe: event.timeframe,
-        page: 1,
-      ));
+      final result = await _runCancellableFetch(
+        (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
+          timeframe: event.timeframe,
+          page: 1,
+          onCancel: onCancel,
+        )),
+      );
 
       if (result.isEmpty) {
         emit(const ContentEmpty(
@@ -716,6 +833,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       _logger
           .i('ContentBloc: Loaded ${result.contents.length} popular contents');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error loading popular content',
           error: e, stackTrace: stackTrace);
@@ -759,11 +880,14 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         emit(const ContentLoading(message: 'loadingContentByTag'));
       }
 
-      final result = await _getContentByTagUseCase(GetContentByTagParams(
-        tag: event.tag,
-        page: 1,
-        sortBy: event.sortBy,
-      ));
+      final result = await _runCancellableFetch(
+        (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
+          tag: event.tag,
+          page: 1,
+          sortBy: event.sortBy,
+          onCancel: onCancel,
+        )),
+      );
 
       if (result.isEmpty) {
         emit(ContentEmpty(
@@ -793,6 +917,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       _logger
           .i('ContentBloc: Loaded ${result.contents.length} contents for tag');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error loading content by tag',
           error: e, stackTrace: stackTrace);
@@ -928,27 +1056,39 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       if (currentState.searchFilter != null) {
         // Load search results page
         final pageFilter = currentState.searchFilter!.copyWith(page: page);
-        result = await _searchContentUseCase(pageFilter);
+        result = await _runCancellableFetch(
+          (onCancel) => _searchContentUseCase(pageFilter, onCancel: onCancel),
+        );
       } else if (currentState.tag != null) {
         // Load content by tag page
-        result = await _getContentByTagUseCase(GetContentByTagParams(
-          tag: currentState.tag!,
-          page: page,
-          sortBy: currentState.sortBy,
-        ));
+        result = await _runCancellableFetch(
+          (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
+            tag: currentState.tag!,
+            page: page,
+            sortBy: currentState.sortBy,
+            onCancel: onCancel,
+          )),
+        );
       } else if (currentState.timeframe != null) {
         // Load popular content page
-        result = await _getPopularContentUseCase(GetPopularContentParams(
-          timeframe: currentState.timeframe!,
-          page: page,
-        ));
+        result = await _runCancellableFetch(
+          (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
+            timeframe: currentState.timeframe!,
+            page: page,
+            onCancel: onCancel,
+          )),
+        );
       } else {
         // Load regular content page
         final params = GetContentListParams(
           page: page,
           sortBy: currentState.sortBy,
         );
-        result = await _getContentListUseCase(params);
+        result = await _runCancellableFetch(
+          (onCancel) => _getContentListUseCase(
+            params.copyWith(onCancel: onCancel),
+          ),
+        );
       }
 
       if (result.isEmpty) {
@@ -985,6 +1125,10 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       _logger.i(
           'ContentBloc: Loaded page $page with ${result.contents.length} contents');
+    } on OperationCancelledException {
+      // Superseded by a newer fetch (or bloc closed): stay silent, no
+      // error UI, no stale emit.
+      return;
     } catch (e, stackTrace) {
       _logger.e('ContentBloc: Error loading page $page',
           error: e, stackTrace: stackTrace);

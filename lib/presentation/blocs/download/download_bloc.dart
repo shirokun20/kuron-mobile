@@ -115,6 +115,12 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
   final DownloadManager
       _downloadManager; // Use instance variable instead of singleton directly
 
+  /// Test hook: whether the periodic DB-flush ticker is currently armed.
+  /// Production invariant: false whenever no saves are queued, so an idle
+  /// app has zero perpetual timers from this bloc.
+  @visibleForTesting
+  bool get isFlushTimerActive => _dbFlushTimer != null;
+
   // Batch DB save infrastructure
   final Map<String, int> _dbSaveSkipCount = {};
   final Set<String> _pendingDbSave = {};
@@ -141,11 +147,29 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
 
   void resumeBackgroundWork() {
     _logger.i('DownloadBloc: Resuming background work');
+    // Only restart the timer when saves are actually queued — a permanent
+    // 5s ticker wakes the isolate forever even when the app is fully idle.
     _dbFlushTimer?.cancel();
+    _dbFlushTimer = null;
+    _ensureFlushTimer();
+  }
+
+  /// Starts the periodic DB-flush timer only when saves are queued.
+  /// No-op when nothing is pending or a timer already runs.
+  void _ensureFlushTimer() {
+    if (_pendingDbSave.isEmpty || _dbFlushTimer != null) return;
     _dbFlushTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _flushPendingDbSaves(),
     );
+  }
+
+  /// Stops the flush timer once the queue drains so idle has zero tickers.
+  void _cancelFlushTimerIfIdle() {
+    if (_pendingDbSave.isEmpty) {
+      _dbFlushTimer?.cancel();
+      _dbFlushTimer = null;
+    }
   }
 
   String _generateFallbackUrl(String? sourceId, String contentId) {
@@ -465,17 +489,16 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
       },
     );
 
-    _dbFlushTimer?.cancel();
-    _dbFlushTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _flushPendingDbSaves(),
-    );
-
+    // No permanent ticker here: the flush timer starts on demand via
+    // _ensureFlushTimer() whenever saves are queued (see _onProgressUpdate).
     _logger.i('DownloadBloc: Progress stream subscription initialized');
   }
 
   Future<void> _flushPendingDbSaves() async {
-    if (_pendingDbSave.isEmpty) return;
+    if (_pendingDbSave.isEmpty) {
+      _cancelFlushTimerIfIdle();
+      return;
+    }
     final ids = List<String>.from(_pendingDbSave);
     _pendingDbSave.clear();
     for (final id in ids) {
@@ -492,6 +515,8 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         _logger.w('DownloadBloc: flush save failed for $id: $e');
       }
     }
+    // Queue drained by this flush: stop the ticker until new saves queue.
+    _cancelFlushTimerIfIdle();
   }
 
   Future<List<DownloadStatus>> _loadAllDownloadsFromDb({
@@ -2035,6 +2060,7 @@ class DownloadBloc extends Bloc<DownloadEvent, DownloadBlocState> {
         _pendingDbSave.remove(event.contentId);
       } else {
         _pendingDbSave.add(event.contentId);
+        _ensureFlushTimer();
       }
     }
 

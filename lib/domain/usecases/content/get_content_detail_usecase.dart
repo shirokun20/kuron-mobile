@@ -28,6 +28,7 @@ class GetContentDetailUseCase extends UseCase<Content, GetContentDetailParams> {
       final content = await _contentRepository.getContentDetail(
         params.contentId,
         sourceId: params.sourceId,
+        onCancel: params.onCancel,
       );
 
       return content;
@@ -47,11 +48,16 @@ class GetContentDetailParams extends UseCaseParams {
     required this.contentId,
     this.verifyExists = false,
     this.sourceId,
+    this.onCancel,
   });
 
   final ContentId contentId;
   final bool verifyExists;
   final String? sourceId;
+
+  /// Cancellation hook for this fetch. Excluded from [props] (closure
+  /// identity would break value equality of otherwise identical params).
+  final OnCancelRegister? onCancel;
 
   @override
   List<Object?> get props => [contentId, verifyExists, sourceId];
@@ -60,11 +66,13 @@ class GetContentDetailParams extends UseCaseParams {
     ContentId? contentId,
     bool? verifyExists,
     String? sourceId,
+    OnCancelRegister? onCancel,
   }) {
     return GetContentDetailParams(
       contentId: contentId ?? this.contentId,
       verifyExists: verifyExists ?? this.verifyExists,
       sourceId: sourceId ?? this.sourceId,
+      onCancel: onCancel ?? this.onCancel,
     );
   }
 

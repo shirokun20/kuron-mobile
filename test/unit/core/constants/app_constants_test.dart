@@ -225,12 +225,18 @@ class _FakeContentSource extends ContentSource {
       SearchCapabilities.defaultCapabilities;
 
   @override
-  Future<ContentListResult> search(SearchFilter filter) {
+  Future<ContentListResult> search(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  }) {
     throw UnimplementedError();
   }
 
   @override
-  Future<Content> getDetail(String contentId) {
+  Future<Content> getDetail(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) {
     throw UnimplementedError();
   }
 
@@ -238,6 +244,7 @@ class _FakeContentSource extends ContentSource {
   Future<ContentListResult> getList({
     int page = 1,
     SortOption sort = SortOption.newest,
+    OnCancelRegister? onCancel,
   }) {
     throw UnimplementedError();
   }
@@ -246,6 +253,7 @@ class _FakeContentSource extends ContentSource {
   Future<ContentListResult> getPopular({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
+    OnCancelRegister? onCancel,
   }) {
     throw UnimplementedError();
   }
@@ -256,7 +264,10 @@ class _FakeContentSource extends ContentSource {
   }
 
   @override
-  Future<List<Content>> getRelated(String contentId) {
+  Future<List<Content>> getRelated(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) {
     throw UnimplementedError();
   }
 

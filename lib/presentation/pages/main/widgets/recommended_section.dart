@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
@@ -57,7 +58,9 @@ class _RecommendedSectionState extends State<RecommendedSection>
   @override
   void didUpdateWidget(RecommendedSection oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.excludeIds != oldWidget.excludeIds && mounted) {
+    // Value comparison: the parent rebuilds a fresh Set literal on every
+    // build, so `!=` (identity) retriggered a reload on every home rebuild.
+    if (!setEquals(widget.excludeIds, oldWidget.excludeIds) && mounted) {
       _cubit.loadRecommendations(excludeIds: widget.excludeIds);
     }
   }

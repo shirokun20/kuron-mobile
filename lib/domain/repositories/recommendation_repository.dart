@@ -18,6 +18,11 @@ abstract class RecommendationRepository {
     int limit = 6,
   });
 
+  /// True when a non-forced [getRecommendations] would serve the in-memory
+  /// cache without recompute. Lets callers skip reload churn on resume /
+  /// rebuild while the cache window is still valid.
+  bool get isCacheValid;
+
   /// Dedup bookkeeping: shown (24h window), tapped, dismissed (30 days).
   Future<void> recordShown(String contentId, {String? sourceId});
   Future<void> recordTapped(String contentId, {String? sourceId});

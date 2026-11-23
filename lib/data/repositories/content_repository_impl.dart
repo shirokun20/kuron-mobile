@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/data/models/content_model.dart';
 
 import '../../core/config/remote_config_service.dart';
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/content_repository.dart';
+import '../../domain/usecases/base_usecase.dart' hide NetworkException;
 import '../../domain/value_objects/value_objects.dart';
 import '../datasources/remote/remote_data_source.dart';
 import '../../core/services/cache/cache_manager.dart' as multi_cache;
@@ -49,6 +51,33 @@ class ContentRepositoryImpl implements ContentRepository {
   static const Duration cacheExpiration = Duration(hours: 6);
   static const int defaultPageSize = 20;
 
+  /// Runs a source fetch, converting Dio cancellation into the domain-level
+  /// [OperationCancelledException] so it propagates through usecases to the
+  /// bloc instead of being recorded as an error or wrapped in `Network`.
+  Future<T> _guardCancel<T>(Future<T> Function() run) async {
+    try {
+      return await run();
+    } on DioException catch (e) {
+      if (e.type == DioExceptionType.cancel) {
+        throw const OperationCancelledException();
+      }
+      rethrow;
+    }
+  }
+
+  /// Bridges an [OnCancelRegister] hook to a Dio token owned by the
+  /// repository (used for the request-deduplication waiter). The source
+  /// adapter creates its own token from the same hook; invoking the hook
+  /// cancels both. Null when no hook is registered.
+  CancelToken? _bridgeOnCancel(core.OnCancelRegister? onCancel) {
+    if (onCancel == null) return null;
+    final token = CancelToken();
+    onCancel(() {
+      if (!token.isCancelled) token.cancel('Cancelled by caller');
+    });
+    return token;
+  }
+
   core.ContentSource get _activeSource {
     final source = contentSourceRegistry.currentSource;
     if (source == null) {
@@ -61,6 +90,7 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<ContentListResult> getContentList({
     int page = 1,
     SortOption sortBy = SortOption.newest,
+    core.OnCancelRegister? onCancel,
   }) async {
     try {
       _logger.i('Getting content list - page: $page, sort: $sortBy');
@@ -77,8 +107,13 @@ class ContentRepositoryImpl implements ContentRepository {
         }
         if (sortBy == SortOption.rating) coreSort = core.SortOption.rating;
 
-        final coreResult =
-            await _activeSource.getList(page: page, sort: coreSort);
+        final coreResult = await _guardCancel(
+          () => _activeSource.getList(
+            page: page,
+            sort: coreSort,
+            onCancel: onCancel,
+          ),
+        );
 
         // Cache individual content items
         final entities = coreResult.contents.map(_mapToAppContent).toList();
@@ -103,11 +138,13 @@ class ContentRepositoryImpl implements ContentRepository {
         return _mapToAppContentListResult(coreResult);
       } catch (e) {
         _logger.w('Failed to fetch from source: $e');
-        _recordError(
-          sourceId: _sourceIdFor(null),
-          feature: 'getContentList',
-          error: e,
-        );
+        if (e is! OperationCancelledException) {
+          _recordError(
+            sourceId: _sourceIdFor(null),
+            feature: 'getContentList',
+            error: e,
+          );
+        }
         rethrow;
       }
     } catch (e, stackTrace) {
@@ -136,8 +173,11 @@ class ContentRepositoryImpl implements ContentRepository {
   }
 
   @override
-  Future<Content> getContentDetail(ContentId contentId,
-      {String? sourceId}) async {
+  Future<Content> getContentDetail(
+    ContentId contentId, {
+    String? sourceId,
+    core.OnCancelRegister? onCancel,
+  }) async {
     final requestKey = 'content_detail_${contentId.value}';
     final requestedSource = sourceId != null
         ? contentSourceRegistry.getSource(sourceId)
@@ -201,7 +241,9 @@ class ContentRepositoryImpl implements ContentRepository {
               throw Exception('Source not found for ID: $sourceId');
             }
 
-            final coreContent = await source.getDetail(contentId.value);
+            final coreContent = await _guardCancel(
+              () => source.getDetail(contentId.value, onCancel: onCancel),
+            );
             final entity = _mapToAppContent(coreContent);
 
             await _detectDetailParse(
@@ -216,6 +258,8 @@ class ContentRepositoryImpl implements ContentRepository {
             ]);
 
             return entity;
+          } on OperationCancelledException {
+            rethrow;
           } catch (e) {
             _recordError(
               sourceId: _sourceIdFor(sourceId),
@@ -228,6 +272,9 @@ class ContentRepositoryImpl implements ContentRepository {
             _logger.w('Failed to fetch detail from source: $e');
             throw NetworkException('Failed to fetch content detail: $e');
           }
+        } on OperationCancelledException {
+          // Caller superseded this fetch: propagate, never record or wrap.
+          rethrow;
         } catch (e, stackTrace) {
           // Already recorded by the inner catch — no duplicate row.
           _logger.e('Failed to get content detail',
@@ -236,22 +283,30 @@ class ContentRepositoryImpl implements ContentRepository {
         }
       },
       timeout: detailTimeout,
+      cancelToken: _bridgeOnCancel(onCancel),
     );
   }
 
   @override
-  Future<ContentListResult> searchContent(SearchFilter filter) async {
+  Future<ContentListResult> searchContent(
+    SearchFilter filter, {
+    core.OnCancelRegister? onCancel,
+  }) async {
     try {
       _logger.i('Searching content with filter: ${filter.query}');
       try {
         final coreFilter = _mapToCoreSearchFilter(filter);
-        final coreResult = await _activeSource.search(coreFilter);
+        final coreResult = await _guardCancel(
+          () => _activeSource.search(coreFilter, onCancel: onCancel),
+        );
 
         if (coreResult.contents.isNotEmpty) {
           _markSourceHealthy(_activeSource.id, 'search');
         }
 
         return _mapToAppContentListResult(coreResult);
+      } on OperationCancelledException {
+        rethrow;
       } catch (e) {
         _logger.w('Search failed: $e');
         _recordError(
@@ -272,6 +327,7 @@ class ContentRepositoryImpl implements ContentRepository {
   Future<ContentListResult> getPopularContent({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
+    core.OnCancelRegister? onCancel,
   }) async {
     try {
       core.PopularTimeframe coreTimeframe = core.PopularTimeframe.allTime;
@@ -282,12 +338,17 @@ class ContentRepositoryImpl implements ContentRepository {
         coreTimeframe = core.PopularTimeframe.week;
       }
 
-      final coreResult = await _activeSource.getPopular(
-        timeframe: coreTimeframe,
-        page: page,
+      final coreResult = await _guardCancel(
+        () => _activeSource.getPopular(
+          timeframe: coreTimeframe,
+          page: page,
+          onCancel: onCancel,
+        ),
       );
 
       return _mapToAppContentListResult(coreResult);
+    } on OperationCancelledException {
+      rethrow;
     } catch (e) {
       _logger.w('Failed to fetch popular content from source: $e');
       _recordError(
@@ -304,6 +365,7 @@ class ContentRepositoryImpl implements ContentRepository {
     required Tag tag,
     int page = 1,
     SortOption sortBy = SortOption.newest,
+    core.OnCancelRegister? onCancel,
   }) async {
     try {
       _logger.i('Getting content by tag: ${tag.name}, page: $page');
@@ -367,9 +429,12 @@ class ContentRepositoryImpl implements ContentRepository {
         sortBy: sortBy,
       );
 
-      final result = await searchContent(filter);
+      final result = await searchContent(filter, onCancel: onCancel);
       await _detectTagListEmpty(tag: tag, result: result);
       return result;
+    } on OperationCancelledException {
+      // searchContent propagates cancellation unchanged; don't log it.
+      rethrow;
     } catch (e, stackTrace) {
       // searchContent (called above) already recorded this error.
       _logger.e('Failed to get content by tag',
@@ -383,6 +448,7 @@ class ContentRepositoryImpl implements ContentRepository {
     required ContentId contentId,
     int limit = 10,
     String? sourceId,
+    core.OnCancelRegister? onCancel,
   }) async {
     try {
       _logger.i(
@@ -393,10 +459,14 @@ class ContentRepositoryImpl implements ContentRepository {
           sourceId != null ? contentSourceRegistry.getSource(sourceId) : null;
       final target = source ?? _activeSource;
       try {
-        final coreRelated = await target.getRelated(contentId.value);
+        final coreRelated = await _guardCancel(
+          () => target.getRelated(contentId.value, onCancel: onCancel),
+        );
         if (coreRelated.isNotEmpty) {
           return coreRelated.take(limit).map(_mapToAppContent).toList();
         }
+      } on OperationCancelledException {
+        rethrow;
       } catch (e) {
         _logger.w('Related content failed: $e');
         _recordError(
@@ -406,6 +476,8 @@ class ContentRepositoryImpl implements ContentRepository {
         );
       }
       return [];
+    } on OperationCancelledException {
+      rethrow;
     } catch (e, stackTrace) {
       // Same error as the inner catch above — recorded once there.
       _logger.e('Failed to get related content',
@@ -503,8 +575,11 @@ class ContentRepositoryImpl implements ContentRepository {
   }
 
   @override
-  Future<ChapterData> getChapterImages(ContentId chapterId,
-      {String? sourceId}) async {
+  Future<ChapterData> getChapterImages(
+    ContentId chapterId, {
+    String? sourceId,
+    core.OnCancelRegister? onCancel,
+  }) async {
     try {
       _logger.d(
           'Getting chapter images for: ${chapterId.value}, source: $sourceId');
@@ -518,7 +593,9 @@ class ContentRepositoryImpl implements ContentRepository {
 
       // Call getChapterImages on whatever source implements it (works for
       // GenericHttpSource, KomiktapSource, CrotpediaSource, or any future source).
-      final result = await source.getChapterImages(chapterId.value);
+      final result = await _guardCancel(
+        () => source.getChapterImages(chapterId.value, onCancel: onCancel),
+      );
       if (result == null) {
         // Null = source does not support chapter images → NOT an anomaly.
         _logger
@@ -532,6 +609,9 @@ class ContentRepositoryImpl implements ContentRepository {
         result: result,
       );
       return result;
+    } on OperationCancelledException {
+      // Superseded by a newer fetch: propagate, never record or mask.
+      rethrow;
     } catch (e) {
       _logger.e('Failed to get chapter images: $e');
       _recordError(

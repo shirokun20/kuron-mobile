@@ -1,3 +1,4 @@
+import 'package:kuron_core/kuron_core.dart' show OnCancelRegister;
 import '../base_usecase.dart';
 import '../../value_objects/value_objects.dart';
 import '../../repositories/repositories.dart';
@@ -15,6 +16,7 @@ class GetChapterImagesUseCase
     return await _contentRepository.getChapterImages(
       params.chapterId,
       sourceId: params.sourceId,
+      onCancel: params.onCancel,
     );
   }
 }
@@ -24,10 +26,15 @@ class GetChapterImagesParams extends UseCaseParams {
   const GetChapterImagesParams({
     required this.chapterId,
     this.sourceId,
+    this.onCancel,
   });
 
   final ContentId chapterId;
   final String? sourceId;
+
+  /// Cancellation hook for this fetch. Excluded from [props] (closure
+  /// identity would break value equality of otherwise identical params).
+  final OnCancelRegister? onCancel;
 
   @override
   List<Object?> get props => [chapterId, sourceId];

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -193,7 +195,12 @@ class SplashBloc extends Bloc<SplashEvent, SplashState> {
               message: 'downloadingTagsMsg:$source', progress: 1.0));
           await _tagDataManager.checkForUpdates(source: source);
         } else {
-          _tagDataManager.checkForUpdates(source: source).ignore();
+          // Deferred past the cold-start critical path (bypass check + first
+          // home paint) so background tag refreshes don't contend for radio.
+          // `.ignore()` preserves the old fire-and-forget error semantics.
+          Future.delayed(const Duration(seconds: 5), () {
+            return _tagDataManager.checkForUpdates(source: source);
+          }).ignore();
         }
       }
 

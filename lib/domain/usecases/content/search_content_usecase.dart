@@ -1,3 +1,4 @@
+import 'package:kuron_core/kuron_core.dart' show OnCancelRegister;
 import '../base_usecase.dart';
 import '../../entities/entities.dart';
 import '../../repositories/repositories.dart';
@@ -8,8 +9,13 @@ class SearchContentUseCase extends UseCase<ContentListResult, SearchFilter> {
 
   final ContentRepository _contentRepository;
 
+  /// [onCancel] is an optional override parameter (legal on overrides):
+  /// existing callers keep passing just the filter.
   @override
-  Future<ContentListResult> call(SearchFilter filter) async {
+  Future<ContentListResult> call(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  }) async {
     try {
       // Validate parameters
       if (filter.page < 1) {
@@ -22,7 +28,10 @@ class SearchContentUseCase extends UseCase<ContentListResult, SearchFilter> {
       }
 
       // Search content using repository
-      final result = await _contentRepository.searchContent(filter);
+      final result = await _contentRepository.searchContent(
+        filter,
+        onCancel: onCancel,
+      );
 
       return result;
     } on UseCaseException {

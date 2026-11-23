@@ -229,31 +229,45 @@ class WebViewDomReaderSource implements ContentSource {
   bool canHandleGlobalQuery(String query) => _inner.canHandleGlobalQuery(query);
 
   @override
-  Future<ContentListResult> search(SearchFilter filter) =>
-      _inner.search(filter);
+  Future<ContentListResult> search(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  }) =>
+      _inner.search(filter, onCancel: onCancel);
 
   @override
-  Future<Content> getDetail(String contentId) => _inner.getDetail(contentId);
+  Future<Content> getDetail(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) =>
+      _inner.getDetail(contentId, onCancel: onCancel);
 
   @override
   Future<ContentListResult> getList({
     int page = 1,
     SortOption sort = SortOption.newest,
-  }) => _inner.getList(page: page, sort: sort);
+    OnCancelRegister? onCancel,
+  }) =>
+      _inner.getList(page: page, sort: sort, onCancel: onCancel);
 
   @override
   Future<ContentListResult> getPopular({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
-  }) => _inner.getPopular(timeframe: timeframe, page: page);
+    OnCancelRegister? onCancel,
+  }) =>
+      _inner.getPopular(timeframe: timeframe, page: page, onCancel: onCancel);
 
   @override
   Future<List<Content>> getRandom({int count = 1}) =>
       _inner.getRandom(count: count);
 
   @override
-  Future<List<Content>> getRelated(String contentId) =>
-      _inner.getRelated(contentId);
+  Future<List<Content>> getRelated(
+    String contentId, {
+    OnCancelRegister? onCancel,
+  }) =>
+      _inner.getRelated(contentId, onCancel: onCancel);
 
   @override
   Future<List<Comment>> getComments(String contentId) =>

@@ -3590,7 +3590,14 @@ class GenericScraperAdapter implements GenericAdapter {
     CancelToken? cancelToken,
     Map<String, String> extra = const <String, String>{},
   }) async {
-    final key = spec.resolveToken(pageBody);
+    // Token scan + payload decode run on worker isolates: both touch large
+    // strings (full page HTML, XOR loop, JSON parses) that used to block
+    // the UI isolate on every list/detail/reader call.
+    final key = await SecondaryFetchSpec.resolveTokenInIsolate(
+      pageBody,
+      spec.tokenPattern,
+    );
+    _throwIfCancelled(cancelToken, pageUrl);
     if (key == null) {
       _logger.d('$_sourceId secondaryFetch: no token found in $pageUrl');
       return null;
@@ -3624,7 +3631,13 @@ class GenericScraperAdapter implements GenericAdapter {
         return null;
       }
 
-      final payload = spec.decodeBody(response.data ?? '');
+      // Cancellation during the network wait must not pay for a decode.
+      _throwIfCancelled(cancelToken, target);
+      final payload = await SecondaryFetchSpec.decodeBodyInIsolate(
+        response.data ?? '',
+        payloadPath: spec.payloadPath,
+        decodeKey: spec.decodeKey,
+      );
       if (payload == null) {
         _logger.d('$_sourceId secondaryFetch: undecodable payload from $target');
       }
@@ -3633,6 +3646,19 @@ class GenericScraperAdapter implements GenericAdapter {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       _logger.w('$_sourceId secondaryFetch failed for $target: $e');
       return null;
+    }
+  }
+
+  /// Throws a cancel [DioException] when [cancelToken] fired while awaiting
+  /// an isolate hop or network response, so superseded fetches never pay
+  /// for decode work they no longer need.
+  void _throwIfCancelled(CancelToken? cancelToken, String path) {
+    if (cancelToken?.isCancelled == true) {
+      throw DioException(
+        requestOptions: RequestOptions(path: path),
+        type: DioExceptionType.cancel,
+        error: 'Cancelled secondaryFetch for $path',
+      );
     }
   }
 

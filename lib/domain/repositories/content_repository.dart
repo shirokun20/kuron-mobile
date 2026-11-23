@@ -1,31 +1,46 @@
+import 'package:kuron_core/kuron_core.dart' show OnCancelRegister;
 import '../entities/entities.dart';
 import '../value_objects/value_objects.dart';
 
 abstract class ContentRepository {
+  /// [onCancel] aborts an in-flight source fetch (pure-Dart bridge, see
+  /// `OnCancelRegister`). Optional everywhere so existing callers keep
+  /// working; only [ContentBloc]-driven home flows wire it today.
   Future<ContentListResult> getContentList({
     int page = 1,
     SortOption sortBy = SortOption.newest,
+    OnCancelRegister? onCancel,
   });
 
-  Future<Content> getContentDetail(ContentId contentId, {String? sourceId});
+  Future<Content> getContentDetail(
+    ContentId contentId, {
+    String? sourceId,
+    OnCancelRegister? onCancel,
+  });
 
-  Future<ContentListResult> searchContent(SearchFilter filter);
+  Future<ContentListResult> searchContent(
+    SearchFilter filter, {
+    OnCancelRegister? onCancel,
+  });
 
   Future<ContentListResult> getPopularContent({
     PopularTimeframe timeframe = PopularTimeframe.allTime,
     int page = 1,
+    OnCancelRegister? onCancel,
   });
 
   Future<ContentListResult> getContentByTag({
     required Tag tag,
     int page = 1,
     SortOption sortBy = SortOption.newest,
+    OnCancelRegister? onCancel,
   });
 
   Future<List<Content>> getRelatedContent({
     required ContentId contentId,
     int limit = 10,
     String? sourceId,
+    OnCancelRegister? onCancel,
   });
 
   Future<List<Content>> getRandomGalleries({
@@ -40,7 +55,11 @@ abstract class ContentRepository {
 
   Future<bool> verifyContentExists(ContentId contentId);
 
-  Future<ChapterData> getChapterImages(ContentId chapterId, {String? sourceId});
+  Future<ChapterData> getChapterImages(
+    ContentId chapterId, {
+    String? sourceId,
+    OnCancelRegister? onCancel,
+  });
 
   Future<List<Chapter>> getContentChapters(
     ContentId contentId, {

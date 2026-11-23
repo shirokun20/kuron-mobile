@@ -387,4 +387,105 @@ void main() {
       }
     });
   });
+
+  group('regex caching (thermal fix)', () {
+    test('cachedRegex returns identical instances per pattern', () {
+      const pattern = r'payloadKey\D{0,8}([lmc]_[a-f0-9]+)';
+      final first = SecondaryFetchSpec.cachedRegex(pattern);
+      final second = SecondaryFetchSpec.cachedRegex(pattern);
+      expect(first, isNotNull);
+      expect(identical(first, second), isTrue);
+    });
+
+    test('cachedRegex returns null for invalid patterns', () {
+      expect(SecondaryFetchSpec.cachedRegex('(['), isNull);
+      // Invalid patterns must not poison later lookups of valid ones.
+      expect(
+        SecondaryFetchSpec.cachedRegex(r'^/?(.*)$'),
+        isNotNull,
+      );
+    });
+
+    test('resolveToken and extractItems reuse the cache', () {
+      final spec = SecondaryFetchSpec.tryParse(listSpecConfig())!;
+      const html =
+          '<html>"payloadKey":"l_3dc0424bfc1d0a9d377cb995"</html>';
+      expect(
+        spec.resolveToken(html),
+        'l_3dc0424bfc1d0a9d377cb995',
+      );
+      final body = json.encode({
+        'status': 'success',
+        'items': obfuscate(_listItemsJson, 'NicoManga'),
+      });
+      final items = spec.extractItems(spec.decodeBody(body));
+      expect(items.length, 2);
+      expect(
+        SecondaryFetchSpec.cachedRegex(spec.tokenPattern),
+        same(SecondaryFetchSpec.cachedRegex(spec.tokenPattern)),
+      );
+    });
+  });
+
+  group('isolate entry points (thermal fix)', () {
+    test('resolveTokenInIsolate matches sync resolveToken', () async {
+      final spec = SecondaryFetchSpec.tryParse(listSpecConfig())!;
+      const html =
+          '<html><body>"payloadKey":"m_51eb5986fd0042e89e25180c"</body></html>';
+      expect(
+        await SecondaryFetchSpec.resolveTokenInIsolate(
+          html,
+          spec.tokenPattern,
+        ),
+        spec.resolveToken(html),
+      );
+      expect(
+        await SecondaryFetchSpec.resolveTokenInIsolate(
+          '<html>no token</html>',
+          spec.tokenPattern,
+        ),
+        isNull,
+      );
+      expect(
+        await SecondaryFetchSpec.resolveTokenInIsolate('', spec.tokenPattern),
+        isNull,
+      );
+    });
+
+    test('decodeBodyInIsolate matches sync decodeBody', () async {
+      final spec = SecondaryFetchSpec.tryParse(listSpecConfig())!;
+      final body = json.encode({
+        'status': 'success',
+        'items': obfuscate(_listItemsJson, 'NicoManga'),
+        'pagination': {'page': 1, 'total': 8771, 'last_page': 293},
+      });
+      final expected = spec.decodeBody(body);
+      final actual = await SecondaryFetchSpec.decodeBodyInIsolate(
+        body,
+        payloadPath: spec.payloadPath,
+        decodeKey: spec.decodeKey,
+      );
+      expect(actual, expected);
+      expect((actual['items'] as List).length, 2);
+    });
+
+    test('decodeBodyInIsolate returns null for undecodable bodies', () async {
+      expect(
+        await SecondaryFetchSpec.decodeBodyInIsolate(
+          '{"error":"Invalid or expired key"}',
+          payloadPath: 'items',
+          decodeKey: 'NicoManga',
+        ),
+        isNull,
+      );
+      expect(
+        await SecondaryFetchSpec.decodeBodyInIsolate(
+          'not json at all',
+          payloadPath: 'items',
+          decodeKey: 'NicoManga',
+        ),
+        isNull,
+      );
+    });
+  });
 }

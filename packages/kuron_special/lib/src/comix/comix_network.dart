@@ -58,13 +58,34 @@ class ComixImageHeaderInterceptor extends Interceptor {
 }
 
 /// 404 CDN fallbacks (`/i5/`, `/si/`, `/i/`, `/sii/`, `/ii/`) plus
-/// server-error retry with `?r=<attempt>&8` (up to 10 attempts, 1.5s apart).
+/// bounded server-error retry with `?r=<attempt>&8` (max 3 attempts, 1.5s
+/// apart — a 10x storm held the radio awake ~15s per failed image and kept
+/// the device warm on image-heavy screens).
 class ComixRetryInterceptor extends Interceptor {
   ComixRetryInterceptor(this._dio);
 
   final Dio _dio;
 
   static const _fallbacks = ['/i5/', '/si/', '/i/', '/sii/', '/ii/'];
+
+  /// Max server-error retries per failed request (was 10).
+  static const int maxServerErrorAttempts = 3;
+
+  static const _retryDelay = Duration(milliseconds: 1500);
+
+  /// Attempt bookkeeping. Retry fetches go back through the interceptor
+  /// chain, so each re-entrant [onError] must continue the SAME bounded
+  /// chain instead of restarting it — otherwise retries multiply
+  /// exponentially (3^depth with delays) and never terminate.
+  static const _retryCountKey = 'comix_retry_count';
+
+  /// Set once the 404 CDN fallback sweep has run for a request chain.
+  static const _fallbackDoneKey = 'comix_fallback_done';
+
+  /// True when the failed request (or its caller) was already cancelled.
+  /// Retrying or even delaying after cancel wastes radio + CPU.
+  static bool _isCancelled(RequestOptions options) =>
+      options.cancelToken?.isCancelled == true;
 
   @override
   Future<void> onError(
@@ -76,41 +97,64 @@ class ComixRetryInterceptor extends Interceptor {
       handler.next(err);
       return;
     }
+    // A cancelled request must abort immediately — never delay or refetch.
+    if (err.type == DioExceptionType.cancel) {
+      handler.next(err);
+      return;
+    }
     final options = err.requestOptions;
+    if (_isCancelled(options)) {
+      handler.next(err);
+      return;
+    }
+    final attempts = (options.extra[_retryCountKey] as int?) ?? 0;
     try {
-      if (status == 404) {
+      if (status == 404 && options.extra[_fallbackDoneKey] != true) {
         for (final fallback in _fallbacks) {
+          if (_isCancelled(options)) break;
           final candidate =
               options.uri.toString().replaceFirst(_fallbackPathRegex, fallback);
           if (candidate == options.uri.toString()) continue;
           final response = await _dio.fetch(
-            options.copyWith(path: candidate),
+            options.copyWith(
+              path: candidate,
+              extra: {
+                ...options.extra,
+                _fallbackDoneKey: true,
+                _retryCountKey: attempts,
+              },
+            ),
           );
           if (response.statusCode != null && response.statusCode! < 400) {
             handler.resolve(response);
             return;
           }
         }
-      } else if (status >= 500) {
-        for (var attempt = 1; attempt <= 10; attempt++) {
-          await Future<void>.delayed(
-            const Duration(milliseconds: 1500),
-          );
-          final uri = options.uri.replace(
-            queryParameters: {
-              ...options.uri.queryParameters,
-              'r': '$attempt',
-              '8': '',
-            },
-          );
-          final response = await _dio.fetch(
-            options.copyWith(path: uri.toString()),
-          );
-          if (response.statusCode != null && response.statusCode! < 400) {
-            handler.resolve(response);
-            return;
-          }
+      } else if (status >= 500 && attempts < maxServerErrorAttempts) {
+        await Future<void>.delayed(_retryDelay);
+        if (_isCancelled(options)) {
+          handler.next(err);
+          return;
         }
+        final uri = options.uri.replace(
+          queryParameters: {
+            ...options.uri.queryParameters,
+            'r': '${attempts + 1}',
+            '8': '',
+          },
+        );
+        final response = await _dio.fetch(
+          options.copyWith(
+            path: uri.toString(),
+            extra: {...options.extra, _retryCountKey: attempts + 1},
+          ),
+        );
+        if (response.statusCode != null && response.statusCode! < 400) {
+          handler.resolve(response);
+          return;
+        }
+        // Non-2xx: the re-entrant onError for this fetch continues the
+        // bounded chain (count already incremented above).
       }
     } catch (_) {
       // Fall through to the original error.

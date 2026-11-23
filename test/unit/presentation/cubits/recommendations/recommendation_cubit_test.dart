@@ -107,4 +107,46 @@ void main() {
     // No recompute: exactly the one initial load call.
     verify(() => getRecs(any())).called(1);
   });
+
+  test('reload while loaded + cache valid emits nothing (thermal fix)',
+      () async {
+    when(() => getRecs(any())).thenAnswer((_) async => [_rec('a')]);
+    when(() => getRecs.isCacheValid).thenReturn(true);
+    await cubit.loadRecommendations();
+    expect(cubit.state, isA<RecommendationLoaded>());
+    clearInteractions(getRecs);
+
+    final states = <RecommendationState>[];
+    final sub = cubit.stream.listen(states.add);
+    // Same call sites as home resume/rebuild: must be a no-op.
+    await cubit.loadRecommendations(excludeIds: {'a'});
+    await cubit.loadRecommendations();
+    await Future<void>.delayed(Duration.zero);
+    await sub.cancel();
+
+    verifyNever(() => getRecs(any()));
+    expect(states, isEmpty);
+  });
+
+  test('reload while loaded + cache stale still refetches', () async {
+    when(() => getRecs(any())).thenAnswer((_) async => [_rec('a')]);
+    when(() => getRecs.isCacheValid).thenReturn(false);
+    await cubit.loadRecommendations();
+    expect(cubit.state, isA<RecommendationLoaded>());
+
+    await cubit.loadRecommendations();
+    verify(() => getRecs(any())).called(2);
+    expect(cubit.state, isA<RecommendationLoaded>());
+  });
+
+  test('forced refresh bypasses the cache-valid skip', () async {
+    when(() => getRecs(any())).thenAnswer((_) async => [_rec('a')]);
+    when(() => getRecs.isCacheValid).thenReturn(true);
+    await cubit.loadRecommendations();
+
+    await cubit.loadRecommendations(forceRefresh: true);
+    verify(() => getRecs(any(
+        that: isA<GetRecommendationsParams>()
+            .having((p) => p.forceRefresh, 'forceRefresh', true)))).called(1);
+  });
 }

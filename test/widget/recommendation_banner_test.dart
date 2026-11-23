@@ -167,4 +167,30 @@ void main() {
 
     expect(find.text('Banner Title b'), findsOneWidget);
   });
+
+  testWidgets('autoplay pauses while backgrounded, resumes on return',
+      (tester) async {
+    await tester.pumpWidget(_harness(items: [_rec('a'), _rec('b')]));
+    expect(find.text('Banner Title a'), findsOneWidget);
+
+    // Background the app: the 5s ticker must stop waking the GPU.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Banner Title a'), findsOneWidget);
+    expect(
+      tester.widget<BannerDots>(find.byType(BannerDots)).active,
+      0,
+    );
+
+    // Foreground again: autoplay resumes without leaking the old timer.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Banner Title b'), findsOneWidget);
+    expect(
+      tester.widget<BannerDots>(find.byType(BannerDots)).active,
+      1,
+    );
+  });
 }

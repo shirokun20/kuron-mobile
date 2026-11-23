@@ -45,6 +45,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'html_field_extract.dart' as shared;
 
@@ -92,6 +93,29 @@ class SecondaryFetchSpec {
 
   /// How long to wait for the secondary request before falling back.
   final Duration timeout;
+
+  /// Process-wide cache of compiled token/field regexes. Config-driven
+  /// patterns have tiny cardinality, so one entry per distinct pattern
+  /// removes the per-item/per-page `RegExp(...)` recompilation without
+  /// unbounded growth (cleared once full).
+  static final Map<String, RegExp> _regexCache = {};
+  static const int _maxRegexCacheEntries = 256;
+
+  /// Compiled [pattern], or `null` when it does not compile. Callers keep
+  /// their existing invalid-pattern behaviour (token → null, field → raw).
+  static RegExp? cachedRegex(String pattern) {
+    final hit = _regexCache[pattern];
+    if (hit != null) return hit;
+    RegExp compiled;
+    try {
+      compiled = RegExp(pattern);
+    } catch (_) {
+      return null;
+    }
+    if (_regexCache.length >= _maxRegexCacheEntries) _regexCache.clear();
+    _regexCache[pattern] = compiled;
+    return compiled;
+  }
 
   const SecondaryFetchSpec({
     required this.enabled,
@@ -161,12 +185,9 @@ class SecondaryFetchSpec {
   /// first numbered capture group, else the whole match.
   String? resolveToken(String body) {
     if (body.isEmpty) return null;
-    final RegExp regex;
-    try {
-      regex = RegExp(tokenPattern);
-    } catch (_) {
-      return null;
-    }
+    // Cached compile: this runs per page/detail/chapter over the full HTML.
+    final regex = cachedRegex(tokenPattern);
+    if (regex == null) return null;
     final match = regex.firstMatch(body);
     if (match == null) return null;
     String? value;
@@ -179,6 +200,61 @@ class SecondaryFetchSpec {
     final trimmed = value?.trim();
     return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
   }
+
+  /// Throwaway spec for worker isolates: only the fields the pure pipeline
+  /// reads are set, the rest are inert dummies. Instances of this class
+  /// cannot cross isolate boundaries, so entry points below rebuild one
+  /// from primitives inside the worker.
+  static SecondaryFetchSpec _isolateSpec({
+    required String tokenPattern,
+    required String payloadPath,
+    required String? decodeKey,
+  }) =>
+      SecondaryFetchSpec(
+        enabled: true,
+        tokenPattern: tokenPattern,
+        url: '',
+        referer: 'page',
+        payloadPath: payloadPath,
+        decodeKey: decodeKey,
+        itemsPath: 'items',
+        imagesPath: 'images',
+        itemFields: const <String, dynamic>{},
+        pagination: const <String, String>{},
+        timeout: Duration.zero,
+      );
+
+  /// [resolveToken] on a worker isolate. The token scan runs over the full
+  /// first-response HTML, so list/detail/reader surfaces use this to keep
+  /// the UI isolate free for frames. The synchronous [resolveToken] stays
+  /// for unit tests and tiny inputs.
+  static Future<String?> resolveTokenInIsolate(
+    String body,
+    String pattern,
+  ) =>
+      Isolate.run(
+        () => _isolateSpec(
+          tokenPattern: pattern,
+          payloadPath: '',
+          decodeKey: null,
+        ).resolveToken(body),
+      );
+
+  /// [decodeBody] on a worker isolate (CJK-XOR loop + up to two JSON
+  /// parses of the secondary payload). Returns the decoded root, or null
+  /// exactly when the synchronous variant returns null.
+  static Future<dynamic> decodeBodyInIsolate(
+    String body, {
+    required String payloadPath,
+    required String? decodeKey,
+  }) =>
+      Isolate.run(
+        () => _isolateSpec(
+          tokenPattern: '',
+          payloadPath: payloadPath,
+          decodeKey: decodeKey,
+        ).decodeBody(body),
+      );
 
   // ── step 2: secondary URL + referer ────────────────────────────────────────
 
@@ -360,16 +436,18 @@ class SecondaryFetchSpec {
       if (def is Map) {
         final regexSrc = def['regex']?.toString();
         if (regexSrc != null && regexSrc.isNotEmpty) {
-          try {
-            final match = RegExp(regexSrc).firstMatch(text);
+          // Cached compile: without this, every item × every regex field
+          // recompiled the pattern (~72 compiles per 24-item page).
+          final regex = cachedRegex(regexSrc);
+          if (regex != null) {
+            final match = regex.firstMatch(text);
             if (match != null) {
               text =
                   (match.groupCount >= 1 ? match.group(1) : match.group(0)) ??
                   '';
             }
-          } catch (_) {
-            // Malformed regex in config: keep the raw value.
           }
+          // Malformed regex in config: keep the raw value.
         }
         final transform = def['transform']?.toString();
         if (transform != null && transform.isNotEmpty) {
