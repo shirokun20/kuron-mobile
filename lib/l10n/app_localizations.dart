@@ -8277,6 +8277,78 @@ abstract class AppLocalizations {
   /// **'{name} ({count})'**
   String collectionWithCount(String name, int count);
 
+  /// No description provided for @uncategorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Uncategorized'**
+  String get uncategorized;
+
+  /// No description provided for @addToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to folder'**
+  String get addToFolder;
+
+  /// No description provided for @moveToFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to folder'**
+  String get moveToFolder;
+
+  /// No description provided for @removeFromFolder.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from folder'**
+  String get removeFromFolder;
+
+  /// No description provided for @removeFromFolderConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove {count} item{s} from \"{name}\"? They stay saved in All.'**
+  String removeFromFolderConfirm(int count, String s, String name);
+
+  /// No description provided for @emptyCollection.
+  ///
+  /// In en, this message translates to:
+  /// **'This folder is empty'**
+  String get emptyCollection;
+
+  /// No description provided for @viewAllFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'View all favorites'**
+  String get viewAllFavorites;
+
+  /// No description provided for @addedToFolderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Added {count} item{s} to folder'**
+  String addedToFolderCount(int count, String s);
+
+  /// No description provided for @movedToFolderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Moved {count} item{s} to folder'**
+  String movedToFolderCount(int count, String s);
+
+  /// No description provided for @removedFromFolderCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed {count} item{s} from folder'**
+  String removedFromFolderCount(int count, String s);
+
+  /// No description provided for @moveFromFolderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Items leave \"{name}\" but stay saved in All.'**
+  String moveFromFolderHint(String name);
+
+  /// No description provided for @noFoldersYet.
+  ///
+  /// In en, this message translates to:
+  /// **'No folders yet — create one below.'**
+  String get noFoldersYet;
+
   /// No description provided for @newLabel.
   ///
   /// In en, this message translates to:

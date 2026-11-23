@@ -29,6 +29,7 @@ void main() {
             page: 1,
             limit: 20,
             collectionId: 'collection_1',
+            uncategorizedOnly: false,
           )).thenAnswer((_) async => [
             {
               'id': '123',
@@ -45,6 +46,7 @@ void main() {
             page: 1,
             limit: 20,
             collectionId: 'collection_1',
+            uncategorizedOnly: false,
           )).called(1);
       expect(result, hasLength(1));
     });

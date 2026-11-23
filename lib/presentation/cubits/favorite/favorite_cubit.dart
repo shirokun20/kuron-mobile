@@ -1,10 +1,13 @@
 import '../../../domain/entities/entities.dart';
+import '../../../domain/value_objects/favorite_key.dart';
 import '../../../domain/usecases/favorites/favorites_usecases.dart';
 import '../../../domain/usecases/favorites/get_favorite_collections_usecase.dart';
 import '../../../domain/usecases/favorites/create_favorite_collection_usecase.dart';
 import '../../../domain/usecases/favorites/rename_favorite_collection_usecase.dart';
 import '../../../domain/usecases/favorites/delete_favorite_collection_usecase.dart';
 import '../../../domain/usecases/favorites/add_to_favorite_collection_usecase.dart';
+import '../../../domain/usecases/favorites/add_batch_to_favorite_collections_usecase.dart';
+import '../../../domain/usecases/favorites/remove_batch_from_favorite_collection_usecase.dart';
 import '../../../domain/repositories/repositories.dart';
 import '../../../l10n/app_localizations.dart';
 import '../base/base_cubit.dart';
@@ -24,6 +27,8 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
     required this._renameFavoriteCollectionUseCase,
     required this._deleteFavoriteCollectionUseCase,
     required this._addToFavoriteCollectionUseCase,
+    required this._addBatchToFavoriteCollectionsUseCase,
+    required this._removeBatchFromFavoriteCollectionUseCase,
     required this._userDataRepository,
     required super.logger,
     this.localizations,
@@ -39,6 +44,10 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
   final RenameFavoriteCollectionUseCase _renameFavoriteCollectionUseCase;
   final DeleteFavoriteCollectionUseCase _deleteFavoriteCollectionUseCase;
   final AddToFavoriteCollectionUseCase _addToFavoriteCollectionUseCase;
+  final AddBatchToFavoriteCollectionsUseCase
+      _addBatchToFavoriteCollectionsUseCase;
+  final RemoveBatchFromFavoriteCollectionUseCase
+      _removeBatchFromFavoriteCollectionUseCase;
   final UserDataRepository _userDataRepository;
   final AppLocalizations? localizations;
 
@@ -46,6 +55,17 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
   int _currentPage = 1;
   static const int _itemsPerPage = 20;
   String? _activeCollectionId;
+
+  /// Virtual filter id for favorites that belong to no collection.
+  /// Not a row in `favorite_collections`; resolved to the derived
+  /// uncategorized query (LEFT JOIN ... IS NULL) in [loadFavorites].
+  static const String uncategorizedCollectionId = '@uncategorized';
+
+  bool get _isUncategorizedView =>
+      _activeCollectionId == uncategorizedCollectionId;
+
+  String? get _effectiveCollectionId =>
+      _isUncategorizedView ? null : _activeCollectionId;
 
   List<Map<String, dynamic>> _dedupeFavorites(
     Iterable<Map<String, dynamic>> favorites,
@@ -66,16 +86,19 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
   }
 
   Future<List<Map<String, dynamic>>> _loadSearchBaseFavorites() async {
-    final totalCount = await _userDataRepository.getFavoritesCount(
-      collectionId: _activeCollectionId,
-    );
+    final totalCount = _isUncategorizedView
+        ? await _userDataRepository.getUncategorizedCount()
+        : await _userDataRepository.getFavoritesCount(
+            collectionId: _activeCollectionId,
+          );
     if (totalCount <= 0) {
       return const [];
     }
 
     final params = GetFavoritesParams.firstPage(
       limit: totalCount,
-      collectionId: _activeCollectionId,
+      collectionId: _effectiveCollectionId,
+      uncategorizedOnly: _isUncategorizedView,
     );
 
     return _dedupeFavorites(await _getFavoritesUseCase(params));
@@ -105,12 +128,18 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
       final params = GetFavoritesParams.page(
         _currentPage,
         limit: _itemsPerPage,
-        collectionId: _activeCollectionId,
+        collectionId: _effectiveCollectionId,
+        uncategorizedOnly: _isUncategorizedView,
       );
       final favorites = _dedupeFavorites(await _getFavoritesUseCase(params));
-      final totalCount = await _userDataRepository.getFavoritesCount(
-        collectionId: _activeCollectionId,
-      );
+      final totalCount = _isUncategorizedView
+          ? await _userDataRepository.getUncategorizedCount()
+          : await _userDataRepository.getFavoritesCount(
+              collectionId: _activeCollectionId,
+            );
+      final totalAllCount = await _userDataRepository.getFavoritesCount();
+      final uncategorizedCount =
+          await _userDataRepository.getUncategorizedCount();
 
       final hasMore = favorites.length == _itemsPerPage;
 
@@ -120,6 +149,8 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
         currentPage: _currentPage,
         hasMore: hasMore,
         totalCount: totalCount,
+        totalAllCount: totalAllCount,
+        uncategorizedCount: uncategorizedCount,
         lastUpdated: DateTime.now(),
         activeCollectionId: _activeCollectionId,
       ));
@@ -157,7 +188,8 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
       final params = GetFavoritesParams.page(
         _currentPage,
         limit: _itemsPerPage,
-        collectionId: _activeCollectionId,
+        collectionId: _effectiveCollectionId,
+        uncategorizedOnly: _isUncategorizedView,
       );
       final newFavorites = _dedupeFavorites(await _getFavoritesUseCase(params));
 
@@ -312,12 +344,15 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
     }
   }
 
-  // Remove multiple favorites (batch operation)
-  Future<void> removeBatchFavorites(List<String> contentIds) async {
-    if (contentIds.isEmpty) return;
+  // Remove multiple favorites (batch operation).
+  //
+  // Keys carry both (id, sourceId) so sources sharing one gallery id
+  // never collide and non-nhentai rows hit the right database row.
+  Future<void> removeBatchFavorites(List<FavoriteKey> contentKeys) async {
+    if (contentKeys.isEmpty) return;
 
     try {
-      logInfo('Removing ${contentIds.length} favorites in batch');
+      logInfo('Removing ${contentKeys.length} favorites in batch');
 
       // Show loading state
       final currentState = state;
@@ -326,30 +361,118 @@ class FavoriteCubit extends BaseCubit<FavoriteState> {
       }
 
       // Remove each favorite
-      for (final contentId in contentIds) {
-        final params = RemoveFromFavoritesParams.fromString(contentId);
+      for (final key in contentKeys) {
+        final params = RemoveFromFavoritesParams.fromString(
+          key.id,
+          sourceId: key.sourceId,
+        );
         await _removeFromFavoritesUseCase(params);
       }
 
       // Update current state if loaded
       if (currentState is FavoriteLoaded) {
+        final removedIds = contentKeys.map((key) => key.id).toSet();
         final updatedFavorites = currentState.favorites
-            .where((favorite) => !contentIds.contains(favorite['id']))
+            .where((favorite) =>
+                !removedIds.contains(favorite['id']?.toString()) ||
+                !contentKeys.any((key) =>
+                    key.id == favorite['id']?.toString() &&
+                    key.sourceId == favorite['source_id']?.toString()))
             .toList();
+        final removedCount =
+            currentState.favorites.length - updatedFavorites.length;
 
         emit(currentState.copyWith(
           favorites: updatedFavorites,
-          totalCount: currentState.totalCount - contentIds.length,
+          totalCount: currentState.totalCount - removedCount,
           isBatchOperating: false,
           lastUpdated: DateTime.now(),
         ));
       }
 
-      logInfo('Successfully removed ${contentIds.length} favorites in batch');
+      logInfo('Successfully removed ${contentKeys.length} favorites in batch');
     } catch (e, stackTrace) {
       handleError(e, stackTrace, 'batch remove favorites');
 
       // Reset batch operating state
+      final currentState = state;
+      if (currentState is FavoriteLoaded) {
+        emit(currentState.copyWith(isBatchOperating: false));
+      }
+
+      rethrow;
+    }
+  }
+
+  // Batch-add favorites to collections ("Add to Folder").
+  //
+  // When [removeFromCollectionId] is set, memberships in that collection
+  // are removed atomically ("Move to Folder"); favorites stay saved.
+  Future<void> addBatchToCollections({
+    required List<FavoriteKey> favorites,
+    required List<String> collectionIds,
+    String? removeFromCollectionId,
+  }) async {
+    if (favorites.isEmpty || collectionIds.isEmpty) return;
+
+    try {
+      logInfo('Adding ${favorites.length} favorites to '
+          '${collectionIds.length} collections in batch');
+
+      final currentState = state;
+      if (currentState is FavoriteLoaded) {
+        emit(currentState.copyWith(isBatchOperating: true));
+      }
+
+      await _addBatchToFavoriteCollectionsUseCase(
+        favorites: favorites,
+        collectionIds: collectionIds,
+        removeFromCollectionId: removeFromCollectionId,
+      );
+
+      await loadFavorites(refresh: true, collectionId: _activeCollectionId);
+
+      logInfo('Successfully batch-added favorites to collections');
+    } catch (e, stackTrace) {
+      handleError(e, stackTrace, 'batch add favorites to collections');
+
+      final currentState = state;
+      if (currentState is FavoriteLoaded) {
+        emit(currentState.copyWith(isBatchOperating: false));
+      }
+
+      rethrow;
+    }
+  }
+
+  // Batch-remove favorites from one collection ("Remove from Folder").
+  // Favorites themselves stay saved and remain visible under All.
+  Future<void> removeBatchFromCollection({
+    required List<FavoriteKey> favorites,
+    required String collectionId,
+  }) async {
+    if (favorites.isEmpty) return;
+
+    try {
+      logInfo('Removing ${favorites.length} favorites from '
+          'collection $collectionId in batch');
+
+      final currentState = state;
+      if (currentState is FavoriteLoaded) {
+        emit(currentState.copyWith(isBatchOperating: true));
+      }
+
+      await _removeBatchFromFavoriteCollectionUseCase(
+        favorites: favorites,
+        collectionId: collectionId,
+      );
+
+      await loadFavorites(refresh: true, collectionId: _activeCollectionId);
+
+      logInfo('Successfully batch-removed favorites from collection');
+    } catch (e, stackTrace) {
+      handleError(e, stackTrace, 'batch remove favorites from collection');
+
       final currentState = state;
       if (currentState is FavoriteLoaded) {
         emit(currentState.copyWith(isBatchOperating: false));

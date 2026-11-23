@@ -34,6 +34,8 @@ class FavoriteLoaded extends FavoriteState {
     this.isBatchOperating = false,
     this.activeCollectionId,
     this.searchQuery,
+    this.totalAllCount = 0,
+    this.uncategorizedCount = 0,
   });
 
   final List<Map<String, dynamic>> favorites;
@@ -47,6 +49,12 @@ class FavoriteLoaded extends FavoriteState {
   final String? activeCollectionId;
   final String? searchQuery;
 
+  /// Total favorites across all collections (for the "All" strip chip).
+  final int totalAllCount;
+
+  /// Favorites in no collection (for the "Uncategorized" strip chip).
+  final int uncategorizedCount;
+
   @override
   List<Object?> get props => [
         favorites,
@@ -59,6 +67,8 @@ class FavoriteLoaded extends FavoriteState {
         isBatchOperating,
         activeCollectionId,
         searchQuery,
+        totalAllCount,
+        uncategorizedCount,
       ];
 
   FavoriteLoaded copyWith({
@@ -72,6 +82,8 @@ class FavoriteLoaded extends FavoriteState {
     bool? isBatchOperating,
     String? activeCollectionId,
     String? searchQuery,
+    int? totalAllCount,
+    int? uncategorizedCount,
   }) {
     return FavoriteLoaded(
       favorites: favorites ?? this.favorites,
@@ -84,6 +96,8 @@ class FavoriteLoaded extends FavoriteState {
       isBatchOperating: isBatchOperating ?? this.isBatchOperating,
       activeCollectionId: activeCollectionId ?? this.activeCollectionId,
       searchQuery: searchQuery ?? this.searchQuery,
+      totalAllCount: totalAllCount ?? this.totalAllCount,
+      uncategorizedCount: uncategorizedCount ?? this.uncategorizedCount,
     );
   }
 

@@ -31,6 +31,7 @@ class GetFavoritesUseCase
         page: params.page,
         limit: params.limit,
         collectionId: params.collectionId,
+        uncategorizedOnly: params.uncategorizedOnly,
       );
 
       // Filter out favorites from non-installed sources
@@ -55,40 +56,57 @@ class GetFavoritesParams extends UseCaseParams {
     this.page = 1,
     this.limit = 20,
     this.collectionId,
+    this.uncategorizedOnly = false,
   });
 
   final int page;
   final int limit;
   final String? collectionId;
 
+  /// When true, only favorites in no collection are returned
+  /// (virtual "Uncategorized" filter); [collectionId] is ignored.
+  final bool uncategorizedOnly;
+
   @override
-  List<Object?> get props => [page, limit, collectionId];
+  List<Object?> get props =>
+      [page, limit, collectionId, uncategorizedOnly];
 
   GetFavoritesParams copyWith({
     int? page,
     int? limit,
     String? collectionId,
+    bool? uncategorizedOnly,
   }) {
     return GetFavoritesParams(
       page: page ?? this.page,
       limit: limit ?? this.limit,
       collectionId: collectionId ?? this.collectionId,
+      uncategorizedOnly: uncategorizedOnly ?? this.uncategorizedOnly,
     );
   }
 
   // Create params for first page
-  factory GetFavoritesParams.firstPage({int limit = 20, String? collectionId}) {
+  factory GetFavoritesParams.firstPage(
+      {int limit = 20,
+      String? collectionId,
+      bool uncategorizedOnly = false}) {
     return GetFavoritesParams(
-        page: 1, limit: limit, collectionId: collectionId);
+        page: 1,
+        limit: limit,
+        collectionId: collectionId,
+        uncategorizedOnly: uncategorizedOnly);
   }
 
   // Create params for specific page
   factory GetFavoritesParams.page(int page,
-      {int limit = 20, String? collectionId}) {
+      {int limit = 20,
+      String? collectionId,
+      bool uncategorizedOnly = false}) {
     return GetFavoritesParams(
       page: page,
       limit: limit,
       collectionId: collectionId,
+      uncategorizedOnly: uncategorizedOnly,
     );
   }
 

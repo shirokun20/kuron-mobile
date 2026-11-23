@@ -1,4 +1,5 @@
 import '../entities/entities.dart';
+import '../value_objects/favorite_key.dart';
 
 abstract class UserDataRepository {
   // ==================== FAVORITES ====================
@@ -16,11 +17,15 @@ abstract class UserDataRepository {
     int page = 1,
     int limit = 20,
     String? collectionId,
+    bool uncategorizedOnly = false,
   });
 
   Future<bool> isFavorite(String id, {String? sourceId});
 
-  Future<int> getFavoritesCount({String? collectionId});
+  Future<int> getFavoritesCount({
+    String? collectionId,
+    bool uncategorizedOnly = false,
+  });
 
   Future<List<Map<String, dynamic>>> getAllFavoritesForExport();
 
@@ -77,6 +82,29 @@ abstract class UserDataRepository {
 
   Future<List<Map<String, dynamic>>>
       getFavoriteCollectionMembershipsForExport();
+
+  /// Favorites that belong to no collection (virtual "Uncategorized" filter).
+  Future<List<Map<String, dynamic>>> getUncategorizedFavorites({
+    int page = 1,
+    int limit = 20,
+  });
+
+  /// Count of favorites that belong to no collection.
+  Future<int> getUncategorizedCount();
+
+  /// Batch-add favorites to collections. When [removeFromCollectionId] is
+  /// set, memberships in that collection are removed atomically ("Move").
+  Future<void> addFavoritesToCollections({
+    required List<FavoriteKey> favorites,
+    required List<String> collectionIds,
+    String? removeFromCollectionId,
+  });
+
+  /// Batch-remove favorites from one collection (favorites stay saved).
+  Future<void> removeFavoritesFromCollection({
+    required List<FavoriteKey> favorites,
+    required String collectionId,
+  });
 
   // ==================== DOWNLOADS ====================
 

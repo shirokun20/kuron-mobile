@@ -4861,6 +4861,52 @@ class AppLocalizationsId extends AppLocalizations {
   }
 
   @override
+  String get uncategorized => 'Tanpa kategori';
+
+  @override
+  String get addToFolder => 'Tambah ke folder';
+
+  @override
+  String get moveToFolder => 'Pindah ke folder';
+
+  @override
+  String get removeFromFolder => 'Hapus dari folder';
+
+  @override
+  String removeFromFolderConfirm(int count, String s, String name) {
+    return 'Hapus $count item$s dari \"$name\"? Item tetap tersimpan di Semua.';
+  }
+
+  @override
+  String get emptyCollection => 'Folder ini kosong';
+
+  @override
+  String get viewAllFavorites => 'Lihat semua favorit';
+
+  @override
+  String addedToFolderCount(int count, String s) {
+    return 'Menambahkan $count item$s ke folder';
+  }
+
+  @override
+  String movedToFolderCount(int count, String s) {
+    return 'Memindahkan $count item$s ke folder';
+  }
+
+  @override
+  String removedFromFolderCount(int count, String s) {
+    return 'Menghapus $count item$s dari folder';
+  }
+
+  @override
+  String moveFromFolderHint(String name) {
+    return 'Item keluar dari \"$name\" tetapi tetap tersimpan di Semua.';
+  }
+
+  @override
+  String get noFoldersYet => 'Belum ada folder — buat di bawah.';
+
+  @override
   String get newLabel => 'Baru';
 
   @override

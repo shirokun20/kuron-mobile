@@ -4713,6 +4713,52 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get uncategorized => '未分类';
+
+  @override
+  String get addToFolder => '添加到文件夹';
+
+  @override
+  String get moveToFolder => '移动到文件夹';
+
+  @override
+  String get removeFromFolder => '从文件夹移除';
+
+  @override
+  String removeFromFolderConfirm(int count, String s, String name) {
+    return '从“$name”移除 $count 个项目？它们仍保存在“全部”中。';
+  }
+
+  @override
+  String get emptyCollection => '此文件夹为空';
+
+  @override
+  String get viewAllFavorites => '查看全部收藏';
+
+  @override
+  String addedToFolderCount(int count, String s) {
+    return '已将 $count 个项目添加到文件夹';
+  }
+
+  @override
+  String movedToFolderCount(int count, String s) {
+    return '已将 $count 个项目移动到文件夹';
+  }
+
+  @override
+  String removedFromFolderCount(int count, String s) {
+    return '已从文件夹移除 $count 个项目';
+  }
+
+  @override
+  String moveFromFolderHint(String name) {
+    return '项目将离开“$name”，但仍保存在“全部”中。';
+  }
+
+  @override
+  String get noFoldersYet => '还没有文件夹——在下方创建一个。';
+
+  @override
   String get newLabel => '新建';
 
   @override

@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 
 import '../../domain/entities/entities.dart';
 import '../../domain/repositories/user_data_repository.dart';
+import '../../domain/value_objects/favorite_key.dart';
 import '../datasources/local/local_data_source.dart';
 import '../models/download_status_model.dart';
 import '../models/history_model.dart';
@@ -69,6 +70,7 @@ class UserDataRepositoryImpl implements UserDataRepository {
     int page = 1,
     int limit = 20,
     String? collectionId,
+    bool uncategorizedOnly = false,
   }) async {
     try {
       _logger.i('Getting favorites, page: $page, limit: $limit');
@@ -76,6 +78,7 @@ class UserDataRepositoryImpl implements UserDataRepository {
         page: page,
         limit: limit,
         collectionId: collectionId,
+        uncategorizedOnly: uncategorizedOnly,
       );
       _logger.d('Retrieved ${favorites.length} favorites');
       return favorites;
@@ -97,10 +100,15 @@ class UserDataRepositoryImpl implements UserDataRepository {
   }
 
   @override
-  Future<int> getFavoritesCount({String? collectionId}) async {
+  Future<int> getFavoritesCount({
+    String? collectionId,
+    bool uncategorizedOnly = false,
+  }) async {
     try {
       return await localDataSource.getFavoritesCount(
-          collectionId: collectionId);
+        collectionId: collectionId,
+        uncategorizedOnly: uncategorizedOnly,
+      );
     } catch (e, stackTrace) {
       _logger.e('Failed to get favorites count',
           error: e, stackTrace: stackTrace);
@@ -218,6 +226,70 @@ class UserDataRepositoryImpl implements UserDataRepository {
   @override
   Future<List<FavoriteCollection>> getFavoriteCollectionsForExport() async {
     return getFavoriteCollections();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getUncategorizedFavorites({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      return await localDataSource.getUncategorizedFavorites(
+        page: page,
+        limit: limit,
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get uncategorized favorites',
+          error: e, stackTrace: stackTrace);
+      return [];
+    }
+  }
+
+  @override
+  Future<int> getUncategorizedCount() async {
+    try {
+      return await localDataSource.getUncategorizedCount();
+    } catch (e, stackTrace) {
+      _logger.e('Failed to get uncategorized count',
+          error: e, stackTrace: stackTrace);
+      return 0;
+    }
+  }
+
+  @override
+  Future<void> addFavoritesToCollections({
+    required List<FavoriteKey> favorites,
+    required List<String> collectionIds,
+    String? removeFromCollectionId,
+  }) async {
+    try {
+      await localDataSource.addFavoritesToCollections(
+        favorites: favorites,
+        collectionIds: collectionIds,
+        removeFromCollectionId: removeFromCollectionId,
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to batch-add favorites to collections',
+          error: e, stackTrace: stackTrace);
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> removeFavoritesFromCollection({
+    required List<FavoriteKey> favorites,
+    required String collectionId,
+  }) async {
+    try {
+      await localDataSource.removeFavoritesFromCollection(
+        favorites: favorites,
+        collectionId: collectionId,
+      );
+    } catch (e, stackTrace) {
+      _logger.e('Failed to batch-remove favorites from collection',
+          error: e, stackTrace: stackTrace);
+      rethrow;
+    }
   }
 
   @override

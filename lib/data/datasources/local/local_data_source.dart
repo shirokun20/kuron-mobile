@@ -8,6 +8,7 @@ import '../../models/download_status_model.dart';
 import '../../models/history_model.dart';
 import '../../models/reader_position_model.dart';
 import '../../../domain/entities/content_tag.dart';
+import '../../../domain/value_objects/favorite_key.dart';
 import '../../../domain/entities/favorite_collection.dart';
 import '../../../domain/entities/user_preferences.dart';
 import '../../../domain/entities/download_status.dart';
@@ -279,7 +280,11 @@ class LocalDataSource {
     int page = 1,
     int limit = 20,
     String? collectionId,
+    bool uncategorizedOnly = false,
   }) async {
+    if (uncategorizedOnly) {
+      return getUncategorizedFavorites(page: page, limit: limit);
+    }
     try {
       final db = await _getSafeDatabase();
       if (db == null) {
@@ -355,7 +360,13 @@ class LocalDataSource {
   }
 
   // Get favorites count
-  Future<int> getFavoritesCount({String? collectionId}) async {
+  Future<int> getFavoritesCount({
+    String? collectionId,
+    bool uncategorizedOnly = false,
+  }) async {
+    if (uncategorizedOnly) {
+      return getUncategorizedCount();
+    }
     try {
       final db = await _getSafeDatabase();
       if (db == null) return 0;
@@ -574,6 +585,173 @@ class LocalDataSource {
           [now, ...uniqueCollectionIds],
         );
       }
+    });
+  }
+
+  // Get favorites that belong to no collection (virtual "Uncategorized"
+  // filter). Derived via LEFT JOIN, so no schema change or backfill needed.
+  Future<List<Map<String, dynamic>>> getUncategorizedFavorites({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) {
+        _logger.e('Database not available, returning empty favorites');
+        return [];
+      }
+
+      final offset = (page - 1) * limit;
+
+      final result = await db.rawQuery(
+        '''
+        SELECT
+          f.id,
+          f.source_id,
+          f.cover_url,
+          f.added_at,
+          COALESCE(
+            f.title,
+            (
+              SELECT h.title
+              FROM history h
+              WHERE h.id = f.id AND h.source_id = f.source_id
+              ORDER BY h.last_viewed DESC
+              LIMIT 1
+            ),
+            d.title
+          ) as title
+        FROM favorites f
+        LEFT JOIN favorite_collection_items fci
+          ON f.id = fci.favorite_id AND f.source_id = fci.source_id
+        LEFT JOIN downloads d ON f.id = d.id AND f.source_id = d.source_id
+        WHERE fci.favorite_id IS NULL
+        ORDER BY f.added_at DESC
+        LIMIT ? OFFSET ?
+      ''',
+        [limit, offset],
+      );
+
+      return result;
+    } catch (e) {
+      _logger.e('Error getting uncategorized favorites: $e');
+      return [];
+    }
+  }
+
+  // Count favorites that belong to no collection.
+  Future<int> getUncategorizedCount() async {
+    try {
+      final db = await _getSafeDatabase();
+      if (db == null) return 0;
+
+      final result = await db.rawQuery('''
+        SELECT COUNT(*) as count
+        FROM favorites f
+        LEFT JOIN favorite_collection_items fci
+          ON f.id = fci.favorite_id AND f.source_id = fci.source_id
+        WHERE fci.favorite_id IS NULL
+      ''');
+      return result.first['count'] as int;
+    } catch (e) {
+      _logger.e('Error getting uncategorized count: $e');
+      return 0;
+    }
+  }
+
+  // Batch-add favorites to collections in one transaction.
+  //
+  // When [removeFromCollectionId] is set, memberships in that collection are
+  // removed in the same transaction (implements "Move to Folder" atomically;
+  // the favorites themselves are never deleted).
+  Future<void> addFavoritesToCollections({
+    required List<FavoriteKey> favorites,
+    required List<String> collectionIds,
+    String? removeFromCollectionId,
+  }) async {
+    final db = await _getSafeDatabase();
+    if (db == null) {
+      throw StateError('Database not available, cannot update memberships');
+    }
+    if (favorites.isEmpty || collectionIds.isEmpty) return;
+
+    final uniqueCollectionIds = collectionIds.toSet().toList(growable: false);
+
+    await db.transaction((txn) async {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final batch = txn.batch();
+      for (final favorite in favorites) {
+        for (final collectionId in uniqueCollectionIds) {
+          batch.insert(
+            'favorite_collection_items',
+            {
+              'collection_id': collectionId,
+              'favorite_id': favorite.id,
+              'source_id': favorite.sourceId,
+              'added_at': now,
+            },
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+        if (removeFromCollectionId != null) {
+          batch.delete(
+            'favorite_collection_items',
+            where: 'collection_id = ? AND favorite_id = ? AND source_id = ?',
+            whereArgs: [
+              removeFromCollectionId,
+              favorite.id,
+              favorite.sourceId,
+            ],
+          );
+        }
+      }
+      await batch.commit(noResult: true);
+
+      if (uniqueCollectionIds.isNotEmpty) {
+        final placeholders =
+            List.filled(uniqueCollectionIds.length, '?').join(',');
+        await txn.rawUpdate(
+          '''
+            UPDATE favorite_collections
+            SET updated_at = ?
+            WHERE id IN ($placeholders)
+          ''',
+          [now, ...uniqueCollectionIds],
+        );
+      }
+    });
+  }
+
+  // Batch-remove favorites from one collection (favorites stay saved).
+  Future<void> removeFavoritesFromCollection({
+    required List<FavoriteKey> favorites,
+    required String collectionId,
+  }) async {
+    final db = await _getSafeDatabase();
+    if (db == null) {
+      throw StateError('Database not available, cannot update memberships');
+    }
+    if (favorites.isEmpty) return;
+
+    await db.transaction((txn) async {
+      final batch = txn.batch();
+      for (final favorite in favorites) {
+        batch.delete(
+          'favorite_collection_items',
+          where: 'collection_id = ? AND favorite_id = ? AND source_id = ?',
+          whereArgs: [collectionId, favorite.id, favorite.sourceId],
+        );
+      }
+      await batch.commit(noResult: true);
+
+      await txn.rawUpdate(
+        '''
+          UPDATE favorite_collections
+          SET updated_at = ?
+          WHERE id = ?
+        ''',
+        [DateTime.now().millisecondsSinceEpoch, collectionId],
+      );
     });
   }
 

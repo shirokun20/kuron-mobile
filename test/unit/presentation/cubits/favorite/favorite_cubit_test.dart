@@ -13,6 +13,8 @@ import 'package:nhasixapp/domain/usecases/favorites/create_favorite_collection_u
 import 'package:nhasixapp/domain/usecases/favorites/rename_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/favorites/delete_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/favorites/add_to_favorite_collection_usecase.dart';
+import 'package:nhasixapp/domain/usecases/favorites/add_batch_to_favorite_collections_usecase.dart';
+import 'package:nhasixapp/domain/usecases/favorites/remove_batch_from_favorite_collection_usecase.dart';
 import 'package:nhasixapp/presentation/cubits/favorite/favorite_cubit.dart';
 
 class MockAddToFavoritesUseCase extends Mock implements AddToFavoritesUseCase {}
@@ -37,6 +39,12 @@ class MockDeleteFavoriteCollectionUseCase extends Mock
 class MockAddToFavoriteCollectionUseCase extends Mock
     implements AddToFavoriteCollectionUseCase {}
 
+class MockAddBatchToFavoriteCollectionsUseCase extends Mock
+    implements AddBatchToFavoriteCollectionsUseCase {}
+
+class MockRemoveBatchFromFavoriteCollectionUseCase extends Mock
+    implements RemoveBatchFromFavoriteCollectionUseCase {}
+
 class MockUserDataRepository extends Mock implements UserDataRepository {}
 
 class MockLogger extends Mock implements Logger {}
@@ -51,6 +59,10 @@ void main() {
   late MockRenameFavoriteCollectionUseCase mockRenameFavoriteCollectionUseCase;
   late MockDeleteFavoriteCollectionUseCase mockDeleteFavoriteCollectionUseCase;
   late MockAddToFavoriteCollectionUseCase mockAddToFavoriteCollectionUseCase;
+  late MockAddBatchToFavoriteCollectionsUseCase
+      mockAddBatchToFavoriteCollectionsUseCase;
+  late MockRemoveBatchFromFavoriteCollectionUseCase
+      mockRemoveBatchFromFavoriteCollectionUseCase;
   late MockUserDataRepository mockUserDataRepository;
   late MockLogger mockLogger;
 
@@ -90,6 +102,14 @@ void main() {
   });
 
   setUp(() {
+    mockUserDataRepository = MockUserDataRepository();
+    // Defaults for the strip counters fetched on every loadFavorites;
+    // individual tests override the filtered count with exact stubs.
+    when(() => mockUserDataRepository.getFavoritesCount())
+        .thenAnswer((_) async => 0);
+    when(() => mockUserDataRepository.getUncategorizedCount())
+        .thenAnswer((_) async => 0);
+
     mockAddToFavoritesUseCase = MockAddToFavoritesUseCase();
     mockGetFavoritesUseCase = MockGetFavoritesUseCase();
     mockRemoveFromFavoritesUseCase = MockRemoveFromFavoritesUseCase();
@@ -98,7 +118,10 @@ void main() {
     mockRenameFavoriteCollectionUseCase = MockRenameFavoriteCollectionUseCase();
     mockDeleteFavoriteCollectionUseCase = MockDeleteFavoriteCollectionUseCase();
     mockAddToFavoriteCollectionUseCase = MockAddToFavoriteCollectionUseCase();
-    mockUserDataRepository = MockUserDataRepository();
+    mockAddBatchToFavoriteCollectionsUseCase =
+        MockAddBatchToFavoriteCollectionsUseCase();
+    mockRemoveBatchFromFavoriteCollectionUseCase =
+        MockRemoveBatchFromFavoriteCollectionUseCase();
     mockLogger = MockLogger();
 
     cubit = FavoriteCubit(
@@ -110,6 +133,10 @@ void main() {
       renameFavoriteCollectionUseCase: mockRenameFavoriteCollectionUseCase,
       deleteFavoriteCollectionUseCase: mockDeleteFavoriteCollectionUseCase,
       addToFavoriteCollectionUseCase: mockAddToFavoriteCollectionUseCase,
+      addBatchToFavoriteCollectionsUseCase:
+          mockAddBatchToFavoriteCollectionsUseCase,
+      removeBatchFromFavoriteCollectionUseCase:
+          mockRemoveBatchFromFavoriteCollectionUseCase,
       userDataRepository: mockUserDataRepository,
       logger: mockLogger,
     );

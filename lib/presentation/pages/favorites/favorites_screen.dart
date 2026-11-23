@@ -21,6 +21,7 @@ import '../../../core/routing/app_router.dart';
 import '../../../core/utils/error_message_utils.dart';
 import '../../../core/utils/storage_settings.dart';
 import '../../../domain/entities/entities.dart';
+import '../../../domain/value_objects/favorite_key.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/utils/responsive_grid_delegate.dart';
 import '../../../core/services/source_auth_service.dart';
@@ -47,9 +48,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final TextEditingController _onlineSearchController = TextEditingController();
 
-  // Selection mode for batch operations
+  // Selection mode for batch operations.
+  // Keys carry both (id, sourceId) so sources sharing one gallery id
+  // never collide in multi-select actions.
   bool _isSelectionMode = false;
-  final Set<String> _selectedItems = <String>{};
+  final Set<FavoriteKey> _selectedItems = <FavoriteKey>{};
 
   // Cubit instance to avoid context issues
   late FavoriteCubit _favoriteCubit;
@@ -473,12 +476,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     });
   }
 
-  void _toggleItemSelection(String contentId) {
+  void _toggleItemSelection(FavoriteKey key) {
     setState(() {
-      if (_selectedItems.contains(contentId)) {
-        _selectedItems.remove(contentId);
+      if (_selectedItems.contains(key)) {
+        _selectedItems.remove(key);
       } else {
-        _selectedItems.add(contentId);
+        _selectedItems.add(key);
       }
     });
   }
@@ -486,10 +489,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   void _selectAll(List<Map<String, dynamic>> favorites) {
     setState(() {
       _selectedItems.clear();
-      _selectedItems.addAll(
-        favorites.map((favorite) => favorite['id'].toString()),
-      );
+      _selectedItems.addAll(favorites.map(favoriteKeyFromRow));
     });
+  }
+
+  /// True when the strip filter points at a real user collection
+  /// (not All, not Uncategorized).
+  bool _isInsideCollection(FavoriteLoaded state) {
+    final activeId = state.activeCollectionId;
+    return activeId != null &&
+        activeId != FavoriteCubit.uncategorizedCollectionId;
   }
 
   void _clearSelection() {
@@ -596,6 +605,340 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           ),
         ) ??
         false;
+  }
+
+  Future<void> _batchAddToFolders({required bool move}) async {
+    if (_selectedItems.isEmpty) return;
+
+    final currentState = _favoriteCubit.state;
+    if (currentState is! FavoriteLoaded) return;
+
+    final activeId = currentState.activeCollectionId;
+    final removeFromCollectionId =
+        move && _isInsideCollection(currentState) ? activeId : null;
+
+    final targetIds = await _showBatchCollectionsSheet(
+      move: move,
+      removeFromCollectionId: removeFromCollectionId,
+    );
+    if (targetIds == null || targetIds.isEmpty || !mounted) return;
+
+    final keys = _selectedItems.toList(growable: false);
+
+    try {
+      await _favoriteCubit.addBatchToCollections(
+        favorites: keys,
+        collectionIds: targetIds,
+        removeFromCollectionId: removeFromCollectionId,
+      );
+
+      setState(() {
+        _selectedItems.clear();
+        if (move) _isSelectionMode = false;
+      });
+
+      if (mounted) {
+        final count = keys.length;
+        final message = move
+            ? AppLocalizations.of(context)!
+                .movedToFolderCount(count, count == 1 ? '' : 's')
+            : AppLocalizations.of(context)!
+                .addedToFolderCount(count, count == 1 ? '' : 's');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message,
+              style: TextStyleConst.withColor(
+                TextStyleConst.bodyMedium,
+                Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      Logger().e('Error batch-adding favorites to folders: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.failedToSaveCollection(
+                e.toString(),
+              ),
+              style: TextStyleConst.withColor(
+                TextStyleConst.bodyMedium,
+                Theme.of(context).colorScheme.onError,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeSelectedFromFolder() async {
+    if (_selectedItems.isEmpty) return;
+
+    final currentState = _favoriteCubit.state;
+    if (currentState is! FavoriteLoaded ||
+        !_isInsideCollection(currentState)) {
+      return;
+    }
+
+    final collectionId = currentState.activeCollectionId!;
+    final collectionName = currentState.collections
+        .where((collection) => collection.id == collectionId)
+        .map((collection) => collection.name)
+        .firstOrNull;
+
+    final count = _selectedItems.length;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor:
+                Theme.of(context).colorScheme.surfaceContainer,
+            title: Text(
+              AppLocalizations.of(context)!.removeFromFolder,
+              style: TextStyleConst.withColor(
+                TextStyleConst.headingMedium,
+                Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            content: Text(
+              AppLocalizations.of(context)!.removeFromFolderConfirm(
+                count,
+                count == 1 ? '' : 's',
+                collectionName ?? collectionId,
+              ),
+              style: TextStyleConst.withColor(
+                TextStyleConst.bodyMedium,
+                Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => context.pop(false),
+                child: Text(
+                  AppLocalizations.of(context)!.cancel,
+                  style: TextStyleConst.withColor(
+                    TextStyleConst.buttonMedium,
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.pop(true),
+                child: Text(
+                  AppLocalizations.of(context)!.remove,
+                  style: TextStyleConst.withColor(
+                    TextStyleConst.buttonMedium,
+                    Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
+    final keys = _selectedItems.toList(growable: false);
+
+    try {
+      await _favoriteCubit.removeBatchFromCollection(
+        favorites: keys,
+        collectionId: collectionId,
+      );
+
+      setState(() {
+        _selectedItems.clear();
+        _isSelectionMode = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.removedFromFolderCount(
+                keys.length,
+                keys.length == 1 ? '' : 's',
+              ),
+              style: TextStyleConst.withColor(
+                TextStyleConst.bodyMedium,
+                Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+          ),
+        );
+      }
+    } catch (e) {
+      Logger().e('Error batch-removing favorites from folder: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context)!.failedToSaveCollection(
+                e.toString(),
+              ),
+              style: TextStyleConst.withColor(
+                TextStyleConst.bodyMedium,
+                Theme.of(context).colorScheme.onError,
+              ),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// Folder picker for batch selection actions.
+  ///
+  /// Returns the chosen collection ids, or null when dismissed.
+  /// Uses a [BlocBuilder] so folders created inline via "+ New folder"
+  /// appear in the list without closing the sheet.
+  Future<List<String>?> _showBatchCollectionsSheet({
+    required bool move,
+    String? removeFromCollectionId,
+  }) async {
+    final selectedIds = <String>{};
+
+    return showModalBottomSheet<List<String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
+      builder: (sheetContext) {
+        return BlocBuilder<FavoriteCubit, FavoriteState>(
+          bloc: _favoriteCubit,
+          builder: (context, state) {
+            final collections =
+                state is FavoriteLoaded ? state.collections : const [];
+            final sourceName = removeFromCollectionId == null
+                ? null
+                : collections
+                    .where((c) => c.id == removeFromCollectionId)
+                    .map((c) => c.name)
+                    .firstOrNull;
+            return StatefulBuilder(
+              builder: (context, setSheetState) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        move
+                            ? AppLocalizations.of(context)!.moveToFolder
+                            : AppLocalizations.of(context)!.addToFolder,
+                        style: TextStyleConst.withColor(
+                          TextStyleConst.headingSmall,
+                          Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      if (move && sourceName != null) ...[
+                        SizedBox(height: DesignTokens.spaceXs),
+                        Text(
+                          AppLocalizations.of(context)!
+                              .moveFromFolderHint(sourceName),
+                          style: TextStyleConst.withColor(
+                            TextStyleConst.caption,
+                            Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      SizedBox(height: DesignTokens.spaceSm),
+                      if (collections.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            AppLocalizations.of(context)!.noFoldersYet,
+                            style: TextStyleConst.withColor(
+                              TextStyleConst.bodyMedium,
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      else
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: collections
+                                  .map(
+                                    (collection) => CheckboxListTile(
+                                      value: selectedIds.contains(
+                                        collection.id,
+                                      ),
+                                      title: Text(collection.name),
+                                      subtitle: Text(
+                                        AppLocalizations.of(context)!.nItems(
+                                          collection.itemCount,
+                                        ),
+                                      ),
+                                      controlAffinity:
+                                          ListTileControlAffinity.leading,
+                                      onChanged: (value) {
+                                        setSheetState(() {
+                                          if (value == true) {
+                                            selectedIds.add(collection.id);
+                                          } else {
+                                            selectedIds.remove(collection.id);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                            ),
+                          ),
+                        ),
+                      SizedBox(height: DesignTokens.spaceSm),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: () async {
+                              await _showCreateCollectionDialog();
+                            },
+                            icon: const Icon(
+                              Icons.create_new_folder_outlined,
+                            ),
+                            label: Text(
+                              AppLocalizations.of(context)!.newCollection,
+                            ),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () => sheetContext.pop(),
+                            child: Text(
+                              AppLocalizations.of(context)!.cancel,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            onPressed: selectedIds.isEmpty
+                                ? null
+                                : () => sheetContext.pop(
+                                      selectedIds.toList(growable: false),
+                                    ),
+                            child: Text(
+                              AppLocalizations.of(context)!.save,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _showExportDialog() async {
@@ -1054,7 +1397,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ],
           ),
         ] else ...[
-          if (_selectedItems.isNotEmpty)
+          if (_selectedItems.isNotEmpty) ...[
+            IconButton(
+              icon: Icon(
+                Icons.drive_file_move_outline,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+              onPressed: () => _batchAddToFolders(move: false),
+              tooltip: AppLocalizations.of(context)!.addToFolder,
+            ),
             IconButton(
               icon: Icon(
                 Icons.delete,
@@ -1063,6 +1414,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               onPressed: _deleteSelected,
               tooltip: AppLocalizations.of(context)!.deleteSelectedTooltip,
             ),
+          ],
         ],
       ],
     );
@@ -1629,48 +1981,108 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget _buildSelectionToolbar(FavoriteState state) {
     if (state is! FavoriteLoaded) return const SizedBox.shrink();
 
+    final insideCollection = _isInsideCollection(state);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Theme.of(context).colorScheme.surfaceContainer,
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          TextButton.icon(
-            onPressed: () => _selectAll(state.favorites),
-            icon: Icon(
-              Icons.select_all,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            label: Text(
-              AppLocalizations.of(context)!.selectAll,
-              style: TextStyleConst.withColor(
-                TextStyleConst.buttonMedium,
-                Theme.of(context).colorScheme.primary,
+          Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => _selectAll(state.favorites),
+                icon: Icon(
+                  Icons.select_all,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                label: Text(
+                  AppLocalizations.of(context)!.selectAll,
+                  style: TextStyleConst.withColor(
+                    TextStyleConst.buttonMedium,
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          TextButton.icon(
-            onPressed: _clearSelection,
-            icon: Icon(
-              Icons.clear,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-            label: Text(
-              AppLocalizations.of(context)!.clear,
-              style: TextStyleConst.withColor(
-                TextStyleConst.buttonMedium,
-                Theme.of(context).colorScheme.onSurfaceVariant,
+              const SizedBox(width: 16),
+              TextButton.icon(
+                onPressed: _clearSelection,
+                icon: Icon(
+                  Icons.clear,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                label: Text(
+                  AppLocalizations.of(context)!.clear,
+                  style: TextStyleConst.withColor(
+                    TextStyleConst.buttonMedium,
+                    Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ),
-            ),
+              const Spacer(),
+              Text(
+                '${_selectedItems.length} / ${state.favorites.length}',
+                style: TextStyleConst.withColor(
+                  TextStyleConst.caption,
+                  Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
-          Text(
-            '${_selectedItems.length} / ${state.favorites.length}',
-            style: TextStyleConst.withColor(
-              TextStyleConst.caption,
-              Theme.of(context).colorScheme.onSurfaceVariant,
+          if (_selectedItems.isNotEmpty)
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () => _batchAddToFolders(move: false),
+                  icon: Icon(
+                    Icons.drive_file_move_outline,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  label: Text(
+                    AppLocalizations.of(context)!.addToFolder,
+                    style: TextStyleConst.withColor(
+                      TextStyleConst.buttonMedium,
+                      Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                if (insideCollection) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _batchAddToFolders(move: true),
+                    icon: Icon(
+                      Icons.folder_open,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    label: Text(
+                      AppLocalizations.of(context)!.moveToFolder,
+                      style: TextStyleConst.withColor(
+                        TextStyleConst.buttonMedium,
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+                if (insideCollection) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _removeSelectedFromFolder,
+                    icon: Icon(
+                      Icons.folder_off_outlined,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    label: Text(
+                      AppLocalizations.of(context)!.removeFromFolder,
+                      style: TextStyleConst.withColor(
+                        TextStyleConst.buttonMedium,
+                        Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
-          ),
         ],
       ),
     );
@@ -1734,6 +2146,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Widget _buildEmptyState(FavoriteLoaded state) {
+    final l10n = AppLocalizations.of(context)!;
+    final emptyMessage =
+        !state.isSearching && _isInsideCollection(state)
+            ? l10n.emptyCollection
+            : state.getEmptyMessage(l10n);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1741,19 +2158,34 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              state.isSearching ? Icons.search_off : Icons.favorite_border,
+              state.isSearching
+                  ? Icons.search_off
+                  : _isInsideCollection(state)
+                      ? Icons.folder_open
+                      : Icons.favorite_border,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
             SizedBox(height: DesignTokens.spaceLg),
             Text(
-              state.getEmptyMessage(AppLocalizations.of(context)),
+              emptyMessage,
               style: TextStyleConst.withColor(
                 TextStyleConst.headingSmall,
                 Theme.of(context).colorScheme.onSurfaceVariant,
               ),
               textAlign: TextAlign.center,
             ),
+            if (!state.isSearching && _isInsideCollection(state)) ...[
+              SizedBox(height: DesignTokens.spaceLg),
+              ElevatedButton(
+                onPressed: () => _favoriteCubit.selectCollection(null),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text(AppLocalizations.of(context)!.viewAllFavorites),
+              ),
+            ],
             if (state.isSearching) ...[
               SizedBox(height: DesignTokens.spaceLg),
               ElevatedButton(
@@ -1810,8 +2242,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 }
 
                 final favorite = state.favorites[index];
-                final contentId = favorite['id'].toString();
-                final isSelected = _selectedItems.contains(contentId);
+                final isSelected =
+                    _selectedItems.contains(favoriteKeyFromRow(favorite));
 
                 return _buildFavoriteCard(
                   favorite,
@@ -1853,9 +2285,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             buildAnimatedChip(
               selected: state.activeCollectionId == null,
               child: ChoiceChip(
-                label: Text(AppLocalizations.of(context)!.all),
+                label: Text(
+                  AppLocalizations.of(context)!.collectionWithCount(
+                    AppLocalizations.of(context)!.all,
+                    state.totalAllCount,
+                  ),
+                ),
                 selected: state.activeCollectionId == null,
                 onSelected: (_) => _favoriteCubit.selectCollection(null),
+              ),
+            ),
+            const SizedBox(width: 8),
+            buildAnimatedChip(
+              selected: state.activeCollectionId ==
+                  FavoriteCubit.uncategorizedCollectionId,
+              child: ChoiceChip(
+                avatar: const Icon(Icons.folder_off_outlined, size: 18),
+                label: Text(
+                  AppLocalizations.of(context)!.collectionWithCount(
+                    AppLocalizations.of(context)!.uncategorized,
+                    state.uncategorizedCount,
+                  ),
+                ),
+                selected: state.activeCollectionId ==
+                    FavoriteCubit.uncategorizedCollectionId,
+                onSelected: (_) => _favoriteCubit.selectCollection(
+                  FavoriteCubit.uncategorizedCollectionId,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -1905,7 +2361,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     return GestureDetector(
       onTap: () {
         if (_isSelectionMode) {
-          _toggleItemSelection(contentId);
+          _toggleItemSelection(favoriteKeyFromRow(favorite));
         } else {
           // Navigate to content detail
           AppRouter.goToContentDetail(context, contentId, sourceId: sourceId);
@@ -1914,7 +2370,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       onLongPress: () {
         if (!_isSelectionMode) {
           _toggleSelectionMode();
-          _toggleItemSelection(contentId);
+          _toggleItemSelection(favoriteKeyFromRow(favorite));
         }
       },
       child: Container(

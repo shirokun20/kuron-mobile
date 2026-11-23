@@ -113,6 +113,8 @@ import 'package:nhasixapp/domain/usecases/favorites/create_favorite_collection_u
 import 'package:nhasixapp/domain/usecases/favorites/rename_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/favorites/delete_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/favorites/add_to_favorite_collection_usecase.dart';
+import 'package:nhasixapp/domain/usecases/favorites/add_batch_to_favorite_collections_usecase.dart';
+import 'package:nhasixapp/domain/usecases/favorites/remove_batch_from_favorite_collection_usecase.dart';
 import 'package:nhasixapp/domain/usecases/downloads/downloads_usecases.dart';
 import 'package:nhasixapp/domain/usecases/history/add_to_history_usecase.dart';
 import 'package:nhasixapp/domain/usecases/reader_identity/reader_identity_usecases.dart';
@@ -1452,6 +1454,10 @@ void _setupUseCases() {
       () => DeleteFavoriteCollectionUseCase(getIt()));
   getIt.registerLazySingleton<AddToFavoriteCollectionUseCase>(
       () => AddToFavoriteCollectionUseCase(getIt()));
+  getIt.registerLazySingleton<AddBatchToFavoriteCollectionsUseCase>(
+      () => AddBatchToFavoriteCollectionsUseCase(getIt()));
+  getIt.registerLazySingleton<RemoveBatchFromFavoriteCollectionUseCase>(
+      () => RemoveBatchFromFavoriteCollectionUseCase(getIt()));
 
   // Download Use Cases
   getIt.registerLazySingleton<DownloadContentUseCase>(
@@ -1705,6 +1711,10 @@ void _setupCubits() {
         deleteFavoriteCollectionUseCase:
             getIt<DeleteFavoriteCollectionUseCase>(),
         addToFavoriteCollectionUseCase: getIt<AddToFavoriteCollectionUseCase>(),
+        addBatchToFavoriteCollectionsUseCase:
+            getIt<AddBatchToFavoriteCollectionsUseCase>(),
+        removeBatchFromFavoriteCollectionUseCase:
+            getIt<RemoveBatchFromFavoriteCollectionUseCase>(),
         userDataRepository: getIt<UserDataRepository>(),
         logger: getIt<Logger>(),
       ));

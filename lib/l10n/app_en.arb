@@ -3572,6 +3572,68 @@
       }
     }
   },
+  "uncategorized": "Uncategorized",
+  "addToFolder": "Add to folder",
+  "moveToFolder": "Move to folder",
+  "removeFromFolder": "Remove from folder",
+  "removeFromFolderConfirm": "Remove {count} item{s} from \"{name}\"? They stay saved in All.",
+  "@removeFromFolderConfirm": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "s": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "emptyCollection": "This folder is empty",
+  "viewAllFavorites": "View all favorites",
+  "addedToFolderCount": "Added {count} item{s} to folder",
+  "@addedToFolderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "s": {
+        "type": "String"
+      }
+    }
+  },
+  "movedToFolderCount": "Moved {count} item{s} to folder",
+  "@movedToFolderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "s": {
+        "type": "String"
+      }
+    }
+  },
+  "removedFromFolderCount": "Removed {count} item{s} from folder",
+  "@removedFromFolderCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "s": {
+        "type": "String"
+      }
+    }
+  },
+  "moveFromFolderHint": "Items leave \"{name}\" but stay saved in All.",
+  "@moveFromFolderHint": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "noFoldersYet": "No folders yet — create one below.",
   "newLabel": "New",
   "tryDifferentSearchTerm": "Try a different search term",
   "apply": "Apply",

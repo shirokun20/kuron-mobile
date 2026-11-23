@@ -4840,6 +4840,52 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get uncategorized => 'Uncategorized';
+
+  @override
+  String get addToFolder => 'Add to folder';
+
+  @override
+  String get moveToFolder => 'Move to folder';
+
+  @override
+  String get removeFromFolder => 'Remove from folder';
+
+  @override
+  String removeFromFolderConfirm(int count, String s, String name) {
+    return 'Remove $count item$s from \"$name\"? They stay saved in All.';
+  }
+
+  @override
+  String get emptyCollection => 'This folder is empty';
+
+  @override
+  String get viewAllFavorites => 'View all favorites';
+
+  @override
+  String addedToFolderCount(int count, String s) {
+    return 'Added $count item$s to folder';
+  }
+
+  @override
+  String movedToFolderCount(int count, String s) {
+    return 'Moved $count item$s to folder';
+  }
+
+  @override
+  String removedFromFolderCount(int count, String s) {
+    return 'Removed $count item$s from folder';
+  }
+
+  @override
+  String moveFromFolderHint(String name) {
+    return 'Items leave \"$name\" but stay saved in All.';
+  }
+
+  @override
+  String get noFoldersYet => 'No folders yet — create one below.';
+
+  @override
   String get newLabel => 'New';
 
   @override
