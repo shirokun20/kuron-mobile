@@ -21,6 +21,7 @@ export 'src/parsers/generic_html_parser.dart';
 export 'src/parsers/generic_json_parser.dart';
 export 'src/parsers/html_field_extract.dart';
 export 'src/parsers/html_isolate_parse.dart';
+export 'src/parsers/secondary_fetch.dart';
 export 'src/url_builder/generic_url_builder.dart';
 
 // Config Contract v2 parsing (revamp-kuron-config-runtime §3)

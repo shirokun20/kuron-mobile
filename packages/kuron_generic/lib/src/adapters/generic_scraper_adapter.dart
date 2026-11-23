@@ -77,6 +77,7 @@ import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
 import '../parsers/html_field_extract.dart' as shared;
 import '../parsers/html_isolate_parse.dart';
+import '../parsers/secondary_fetch.dart';
 import '../readers/chapter_protector.dart';
 import '../readers/reader_image_resolver.dart';
 import '../routing/search_query_routing.dart';
@@ -1435,6 +1436,55 @@ class GenericScraperAdapter implements GenericAdapter {
       final fieldsConfig =
           (detailCfg['fields'] as Map?)?.cast<String, dynamic>() ?? {};
 
+      // ── Two-step fetch (config-driven) ────────────────────────────────────
+      // The page only carries a one-time token; the detail payload (manga
+      // object + chapters_list) lives behind the secondary endpoint. When the
+      // block is configured and decodes, it replaces DOM extraction entirely.
+      final detailSecondarySpec = SecondaryFetchSpec.tryParse(
+        detailCfg['secondaryFetch'],
+      );
+      if (detailSecondarySpec != null) {
+        final secondaryPayload = await _fetchSecondaryPayload(
+          spec: detailSecondarySpec,
+          pageUrl: url,
+          pageBody: response.data ?? '',
+          rawConfig: rawConfig,
+          cancelToken: cancelToken,
+        );
+        if (secondaryPayload is Map) {
+          try {
+            final payload = detailSecondarySpec.payloadOf(secondaryPayload);
+            if (payload is Map) {
+              final fields = payload.cast<String, dynamic>();
+              final chaotic = _extractChaoticDetailFields(fields, detailCfg);
+              final secondaryChapters = _chaoticChapters(fields);
+              if (chaotic['title'] != null || secondaryChapters != null) {
+                _logger.i(
+                  '$_sourceId secondaryFetch detail: '
+                  '${secondaryChapters?.length ?? 0} chapters for $url',
+                );
+                return AdapterDetailResult(
+                  content: GenericContentMapper.toDetail(
+                    contentId,
+                    chaotic,
+                    sourceId: _sourceId,
+                    chapters: secondaryChapters,
+                  ),
+                  imageUrls: const [],
+                );
+              }
+            }
+          } catch (e) {
+            if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+            _logger.w('$_sourceId secondaryFetch detail parse failed: $e');
+          }
+        }
+        _logger.w(
+          '$_sourceId secondaryFetch detail: no usable payload for $url '
+          '— falling back to static selectors',
+        );
+      }
+
       // Next.js obfuscated JSON detail (nicomanga redesign): the static DOM
       // carries only skeletons; content lives in `chaotic_payload`. When a
       // decode succeeds it replaces DOM extraction entirely.
@@ -2186,6 +2236,38 @@ class GenericScraperAdapter implements GenericAdapter {
       }
 
       if (readerConfig == null) return null;
+
+      // ── Two-step fetch (config-driven) ────────────────────────────────────
+      // The chapter shell carries zero `<img>`; images come from the
+      // secondary endpoint's payload (dot path `imagesPath`). Failure falls
+      // through to the inline `chaoticPayload` / DOM handlers below.
+      final readerSecondarySpec = SecondaryFetchSpec.tryParse(
+        readerConfig['secondaryFetch'],
+      );
+      if (readerSecondarySpec != null) {
+        final secondaryPayload = await _fetchSecondaryPayload(
+          spec: readerSecondarySpec,
+          pageUrl: url,
+          pageBody: htmlContent,
+          rawConfig: rawConfig,
+          cancelToken: cancelToken,
+        );
+        if (secondaryPayload != null) {
+          final images = readerSecondarySpec.extractImages(secondaryPayload);
+          if (images.isNotEmpty) {
+            _logger.d(
+              '$_sourceId secondaryFetch reader: ${images.length} images',
+            );
+            return ChapterData(
+              images: _readerImages.normalizeChapterImageUrls(images),
+            );
+          }
+        }
+        _logger.w(
+          '$_sourceId secondaryFetch reader: no images for $url '
+          '— falling back to static selectors',
+        );
+      }
 
       // Next.js obfuscated JSON reader (nicomanga redesign): images live in
       // the page's `chaotic_payload` (decoded with the configured key).
@@ -3277,6 +3359,71 @@ class GenericScraperAdapter implements GenericAdapter {
                 ),
               ),
             );
+      // ── Two-step fetch (config-driven) ───────────────────────────────────
+      // Next.js "ad-frame" family: the first response only carries a
+      // short-lived token; the real list lives behind a second endpoint.
+      // A successful decode is authoritative (items + total/last_page), so
+      // it returns before any DOM work. Any failure (missing token, expired
+      // key, 404, undecodable payload) falls through to the static
+      // HTML/SEO selectors below.
+      final secondarySpec = SecondaryFetchSpec.tryParse(
+        listConfig['secondaryFetch'],
+      );
+      if (secondarySpec != null) {
+        final secondaryPayload = await _fetchSecondaryPayload(
+          spec: secondarySpec,
+          pageUrl: url,
+          pageBody: response.data ?? '',
+          rawConfig: rawConfig,
+          cancelToken: cancelToken,
+          extra: <String, String>{'page': '$currentPage'},
+        );
+        if (secondaryPayload != null) {
+          final secondaryItems = <Content>[];
+          for (final fields in secondarySpec.extractItems(secondaryPayload)) {
+            if (fields['coverUrl'] != null) {
+              fields['coverUrl'] = _readerImages.sanitizeImageUrl(
+                fields['coverUrl'].toString(),
+              );
+            }
+            var item = GenericContentMapper.toListItem(
+              fields,
+              sourceId: _sourceId,
+            );
+            if (defaultLanguage != null &&
+                (item.language.isEmpty || item.language == 'unknown')) {
+              item = item.copyWith(language: defaultLanguage);
+            }
+            if (item.id.isNotEmpty) secondaryItems.add(item);
+          }
+          final pagination = secondarySpec.extractPagination(secondaryPayload);
+          // A decoded payload with pagination metadata is authoritative even
+          // when it holds zero items (a genuinely empty search result).
+          if (secondaryItems.isNotEmpty || pagination.containsKey('total')) {
+            final page = pagination['page'] ?? currentPage;
+            final totalPages = pagination['lastPage'] ?? pagination['totalPages'];
+            final hasNext = totalPages != null
+                ? page < totalPages
+                : secondaryItems.isNotEmpty;
+            _logger.i(
+              '$_sourceId secondaryFetch list: ${secondaryItems.length} items, '
+              'page=$page total=${pagination['total']} lastPage=$totalPages '
+              'for $url',
+            );
+            return AdapterSearchResult(
+              items: secondaryItems,
+              hasNextPage: hasNext,
+              totalPages: totalPages,
+              totalItems: pagination['total'],
+            );
+          }
+          _logger.w(
+            '$_sourceId secondaryFetch list: payload carried no items for $url '
+            '— falling back to static selectors',
+          );
+        }
+      }
+
       // Heavy DOM parse + selector extraction runs on a worker isolate via
       // `Isolate.run()` so the calling (UI) isolate never blocks on large
       // list/search pages. Dio/HTTP stays here: only the raw response string
@@ -3420,6 +3567,72 @@ class GenericScraperAdapter implements GenericAdapter {
         statusCode: e is DioException ? e.response?.statusCode : null,
       );
       return const AdapterSearchResult(items: [], hasNextPage: false);
+    }
+  }
+
+  // ── Private: two-step (secondary) fetch ────────────────────────────────────
+
+  // Executes the generic `secondaryFetch` contract:
+  //   1. extract the one-time token from the first response with
+  //      `spec.tokenPattern`;
+  //   2. GET `spec.url` (template with `{origin}` / `{key}` / extras) using
+  //      the source headers plus the page `Referer`;
+  //   3. decode the payload (`payloadPath` + optional CJK-XOR `decodeKey`).
+  //
+  // Returns `null` — never throws — on every failure mode (no token, expired
+  // key → 404, network error, undecodable body) so callers keep their static
+  // HTML/SEO fallback. Cancellation is the only rethrown exception.
+  Future<dynamic> _fetchSecondaryPayload({
+    required SecondaryFetchSpec spec,
+    required String pageUrl,
+    required String pageBody,
+    required Map<String, dynamic> rawConfig,
+    CancelToken? cancelToken,
+    Map<String, String> extra = const <String, String>{},
+  }) async {
+    final key = spec.resolveToken(pageBody);
+    if (key == null) {
+      _logger.d('$_sourceId secondaryFetch: no token found in $pageUrl');
+      return null;
+    }
+
+    final target = spec.resolveUrl(pageUrl: pageUrl, key: key, extra: extra);
+    final headers = _resolveRequestHeaders(rawConfig, fallbackReferer: pageUrl);
+    // The secondary endpoint validates the page `Referer`; config decides
+    // whether that is the full page URL, the bare origin, or a fixed value.
+    headers['Referer'] = spec.resolveReferer(pageUrl);
+
+    try {
+      final response = await _executeRequest<Response<String>>(
+        () => _dio.get<String>(
+          target,
+          cancelToken: cancelToken,
+          options: Options(
+            responseType: ResponseType.plain,
+            headers: headers,
+            receiveTimeout: spec.timeout,
+            // Expired keys answer 404 with a JSON error body; treat every
+            // non-5xx as "decode or fall back" instead of throwing.
+            validateStatus: (status) => status != null && status < 500,
+          ),
+        ),
+      );
+
+      final status = response.statusCode ?? 0;
+      if (status < 200 || status >= 300) {
+        _logger.d('$_sourceId secondaryFetch: HTTP $status for $target');
+        return null;
+      }
+
+      final payload = spec.decodeBody(response.data ?? '');
+      if (payload == null) {
+        _logger.d('$_sourceId secondaryFetch: undecodable payload from $target');
+      }
+      return payload;
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+      _logger.w('$_sourceId secondaryFetch failed for $target: $e');
+      return null;
     }
   }
 

@@ -12,6 +12,7 @@ import 'package:logger/logger.dart';
 import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
 import '../parsers/html_field_extract.dart' as shared;
+import '../parsers/secondary_fetch.dart';
 import '../url_builder/generic_url_builder.dart';
 
 class ReaderImageResolver {
@@ -59,14 +60,14 @@ class ReaderImageResolver {
       return null;
     }
 
-    final out = StringBuffer();
-    for (var i = 0; i < unescaped.length; i++) {
-      final code = unescaped.codeUnitAt(i) - 0x4E00;
-      if (code < 0) continue;
-      out.writeCharCode(code ^ key.codeUnitAt(i % key.length));
-    }
-    return out.toString();
+    return decodeChaoticString(unescaped, key: key);
   }
+
+  /// De-obfuscate a payload string that is **already** unescaped (the shape
+  /// the generic `secondaryFetch` primitive returns from a JSON field).
+  /// Shares one implementation with [SecondaryFetchSpec.decodeObfuscated].
+  String decodeChaoticString(String payload, {required String key}) =>
+      SecondaryFetchSpec.decodeObfuscated(payload, key);
 
   // Convert a field definition map to a [FieldSelector].
   //
