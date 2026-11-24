@@ -70,6 +70,13 @@ android {
                 keystoreFile.bytes = System.getenv("KEYSTORE_BASE64").decodeBase64()
                 storeFile = keystoreFile
             }
+
+            // QA gate #88 (scripts/qa_verify_release_apk.sh): the release
+            // APK must verify under BOTH v2 and v3 schemes.
+            v1SigningEnabled true
+            v2SigningEnabled true
+            enableV3Signing true
+            enableV4Signing false
         }
     }
 
@@ -117,17 +124,25 @@ android {
     // Note: ABI splits handled by Flutter's --split-per-abi flag
     // Don't use gradle splits.abi as it conflicts with Flutter's ndk.abiFilters
 
-    // Custom APK naming with ABI support: kuron_[version]_[date]_[abi].apk
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def versionName = variant.versionName
-            def buildType = variant.buildType.name
+}
+
+// Custom APK naming with ABI support: kuron_[version]_[date]_[buildType]_[abi].apk
+// (androidComponents API — the legacy applicationVariants DSL is retired.
+// android.newDsl=false stays: the Flutter Gradle plugin still applies the
+// legacy kotlin-android plugin, which rejects the AGP 9 new DSL.)
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.outputs.forEach { output ->
+            def versionName = output.versionName.get()
+            def buildType = variant.buildType
             def date = new Date().format('yyyyMMdd')
-            def abi = output.getFilter(com.android.build.OutputFile.ABI) ?: 'universal'
-            
+            def abi = output.filters
+                .find { it.filterType.name() == 'ABI' }
+                ?.identifier ?: 'universal'
+
             // Custom filename format: kuron_[version]_[date]_[buildType]_[abi].apk
             def fileName = "kuron_${versionName}_${date}_${buildType}_${abi}.apk"
-            outputFileName = fileName
+            output.outputFileName.set(fileName)
         }
     }
 }
@@ -150,11 +165,11 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     
     // Native download dependencies
-    implementation 'androidx.work:work-runtime-ktx:2.9.0'
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
-    implementation 'com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0'  // NEW: DNS-over-HTTPS
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'androidx.work:work-runtime-ktx:2.12.0'
+    implementation 'com.squareup.okhttp3:okhttp:5.5.1'
+    implementation 'com.squareup.okhttp3:logging-interceptor:5.5.1'
+    implementation 'com.squareup.okhttp3:okhttp-dnsoverhttps:5.5.1'  // NEW: DNS-over-HTTPS
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1'
     implementation 'com.jakewharton.timber:timber:5.0.1'
     implementation 'com.google.guava:guava:32.1.3-android'
     
@@ -163,8 +178,8 @@ dependencies {
     
     // Testing dependencies (NEW)
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.robolectric:robolectric:4.11.1'
-    testImplementation 'androidx.work:work-testing:2.9.0'
-    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
+    testImplementation 'org.robolectric:robolectric:4.18.1'
+    testImplementation 'androidx.work:work-testing:2.12.0'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.1'
     testImplementation 'androidx.test:core:1.5.0'
 }

@@ -10,6 +10,7 @@
 //
 // These tests hit the network. Run explicitly with:
 //   fvm dart test packages/kuron_generic/test/integration/keiyoushi_phase3_live_test.dart
+@Tags(['live'])
 library;
 
 import 'dart:io';

@@ -1,0 +1,8 @@
+# Tags used across this package's test suites.
+#
+# `live` marks tests that perform real network I/O. Default/offline runs
+# stay deterministic via:
+#   fvm dart test --exclude-tags live
+tags:
+  live:
+    description: Live-network tests; opt in explicitly when online.

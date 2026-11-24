@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:extended_image_library/extended_image_library.dart';
 import 'package:path/path.dart' as p;
 
 import 'package:kuron_core/kuron_core.dart';
@@ -49,12 +49,13 @@ Future<String?> _defaultStreamingDownload({
   );
 }
 
-/// Default legacy lookup — reads the old flutter_cache_manager cache (kept for
-/// lazy migration so users do not lose their existing cache after an update).
+/// Default disk-cache lookup — reads the unified `extended_image_library`
+/// disk cache (the same store `ExtendedImage.network` renders from), so no
+/// second cache engine is kept alive for reader images.
 Future<String?> _defaultLegacyLookup(String url) async {
   try {
-    final file = await DefaultCacheManager().getFileFromCache(url);
-    if (file != null && await file.file.exists()) return file.file.path;
+    final file = await getCachedImageFile(url);
+    if (file != null && await file.exists()) return file.path;
   } catch (_) {}
   return null;
 }
@@ -69,7 +70,7 @@ Future<String?> _defaultLocalLookup(String contentId, int pageNumber) {
 /// Deterministic resolution order (mode-agnostic, no cross-session in-memory
 /// routing state):
 ///   1. offline download / preloader cache
-///   2. cache-manager legacy (lazily migrated to the canonical location)
+///   2. unified extended_image disk cache (shared with ExtendedImage.network)
 ///   3. network download, streamed straight to the canonical location
 /// Plus a per-URL in-flight dedup gate shared across all subsystems.
 class ReaderImageRepositoryImpl implements ReaderImageRepository {

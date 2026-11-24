@@ -112,6 +112,24 @@ class ReaderCubit extends BaseCubit<ReaderState> {
   Timer? _readingTimer;
   Timer? _autoHideTimer;
 
+  /// Auto-hide overlay delay, resolved from the user preference
+  /// (`readerAutoHideDelaySeconds`) with the remote-config duration (the same
+  /// source `AppDurations.readerAutoHideDelay` reads) as fallback.
+  /// Defaults to 3s — the same fallback `AppDurations` uses.
+  Duration _autoHideDelay = const Duration(seconds: 3);
+
+  /// Whether the overlay auto-hides at all (user preference `readerAutoHideUI`).
+  /// Focus/immersive-reading gate: when off, [_startAutoHideTimer] is a no-op
+  /// so the chrome stays put while the user reads.
+  bool _autoHideUiEnabled = true;
+
+  /// Per-screen brightness dimmer (1.0 = no dimming), persisted to the
+  /// `readerBrightness` user preference and re-applied on next open.
+  double _readerBrightness = 1.0;
+
+  /// Current reader brightness (1.0 = full brightness).
+  double get readerBrightness => _readerBrightness;
+
   // Webtoon/manhwa auto-detection
   bool _hasDetectedWebtoon = false;
 
@@ -147,7 +165,67 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       chapterData: s.chapterData,
       currentChapter: s.currentChapter,
       tapDirection: s.tapDirection ?? TapDirection.normal,
+      readerBrightness: s.readerBrightness,
     );
+  }
+
+  /// Refreshes overlay auto-hide and brightness from the user preferences.
+  ///
+  /// Resolution order for the delay: `UserPreferences.readerAutoHideDelay`
+  /// first, then the remote-config duration (the same value
+  /// `AppDurations.readerAutoHideDelay` exposes), then the 3s fallback.
+  /// Brightness is re-applied from `UserPreferences.readerBrightness`.
+  /// Never throws: any failure keeps the current in-memory values.
+  Future<void> _refreshReaderDisplayPrefs() async {
+    try {
+      final prefs = await userDataRepository?.getUserPreferences();
+      if (prefs != null) {
+        final seconds = prefs.readerAutoHideDelay;
+        if (seconds > 0) _autoHideDelay = Duration(seconds: seconds);
+        _autoHideUiEnabled = prefs.readerAutoHideUI;
+        final brightness = prefs.readerBrightness;
+        if (brightness > 0) _readerBrightness = brightness.clamp(0.2, 1.0);
+        return;
+      }
+    } catch (_) {
+      // Fall through to remote-config/default below.
+    }
+    try {
+      final seconds = remoteConfigService
+          .appConfig
+          ?.durations
+          ?.readerAutoHideDelaySeconds;
+      if (seconds != null && seconds > 0) {
+        _autoHideDelay = Duration(seconds: seconds);
+      }
+    } catch (_) {
+      // Keep current value (3s default).
+    }
+  }
+
+  /// Updates the reader brightness dimmer (1.0 = full brightness).
+  ///
+  /// Emits immediately so the overlay applies live, then persists to
+  /// `UserPreferences` so the next reader session restores it.
+  Future<void> setReaderBrightness(double value) async {
+    final clamped = value.clamp(0.2, 1.0);
+    _readerBrightness = clamped;
+    if (!isClosed) emit(state.copyWithBrightness(clamped));
+    try {
+      final repo = userDataRepository;
+      if (repo == null) return;
+      final prefs = await repo.getUserPreferences();
+      await repo.saveUserPreferences(
+        prefs.copyWith(readerBrightness: clamped),
+      );
+      _logger.i('Successfully saved reader brightness: $clamped');
+    } catch (e, stackTrace) {
+      _logger.e(
+        'Failed to save reader brightness: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   List<Chapter>? get allChapters => _allChapters;
@@ -233,6 +311,10 @@ class ReaderCubit extends BaseCubit<ReaderState> {
           : (restoredPage > 1 ? restoredPage : initialPage);
 
       _lastTrackedPage = startPage;
+
+      // Display prefs (auto-hide delay + brightness) before the Loaded emit
+      // so the emitted state already carries the restored brightness.
+      await _refreshReaderDisplayPrefs();
 
       Content? content;
       bool isOfflineMode = false;
@@ -475,6 +557,7 @@ class ReaderCubit extends BaseCubit<ReaderState> {
           chapterData: chapterData,
           currentChapter: currentChapter,
           tapDirection: savedSettings.tapDirection,
+          readerBrightness: _readerBrightness,
         ),
       );
 
@@ -2533,13 +2616,17 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       await readerSettingsEntityRepository.resetToDefaults();
       _logger.i('Successfully reset reader settings to defaults');
 
+      _readerBrightness = 1.0;
       if (!isClosed) {
         emit(
           state
               .copyWithUI(showUI: true, keepScreenOn: false)
-              .copyWithMode(readingMode: ReadingMode.singlePage),
+              .copyWithMode(readingMode: ReadingMode.singlePage)
+              .copyWithBrightness(1.0),
         );
       }
+      // Best-effort: restore persisted brightness default (never throws).
+      await setReaderBrightness(1.0);
 
       // Disable wakelock
       try {
@@ -2560,10 +2647,12 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
       // Still apply default settings to current state even if persistence failed
       if (!isClosed) {
+        _readerBrightness = 1.0;
         emit(
           state
               .copyWithUI(showUI: true, keepScreenOn: false)
-              .copyWithMode(readingMode: ReadingMode.singlePage),
+              .copyWithMode(readingMode: ReadingMode.singlePage)
+              .copyWithBrightness(1.0),
         );
       }
 
@@ -2778,7 +2867,11 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
   void _startAutoHideTimer() {
     _stopAutoHideTimer();
-    _autoHideTimer = Timer(const Duration(seconds: 3), () {
+    // Focus Mode gate: when the user disabled auto-hide, the chrome stays.
+    if (!_autoHideUiEnabled) return;
+    // Delay comes from the user preference / remote config (see
+    // [_refreshReaderDisplayPrefs]), never a hardcoded constant.
+    _autoHideTimer = Timer(_autoHideDelay, () {
       // Check if cubit is still active before calling hideUI
       if (!isClosed && (state.showUI ?? false)) {
         hideUI();

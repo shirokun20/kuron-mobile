@@ -3678,6 +3678,8 @@
   "readerTapDirectionNormalDescription": "点击右侧前往下一页",
   "readerTapDirectionInvertedDescription": "点击左侧前往下一页",
   "readerClearImageCache": "清除图片缓存",
+  "readerBrightness": "屏幕亮度",
+  "readerBrightnessDescription": "调暗阅读器，不改变系统亮度",
   "readerImageCacheCleared": "图片缓存已清除。滚动以重新加载页面。",
   "readerOpenInGallery": "在图库中打开",
   "readerPinchToZoom": "双指缩放",

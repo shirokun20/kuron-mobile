@@ -75,6 +75,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
               ],
               _buildKeepScreenOnTile(context),
               const Divider(height: 1),
+              _buildBrightnessTile(context),
+              const Divider(height: 1),
               _buildKeyboardShortcutsTile(context),
               const SizedBox(height: 24),
               _buildClearCacheButton(context),
@@ -202,6 +204,57 @@ class _ReaderSettingsSheet extends StatelessWidget {
         onChanged: (_) => cubit.toggleKeepScreenOn(),
         activeThumbColor: Theme.of(context).colorScheme.primary,
       ),
+    );
+  }
+
+  Widget _buildBrightnessTile(BuildContext context) {
+    final brightness = state.readerBrightness;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        ListTile(
+          leading: Icon(
+            Icons.brightness_6_outlined,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          title: Text(
+            AppLocalizations.of(context)!.readerBrightness,
+            style: TextStyleConst.bodyMedium.copyWith(
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+          subtitle: Text(
+            AppLocalizations.of(context)!.readerBrightnessDescription,
+            style: TextStyleConst.bodySmall.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          trailing: Text(
+            '${(brightness * 100).round()}%',
+            style: TextStyleConst.bodyMedium.copyWith(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+        ),
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            trackHeight: 2.5,
+            thumbShape:
+                const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape:
+                const RoundSliderOverlayShape(overlayRadius: 14),
+          ),
+          child: Slider(
+            value: brightness.clamp(0.2, 1.0),
+            min: 0.2,
+            max: 1.0,
+            divisions: 16,
+            label: '${(brightness * 100).round()}%',
+            activeColor: Theme.of(context).colorScheme.primary,
+            onChanged: (v) => cubit.setReaderBrightness(v),
+          ),
+        ),
+      ],
     );
   }
 

@@ -3,11 +3,18 @@
 set -euo pipefail
 
 # Build optimized APK dengan ukuran minimal
-# Usage: [DOUJINDESU_APP_SECRET=xyz] ./scripts/build_optimized.sh [release|debug]
+# Usage: [DOUJINDESU_APP_SECRET=xyz] ./scripts/build_optimized.sh [release|debug] [--no-clean]
 #        (or from repo root: scripts/build_optimized.sh)
 # Example with custom app secret:
 #   DOUJINDESU_APP_SECRET="your_secret_here" ./scripts/build_optimized.sh release
+# Pass --no-clean to skip `flutter clean` (faster iterative builds).
 BUILD_TYPE=${1:-release}
+NO_CLEAN=false
+for arg in "$@"; do
+  if [ "$arg" = "--no-clean" ]; then
+    NO_CLEAN=true
+  fi
+done
 
 # Real IDs live in android/app/build.gradle productFlavors; the effective
 # APP_ID/APP_NAME are recomputed from $FLAVOR below (this is just a default).
@@ -33,7 +40,11 @@ fi
 echo "🔧 Flutter command: $FLUTTER_CMD"
 
 echo "🧹 Cleaning project..."
-$FLUTTER_CMD clean > /dev/null 2>&1
+if [ "$NO_CLEAN" = true ]; then
+  echo "⏭️  Skipping flutter clean (--no-clean)"
+else
+  $FLUTTER_CMD clean > /dev/null 2>&1
+fi
 
 echo "📊 OPTIMIZATION STRATEGIES:"
 echo "✅ Universal APK single file (all ABIs) — SPLIT_ABI=true for per-ABI"

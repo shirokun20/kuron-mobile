@@ -1498,7 +1498,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                 previous.readingMode == current.readingMode &&
                 previous.enableZoom == current.enableZoom &&
                 previous.keepScreenOn == current.keepScreenOn &&
-                previous.isOfflineMode == current.isOfflineMode;
+                previous.isOfflineMode == current.isOfflineMode &&
+                previous.readerBrightness == current.readerBrightness;
 
             final isContinuousMode =
                 current.readingMode == ReadingMode.continuousScroll;
@@ -1517,7 +1518,8 @@ class _ReaderScreenState extends State<ReaderScreen>
                 previous.readingMode != current.readingMode ||
                 previous.enableZoom != current.enableZoom ||
                 previous.keepScreenOn != current.keepScreenOn ||
-                previous.isOfflineMode != current.isOfflineMode;
+                previous.isOfflineMode != current.isOfflineMode ||
+                previous.readerBrightness != current.readerBrightness;
           },
           builder: (context, state) {
             // No hint chip: the keyboard-shortcut info lives only in the
@@ -1538,6 +1540,19 @@ class _ReaderScreenState extends State<ReaderScreen>
                         return _buildBody(state);
                       },
                     ),
+                    // Screen dimmer driven by the reader brightness
+                    // preference (1.0 = no dimming). Ignores input so
+                    // gestures reach the pages underneath.
+                    if (state.readerBrightness < 1.0)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: Container(
+                            color: Colors.black.withValues(
+                              alpha: 1.0 - state.readerBrightness,
+                            ),
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

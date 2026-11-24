@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:extended_image_library/extended_image_library.dart';
 import 'package:kuron_native/kuron_native.dart';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
@@ -654,16 +654,6 @@ class ReaderImagePipeline {
     void Function(double progress)? onConvertProgress,
   }) async {
     try {
-      final legacyFile = await DefaultCacheManager().getFileFromCache(imageUrl);
-      if (legacyFile != null && await legacyFile.file.exists()) {
-        return await processImageFile(
-          filePath: legacyFile.file.path,
-          contentId: contentId,
-          pageNumber: pageNumber,
-          onConvertProgress: onConvertProgress,
-        );
-      }
-
       final localPath =
           await LocalImagePreloader.getLocalImagePath(contentId, pageNumber);
       if (localPath != null) {
@@ -676,6 +666,18 @@ class ReaderImagePipeline {
             onConvertProgress: onConvertProgress,
           );
         }
+      }
+
+      // Unified extended_image disk cache (replaces flutter_cache_manager
+      // legacy lookup) — same store ExtendedImage.network renders from.
+      final diskFile = await getCachedImageFile(imageUrl);
+      if (diskFile != null && await diskFile.exists()) {
+        return await processImageFile(
+          filePath: diskFile.path,
+          contentId: contentId,
+          pageNumber: pageNumber,
+          onConvertProgress: onConvertProgress,
+        );
       }
     } catch (e) {
       _logger.w('[ReaderPipeline] Pre-check disk cache error: $e');

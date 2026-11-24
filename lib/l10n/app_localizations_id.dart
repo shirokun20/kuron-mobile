@@ -5566,6 +5566,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get readerClearImageCache => 'Bersihkan Cache Gambar';
 
   @override
+  String get readerBrightness => 'Kecerahan Layar';
+
+  @override
+  String get readerBrightnessDescription =>
+      'Redupkan reader tanpa mengubah kecerahan sistem';
+
+  @override
   String get readerImageCacheCleared =>
       'Cache gambar dibersihkan. Gulir untuk memuat ulang halaman.';
 

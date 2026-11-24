@@ -11,6 +11,16 @@ class HttpClientManager {
   static Dio? _httpClient;
   static Logger? _logger;
 
+  /// Default error/logging interceptor shared by the global client and every
+  /// per-source scoped client. Kept by reference so [clearInterceptors] (now
+  /// deprecated) can preserve it instead of stripping the client bare.
+  static Interceptor? _defaultInterceptor;
+
+  /// Per-source scoped clients (see [scopedClientForSource]). Each entry
+  /// owns its own [BaseOptions] copy and interceptor list, so per-source
+  /// header/adapter changes never leak into other sources.
+  static final Map<String, Dio> _scopedClients = {};
+
   HttpClientManager._internal();
 
   // Get the singleton instance
@@ -67,63 +77,127 @@ class HttpClientManager {
     _httpClient!.options.maxRedirects = 5;
     _httpClient!.options.responseType = ResponseType.plain;
 
-    // Add error handling interceptor
-    _httpClient!.interceptors.add(
-      InterceptorsWrapper(
-        onError: (error, handler) {
-          final uri = error.requestOptions.uri;
-          final target = _redactedTarget(uri);
-          final rawError = error.error?.toString() ?? '';
-
-          // Some sites return malformed Set-Cookie headers (e.g. invalid date),
-          // which can fail cookie persistence even when HTTP status is 2xx.
-          if (rawError.contains('CookieManagerSaveException') &&
-              error.response != null) {
-            _logger?.w(
-              'Ignoring malformed Set-Cookie and continuing with response ($target)',
-            );
-            handler.resolve(error.response!);
-            return;
-          }
-
-          // Request cancellation is expected when widgets dispose or navigation happens
-          if (error.type == DioExceptionType.cancel) {
-            if (kDebugMode) {
-              _logger?.d('HTTP Request Cancelled: ($target)');
-            }
-            handler.next(error);
-            return;
-          }
-
-          final message = (error.message?.trim().isNotEmpty ?? false)
-              ? error.message
-              : error.error?.toString() ?? 'Unknown Dio error';
-          _logger?.e('HTTP Error: $message ($target)');
-          handler.next(error);
-        },
-        onRequest: (options, handler) {
-          // Per-request log: debug-gated, stripped in release (hot path).
-          if (kDebugMode) {
-            _logger?.d(
-              'HTTP Request: ${options.method} ${_redactedTarget(options.uri)}',
-            );
-          }
-          handler.next(options);
-        },
-        onResponse: (response, handler) {
-          // Per-response log: debug-gated, stripped in release (hot path).
-          if (kDebugMode) {
-            _logger?.d(
-              'HTTP Response: ${response.statusCode} ${_redactedTarget(response.requestOptions.uri)}',
-            );
-          }
-          handler.next(response);
-        },
-      ),
-    );
+    // Default error/logging interceptor, shared by reference with per-source
+    // scoped clients (see [scopedClientForSource]).
+    _defaultInterceptor ??= _buildDefaultInterceptor();
+    _httpClient!.interceptors.add(_defaultInterceptor!);
 
     _logger?.i('HTTP client singleton initialized successfully');
     return _httpClient!;
+  }
+
+  /// Builds the default error-handling + debug-logging interceptor.
+  ///
+  /// Extracted so per-source scoped clients reuse the exact same behaviour
+  /// without sharing interceptor-list identity with the global client.
+  static InterceptorsWrapper _buildDefaultInterceptor() {
+    return InterceptorsWrapper(
+      onError: (error, handler) {
+        final uri = error.requestOptions.uri;
+        final target = _redactedTarget(uri);
+        final rawError = error.error?.toString() ?? '';
+
+        // Some sites return malformed Set-Cookie headers (e.g. invalid date),
+        // which can fail cookie persistence even when HTTP status is 2xx.
+        if (rawError.contains('CookieManagerSaveException') &&
+            error.response != null) {
+          _logger?.w(
+            'Ignoring malformed Set-Cookie and continuing with response ($target)',
+          );
+          handler.resolve(error.response!);
+          return;
+        }
+
+        // Request cancellation is expected when widgets dispose or navigation happens
+        if (error.type == DioExceptionType.cancel) {
+          if (kDebugMode) {
+            _logger?.d('HTTP Request Cancelled: ($target)');
+          }
+          handler.next(error);
+          return;
+        }
+
+        final message = (error.message?.trim().isNotEmpty ?? false)
+            ? error.message
+            : error.error?.toString() ?? 'Unknown Dio error';
+        _logger?.e('HTTP Error: $message ($target)');
+        handler.next(error);
+      },
+      onRequest: (options, handler) {
+        // Per-request log: debug-gated, stripped in release (hot path).
+        if (kDebugMode) {
+          _logger?.d(
+            'HTTP Request: ${options.method} ${_redactedTarget(options.uri)}',
+          );
+        }
+        handler.next(options);
+      },
+      onResponse: (response, handler) {
+        // Per-response log: debug-gated, stripped in release (hot path).
+        if (kDebugMode) {
+          _logger?.d(
+            'HTTP Response: ${response.statusCode} ${_redactedTarget(response.requestOptions.uri)}',
+          );
+        }
+        handler.next(response);
+      },
+    );
+  }
+
+  /// Returns a per-source scoped [Dio] client for [sourceId].
+  ///
+  /// The scoped client clones the global client's [BaseOptions] (headers and
+  /// timeouts included) and starts with a fresh interceptor list containing
+  /// only the shared default error/logging interceptor plus
+  /// [extraInterceptors]. Mutating the scoped client's options or
+  /// interceptors (per-source `rateLimit` / `requiresBypass` behaviour) never
+  /// affects the global client or any other source's client.
+  ///
+  /// The underlying HTTP adapter is shared with the global client (single
+  /// Cronet engine). Call [disposeScopedClient] when a source is
+  /// unregistered to close its client.
+  static Dio scopedClientForSource(
+    String sourceId, {
+    Duration? timeout,
+    Map<String, dynamic>? extraHeaders,
+    List<Interceptor>? extraInterceptors,
+  }) {
+    final existing = _scopedClients[sourceId];
+    if (existing != null) return existing;
+
+    if (_httpClient == null) {
+      throw StateError(
+        'HTTP client not initialized. Call HttpClientManager.initializeHttpClient() first.',
+      );
+    }
+
+    final base = _httpClient!.options;
+    final options = base.copyWith(
+      connectTimeout: timeout ?? base.connectTimeout,
+      receiveTimeout: timeout ?? base.receiveTimeout,
+      sendTimeout: timeout ?? base.sendTimeout,
+      headers: <String, dynamic>{
+        ...base.headers,
+        ...?extraHeaders,
+      },
+    );
+    final scoped = Dio(options)
+      ..httpClientAdapter = _httpClient!.httpClientAdapter;
+    _defaultInterceptor ??= _buildDefaultInterceptor();
+    scoped.interceptors.add(_defaultInterceptor!);
+    if (extraInterceptors != null && extraInterceptors.isNotEmpty) {
+      scoped.interceptors.addAll(extraInterceptors);
+    }
+    _scopedClients[sourceId] = scoped;
+    _logger?.d('Created scoped HTTP client for source "$sourceId"');
+    return scoped;
+  }
+
+  /// Disposes and drops the scoped client for [sourceId], if any.
+  static void disposeScopedClient(String sourceId) {
+    final client = _scopedClients.remove(sourceId);
+    client?.close(force: true);
+    _logger?.d('Disposed scoped HTTP client for source "$sourceId"');
   }
 
   // Get the HTTP client instance
@@ -192,15 +266,28 @@ class HttpClientManager {
     _logger?.d('Interceptor removed from HTTP client');
   }
 
-  // Clear all interceptors except the default ones
+  /// Previously cleared the global interceptor list (which affected every
+  /// source sharing the singleton).
+  ///
+  /// Deprecated: mutating the global interceptor list affected every source.
+  /// Prefer per-source scoped clients ([scopedClientForSource]) and dispose
+  /// them with [disposeScopedClient] instead. This method is now a no-op: it
+  /// intentionally leaves all interceptors (including Dio built-ins and the
+  /// default error/logging wrapper) untouched.
+  @Deprecated(
+    'Use scopedClientForSource/disposeScopedClient for per-source isolation. '
+    'This method no longer mutates the interceptor list.',
+  )
   static void clearInterceptors() {
     if (_httpClient == null) {
       _logger?.w('Cannot clear interceptors: HTTP client not initialized');
       return;
     }
 
-    _httpClient!.interceptors.clear();
-    _logger?.d('All interceptors cleared from HTTP client');
+    _logger?.w(
+      'clearInterceptors() is deprecated and no longer clears anything; '
+      'use scopedClientForSource/disposeScopedClient instead.',
+    );
   }
 
   // Get HTTP client statistics
@@ -217,6 +304,7 @@ class HttpClientManager {
       'send_timeout': _httpClient!.options.sendTimeout?.inMilliseconds,
       'base_url': _httpClient!.options.baseUrl,
       'headers_count': _httpClient!.options.headers.length,
+      'scoped_clients': _scopedClients.keys.toList(growable: false),
     };
   }
 
@@ -225,6 +313,11 @@ class HttpClientManager {
   static void resetForTesting() {
     _logger?.w(
         'Resetting HTTP client for testing - this should only be used in tests!');
+    for (final client in _scopedClients.values) {
+      client.close(force: true);
+    }
+    _scopedClients.clear();
+    _defaultInterceptor = null;
     _httpClient?.close(force: true);
     _httpClient = null;
     _instance = null;

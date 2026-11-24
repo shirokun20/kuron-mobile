@@ -5395,6 +5395,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get readerClearImageCache => '清除图片缓存';
 
   @override
+  String get readerBrightness => '屏幕亮度';
+
+  @override
+  String get readerBrightnessDescription => '调暗阅读器，不改变系统亮度';
+
+  @override
   String get readerImageCacheCleared => '图片缓存已清除。滚动以重新加载页面。';
 
   @override

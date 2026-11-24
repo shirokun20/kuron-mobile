@@ -9,6 +9,7 @@
 //   fvm dart test packages/kuron_generic/test/integration/keiyoushi_phase1_live_test.dart
 //
 // ponytail: one shared probe helper, no fixtures — live sites are the fixture.
+@Tags(['live'])
 library;
 
 import 'dart:io';

@@ -29,8 +29,6 @@ import 'package:nhasixapp/core/services/offline_series_detail_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart'
-    hide ImageCacheManager;
 
 import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_generic/kuron_generic.dart';
@@ -266,9 +264,6 @@ void _setupCore() {
         dio: getIt<Dio>(),
         logger: getIt<Logger>(),
       ));
-
-  // Cache Manager
-  getIt.registerLazySingleton<CacheManager>(() => DefaultCacheManager());
 
   // Tag Data Manager
   getIt.registerLazySingleton<TagDataManager>(

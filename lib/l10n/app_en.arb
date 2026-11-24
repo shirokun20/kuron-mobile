@@ -4164,6 +4164,8 @@
   "readerTapDirectionNormalDescription": "Tap right to go to the next page",
   "readerTapDirectionInvertedDescription": "Tap left to go to the next page",
   "readerClearImageCache": "Clear Image Cache",
+  "readerBrightness": "Screen Brightness",
+  "readerBrightnessDescription": "Dim the reader without changing system brightness",
   "readerImageCacheCleared": "Image cache cleared. Scroll to reload pages.",
   "readerOpenInGallery": "Open in gallery",
   "readerPinchToZoom": "Pinch to zoom",

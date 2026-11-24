@@ -25,6 +25,14 @@ class GenericSourceFactory implements SourceFactory {
   final Dio _dio;
   final Logger _logger;
 
+  /// Per-source scoped [Dio] clones, keyed by source ID.
+  ///
+  /// Each entry owns its own [BaseOptions] copy and interceptor list cloned
+  /// from [_dio] at creation time, so per-source header/timeout/interceptor
+  /// mutations (e.g. bypass or rate-limit behaviour) never leak into other
+  /// sources sharing the global client. The HTTP adapter is shared.
+  final Map<String, Dio> _scopedDio = {};
+
   // The catch-all source ID sentinel. In practice [GenericSourceFactory]
   // overrides [create] for any source — not just this specific ID.
   ///
@@ -55,10 +63,25 @@ class GenericSourceFactory implements SourceFactory {
 
     return GenericHttpSource(
       rawConfig: config,
-      dio: _dio,
+      dio: _scopedDioFor(sourceId),
       logger: _logger,
       rateLimiter: rateLimiter,
     );
+  }
+
+  /// Returns the scoped [Dio] clone for [sourceId], creating it on first
+  /// use by cloning [_dio]'s options and interceptors.
+  Dio _scopedDioFor(String sourceId) {
+    return _scopedDio.putIfAbsent(sourceId, () {
+      final base = _dio.options;
+      final clone = Dio(
+        base.copyWith(
+          headers: <String, dynamic>{...base.headers},
+        ),
+      )..httpClientAdapter = _dio.httpClientAdapter;
+      clone.interceptors.addAll(_dio.interceptors);
+      return clone;
+    });
   }
 
   RateLimiter? _createRateLimiter(Map<String, dynamic> config) {

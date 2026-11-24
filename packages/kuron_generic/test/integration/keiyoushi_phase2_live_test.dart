@@ -9,6 +9,7 @@
 //   fvm dart test packages/kuron_generic/test/integration/keiyoushi_phase2_live_test.dart
 //
 // ponytail: reuses the Phase-1 probe pattern; live sites are the fixture.
+@Tags(['live'])
 library;
 
 import 'dart:io';

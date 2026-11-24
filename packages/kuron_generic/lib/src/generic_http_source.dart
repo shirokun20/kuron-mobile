@@ -10,6 +10,7 @@ import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
 import 'adapters/generic_adapter.dart';
+import 'cancel_token_bridge.dart';
 import 'adapters/generic_rest_adapter.dart';
 import 'adapters/generic_scraper_adapter.dart';
 import 'filters/generic_filter_transformer.dart';
@@ -138,17 +139,6 @@ class GenericHttpSource implements ContentSource {
 
   // ── Core operations ────────────────────────────────────────────────────────
 
-  /// Bridges the pure-Dart [OnCancelRegister] hook to a Dio [CancelToken].
-  /// Null when no hook is registered, so adapter calls stay token-free.
-  static CancelToken? _bridgeCancelToken(OnCancelRegister? onCancel) {
-    if (onCancel == null) return null;
-    final token = CancelToken();
-    onCancel(() {
-      if (!token.isCancelled) token.cancel('Cancelled by caller');
-    });
-    return token;
-  }
-
   @override
   Future<ContentListResult> search(
     SearchFilter filter, {
@@ -157,7 +147,7 @@ class GenericHttpSource implements ContentSource {
     final result = await _adapter.search(
       filter,
       _rawConfig,
-      cancelToken: _bridgeCancelToken(onCancel),
+      cancelToken: bridgeOnCancel(onCancel),
     );
     return ContentListResult(
       contents: result.items,
@@ -179,7 +169,7 @@ class GenericHttpSource implements ContentSource {
     final result = await _adapter.fetchDetail(
       contentId,
       _rawConfig,
-      cancelToken: _bridgeCancelToken(onCancel),
+      cancelToken: bridgeOnCancel(onCancel),
     );
     return result.content.copyWith(imageUrls: result.imageUrls);
   }
@@ -406,7 +396,7 @@ class GenericHttpSource implements ContentSource {
     return _adapter.fetchRelated(
       contentId,
       _rawConfig,
-      cancelToken: _bridgeCancelToken(onCancel),
+      cancelToken: bridgeOnCancel(onCancel),
     );
   }
 
@@ -423,7 +413,7 @@ class GenericHttpSource implements ContentSource {
     final data = await _adapter.fetchChapterImages(
       chapterId,
       _rawConfig,
-      cancelToken: _bridgeCancelToken(onCancel),
+      cancelToken: bridgeOnCancel(onCancel),
     );
     if (data == null) return null;
     // Plugin seam (conformance-loop 4.2): a registered

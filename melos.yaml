@@ -38,12 +38,12 @@ scripts:
         - build_runner
 
   clean:
-    run: melos exec -- fvm flutter clean && cargo clean --manifest-path packages/kuron_native/rust/Cargo.toml
-    description: Run flutter clean in all packages + cargo clean (rust/target ~300MB)
+    run: melos exec -- fvm flutter clean
+    description: Run flutter clean in all packages
 
   clean:rust:
-    run: cargo clean --manifest-path packages/kuron_native/rust/Cargo.toml
-    description: Clean Rust build artifacts only (rust/target)
+    run: echo "No Rust workspace in packages/kuron_native (removed); nothing to clean."
+    description: No-op placeholder (Rust bridge retired)
 
   outdated:
     run: melos exec -- fvm flutter pub outdated

@@ -3082,6 +3082,8 @@
   "readerTapDirectionNormalDescription": "Tap kanan untuk ke halaman berikutnya",
   "readerTapDirectionInvertedDescription": "Tap kiri untuk ke halaman berikutnya",
   "readerClearImageCache": "Bersihkan Cache Gambar",
+  "readerBrightness": "Kecerahan Layar",
+  "readerBrightnessDescription": "Redupkan reader tanpa mengubah kecerahan sistem",
   "readerImageCacheCleared": "Cache gambar dibersihkan. Gulir untuk memuat ulang halaman.",
   "readerOpenInGallery": "Buka di galeri",
   "readerPinchToZoom": "Cubit untuk zoom",

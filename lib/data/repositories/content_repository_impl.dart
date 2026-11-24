@@ -66,17 +66,12 @@ class ContentRepositoryImpl implements ContentRepository {
   }
 
   /// Bridges an [OnCancelRegister] hook to a Dio token owned by the
-  /// repository (used for the request-deduplication waiter). The source
-  /// adapter creates its own token from the same hook; invoking the hook
-  /// cancels both. Null when no hook is registered.
-  CancelToken? _bridgeOnCancel(core.OnCancelRegister? onCancel) {
-    if (onCancel == null) return null;
-    final token = CancelToken();
-    onCancel(() {
-      if (!token.isCancelled) token.cancel('Cancelled by caller');
-    });
-    return token;
-  }
+  /// repository (used for the request-deduplication waiter). Delegates to
+  /// the single shared [bridgeOnCancel] helper so the repository and the
+  /// source adapter build tokens from the same code path — invoking the
+  /// hook cancels both. Null when no hook is registered.
+  CancelToken? _bridgeOnCancel(core.OnCancelRegister? onCancel) =>
+      bridgeOnCancel(onCancel);
 
   core.ContentSource get _activeSource {
     final source = contentSourceRegistry.currentSource;

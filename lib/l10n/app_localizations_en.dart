@@ -5542,6 +5542,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get readerClearImageCache => 'Clear Image Cache';
 
   @override
+  String get readerBrightness => 'Screen Brightness';
+
+  @override
+  String get readerBrightnessDescription =>
+      'Dim the reader without changing system brightness';
+
+  @override
   String get readerImageCacheCleared =>
       'Image cache cleared. Scroll to reload pages.';
 

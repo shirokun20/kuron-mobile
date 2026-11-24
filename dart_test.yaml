@@ -1,0 +1,9 @@
+# Tags used across this package's test suites.
+#
+# `live` marks tests that perform real network I/O. Default/offline runs
+# stay deterministic via:
+#   fvm flutter test --exclude-tags live     (root app + kuron_special)
+#   fvm dart test --exclude-tags live        (kuron_generic)
+tags:
+  live:
+    description: Live-network tests; opt in explicitly when online.

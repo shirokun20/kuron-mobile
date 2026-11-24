@@ -9435,6 +9435,18 @@ abstract class AppLocalizations {
   /// **'Clear Image Cache'**
   String get readerClearImageCache;
 
+  /// No description provided for @readerBrightness.
+  ///
+  /// In en, this message translates to:
+  /// **'Screen Brightness'**
+  String get readerBrightness;
+
+  /// No description provided for @readerBrightnessDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Dim the reader without changing system brightness'**
+  String get readerBrightnessDescription;
+
   /// No description provided for @readerImageCacheCleared.
   ///
   /// In en, this message translates to:

@@ -1,3 +1,8 @@
+// Live-network inspection probe (hits the real schale site with a real Dio).
+// Tagged so offline/default runs stay deterministic: excluded via
+// `dart test --exclude-tags live`.
+@Tags(['live'])
+library;
 import 'dart:convert';
 import 'dart:io';
 

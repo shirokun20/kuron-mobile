@@ -8,7 +8,7 @@ import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:dio/dio.dart';
 
 // Internal class for memory cache data
 class _CachedImageData {
@@ -46,6 +46,31 @@ class ImageCacheService {
   static final List<Completer<void>> _staticDecodeWaiters = [];
   static final Map<String, Future<File?>> _staticDecodeInFlight = {};
 
+  // Shared client for direct network fetches (static-preview path only).
+  // Kept static so [compute] isolates stay unaffected.
+  static final Dio _fetchClient = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      responseType: ResponseType.bytes,
+    ),
+  );
+
+  /// Fetches raw bytes for a remote image URL (throws on failure).
+  static Future<Uint8List> _fetchNetworkBytes(
+    String url, [
+    Map<String, String>? headers,
+  ]) async {
+    final response = await _fetchClient.get<List<int>>(
+      url,
+      options: Options(headers: headers, responseType: ResponseType.bytes),
+    );
+    final data = response.data;
+    if (data == null || data.isEmpty) {
+      throw StateError('Empty response body for $url');
+    }
+    return Uint8List.fromList(data);
+  }
   // Get cached image data by URL
   // If [isStaticGif] is true, it looks for the processed static version of the GIF
   Future<File?> getCachedImage(String imageUrl,
@@ -151,12 +176,15 @@ class ImageCacheService {
       final cachedFile = await getCachedImage(source, isStaticGif: true);
       if (cachedFile != null) return cachedFile;
 
-      // 2. Read the original bytes from local disk or network cache
-      final bytes = isLocalFile
-          ? await File(source).readAsBytes()
-          : await (await DefaultCacheManager()
-                  .getSingleFile(source, headers: headers))
-              .readAsBytes();
+      // 2. Read the original bytes from local disk or network.
+      // (Previously via flutter_cache_manager; retired in favour of a
+      // direct fetch — the static preview is cached in our own store below.)
+      final Uint8List bytes;
+      if (isLocalFile) {
+        bytes = await File(source).readAsBytes();
+      } else {
+        bytes = await _fetchNetworkBytes(source, headers);
+      }
 
       // 3. Convert to a static JPG in isolate
       final staticBytes = await compute(_decodeImageToStaticImage, bytes);

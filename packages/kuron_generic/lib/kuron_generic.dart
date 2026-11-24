@@ -15,6 +15,7 @@ export 'src/routing/search_query_routing.dart';
 export 'src/nhentai/nhentai_shapes.dart';
 export 'src/filters/generic_filter_transformer.dart';
 export 'src/generic_http_source.dart';
+export 'src/cancel_token_bridge.dart';
 export 'src/generic_source_factory.dart';
 export 'src/models/source_config_runtime.dart';
 export 'src/parsers/generic_html_parser.dart';

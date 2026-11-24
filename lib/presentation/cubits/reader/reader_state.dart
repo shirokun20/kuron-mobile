@@ -20,6 +20,7 @@ class ReaderState extends BaseCubitState {
     this.chapterData,
     this.currentChapter,
     this.tapDirection = TapDirection.normal,
+    this.readerBrightness = 1.0,
   });
 
   final ReaderStatus status;
@@ -36,6 +37,7 @@ class ReaderState extends BaseCubitState {
   final ChapterData? chapterData;
   final Chapter? currentChapter;
   final TapDirection? tapDirection;
+  final double readerBrightness;
 
   bool get isLoaded => status == ReaderStatus.loaded && content != null;
 
@@ -81,6 +83,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -103,6 +106,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -126,6 +130,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata ?? this.imageMetadata,
         chapterData: chapterData ?? this.chapterData,
         currentChapter: currentChapter ?? this.currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -143,6 +148,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -164,6 +170,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection ?? this.tapDirection,
       );
 
@@ -181,6 +188,7 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -198,6 +206,25 @@ class ReaderState extends BaseCubitState {
         imageMetadata: imageMetadata,
         chapterData: chapterData,
         currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
+        tapDirection: tapDirection,
+      );
+
+  ReaderState copyWithBrightness(double readerBrightness) => ReaderState(
+        status: status,
+        content: content,
+        currentPage: currentPage,
+        readingMode: readingMode,
+        showUI: showUI,
+        keepScreenOn: keepScreenOn,
+        enableZoom: enableZoom,
+        readingTimer: readingTimer,
+        message: message,
+        isOfflineMode: isOfflineMode,
+        imageMetadata: imageMetadata,
+        chapterData: chapterData,
+        currentChapter: currentChapter,
+        readerBrightness: readerBrightness,
         tapDirection: tapDirection,
       );
 
@@ -213,5 +240,6 @@ class ReaderState extends BaseCubitState {
         isOfflineMode,
         currentChapter,
         tapDirection,
+        readerBrightness,
       ];
 }
