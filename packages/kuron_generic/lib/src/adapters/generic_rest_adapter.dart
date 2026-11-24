@@ -11,8 +11,10 @@ import 'package:dio/dio.dart';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
+import '../config/typed_config/dynamic_search_form.dart';
 import '../mappers/generic_content_mapper.dart';
-import '../nhentai/nhentai_shapes.dart';import '../models/source_config_runtime.dart';
+import '../nhentai/nhentai_shapes.dart';
+import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
 import '../parsers/generic_json_parser.dart';
 import '../url_builder/generic_url_builder.dart';
@@ -3169,7 +3171,7 @@ class GenericRestAdapter implements GenericAdapter {
     final searchConfig =
         (rawConfig['searchConfig'] as Map<String, dynamic>?) ?? const {};
     final searchForm =
-        (rawConfig['searchForm'] as Map<String, dynamic>?) ?? const {};
+        resolveSearchFormConfig(rawConfig) ?? const <String, dynamic>{};
 
     final sortingConfig =
         (searchConfig['sortingConfig'] as Map<String, dynamic>?) ?? const {};

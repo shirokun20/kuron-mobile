@@ -151,7 +151,7 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       if (sourceId == 'crotpedia') {
         for (final entry in manifest?.installableSources ?? const []) {
           if (entry.id == 'crotpedia') {
-            crotpediaReason = entry.maintenance?.reason;
+            crotpediaReason = entry.effectiveMaintenance?.reason;
             break;
           }
         }

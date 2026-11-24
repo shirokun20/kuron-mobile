@@ -5,7 +5,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:kuron_core/kuron_core.dart' show ValidationReport;
 import 'package:kuron_generic/kuron_generic.dart'
-    show DynamicSearchFormContract, SourceConfigParser;
+    show
+        DynamicSearchFormContract,
+        SourceConfigParser,
+        resolveSearchFormConfig;
 import 'package:logger/logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
@@ -235,7 +238,9 @@ class RemoteConfigService {
     final typed = _sourceConfigs[source]?.searchForm;
     if (typed != null) return typed;
 
-    final dynamic rawSearchForm = _rawSourceConfigs[source]?['searchForm'];
+    final raw = _rawSourceConfigs[source];
+    final dynamic rawSearchForm =
+        raw == null ? null : resolveSearchFormConfig(raw);
     if (rawSearchForm is Map<String, dynamic>) {
       try {
         return SearchFormConfig.fromJson(rawSearchForm);

@@ -169,7 +169,8 @@ class SourceConfigParser {
 
     // ── Dynamic search form (3.3) ───────────────────────────────────────────
     DynamicSearchFormContract? searchForm;
-    final bool hasSearchForm = rawConfig.containsKey('searchForm') ||
+    final bool hasSearchForm =
+        resolveSearchFormConfig(rawConfig) != null ||
         rawConfig.containsKey('searchConfig') ||
         _hasSearchEndpoint(rawConfig);
     if (hasSearchForm) {
@@ -633,6 +634,7 @@ class SourceConfigParser {
       'api',
       'scraper',
       'features',
+      'extends',
       'searchForm',
       'searchConfig',
       'contentIdPattern',

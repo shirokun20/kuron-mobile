@@ -72,6 +72,7 @@ import 'package:html/dom.dart' as dom;
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
+import '../config/typed_config/dynamic_search_form.dart';
 import '../mappers/generic_content_mapper.dart';
 import '../models/source_config_runtime.dart';
 import '../parsers/generic_html_parser.dart';
@@ -230,7 +231,7 @@ class GenericScraperAdapter implements GenericAdapter {
     // value that looks like a prefix (e.g. "parody:azur lane" inside
     // "f_search=...") is search TEXT, not a routing prefix. Only apply
     // prefix routing when the source has no searchForm.
-    final usesSearchForm = rawConfig['searchForm'] is Map<String, dynamic>;
+    final usesSearchForm = resolveSearchFormConfig(rawConfig) != null;
 
     var prefixPatternKey = <String>{};
     if (!usesSearchForm) {
@@ -704,7 +705,7 @@ class GenericScraperAdapter implements GenericAdapter {
     }
 
     // Determine which URL pattern to use from searchForm config.
-    final searchFormCfg = rawConfig['searchForm'] as Map<String, dynamic>?;
+    final searchFormCfg = resolveSearchFormConfig(rawConfig);
 
     // Check if raw params override the pattern key explicitly
     final overridePatternKey = firstRawValue('patternKey');

@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:kuron_generic/kuron_generic.dart'
-    show DynamicSearchFormContract;
+    show DynamicSearchFormContract, resolveSearchFormConfig;
 import 'package:logger/logger.dart';
 import 'package:nhasixapp/core/config/config_models.dart';
 import 'package:nhasixapp/core/config/remote_config_service.dart';
@@ -65,7 +65,8 @@ class DynamicFormSearchCubit extends BaseCubit<DynamicFormSearchState> {
       }
     } else {
       final rawSource = _remoteConfigService.getRawConfig(sourceId);
-      final rawForm = rawSource?['searchForm'];
+      final rawForm =
+          rawSource == null ? null : resolveSearchFormConfig(rawSource);
       if (rawForm is Map<String, dynamic>) {
         rawSearchForm = rawForm;
         final dynamic ds = rawForm['dataSources'];

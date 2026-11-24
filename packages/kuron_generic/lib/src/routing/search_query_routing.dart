@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'package:kuron_core/kuron_core.dart';
 import 'package:logger/logger.dart';
 
+import '../config/typed_config/dynamic_search_form.dart';
+
 class SearchQueryRouting {
   final Logger _logger;
   final String _sourceId;
@@ -37,7 +39,7 @@ class SearchQueryRouting {
     required Iterable<String> patternKeys,
     String fallback = 'paged',
   }) {
-    final searchFormCfg = rawConfig['searchForm'] as Map<String, dynamic>?;
+    final searchFormCfg = resolveSearchFormConfig(rawConfig);
     final formParams =
         (searchFormCfg?['params'] as Map?)?.cast<String, dynamic>() ?? {};
 

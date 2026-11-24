@@ -3,6 +3,28 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'config_models.freezed.dart';
 part 'config_models.g.dart';
 
+/// Parses a manifest `schemaVersion` flexibly across the v2/v3 family.
+///
+/// Accepts `int` (2, 3), `num`, version strings (`"2"`, `"2.0"`, `"3.0"`,
+/// `"3"`), and legacy absence/null (defaults to 1 — the pre-family
+/// convention also used by `SourcePackageManifest`). Never throws, so
+/// forward-compatible manifests (v3+) and unversioned legacy manifests both
+/// parse without crashing.
+int parseManifestSchemaVersion(dynamic raw) {
+  if (raw is int) return raw;
+  if (raw is num) return raw.toInt();
+  if (raw is String) {
+    final text = raw.trim();
+    final asInt = int.tryParse(text);
+    if (asInt != null) return asInt;
+    final dotted = RegExp(r'^(\d+)(?:\.\d+)*$').firstMatch(text);
+    if (dotted != null) return int.parse(dotted.group(1)!);
+  }
+  return 1;
+}
+
+int _manifestSchemaVersionToJson(int value) => value;
+
 @JsonSerializable(explicitToJson: true)
 class RemoteConfig {
   final SourceConfig? nhentai;
@@ -744,12 +766,21 @@ class AppPrivacy {
 // configs and their current versions.
 @JsonSerializable(explicitToJson: true)
 class SourceManifest {
-  // Bump this when the manifest JSON schema changes incompatibly.
+  // Bump this when the manifest JSON schema changes incompatibly. Parsed
+  // flexibly (int, "2.0"-style strings, v3+, or absent) — never crashes.
+  @JsonKey(
+    fromJson: parseManifestSchemaVersion,
+    toJson: _manifestSchemaVersionToJson,
+  )
   final int schemaVersion;
   final String lastUpdated;
 
   // Minimum app version required to use these configs.
   final String? minimumAppVersion;
+
+  // Opaque extensions-compatibility payload, when the manifest ships one.
+  // Kept as [Object] so unknown future shapes pass through untouched.
+  final Object? extensionsCompat;
 
   // Metadata for the global app-config.json.
   final SourceManifestAppEntry? appConfig;
@@ -763,6 +794,7 @@ class SourceManifest {
     required this.schemaVersion,
     required this.lastUpdated,
     this.minimumAppVersion,
+    this.extensionsCompat,
     this.appConfig,
     required this.installableSources,
   });
@@ -809,6 +841,8 @@ class SourceManifestEntry {
   final bool enabled;
 
   // Maintenance status for this source (fast gate from manifest level).
+  // Legacy shape: entry-level object. Current manifests (schema v2) carry
+  // the flag in `meta` instead — see [effectiveMaintenance].
   final MaintenanceInfo? maintenance;
 
   // Version string — used for cache invalidation against locally stored config.
@@ -837,6 +871,20 @@ class SourceManifestEntry {
   factory SourceManifestEntry.fromJson(Map<String, dynamic> json) =>
       _$SourceManifestEntryFromJson(json);
   Map<String, dynamic> toJson() => _$SourceManifestEntryToJson(this);
+
+  /// Effective maintenance status: entry-level [maintenance] wins; falls
+  /// back to the manifest `meta` flag (`maintenance: true` +
+  /// `maintenanceMessage`) that schema-v2 manifests sync from the config.
+  MaintenanceInfo? get effectiveMaintenance {
+    if (maintenance != null) return maintenance;
+    if (meta?.maintenance == true) {
+      return MaintenanceInfo(
+        active: true,
+        reason: meta?.maintenanceMessage,
+      );
+    }
+    return null;
+  }
 }
 
 // Display metadata for a source shown in the Source Manager UI.
@@ -867,6 +915,26 @@ class SourceManifestMeta {
   // Estimated config file size in KB.
   final int? sizeKb;
 
+  /// Bypass posture mirrored from the source config (`network` block).
+  /// `"none"` (default/absent), `"lazy"`, or `"turnstile"`. Kept as a raw
+  /// string so future statuses parse without crashing; see [bypassShield]
+  /// for the normalized read.
+  final String? bypassStatus;
+
+  /// Mirrors `network.requiresBypass` — forwarded into the per-source
+  /// Dio/bypass scope (#86) when the installed config lacks the flag.
+  @JsonKey(defaultValue: false)
+  final bool requiresBypass;
+
+  /// Schema-v2 maintenance flag (lives in `meta`, synced from the config).
+  /// Prefer [SourceManifestEntry.effectiveMaintenance] over reading this
+  /// directly.
+  @JsonKey(defaultValue: false)
+  final bool maintenance;
+
+  /// Human-readable maintenance message synced from the config.
+  final String? maintenanceMessage;
+
   SourceManifestMeta({
     required this.displayName,
     this.description,
@@ -876,11 +944,27 @@ class SourceManifestMeta {
     this.requiresAuth = false,
     this.requiresSpecialAdapter = false,
     this.sizeKb,
+    this.bypassStatus,
+    this.requiresBypass = false,
+    this.maintenance = false,
+    this.maintenanceMessage,
   });
 
   factory SourceManifestMeta.fromJson(Map<String, dynamic> json) =>
       _$SourceManifestMetaFromJson(json);
   Map<String, dynamic> toJson() => _$SourceManifestMetaToJson(this);
+
+  /// Normalized bypass posture: `'lazy'` or `'turnstile'` when the manifest
+  /// declares a shield, null for `'none'`/absent/unknown values.
+  String? get bypassShield {
+    switch (bypassStatus?.trim().toLowerCase()) {
+      case 'lazy':
+      case 'turnstile':
+        return bypassStatus!.trim().toLowerCase();
+      default:
+        return null;
+    }
+  }
 }
 
 // Maintenance status at the manifest level (fast gate, no full config needed).

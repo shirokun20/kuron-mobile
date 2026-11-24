@@ -14,6 +14,24 @@ library;
 import 'package:equatable/equatable.dart';
 import 'package:kuron_core/kuron_core.dart';
 
+/// Resolves the `searchForm` block of a Source Config.
+///
+/// Contracts ship the block in two places: top-level `searchForm` (newer
+/// configs) and nested `scraper.searchForm` (preset-expanded presets such as
+/// `themesia`, where the nested block is the only copy — e.g. akazascans,
+/// cocomicco, manga18free). Top-level wins when both are present; returns
+/// null when neither is a map. Never throws.
+Map<String, dynamic>? resolveSearchFormConfig(Map rawConfig) {
+  final Object? top = rawConfig['searchForm'];
+  if (top is Map) return top.cast<String, dynamic>();
+  final Object? scraper = rawConfig['scraper'];
+  if (scraper is Map) {
+    final Object? nested = scraper['searchForm'];
+    if (nested is Map) return nested.cast<String, dynamic>();
+  }
+  return null;
+}
+
 // Kind of a single search form field.
 enum SearchFormFieldType {
   // Free-text input.
@@ -299,7 +317,7 @@ class DynamicSearchFormContract extends Equatable {
     Map<String, Object?> rawConfig,
   ) {
     final List<ValidationDiagnostic> diags = <ValidationDiagnostic>[];
-    final Object? sfRaw = rawConfig['searchForm'];
+    final Object? sfRaw = resolveSearchFormConfig(rawConfig);
     final bool hasSfBlock = sfRaw is Map;
     final bool hasScBlock = rawConfig['searchConfig'] is Map;
 

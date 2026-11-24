@@ -49,6 +49,7 @@ class NetworkRules extends Equatable {
   NetworkRules({
     required this.requiresBypass,
     required this.cloudflareBypass,
+    this.antiDetection = false,
     Map<String, String>? staticHeaders,
     this.rateLimit,
     this.exBaseUrl,
@@ -62,6 +63,11 @@ class NetworkRules extends Equatable {
 
   // Whether the config explicitly declared a `cloudflare` bypass block.
   final bool cloudflareBypass;
+
+  // Whether the config declares `network.cloudflare.antiDetection`.
+  // Parsed for contract consistency; engine wiring stays with the
+  // per-source bypass/clearance drivers.
+  final bool antiDetection;
 
   // Static headers declared under `network.headers`.
   final Map<String, String> staticHeaders;
@@ -99,6 +105,7 @@ class NetworkRules extends Equatable {
         ? cfRaw.cast<String, Object?>()
         : const <String, Object?>{};
     final bool cloudflareBypassField = cf['bypassEnabled'] as bool? ?? false;
+    final bool antiDetectionField = cf['antiDetection'] as bool? ?? false;
 
     // Emit a diagnostic when the plural bypass fields are both present and
     // consistent — this is a v1 schema issue where they should be unified.
@@ -137,6 +144,7 @@ class NetworkRules extends Equatable {
     return NetworkRules(
       requiresBypass: requiresBypassField || cloudflareBypassField,
       cloudflareBypass: cloudflareBypassField,
+      antiDetection: antiDetectionField,
       staticHeaders: headers,
       rateLimit: rateLimit,
       exBaseUrl: exBaseUrl,
@@ -147,6 +155,7 @@ class NetworkRules extends Equatable {
   Map<String, Object?> toJson() => <String, Object?>{
         'requiresBypass': requiresBypass,
         'cloudflareBypass': cloudflareBypass,
+        if (antiDetection) 'antiDetection': antiDetection,
         if (staticHeaders.isNotEmpty) 'staticHeaders': staticHeaders,
         if (rateLimit != null) 'rateLimit': rateLimit!.toJson(),
         if (exBaseUrl != null) 'exBaseUrl': exBaseUrl,
@@ -156,6 +165,7 @@ class NetworkRules extends Equatable {
   List<Object?> get props => <Object?>[
         requiresBypass,
         cloudflareBypass,
+        antiDetection,
         staticHeaders,
         rateLimit,
         exBaseUrl,

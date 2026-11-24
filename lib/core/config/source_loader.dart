@@ -55,7 +55,7 @@ class SourceLoader {
         continue;
       }
 
-      if (entry.maintenance?.active ?? false) {
+      if (entry.effectiveMaintenance?.active ?? false) {
         _maintenanceSourceIds.add(sourceId);
         _logger.w('SourceLoader: source "$sourceId" is under maintenance');
       }

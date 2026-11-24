@@ -14,6 +14,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:nhasixapp/core/config/remote_config_service.dart';
+import 'package:nhasixapp/core/config/config_models.dart'
+    show parseManifestSchemaVersion;
 import 'package:nhasixapp/core/di/webview_session_registry.dart';
 import 'package:nhasixapp/core/utils/source_config_display_utils.dart';
 import 'package:nhasixapp/core/utils/source_version_utils.dart';
@@ -51,8 +53,7 @@ class SourcePackageManifest {
     Map<String, dynamic> map, {
     String invalidMessage = 'Invalid manifest format',
   }) {
-    final rawSchemaVersion = map['schemaVersion'];
-    final schemaVersion = rawSchemaVersion is int ? rawSchemaVersion : 1;
+    final schemaVersion = parseManifestSchemaVersion(map['schemaVersion']);
 
     String readAnyString(List<String> keys, {bool required = true}) {
       for (final key in keys) {
@@ -131,6 +132,8 @@ class GlobalManifestEntry {
     required this.displayName,
     required this.description,
     required this.iconUrl,
+    this.bypassStatus,
+    this.requiresBypass = false,
   });
 
   final String id;
@@ -140,6 +143,25 @@ class GlobalManifestEntry {
   final String? displayName;
   final String? description;
   final String? iconUrl;
+
+  /// Raw manifest `meta.bypassStatus` (`none`/`lazy`/`turnstile`/future).
+  final String? bypassStatus;
+
+  /// Manifest `meta.requiresBypass` — forwarded into the installed config's
+  /// `network` block (when absent there) so per-source Dio/bypass scope
+  /// (#86) honors the manifest contract.
+  final bool requiresBypass;
+
+  /// Normalized shield: `'lazy'`/`'turnstile'`, else null.
+  String? get bypassShield {
+    switch (bypassStatus?.trim().toLowerCase()) {
+      case 'lazy':
+      case 'turnstile':
+        return bypassStatus!.trim().toLowerCase();
+      default:
+        return null;
+    }
+  }
 
   static GlobalManifestEntry fromMap(
     Map<String, dynamic> map, {
@@ -157,10 +179,17 @@ class GlobalManifestEntry {
     String? displayName;
     String? description;
     String? iconUrl;
+    String? bypassStatus;
+    var requiresBypass = false;
     if (meta is Map<String, dynamic>) {
       displayName = (meta['displayName'] as String?)?.trim();
       description = (meta['description'] as String?)?.trim();
       iconUrl = (meta['iconUrl'] as String?)?.trim();
+      final rawBypass = (meta['bypassStatus'] as String?)?.trim();
+      if (rawBypass != null && rawBypass.isNotEmpty) {
+        bypassStatus = rawBypass;
+      }
+      requiresBypass = meta['requiresBypass'] == true;
     }
 
     return GlobalManifestEntry(
@@ -171,6 +200,8 @@ class GlobalManifestEntry {
       displayName: displayName,
       description: description,
       iconUrl: iconUrl,
+      bypassStatus: bypassStatus,
+      requiresBypass: requiresBypass,
     );
   }
 }
@@ -628,6 +659,8 @@ class SourceInstallerService {
       configMap,
       displayName: entry.displayName,
       description: entry.description,
+      bypassStatus: entry.bypassStatus,
+      requiresBypass: entry.requiresBypass,
     );
     await _cacheIconForLinkCandidate(
       sourceId: entry.id,
@@ -693,6 +726,8 @@ class SourceInstallerService {
         configMap,
         displayName: selectedEntry.displayName,
         description: selectedEntry.description,
+        bypassStatus: selectedEntry.bypassStatus,
+        requiresBypass: selectedEntry.requiresBypass,
       );
       await _cacheIconForZipCandidate(
         sourceId: selectedEntry.id,
@@ -883,6 +918,8 @@ class SourceInstallerService {
     Map<String, dynamic> configMap, {
     String? displayName,
     String? description,
+    String? bypassStatus,
+    bool requiresBypass = false,
   }) {
     final meta =
         (configMap['meta'] as Map?)?.cast<String, dynamic>() ??
@@ -893,6 +930,23 @@ class SourceInstallerService {
     }
     if (description != null && description.trim().isNotEmpty) {
       meta['description'] = description.trim();
+    }
+
+    // Forward the manifest bypass contract into the installed config so the
+    // per-source Dio/bypass scope (#86) honors it even when the downloaded
+    // config predates the flag. Never downgrades an explicit config value.
+    if (requiresBypass) {
+      final network =
+          (configMap['network'] as Map?)?.cast<String, dynamic>() ??
+          <String, dynamic>{};
+      // Manifest contract wins: an explicit `false` in a stale config is
+      // upgraded, an explicit `true` is untouched.
+      network['requiresBypass'] = true;
+      configMap['network'] = network;
+      final shield = (bypassStatus ?? '').trim().toLowerCase();
+      if (shield == 'lazy' || shield == 'turnstile') {
+        meta['bypassStatus'] = shield;
+      }
     }
 
     if (meta.isNotEmpty) {
