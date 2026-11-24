@@ -1,7 +1,11 @@
 {
     "source": "nhentai",
-    "version": "1.0.11",
-    "lastUpdated": "2026-10-02T12:00:00+07:00",
+    "schemaVersion": 3,
+    "version": "1.0.12",
+    "enabled": true,
+    "defaultLanguage": "english",
+    "idType": "real",
+    "lastUpdated": "2026-11-24T00:00:00+07:00",
     "baseUrl": "https://nhentai.net",
     "avatarBaseUrl": "https://i3.nhentai.net",
     "assetHosts": {
@@ -261,6 +265,7 @@
         }
     },
     "network": {
+        "requiresBypass": true,
         "rateLimit": {
             "enabled": true,
             "requestsPerMinute": 60,
