@@ -98,4 +98,41 @@ void main() {
       contains('source-a'),
     );
   });
+
+  test('disposing one source never closes the shared adapter', () async {
+    final shared = HttpClientManager.httpClient.httpClientAdapter;
+    final a = HttpClientManager.scopedClientForSource('source-a');
+    final b = HttpClientManager.scopedClientForSource('source-b');
+    expect(identical(a.httpClientAdapter, shared), isTrue);
+    expect(identical(b.httpClientAdapter, shared), isTrue);
+
+    HttpClientManager.disposeScopedClient('source-a');
+
+    // The disposed client is detached from the shared engine...
+    expect(identical(a.httpClientAdapter, shared), isFalse);
+    // ...while the global client and every surviving source keep sharing
+    // the same, still-open adapter.
+    expect(
+      identical(HttpClientManager.httpClient.httpClientAdapter, shared),
+      isTrue,
+    );
+    expect(identical(b.httpClientAdapter, shared), isTrue);
+    expect(
+      HttpClientManager.getStatistics()['scoped_clients'],
+      isNot(contains('source-a')),
+    );
+
+    // Late requests on the disposed client fail fast (Dio itself is closed)
+    // instead of reaching the shared engine.
+    await expectLater(
+      a.get<String>('https://disposed.test/'),
+      throwsA(
+        isA<DioException>().having(
+          (e) => e.type,
+          'type',
+          DioExceptionType.connectionError,
+        ),
+      ),
+    );
+  });
 }

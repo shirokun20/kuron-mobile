@@ -3,6 +3,9 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'config_models.freezed.dart';
 part 'config_models.g.dart';
 
+/// Compiled once: dotted `major[.minor...]` shape for schema versions.
+final RegExp _manifestSchemaVersionPattern = RegExp(r'^(\d+)(?:\.\d+)*$');
+
 /// Parses a manifest `schemaVersion` flexibly across the v2/v3 family.
 ///
 /// Accepts `int` (2, 3), `num`, version strings (`"2"`, `"2.0"`, `"3.0"`,
@@ -17,12 +20,11 @@ int parseManifestSchemaVersion(dynamic raw) {
     final text = raw.trim();
     final asInt = int.tryParse(text);
     if (asInt != null) return asInt;
-    final dotted = RegExp(r'^(\d+)(?:\.\d+)*$').firstMatch(text);
+    final dotted = _manifestSchemaVersionPattern.firstMatch(text);
     if (dotted != null) return int.parse(dotted.group(1)!);
   }
   return 1;
 }
-
 int _manifestSchemaVersionToJson(int value) => value;
 
 @JsonSerializable(explicitToJson: true)

@@ -4,6 +4,33 @@ import 'package:native_dio_adapter/native_dio_adapter.dart';
 import 'package:logger/logger.dart';
 import '../di/service_locator.dart';
 
+/// Terminal adapter installed on a scoped client at dispose time.
+///
+/// Scoped clients share the global client's adapter (single Cronet engine),
+/// so [Dio.close] must never reach it. Swapping in this terminal adapter
+/// first confines `close()` to the scoped client; any late request fails
+/// fast instead of touching torn-down state.
+class _DisposedAdapter implements HttpClientAdapter {
+  const _DisposedAdapter();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) {
+    return Future<ResponseBody>.error(
+      DioException.requestCancelled(
+        requestOptions: options,
+        reason: 'Scoped HTTP client disposed',
+      ),
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 // Singleton HTTP client manager to ensure proper lifecycle management
 // and prevent disposal issues across the application
 class HttpClientManager {
@@ -18,8 +45,13 @@ class HttpClientManager {
 
   /// Per-source scoped clients (see [scopedClientForSource]). Each entry
   /// owns its own [BaseOptions] copy and interceptor list, so per-source
-  /// header/adapter changes never leak into other sources.
+  /// header/interceptor mutations never leak into other sources. The HTTP
+  /// adapter is intentionally shared (single Cronet engine) — see
+  /// [disposeScopedClient] for why it must never be closed per-source.
   static final Map<String, Dio> _scopedClients = {};
+
+  /// Terminal adapter swapped onto scoped clients at dispose time.
+  static const HttpClientAdapter _disposedAdapter = _DisposedAdapter();
 
   HttpClientManager._internal();
 
@@ -194,9 +226,19 @@ class HttpClientManager {
   }
 
   /// Disposes and drops the scoped client for [sourceId], if any.
+  ///
+  /// The client's adapter is swapped for a terminal stub *before* closing,
+  /// because scoped clients share the global client's adapter (single
+  /// Cronet engine): closing it would kill requests for every other source
+  /// and [_httpClient] itself. New requests on the disposed client fail
+  /// fast; already in-flight requests run to completion against the shared
+  /// engine (their own [CancelToken]s still cancel them).
   static void disposeScopedClient(String sourceId) {
     final client = _scopedClients.remove(sourceId);
-    client?.close(force: true);
+    if (client == null) return;
+    client.httpClientAdapter = _disposedAdapter;
+    client.interceptors.clear();
+    client.close(force: true);
     _logger?.d('Disposed scoped HTTP client for source "$sourceId"');
   }
 
@@ -313,10 +355,11 @@ class HttpClientManager {
   static void resetForTesting() {
     _logger?.w(
         'Resetting HTTP client for testing - this should only be used in tests!');
-    for (final client in _scopedClients.values) {
-      client.close(force: true);
+    // Route through disposeScopedClient so the shared adapter is never
+    // closed per-source (the global close below owns the engine).
+    for (final sourceId in _scopedClients.keys.toList(growable: false)) {
+      disposeScopedClient(sourceId);
     }
-    _scopedClients.clear();
     _defaultInterceptor = null;
     _httpClient?.close(force: true);
     _httpClient = null;
