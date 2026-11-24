@@ -46,30 +46,43 @@ class ImageCacheService {
   static final List<Completer<void>> _staticDecodeWaiters = [];
   static final Map<String, Future<File?>> _staticDecodeInFlight = {};
 
-  // Shared client for direct network fetches (static-preview path only).
-  // Kept static so [compute] isolates stay unaffected.
-  static final Dio _fetchClient = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      responseType: ResponseType.bytes,
-    ),
-  );
+  // Fallback client for direct network fetches when DI Dio is unavailable
+  // (e.g. isolated tests). Production reuses `getIt<Dio>()` (Cronet + native DNS).
+  static Dio? _fallbackFetchClient;
+
+  static Dio _resolveFetchClient() {
+    if (getIt.isRegistered<Dio>()) {
+      return getIt<Dio>();
+    }
+    return _fallbackFetchClient ??= Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        sendTimeout: const Duration(seconds: 30),
+        maxRedirects: 5,
+        responseType: ResponseType.bytes,
+      ),
+    );
+  }
 
   /// Fetches raw bytes for a remote image URL (throws on failure).
   static Future<Uint8List> _fetchNetworkBytes(
     String url, [
     Map<String, String>? headers,
   ]) async {
-    final response = await _fetchClient.get<List<int>>(
+    final response = await _resolveFetchClient().get<List<int>>(
       url,
-      options: Options(headers: headers, responseType: ResponseType.bytes),
+      options: Options(
+        headers: headers,
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(seconds: 30),
+      ),
     );
     final data = response.data;
     if (data == null || data.isEmpty) {
       throw StateError('Empty response body for $url');
     }
-    return Uint8List.fromList(data);
+    return data is Uint8List ? data : Uint8List.fromList(data);
   }
   // Get cached image data by URL
   // If [isStaticGif] is true, it looks for the processed static version of the GIF

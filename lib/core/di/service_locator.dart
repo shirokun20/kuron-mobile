@@ -893,6 +893,7 @@ void _setupDataSources() {
   getIt.registerLazySingleton<GenericSourceFactory>(() => GenericSourceFactory(
         dio: getIt<Dio>(),
         logger: getIt<Logger>(),
+        scopedClientProvider: HttpClientManager.scopedClientForSource,
       ));
 
   // GenericHttpSource for nhentai — config-driven primary source.
@@ -926,7 +927,7 @@ void _setupDataSources() {
 
       return GenericHttpSource(
         rawConfig: config,
-        dio: getIt<Dio>(),
+        dio: HttpClientManager.scopedClientForSource('nhentai'),
         logger: logger,
         delayApplier: antiDetection.applyRandomDelay,
         headersGenerator: ({String? referer}) =>

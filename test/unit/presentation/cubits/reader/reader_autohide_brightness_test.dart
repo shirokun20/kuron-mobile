@@ -4,6 +4,8 @@
 //   (`readerAutoHideUI`).
 // - The reader brightness slider persists to [UserPreferences] and is
 //   re-applied when the reader opens again.
+import 'dart:async';
+
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
@@ -123,8 +125,7 @@ void main() {
   _MockUserDataRepository stubPrefs(UserPreferences prefs) {
     final repo = _MockUserDataRepository();
     when(() => repo.getUserPreferences()).thenAnswer((_) async => prefs);
-    when(() => repo.saveUserPreferences(any()))
-        .thenAnswer((_) async {});
+    when(() => repo.saveUserPreferences(any())).thenAnswer((_) async {});
     return repo;
   }
 
@@ -277,9 +278,11 @@ void main() {
 
       expect(cubit.state.readerBrightness, 0.6);
       expect(cubit.readerBrightness, 0.6);
-      final saved = verify(
-        () => userDataRepository.saveUserPreferences(captureAny()),
-      ).captured.single as UserPreferences;
+      final saved =
+          verify(() => userDataRepository.saveUserPreferences(captureAny()))
+                  .captured
+                  .single
+              as UserPreferences;
       expect(saved.readerBrightness, 0.6);
     });
 
@@ -304,6 +307,36 @@ void main() {
 
       await cubit.setReaderBrightness(0.0);
       expect(cubit.state.readerBrightness, 0.2);
+    });
+
+    test('persist: false previews live without disk write, and stale async writes are dropped', () async {
+      final repo = stubPrefs(const UserPreferences());
+      final cubit = buildCubit(userDataRepository: repo);
+      await openReader(cubit, buildContent());
+
+      // Live preview during slider drag does not hit storage.
+      await cubit.setReaderBrightness(0.5, persist: false);
+      expect(cubit.state.readerBrightness, 0.5);
+      verifyNever(() => repo.saveUserPreferences(any()));
+
+      // Out-of-order concurrent persists: slower 0.4 write must NOT clobber newer 0.8.
+      final firstRead = Completer<UserPreferences>();
+      var readCount = 0;
+      when(() => repo.getUserPreferences()).thenAnswer((_) {
+        readCount++;
+        if (readCount == 1) return firstRead.future;
+        return Future.value(const UserPreferences());
+      });
+
+      final slowOldWrite = cubit.setReaderBrightness(0.4);
+      await cubit.setReaderBrightness(0.8);
+      firstRead.complete(const UserPreferences());
+      await slowOldWrite;
+
+      final saved = verify(() => repo.saveUserPreferences(captureAny()))
+          .captured
+          .cast<UserPreferences>();
+      expect(saved.map((p) => p.readerBrightness), [0.8]);
     });
   });
 }

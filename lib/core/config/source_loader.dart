@@ -1,6 +1,7 @@
 import 'package:logger/logger.dart';
 import 'package:kuron_core/kuron_core.dart';
 
+import '../network/http_client_manager.dart';
 import 'remote_config_service.dart';
 
 // Applies the remote manifest to the [ContentSourceRegistry].
@@ -50,6 +51,7 @@ class SourceLoader {
         // Remove from registry entirely — source disabled remotely.
         if (registry.hasSource(sourceId)) {
           registry.unregister(sourceId);
+          HttpClientManager.disposeScopedClient(sourceId);
           _logger.i('SourceLoader: unregistered disabled source "$sourceId"');
         }
         continue;
@@ -75,10 +77,18 @@ class SourceLoader {
   // Returns the maintenance message for a source, if any.
   ///
   // Returns `null` if the source is not under maintenance or no message
-  // is defined in its [SourceConfig].
+  // is defined in its [SourceConfig] or manifest entry.
   String? getMaintenanceMessage(String sourceId) {
     if (!isUnderMaintenance(sourceId)) return null;
-    return _configService.getConfig(sourceId)?.maintenanceMessage;
+    final fromConfig = _configService.getConfig(sourceId)?.maintenanceMessage;
+    if (fromConfig != null && fromConfig.isNotEmpty) return fromConfig;
+    for (final entry
+        in _configService.manifest?.installableSources ?? const []) {
+      if (entry.id == sourceId) {
+        return entry.effectiveMaintenance?.reason;
+      }
+    }
+    return null;
   }
 
   // All source IDs currently flagged as under maintenance.

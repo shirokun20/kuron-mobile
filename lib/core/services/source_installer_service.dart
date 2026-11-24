@@ -17,6 +17,7 @@ import 'package:nhasixapp/core/config/remote_config_service.dart';
 import 'package:nhasixapp/core/config/config_models.dart'
     show parseManifestSchemaVersion;
 import 'package:nhasixapp/core/di/webview_session_registry.dart';
+import 'package:nhasixapp/core/network/http_client_manager.dart';
 import 'package:nhasixapp/core/utils/source_config_display_utils.dart';
 import 'package:nhasixapp/core/utils/source_version_utils.dart';
 
@@ -820,6 +821,8 @@ class SourceInstallerService {
     final wasActive = _registry.currentSourceId == sourceId;
     if (_registry.hasSource(sourceId)) {
       _registry.unregister(sourceId);
+      _genericFactory.disposeScopedClient(sourceId);
+      HttpClientManager.disposeScopedClient(sourceId);
     }
 
     ContentSource instance;
@@ -889,6 +892,8 @@ class SourceInstallerService {
     if (_registry.hasSource(sourceId)) {
       _registry.unregister(sourceId);
     }
+    _genericFactory.disposeScopedClient(sourceId);
+    HttpClientManager.disposeScopedClient(sourceId);
     return (
       wasActive: wasActive,
       nextActiveSourceId: _registry.currentSourceId,

@@ -191,10 +191,8 @@ class ReaderCubit extends BaseCubit<ReaderState> {
       // Fall through to remote-config/default below.
     }
     try {
-      final seconds = remoteConfigService
-          .appConfig
-          ?.durations
-          ?.readerAutoHideDelaySeconds;
+      final seconds =
+          remoteConfigService.appConfig?.durations?.readerAutoHideDelaySeconds;
       if (seconds != null && seconds > 0) {
         _autoHideDelay = Duration(seconds: seconds);
       }
@@ -205,19 +203,21 @@ class ReaderCubit extends BaseCubit<ReaderState> {
 
   /// Updates the reader brightness dimmer (1.0 = full brightness).
   ///
-  /// Emits immediately so the overlay applies live, then persists to
-  /// `UserPreferences` so the next reader session restores it.
-  Future<void> setReaderBrightness(double value) async {
+  /// Emits immediately so the overlay applies live. When [persist] is true
+  /// (default), persists to `UserPreferences` so the next reader session
+  /// restores it, guarding against out-of-order concurrent writes.
+  Future<void> setReaderBrightness(double value, {bool persist = true}) async {
     final clamped = value.clamp(0.2, 1.0);
     _readerBrightness = clamped;
     if (!isClosed) emit(state.copyWithBrightness(clamped));
+    if (!persist) return;
     try {
       final repo = userDataRepository;
       if (repo == null) return;
       final prefs = await repo.getUserPreferences();
-      await repo.saveUserPreferences(
-        prefs.copyWith(readerBrightness: clamped),
-      );
+      // Drop stale write if a newer slider/programmatic update superseded it.
+      if (isClosed || _readerBrightness != clamped) return;
+      await repo.saveUserPreferences(prefs.copyWith(readerBrightness: clamped));
       _logger.i('Successfully saved reader brightness: $clamped');
     } catch (e, stackTrace) {
       _logger.e(

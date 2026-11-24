@@ -22,15 +22,26 @@ APK_PATH="${1:-}"
 OUT_DIR=""
 SKIP_SIGNING=false
 
-for arg in "$@"; do
-  case "$arg" in
-    --out-dir=*) OUT_DIR="${arg#--out-dir=}" ;;
+# Parse optional flags (supports both `--out-dir=DIR` and `--out-dir DIR`).
+shift $(( $# > 0 ? 1 : 0 ))
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
+    --out-dir)
+      if [ $# -lt 2 ]; then
+        echo "❌ --out-dir requires a directory argument" >&2
+        exit 2
+      fi
+      OUT_DIR="$2"
+      shift
+      ;;
     --skip-signing) SKIP_SIGNING=true ;;
   esac
+  shift
 done
 
 if [ -z "$APK_PATH" ]; then
-  echo "Usage: $0 <apk-path> [--out-dir=DIR] [--skip-signing]" >&2
+  echo "Usage: $0 <apk-path> [--out-dir DIR|--out-dir=DIR] [--skip-signing]" >&2
   exit 2
 fi
 if [ ! -f "$APK_PATH" ]; then
@@ -49,15 +60,51 @@ fail() { FAIL=$((FAIL + 1)); echo "❌ $1"; }
 echo "🔍 Kuron release APK QA: $APK_PATH"
 echo ""
 
-# ── Gate 0: tooling ──────────────────────────────────────────────────────────
-READelf=""
-if command -v llvm-readelf >/dev/null 2>&1; then
-  READelf="llvm-readelf"
-elif command -v readelf >/dev/null 2>&1; then
-  READelf="readelf"
-fi
+# ── Gate 0: tooling (PATH first, then Android SDK/NDK auto-discovery) ────────
+ANDROID_SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
+
+find_sdk_tool() {
+  local name="$1"
+  if command -v "$name" >/dev/null 2>&1; then
+    command -v "$name"
+    return 0
+  fi
+  if [ -d "$ANDROID_SDK_DIR/build-tools" ]; then
+    local latest_bt
+    latest_bt="$(ls -1d "$ANDROID_SDK_DIR"/build-tools/* 2>/dev/null | sort -V | tail -n 1 || true)"
+    if [ -n "$latest_bt" ] && [ -x "$latest_bt/$name" ]; then
+      echo "$latest_bt/$name"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+find_readelf() {
+  if command -v llvm-readelf >/dev/null 2>&1; then
+    command -v llvm-readelf
+    return 0
+  fi
+  if command -v readelf >/dev/null 2>&1; then
+    command -v readelf
+    return 0
+  fi
+  if [ -d "$ANDROID_SDK_DIR/ndk" ]; then
+    local candidate
+    candidate="$(ls -1d "$ANDROID_SDK_DIR"/ndk/*/toolchains/llvm/prebuilt/*/bin/llvm-readelf 2>/dev/null | sort -V | tail -n 1 || true)"
+    if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+      echo "$candidate"
+      return 0
+    fi
+  fi
+  return 1
+}
+
+READelf="$(find_readelf || true)"
+ZIPALIGN_BIN="$(find_sdk_tool zipalign || true)"
+APKSIGNER_BIN="$(find_sdk_tool apksigner || true)"
 if [ -z "$READelf" ]; then
-  fail "Gate 0 (tooling): neither llvm-readelf nor readelf found (install binutils/llvm)"
+  fail "Gate 0 (tooling): neither llvm-readelf nor readelf found (install binutils/llvm or Android NDK)"
 else
   pass "Gate 0 (tooling): using $READelf"
 fi
@@ -113,8 +160,8 @@ else
 fi
 
 # ── Gate 2: zipalign ─────────────────────────────────────────────────────────
-if command -v zipalign >/dev/null 2>&1; then
-  if zipalign -c -P 16 -v 4 "$APK_PATH" >/dev/null 2>&1; then
+if [ -n "$ZIPALIGN_BIN" ]; then
+  if "$ZIPALIGN_BIN" -c -P 16 -v 4 "$APK_PATH" >/dev/null 2>&1; then
     pass "Gate 2 (zipalign): 16KB page-size alignment verified"
   else
     fail "Gate 2 (zipalign): zipalign -c -P 16 -v 4 failed"
@@ -127,8 +174,8 @@ fi
 if [ "$SKIP_SIGNING" = true ]; then
   echo "⚠️  Gate 3 (signature): skipped (--skip-signing, local throwaway only)"
 else
-  if command -v apksigner >/dev/null 2>&1; then
-    VERIFY_OUT="$(apksigner verify --verbose --print-certs "$APK_PATH" 2>&1 || true)"
+  if [ -n "$APKSIGNER_BIN" ]; then
+    VERIFY_OUT="$("$APKSIGNER_BIN" verify --verbose --print-certs "$APK_PATH" 2>&1 || true)"
     echo "$VERIFY_OUT" | sed 's/^/   /'
     if echo "$VERIFY_OUT" | grep -q "Verified using v2 scheme.*true" && \
        echo "$VERIFY_OUT" | grep -q "Verified using v3 scheme.*true"; then
@@ -142,12 +189,17 @@ else
 fi
 
 # ── Gate 4: sha256 + Obtainium naming ─────────────────────────────────────────
-SHA_FILE="$OUT_DIR/$(basename "$APK_PATH").sha256.txt"
+mkdir -p "$OUT_DIR"
+OUT_DIR_ABS="$(cd "$OUT_DIR" && pwd)"
+SHA_FILE="$OUT_DIR_ABS/$(basename "$APK_PATH").sha256.txt"
 if command -v sha256sum >/dev/null 2>&1; then
   (cd "$(dirname "$APK_PATH")" && sha256sum "$(basename "$APK_PATH")" > "$SHA_FILE")
   pass "Gate 4a (checksum): wrote $SHA_FILE"
+elif command -v shasum >/dev/null 2>&1; then
+  (cd "$(dirname "$APK_PATH")" && shasum -a 256 "$(basename "$APK_PATH")" > "$SHA_FILE")
+  pass "Gate 4a (checksum): wrote $SHA_FILE"
 else
-  fail "Gate 4a (checksum): sha256sum not found"
+  fail "Gate 4a (checksum): neither sha256sum nor shasum found"
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
