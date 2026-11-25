@@ -9,7 +9,29 @@ import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
+import 'package:kuron_core/kuron_core.dart';
 import 'package:kuron_native/kuron_native.dart';
+
+/// F1 guard (mirrors `WebViewActivity.isTrustedSessionUrl`): a WebView result
+/// URL is trusted only when it is http(s) and shares the session target's
+/// registrable domain. Subdomains (Cloudflare challenge pages) stay allowed;
+/// lookalike suffixes (`komiktap.info.evil.com`) and foreign origins fail.
+bool isTrustedWebViewSessionUrl(String? currentUrl, String targetUrl) {
+  if (currentUrl == null || currentUrl.trim().isEmpty) return false;
+  final current = Uri.tryParse(currentUrl.trim());
+  final target = Uri.tryParse(targetUrl);
+  if (current == null ||
+      target == null ||
+      current.host.isEmpty ||
+      target.host.isEmpty) {
+    return false;
+  }
+  if (current.scheme != 'http' && current.scheme != 'https') return false;
+  final currentDomain = registrableDomain(current);
+  final targetDomain = registrableDomain(target);
+  if (currentDomain == null || targetDomain == null) return false;
+  return currentDomain.toLowerCase() == targetDomain.toLowerCase();
+}
 
 // Configuration for the WebView session (parsed from JSON)
 class WebViewSessionConfig {
@@ -543,6 +565,15 @@ class WebViewSessionAdapter {
   bool _hasCapturedHtml(String? pageHtml) =>
       pageHtml != null && pageHtml.isNotEmpty && pageHtml.startsWith('/');
 
+  /// F1 rebind guard for a native WebView result map. A missing `currentUrl`
+  /// (legacy result shape) is accepted — the Kotlin guard already filtered it;
+  /// a present but foreign `currentUrl` rejects the harvest.
+  bool _isTrustedHarvest(Map<String, dynamic> result, String targetUrl) {
+    final currentUrl = result['currentUrl'] as String?;
+    if (currentUrl == null || currentUrl.isEmpty) return true;
+    return isTrustedWebViewSessionUrl(currentUrl, targetUrl);
+  }
+
   Future<String?> _persistBypassSession(
     Map<String, dynamic> result,
     String targetUrl, {
@@ -576,6 +607,14 @@ class WebViewSessionAdapter {
         untrustedHeader = cookiesRaw.join('; ');
         _logger.w(
           '⚠️ SSL fallback — using ${cookiesRaw.length} untrusted cookie(s) for this request chain only (not persisted)',
+        );
+      } else if (!_isTrustedHarvest(result, targetUrl)) {
+        // F1: the WebView may have navigated/redirected to a foreign origin
+        // before finishing — never rebind another origin's cookies under the
+        // session target's domain. Drop them so the flow fails closed.
+        _logger.w(
+          '🛡️ Dropping ${cookiesRaw.length} WebView cookie(s) from untrusted URL '
+          '${result['currentUrl']} (session target: $targetUrl)',
         );
       } else {
         await _saveRawCookies(cookiesRaw, targetUrl);

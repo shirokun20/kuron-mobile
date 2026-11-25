@@ -51,7 +51,48 @@ class WebViewActivity : AppCompatActivity() {
         const val RESULT_CAPTURED_REQUEST_URL = "result_captured_request_url"
         const val RESULT_PAGE_HTML = "result_page_html"
         const val RESULT_CAPTURED_IMAGE_URLS = "result_captured_image_urls"
-        
+
+        // Last two labels of a host, e.g. sub.komiktap.info -> komiktap.info.
+        // ponytail: naive last-two-labels; co.uk-type multi-label TLDs out of
+        // scope per spec (no PublicSuffixDatabase) — add one if such hosts appear.
+        // Pure java.net.URI (no android.*) so plain JUnit can cover it.
+        internal fun registrableDomain(host: String): String {
+            val labels = host.lowercase().split(".")
+            return if (labels.size >= 2) {
+                labels.takeLast(2).joinToString(".")
+            } else {
+                host.lowercase()
+            }
+        }
+
+        // F1 guard: a page URL is trusted only when it is http(s) and shares
+        // the session target's registrable domain. Subdomains (Cloudflare
+        // challenge pages) stay allowed; lookalike suffixes
+        // (komiktap.info.evil.com) and foreign origins are rejected.
+        internal fun isTrustedSessionUrl(url: String?, sessionTargetHost: String?): Boolean {
+            if (url.isNullOrBlank() || sessionTargetHost.isNullOrBlank()) return false
+            return try {
+                val uri = java.net.URI(url.trim())
+                val scheme = uri.scheme?.lowercase()
+                if (scheme != "http" && scheme != "https") return false
+                val host = uri.host ?: return false
+                val targetHost = sessionTargetHost.trim().let {
+                    if (it.contains("://")) {
+                        try {
+                            java.net.URI(it).host ?: it
+                        } catch (_: Exception) {
+                            it
+                        }
+                    } else {
+                        it
+                    }
+                }
+                registrableDomain(host) == registrableDomain(targetHost)
+            } catch (_: Exception) {
+                false
+            }
+        }
+
         fun createIntent(
             context: Context, 
             url: String, 
@@ -271,9 +312,17 @@ class WebViewActivity : AppCompatActivity() {
             @android.webkit.JavascriptInterface
             fun sendToken(token: String) {
                 android.util.Log.d("KuronNative", "Caught token from JS interface (length=${token.length})")
+                // F1: any page loaded in this WebView can call the bridge, so
+                // ignore calls from origins outside the session target domain
+                // instead of harvesting their cookies into the session.
+                val bridgeUrl = webView.url
+                if (!isTrustedSessionUrl(bridgeUrl, sessionTargetHost)) {
+                    android.util.Log.w("KuronNative", "Ignoring sendToken from untrusted origin: $bridgeUrl")
+                    return
+                }
                 runOnUiThread {
                     val cookieManager = android.webkit.CookieManager.getInstance()
-                    val harvestUrl = webView.url ?: sessionTargetHost
+                    val harvestUrl = bridgeUrl ?: sessionTargetHost
                     val cookiesStr = cookieManager.getCookie(harvestUrl)?.split(";")?.filter { it.isNotBlank() }?.distinct()?.joinToString("; ") ?: ""
                     val cookieList = arrayListOf(cookiesStr)
 
@@ -478,7 +527,15 @@ class WebViewActivity : AppCompatActivity() {
                             view?.postDelayed({
                                 val cookieManager = android.webkit.CookieManager.getInstance()
                                 cookieManager.flush()
-                                val cookiesStr = cookieManager.getCookie(view.url ?: sessionTargetHost)?.split(";")?.filter { it.isNotBlank() }?.distinct()?.joinToString("; ") ?: ""
+                                // F1: the page may have navigated away during the
+                                // delay — harvest only from the session domain.
+                                val sniffHarvestUrl = view.url ?: sessionTargetHost
+                                val cookiesStr = if (isTrustedSessionUrl(sniffHarvestUrl, sessionTargetHost)) {
+                                    cookieManager.getCookie(sniffHarvestUrl)?.split(";")?.filter { it.isNotBlank() }?.distinct()?.joinToString("; ") ?: ""
+                                } else {
+                                    android.util.Log.w("KuronNative", "Skipping auth-sniff cookie harvest for untrusted URL: $sniffHarvestUrl")
+                                    ""
+                                }
                                 val cookieList = arrayListOf(cookiesStr)
 
                                 val resultIntent = Intent()
@@ -531,6 +588,20 @@ class WebViewActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url?.toString()
                 if (checkSsoRedirect(url)) return true
+                // F1: keep foreign origins out of this credential-bearing
+                // WebView. Only main-frame http(s) navigations are diverted;
+                // subframe navigations (e.g. Cloudflare challenge iframes)
+                // and non-http(s) schemes keep the previous behavior.
+                val isMainFrame = request?.isForMainFrame ?: true
+                val isHttp = request?.url?.scheme?.lowercase() == "http" ||
+                    request?.url?.scheme?.lowercase() == "https"
+                if (isMainFrame && isHttp && url != null &&
+                    !isTrustedSessionUrl(url, sessionTargetHost)
+                ) {
+                    android.util.Log.w("KuronNative", "Blocking untrusted WebView navigation: $url")
+                    openUntrustedExternally(url)
+                    return true
+                }
                 return super.shouldOverrideUrlLoading(view, request)
             }
         }
@@ -547,15 +618,11 @@ class WebViewActivity : AppCompatActivity() {
         }
     }
 
-    // Last two labels of a host, e.g. sub.komiktap.info -> komiktap.info.
-    // ponytail: naive last-two-labels; co.uk-type multi-label TLDs out of scope
-    // per spec (no PublicSuffixDatabase) — add one if such hosts appear.
-    private fun registrableDomain(host: String): String {
-        val labels = host.split(".")
-        return if (labels.size >= 2) {
-            labels.takeLast(2).joinToString(".")
-        } else {
-            host
+    private fun openUntrustedExternally(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url)))
+        } catch (_: Exception) {
+            android.util.Log.w("KuronNative", "No handler for untrusted URL, dropping navigation: $url")
         }
     }
 
@@ -654,7 +721,14 @@ class WebViewActivity : AppCompatActivity() {
         val cookieManager = CookieManager.getInstance()
         cookieManager.flush() // Ensure sync
         
-        val cookies = cookieManager.getCookie(currentUrl) // Returns "key=value; key2=value2"
+        // F1: never harvest cookies from a page outside the session target
+        // domain — return them empty so the flow fails closed downstream.
+        val cookies = if (isTrustedSessionUrl(currentUrl, sessionTargetHost)) {
+            cookieManager.getCookie(currentUrl) // Returns "key=value; key2=value2"
+        } else {
+            android.util.Log.w("KuronNative", "Skipping cookie harvest for untrusted WebView URL: $currentUrl")
+            null
+        }
         android.util.Log.d("KuronNative", "WebView Finishing. URL: $currentUrl")
         android.util.Log.d("KuronNative", "Cookies found: ${cookies?.split(";")?.size ?: 0} cookie(s)")
         
