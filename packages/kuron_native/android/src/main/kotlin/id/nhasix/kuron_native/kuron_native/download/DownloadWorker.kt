@@ -81,10 +81,13 @@ class DownloadWorker(
     private val okHttpClient by lazy {
         val cookiesJson = inputData.getString(KEY_COOKIES)
         val cookies = parseCookies(cookiesJson)
-        
+        val imageTimeoutMs = inputData.getLong(KEY_IMAGE_TIMEOUT_MS, DEFAULT_IMAGE_TIMEOUT_MS)
+            .coerceAtLeast(10_000L)
+        val connectTimeoutSec = (imageTimeoutMs / 1000L).coerceIn(30L, 60L)
+
         val builder = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(connectTimeoutSec, TimeUnit.SECONDS)
+            .readTimeout(imageTimeoutMs, TimeUnit.MILLISECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             // Idle connections capped at the configured parallel count so
             // concurrent image downloads can reuse connections instead of

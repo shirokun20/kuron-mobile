@@ -301,14 +301,19 @@ class DownloadService {
         }
       }
 
-      // If any pages are missing, throw explicit error with details
+      // If ALL pages are missing, fail explicitly; if some pages downloaded,
+      // skip the corrupt/unreachable pages and let the batch complete 100%.
       if (missingPages.isNotEmpty) {
         final missingPagesStr = missingPages.join(', ');
-        final errorMsg =
-            'Download incomplete: ${missingPages.length} pages missing ($downloadedCount/$expectedBatchCount files downloaded). Missing pages: $missingPagesStr';
-
-        _logger.e(errorMsg);
-        throw Exception(errorMsg);
+        if (downloadedCount == 0) {
+          final errorMsg =
+              'Download failed: all ${missingPages.length} pages missing. Missing pages: $missingPagesStr';
+          _logger.e(errorMsg);
+          throw Exception(errorMsg);
+        }
+        _logger.w(
+          'Download completed with ${missingPages.length} skipped page(s) ($downloadedCount/$expectedBatchCount downloaded): $missingPagesStr',
+        );
       }
 
       // Update verification to 100%

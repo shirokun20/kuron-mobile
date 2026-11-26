@@ -473,11 +473,16 @@ class _DetailScreenState extends State<DetailScreen> {
     // drawn around this rect, sized to it.
     final anchor = KuronFx.targetRectOf(buttonContext);
     if (!supportsOnlineFavorite) {
+      final wasFavorited = detailState.isFavorited;
       await _detailCubit.toggleFavorite();
+      final currentState = _detailCubit.state;
+      final isNowFavorited = currentState is DetailLoaded
+          ? currentState.isFavorited
+          : !wasFavorited;
       if (buttonContext.mounted) {
         KuronFx.trigger(
           buttonContext,
-          kind: KuronFxKind.favorite,
+          kind: isNowFavorited ? KuronFxKind.favorite : KuronFxKind.toggleOff,
           targetRect: anchor,
         );
       }
@@ -543,6 +548,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (!mounted || selection == null) return;
 
+    bool? onlineNowFavorited;
     switch (selection) {
       case 'manage_collections':
         await _showManageCollectionsSheet(detailState.content);
@@ -551,29 +557,34 @@ class _DetailScreenState extends State<DetailScreen> {
         await _detailCubit.toggleFavorite();
         break;
       case 'online':
-        await _toggleOnlineFavorite(detailState);
+        onlineNowFavorited = await _toggleOnlineFavorite(detailState);
         break;
       case 'both':
         await _detailCubit.toggleFavorite();
-        await _toggleOnlineFavorite(detailState);
+        onlineNowFavorited = await _toggleOnlineFavorite(detailState);
         break;
     }
     if (buttonContext.mounted) {
+      final currentState = _detailCubit.state;
+      final isNowFavorited =
+          onlineNowFavorited ??
+          (currentState is DetailLoaded
+              ? currentState.isFavorited
+              : !detailState.isFavorited);
+      final fxKind = selection == 'manage_collections'
+          ? KuronFxKind.sheetConfirm
+          : (isNowFavorited ? KuronFxKind.favorite : KuronFxKind.toggleOff);
       // Confirmation of the favorite sheet: one coalesced reaction,
       // anchored on the button that opened it.
-      KuronFx.trigger(
-        buttonContext,
-        kind: KuronFxKind.favorite,
-        targetRect: anchor,
-      );
+      KuronFx.trigger(buttonContext, kind: fxKind, targetRect: anchor);
     }
   }
 
-  Future<void> _toggleOnlineFavorite(DetailLoaded detailState) async {
+  Future<bool?> _toggleOnlineFavorite(DetailLoaded detailState) async {
     final sourceId = detailState.content.sourceId;
     final galleryId = int.tryParse(detailState.content.id);
     if (galleryId == null) {
-      if (!mounted) return;
+      if (!mounted) return null;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
@@ -581,7 +592,7 @@ class _DetailScreenState extends State<DetailScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
-      return;
+      return null;
     }
 
     try {
@@ -590,7 +601,7 @@ class _DetailScreenState extends State<DetailScreen> {
         galleryId: galleryId,
       );
 
-      if (!mounted) return;
+      if (!mounted) return isNowFavorited;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
@@ -602,8 +613,9 @@ class _DetailScreenState extends State<DetailScreen> {
           backgroundColor: Theme.of(context).colorScheme.primary,
         ),
       );
+      return isNowFavorited;
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return null;
       final messenger = ScaffoldMessenger.of(context);
       messenger.showSnackBar(
         SnackBar(
@@ -611,6 +623,7 @@ class _DetailScreenState extends State<DetailScreen> {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
+      return null;
     }
   }
 

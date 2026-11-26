@@ -1,5 +1,6 @@
 import 'dart:async'; // Add async import for StreamController
 import 'dart:io';
+
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
@@ -104,8 +105,9 @@ void main() {
       mockPdfConversionQueueManager = MockPdfConversionQueueManager();
       mockLogger = MockLogger();
       progressController = StreamController<DownloadProgressUpdate>.broadcast();
-      completionGuardTempDir =
-          Directory.systemTemp.createTempSync('download-bloc-empty-');
+      completionGuardTempDir = Directory.systemTemp.createTempSync(
+        'download-bloc-empty-',
+      );
 
       registerFallbackValue(
         GetContentDetailParams.fromString('fallback-content-id'),
@@ -144,14 +146,17 @@ void main() {
 
       // Default mocks
       // Note: mocktail matches named arguments by matching the value passed to the name
-      when(() => mockRepo.getAllDownloads(
-            state: any(named: 'state'),
-            sourceId: any(named: 'sourceId'),
-            limit: any(named: 'limit'),
-            offset: any(named: 'offset'),
-          )).thenAnswer((_) async => [testDownloadStatus]);
+      when(
+        () => mockRepo.getAllDownloads(
+          state: any(named: 'state'),
+          sourceId: any(named: 'sourceId'),
+          limit: any(named: 'limit'),
+          offset: any(named: 'offset'),
+        ),
+      ).thenAnswer((_) async => [testDownloadStatus]);
       when(() => mockRepo.getUserPreferences()).thenAnswer(
-          (_) async => const UserPreferences()); // Use default constructor
+        (_) async => const UserPreferences(),
+      ); // Use default constructor
       when(() => mockRepo.saveDownloadStatus(any()))
           .thenAnswer((_) async => {});
       when(() => mockRepo.getDownloadStatus(any()))
@@ -160,31 +165,39 @@ void main() {
       // Notification service mocks
       when(() => mockNotificationService.initialize())
           .thenAnswer((_) async => {});
-      when(() => mockNotificationService.setCallbacks(
-            onDownloadPause: any(named: 'onDownloadPause'),
-            onDownloadResume: any(named: 'onDownloadResume'),
-            onDownloadCancel: any(named: 'onDownloadCancel'),
-            onDownloadRetry: any(named: 'onDownloadRetry'),
-            onPdfRetry: any(named: 'onPdfRetry'),
-            onOpenDownload: any(named: 'onOpenDownload'),
-            onNavigateToDownloads: any(named: 'onNavigateToDownloads'),
-          )).thenReturn(null);
+      when(
+        () => mockNotificationService.setCallbacks(
+          onDownloadPause: any(named: 'onDownloadPause'),
+          onDownloadResume: any(named: 'onDownloadResume'),
+          onDownloadCancel: any(named: 'onDownloadCancel'),
+          onDownloadRetry: any(named: 'onDownloadRetry'),
+          onPdfRetry: any(named: 'onPdfRetry'),
+          onOpenDownload: any(named: 'onOpenDownload'),
+          onNavigateToDownloads: any(named: 'onNavigateToDownloads'),
+        ),
+      ).thenReturn(null);
 
-      when(() => mockNotificationService.showDownloadCompleted(
-            contentId: any(named: 'contentId'),
-            title: any(named: 'title'),
-            downloadPath: any(named: 'downloadPath'),
-          )).thenAnswer((_) async => {});
-      when(() => mockNotificationService.showDownloadStarted(
-            contentId: any(named: 'contentId'),
-            title: any(named: 'title'),
-          )).thenAnswer((_) async => {});
+      when(
+        () => mockNotificationService.showDownloadCompleted(
+          contentId: any(named: 'contentId'),
+          title: any(named: 'title'),
+          downloadPath: any(named: 'downloadPath'),
+        ),
+      ).thenAnswer((_) async => {});
+      when(
+        () => mockNotificationService.showDownloadStarted(
+          contentId: any(named: 'contentId'),
+          title: any(named: 'title'),
+        ),
+      ).thenAnswer((_) async => {});
 
-      when(() => mockNotificationService.updateDownloadGroupProgress(
-            activeCount: any(named: 'activeCount'),
-            totalProgress: any(named: 'totalProgress'),
-            speedText: any(named: 'speedText'),
-          )).thenAnswer((_) async => {});
+      when(
+        () => mockNotificationService.updateDownloadGroupProgress(
+          activeCount: any(named: 'activeCount'),
+          totalProgress: any(named: 'totalProgress'),
+          speedText: any(named: 'speedText'),
+        ),
+      ).thenAnswer((_) async => {});
 
       when(() => mockNotificationService.showDownloadGroupCompleted(any()))
           .thenAnswer((_) async => {});
@@ -193,23 +206,29 @@ void main() {
           .thenAnswer((_) async => {});
       when(() => mockNotificationService.cancelDownloadGroup())
           .thenAnswer((_) async => {});
-      when(() => mockNotificationService.updateDownloadProgress(
-            contentId: any(named: 'contentId'),
-            progress: any(named: 'progress'),
-            title: any(named: 'title'),
-            isPaused: any(named: 'isPaused'),
-          )).thenAnswer((_) async => {});
+      when(
+        () => mockNotificationService.updateDownloadProgress(
+          contentId: any(named: 'contentId'),
+          progress: any(named: 'progress'),
+          title: any(named: 'title'),
+          isPaused: any(named: 'isPaused'),
+        ),
+      ).thenAnswer((_) async => {});
 
-      when(() => mockNotificationService.showPdfConversionError(
-            contentId: any(named: 'contentId'),
-            title: any(named: 'title'),
-            error: any(named: 'error'),
-          )).thenAnswer((_) async => {});
-      when(() => mockOfflineContentManager
-              .reconcileChapterMetadataForCompletedDownload(
-            contentId: any(named: 'contentId'),
-            contentPath: any(named: 'contentPath'),
-          )).thenAnswer((_) async => {});
+      when(
+        () => mockNotificationService.showPdfConversionError(
+          contentId: any(named: 'contentId'),
+          title: any(named: 'title'),
+          error: any(named: 'error'),
+        ),
+      ).thenAnswer((_) async => {});
+      when(
+        () => mockOfflineContentManager
+            .reconcileChapterMetadataForCompletedDownload(
+              contentId: any(named: 'contentId'),
+              contentPath: any(named: 'contentPath'),
+            ),
+      ).thenAnswer((_) async => {});
       when(() => mockRemoteConfigService.getRawConfig(any())).thenReturn({
         'network': {
           'headers': {
@@ -303,13 +322,12 @@ void main() {
     );
 
     blocTest<DownloadBloc, DownloadBlocState>(
-      'marks download as failed with retry when completion arrives partial',
+      'completes download when some pages are skipped/corrupt and remaining images exist',
       build: () {
-        final imagesDir = Directory(
-          '${completionGuardTempDir.path}/images',
-        )..createSync(recursive: true);
+        final imagesDir = Directory('${completionGuardTempDir.path}/images')
+          ..createSync(recursive: true);
         for (var i = 1; i <= 5; i++) {
-          if (i == 3) continue; // page 3 never landed
+          if (i == 3) continue; // page 3 skipped/corrupt
           File('${imagesDir.path}/page_${i.toString().padLeft(3, '0')}.jpg')
               .writeAsBytesSync([i]);
         }
@@ -344,21 +362,13 @@ void main() {
               that: predicate<DownloadStatus>(
                 (d) =>
                     d.contentId == testContentId &&
-                    d.state == DownloadState.failed &&
-                    (d.error?.contains('Partial download') ?? false) &&
-                    (d.error?.contains('4/5') ?? false),
+                    d.state == DownloadState.completed &&
+                    d.downloadedPages == 4 &&
+                    d.totalPages == 5,
               ),
             ),
           ),
         ).called(1);
-
-        verifyNever(
-          () => mockNotificationService.showDownloadCompleted(
-            contentId: any(named: 'contentId'),
-            title: any(named: 'title'),
-            downloadPath: any(named: 'downloadPath'),
-          ),
-        );
       },
     );
 
@@ -372,23 +382,34 @@ void main() {
       ),
       act: (bloc) => bloc.add(const DownloadCompletedEvent(testContentId)),
       verify: (bloc) {
-        verify(() => mockRepo.saveDownloadStatus(any(
-            that: predicate<DownloadStatus>((d) =>
-                d.contentId == testContentId &&
-                d.state == DownloadState.completed &&
-                d.endTime != null)))).called(1);
+        verify(
+          () => mockRepo.saveDownloadStatus(
+            any(
+              that: predicate<DownloadStatus>(
+                (d) =>
+                    d.contentId == testContentId &&
+                    d.state == DownloadState.completed &&
+                    d.endTime != null,
+              ),
+            ),
+          ),
+        ).called(1);
 
-        verify(() => mockOfflineContentManager
-                .reconcileChapterMetadataForCompletedDownload(
-              contentId: testContentId,
-              contentPath: any(named: 'contentPath'),
-            )).called(1);
+        verify(
+          () => mockOfflineContentManager
+              .reconcileChapterMetadataForCompletedDownload(
+                contentId: testContentId,
+                contentPath: any(named: 'contentPath'),
+              ),
+        ).called(1);
 
-        verify(() => mockNotificationService.showDownloadCompleted(
-              contentId: testContentId,
-              title: any(named: 'title'),
-              downloadPath: any(named: 'downloadPath'),
-            )).called(1);
+        verify(
+          () => mockNotificationService.showDownloadCompleted(
+            contentId: testContentId,
+            title: any(named: 'title'),
+            downloadPath: any(named: 'downloadPath'),
+          ),
+        ).called(1);
       },
       expect: () => [
         isA<DownloadLoaded>().having(
@@ -419,18 +440,24 @@ void main() {
         settings: DownloadSettings.defaultSettings(),
         lastUpdated: DateTime.now(),
       ),
-      act: (bloc) => bloc.add(const DownloadProgressUpdateEvent(
-        contentId: testContentId,
-        downloadedPages: 2,
-        totalPages: 8,
-      )),
+      act: (bloc) => bloc.add(
+        const DownloadProgressUpdateEvent(
+          contentId: testContentId,
+          downloadedPages: 2,
+          totalPages: 8,
+        ),
+      ),
       expect: () => <DownloadBlocState>[],
       verify: (_) {
-        verifyNever(() => mockRepo.saveDownloadStatus(any(
+        verifyNever(
+          () => mockRepo.saveDownloadStatus(
+            any(
               that: predicate<DownloadStatus>(
                 (d) => d.contentId == testContentId && d.downloadedPages == 2,
               ),
-            )));
+            ),
+          ),
+        );
       },
     );
 
@@ -454,21 +481,27 @@ void main() {
         ),
         lastUpdated: DateTime.now(),
       ),
-      act: (_) => progressController.add(const DownloadProgressUpdate(
-        contentId: testContentId,
-        downloadedPages: -1,
-        totalPages: -2,
-      )),
+      act: (_) => progressController.add(
+        const DownloadProgressUpdate(
+          contentId: testContentId,
+          downloadedPages: -1,
+          totalPages: -2,
+        ),
+      ),
       wait: const Duration(milliseconds: 30),
       verify: (_) {
-        verify(() => mockRepo.saveDownloadStatus(any(
+        verify(
+          () => mockRepo.saveDownloadStatus(
+            any(
               that: predicate<DownloadStatus>(
                 (d) =>
                     d.contentId == testContentId &&
                     d.state == DownloadState.failed &&
                     d.error != null,
               ),
-            ))).called(1);
+            ),
+          ),
+        ).called(1);
       },
     );
 
@@ -511,8 +544,9 @@ void main() {
             url: 'https://e-hentai.org/g/123456/tokenabc/',
           ),
         );
-        when(() => mockGetChapterImagesUseCase.call(any()))
-            .thenAnswer((inv) async {
+        when(() => mockGetChapterImagesUseCase.call(any())).thenAnswer((
+          inv,
+        ) async {
           final params =
               inv.positionalArguments.single as GetChapterImagesParams;
           switch (params.chapterId.value) {
@@ -547,9 +581,11 @@ void main() {
       },
       act: (bloc) => bloc.add(const DownloadStartEvent('123456/tokenabc')),
       verify: (_) {
-        final captured = verify(
-          () => mockDownloadContentUseCase.call(captureAny()),
-        ).captured.single as DownloadContentParams;
+        final captured =
+            verify(() => mockDownloadContentUseCase.call(captureAny()))
+                    .captured
+                    .single
+                as DownloadContentParams;
 
         expect(captured.content.imageUrls, const [
           'https://img.e-hentai.org/gallery-page-1.jpg',
@@ -602,26 +638,26 @@ void main() {
         );
         when(() => mockGetChapterImagesUseCase.call(any()))
             .thenAnswer((inv) async {
-          final params =
-              inv.positionalArguments.single as GetChapterImagesParams;
-          final chapterId = params.chapterId.value;
-          if (chapterId == '__ehpart__:123456:tokenabc:0') {
-            return const ChapterData(
-              images: [
-                'https://img.e-hentai.org/part-1-page-1.jpg',
-                'https://img.e-hentai.org/part-1-page-2.jpg',
-              ],
-              nextChapterId: '__ehpart__:123456:tokenabc:1',
-              nextChapterTitle: 'Part 2',
-            );
-          }
-          if (chapterId == '__ehpart__:123456:tokenabc:1') {
-            return const ChapterData(
-              images: ['https://img.e-hentai.org/part-2-page-1.jpg'],
-            );
-          }
-          throw StateError('Unexpected chapter id: $chapterId');
-        });
+              final params =
+                  inv.positionalArguments.single as GetChapterImagesParams;
+              final chapterId = params.chapterId.value;
+              if (chapterId == '__ehpart__:123456:tokenabc:0') {
+                return const ChapterData(
+                  images: [
+                    'https://img.e-hentai.org/part-1-page-1.jpg',
+                    'https://img.e-hentai.org/part-1-page-2.jpg',
+                  ],
+                  nextChapterId: '__ehpart__:123456:tokenabc:1',
+                  nextChapterTitle: 'Part 2',
+                );
+              }
+              if (chapterId == '__ehpart__:123456:tokenabc:1') {
+                return const ChapterData(
+                  images: ['https://img.e-hentai.org/part-2-page-1.jpg'],
+                );
+              }
+              throw StateError('Unexpected chapter id: $chapterId');
+            });
         when(() => mockDownloadContentUseCase.call(any())).thenAnswer(
           (_) async => const DownloadStatus(
             contentId: '__ehpart__:123456:tokenabc:0',
@@ -657,9 +693,11 @@ void main() {
           ),
         );
 
-        final captured = verify(
-          () => mockDownloadContentUseCase.call(captureAny()),
-        ).captured.single as DownloadContentParams;
+        final captured =
+            verify(() => mockDownloadContentUseCase.call(captureAny()))
+                    .captured
+                    .single
+                as DownloadContentParams;
 
         expect(captured.content.imageUrls, const [
           'https://img.e-hentai.org/part-1-page-1.jpg',
@@ -754,23 +792,23 @@ void main() {
       setUp: () {
         when(() => mockRemoteConfigService.getRawConfig('komikcast'))
             .thenReturn({
-          'network': {
-            'headers': {'User-Agent': 'UnitTest'},
-          },
-          'api': {
-            'url': 'https://be.komikcast.cc',
-            'endpoints': {
-              'detail': {'path': '/series/{id}'},
-              'images': {'path': '/series/{id}/chapters/{chapter}'},
-            },
-          },
-        });
+              'network': {
+                'headers': {'User-Agent': 'UnitTest'},
+              },
+              'api': {
+                'url': 'https://be.komikcast.cc',
+                'endpoints': {
+                  'detail': {'path': '/series/{id}'},
+                  'images': {'path': '/series/{id}/chapters/{chapter}'},
+                },
+              },
+            });
         when(() => mockGetContentDetailUseCase.call(any()))
             .thenThrow(Exception('detail can fail for chapter download'));
         when(() => mockGetChapterImagesUseCase.call(any())).thenAnswer(
           (_) async => const ChapterData(
             images: [
-              'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/001.jpg'
+              'https://sv1.imgkc1.my.id/wp-content/img/A/ATM/017/001.jpg',
             ],
           ),
         );
@@ -787,9 +825,11 @@ void main() {
       act: (bloc) => bloc.add(const DownloadStartEvent('komikcast-slug/17')),
       wait: const Duration(milliseconds: 30),
       verify: (_) {
-        final capturedDetailCall = verify(
-          () => mockGetContentDetailUseCase.call(captureAny()),
-        ).captured.single as GetContentDetailParams;
+        final capturedDetailCall =
+            verify(() => mockGetContentDetailUseCase.call(captureAny()))
+                    .captured
+                    .single
+                as GetContentDetailParams;
         expect(capturedDetailCall.contentId.value, 'komikcast-slug');
         expect(capturedDetailCall.sourceId, 'komikcast');
 
@@ -831,9 +871,8 @@ void main() {
       setUp: () {
         when(() => mockGetContentDetailUseCase.call(any()))
             .thenThrow(Exception('detail not available for chapter id'));
-        when(() => mockGetChapterImagesUseCase.call(any())).thenAnswer(
-          (_) async => const ChapterData(images: []),
-        );
+        when(() => mockGetChapterImagesUseCase.call(any()))
+            .thenAnswer((_) async => const ChapterData(images: []));
       },
       act: (bloc) => bloc.add(const DownloadStartEvent('komikcast-slug/17')),
       wait: const Duration(milliseconds: 30),

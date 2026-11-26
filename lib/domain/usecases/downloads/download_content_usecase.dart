@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:kuron_generic/kuron_generic.dart'
     show PageResolutionPipeline, PageResolutionInput;
 import 'package:logger/logger.dart';
@@ -58,7 +59,8 @@ class DownloadContentUseCase
 
       if (effectiveSavePath.isEmpty) {
         throw const ValidationException(
-            'Custom storage root is required. Please set a download location in settings.');
+          'Custom storage root is required. Please set a download location in settings.',
+        );
       }
 
       // Check if already downloaded (optional)
@@ -128,8 +130,10 @@ class DownloadContentUseCase
       await _userDataRepository.deleteDownloadStatus(contentId);
 
       // Remove downloaded files from storage
-      await _nativeDownloadService.deleteDownloadedContent(contentId,
-          dirPath: dirPath);
+      await _nativeDownloadService.deleteDownloadedContent(
+        contentId,
+        dirPath: dirPath,
+      );
     } catch (e) {
       _logger.e('Failed to delete downloaded content: $contentId', error: e);
     }
@@ -176,8 +180,10 @@ class DownloadContentUseCase
 
       // Validate range bounds
       final clampedStart = effectiveStartPage.clamp(1, totalAvailablePages);
-      final clampedEnd =
-          effectiveEndPage.clamp(clampedStart, totalAvailablePages);
+      final clampedEnd = effectiveEndPage.clamp(
+        clampedStart,
+        totalAvailablePages,
+      );
 
       // Slice URLs: convert 1-based page numbers to 0-based indices
       final rangeImageUrls = allImageUrls.sublist(clampedStart - 1, clampedEnd);
@@ -238,8 +244,8 @@ class DownloadContentUseCase
 
       // Use the cleaned/resolved URLs from the pipeline (strips fallback '|' tokens).
       // Fallback to rangeImageUrls if pipeline returns empty (should not happen for valid sources).
-      final resolvedDownloadUrls =
-          const PageResolutionPipeline().toDownloadUrls(pipelineResult.pages);
+      final resolvedDownloadUrls = const PageResolutionPipeline()
+          .toDownloadUrls(pipelineResult.pages);
       final finalImageUrls = resolvedDownloadUrls.isNotEmpty
           ? resolvedDownloadUrls
           : rangeImageUrls;
@@ -263,6 +269,10 @@ class DownloadContentUseCase
         enableNotifications: enableNotifications,
         backupFolderName: AppStorage.backupFolderName, // ✅ Pass from config
         maxParallelImages: maxParallelImages,
+        imageTimeoutMs: (timeoutDuration?.inMilliseconds ?? 60000).clamp(
+          10000,
+          1800000,
+        ),
       );
 
       // We do NOT wait for completion here anymore.
@@ -278,8 +288,10 @@ class DownloadContentUseCase
 
       return currentStatus;
     } catch (e) {
-      _logger.e('Failed to start download for content: ${content.id}',
-          error: e);
+      _logger.e(
+        'Failed to start download for content: ${content.id}',
+        error: e,
+      );
 
       // Update status to failed
       currentStatus = currentStatus.copyWith(
@@ -341,21 +353,21 @@ class DownloadContentParams extends UseCaseParams {
 
   @override
   List<Object?> get props => [
-        content,
-        priority,
-        checkExisting,
-        throwIfExists,
-        startImmediately,
-        imageQuality,
-        timeoutDuration,
-        startPage,
-        endPage,
-        cookies,
-        headers,
-        savePath,
-        enableNotifications,
-        maxParallelImages,
-      ];
+    content,
+    priority,
+    checkExisting,
+    throwIfExists,
+    startImmediately,
+    imageQuality,
+    timeoutDuration,
+    startPage,
+    endPage,
+    cookies,
+    headers,
+    savePath,
+    enableNotifications,
+    maxParallelImages,
+  ];
 
   DownloadContentParams copyWith({
     Content? content,
