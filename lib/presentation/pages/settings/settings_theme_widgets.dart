@@ -139,42 +139,86 @@ Widget buildSettingsSwitchTile({
   required ThemeData theme,
   bool enabled = true,
 }) {
-  return Builder(
-    builder: (context) => SwitchListTile(
+  return _KuronSettingsSwitchTile(
+    title: title,
+    subtitle: subtitle,
+    value: value,
+    onChanged: onChanged,
+    theme: theme,
+    enabled: enabled,
+  );
+}
+
+class _KuronSettingsSwitchTile extends StatefulWidget {
+  const _KuronSettingsSwitchTile({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    required this.theme,
+    required this.enabled,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final Function(bool) onChanged;
+  final ThemeData theme;
+  final bool enabled;
+
+  @override
+  State<_KuronSettingsSwitchTile> createState() =>
+      _KuronSettingsSwitchTileState();
+}
+
+class _KuronSettingsSwitchTileState extends State<_KuronSettingsSwitchTile> {
+  final GlobalKey _switchKey = GlobalKey();
+
+  void _handleToggle(bool next) {
+    // Anchor on the Switch itself (trailing), not the full-width ListTile row.
+    final switchContext = _switchKey.currentContext;
+    final rect = switchContext != null
+        ? KuronFx.targetRectOf(switchContext)
+        : null;
+    if (rect != null && switchContext != null) {
+      KuronFx.triggerOn(
+        switchContext,
+        rect: rect,
+        kind: next ? KuronFxKind.toggleOn : KuronFxKind.toggleOff,
+      );
+    }
+    widget.onChanged(next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       title: Text(
-        title,
+        widget.title,
         style: TextStyleConst.bodyLarge.copyWith(
           fontWeight: FontWeight.w600,
-          color: enabled ? theme.colorScheme.onSurface : theme.disabledColor,
+          color: widget.enabled
+              ? theme.colorScheme.onSurface
+              : theme.disabledColor,
         ),
       ),
       subtitle: Text(
-        subtitle,
+        widget.subtitle,
         style: TextStyleConst.bodySmall.copyWith(
           color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
-      value: value,
-      onChanged: enabled
-          ? (next) {
-              // Wordless toggle beat, anchored on the tile (SwitchListTile
-              // does not expose its thumb RenderBox). KuronFx.triggerOn is a
-              // no-op in quiet/reduced-motion/note/reader contexts.
-              final rect = KuronFx.targetRectOf(context);
-              if (rect != null) {
-                KuronFx.triggerOn(
-                  context,
-                  rect: rect,
-                  kind: next ? KuronFxKind.toggleOn : KuronFxKind.toggleOff,
-                );
-              }
-              onChanged(next);
-            }
-          : null,
-      activeThumbColor: theme.colorScheme.primary,
-    ),
-  );
+      onTap: widget.enabled ? () => _handleToggle(!widget.value) : null,
+      trailing: Switch(
+        key: _switchKey,
+        value: widget.value,
+        onChanged: widget.enabled ? _handleToggle : null,
+        activeThumbColor: theme.colorScheme.primary,
+      ),
+    );
+  }
 }
 
 Widget buildSettingsActionTile({

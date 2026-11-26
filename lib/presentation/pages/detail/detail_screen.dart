@@ -873,6 +873,9 @@ class _DetailScreenState extends State<DetailScreen> {
           }
         },
         child: Scaffold(
+          // Avoid relayouting the heavy detail scroll view + BackdropFilter
+          // every frame when a modal dialog above it opens the keyboard.
+          resizeToAvoidBottomInset: ModalRoute.of(context)?.isCurrent ?? true,
           backgroundColor: Theme.of(context).colorScheme.surface,
           body: StreamBuilder<bool>(
             // Listen to offline mode changes

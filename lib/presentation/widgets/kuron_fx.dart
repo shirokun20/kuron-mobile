@@ -154,14 +154,11 @@ class KuronFxController {
       ..reset()
       ..forward(from: 0);
     // Toggle beats own their katalog pacing; other beats keep the 800 ms cap.
-    _ttl = Timer(
-      switch (kind) {
-        KuronFxKind.toggleOn => const Duration(milliseconds: 1450),
-        KuronFxKind.toggleOff => const Duration(milliseconds: 430),
-        _ => maxDuration,
-      },
-      _clear,
-    );
+    _ttl = Timer(switch (kind) {
+      KuronFxKind.toggleOn => const Duration(milliseconds: 1450),
+      KuronFxKind.toggleOff => const Duration(milliseconds: 430),
+      _ => maxDuration,
+    }, _clear);
   }
 
   void _clear() {
@@ -548,78 +545,147 @@ class KuronFxOverlayPainter extends CustomPainter {
     final local = frame / toggleOnFrames;
     final seconds = local * (toggleOnFrames / _toggleFps); // 30 fps time base
     final knob = _knobSpring.x(seconds).clamp(0.0, 1.15);
-    final smear = (local / 0.36).clamp(0.0, 1.0); // frames 0..11
-    final slam = 1 - ((local - 0.36) / 0.64).clamp(0.0, 1.0);
-    final crownT = ((local - 0.34) / _splashLife).clamp(0.0, 1.0);
+    final isOff = kind == KuronFxKind.toggleOff;
 
-    // Flood/slosh wash: track-shaped stroke sweeping out from the knob, with
-    // two bounded surface ripples instead of a static fill.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: center,
-          width: base * (2.2 + 1.4 * springValue) * (0.55 + 0.45 * smear),
-          height: base * 0.9,
+    // Track-sized smear/dash anchored directly on the Switch bounds.
+    final smearProgress = (local / 0.32).clamp(0.0, 1.0);
+    final smearFade = isOff
+        ? (1.0 - t)
+        : (1.0 - ((local - 0.25) / 0.25).clamp(0.0, 1.0));
+    if (smearFade > 0.02) {
+      final dir = isOff ? -1.0 : 1.0;
+      final smearPaint = Paint()
+        ..color = _accent.withValues(alpha: 0.42 * smearFade)
+        ..style = PaintingStyle.fill;
+      final smearW = base * (1.1 + 0.9 * smearProgress);
+      final smearH = base * 0.52 * (1.0 - 0.3 * smearProgress);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: center + Offset(dir * base * 0.22 * (knob - 0.5), 0),
+            width: smearW,
+            height: smearH,
+          ),
+          Radius.circular(smearH / 2),
         ),
-        Radius.circular(base * 0.45),
-      ),
-      ring,
-    );
-    for (var i = 0; i < 2; i++) {
-      final wave = math.sin(local * 14 + i * math.pi) * base * 0.18 * slam;
-      final wc = center + Offset(base * 0.6 * (i - 0.5), -base * 0.32 + wave);
-      canvas.drawLine(
-        wc - Offset(base * 0.35, 0),
-        wc + Offset(base * 0.35, 0),
-        i.isEven ? sparkA : sparkB,
+        smearPaint,
       );
-    }
 
-    // Knob stretch: ellipse smearing toward the new state, then slamming.
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: center + Offset(base * 0.5 * knob, 0),
-        width: base * (0.9 + 1.1 * knob),
-        height: base * (0.9 + 0.35 * slam),
-      ),
-      sparkA,
-    );
-
-    // Splash crown at the slam point: 7 rising tongues + 7 falling drops,
-    // scaled from the katalog's 34×26 crown to this control.
-    final scale = base / _splashW;
-    final crown = center + Offset(base * 0.5, -base * 0.45);
-    final rise = math.sin(crownT * math.pi);
-    for (var i = 0; i < 7; i++) {
-      final u = i / 6 - 0.5;
-      final h = _splashH * (1 - u.abs() * 0.7) * scale * rise;
-      final bx = crown.dx + u * _splashW * scale;
-      canvas.drawLine(
-        Offset(bx, crown.dy),
-        Offset(bx + u * h * 0.5, crown.dy - h),
-        i.isEven ? sparkA : sparkC,
-      );
-    }
-    for (var i = 0; i < 7; i++) {
-      final a = -math.pi / 2 + ((i - 3) / 3) * 1.1;
-      final v = (100 + (i % 3) * 55) * scale;
-      final tt = crownT * _splashLife;
-      final px = crown.dx + math.cos(a) * v * tt;
-      final py =
-          crown.dy - 6 * scale + math.sin(a) * v * tt + _dropGravity * scale * tt * tt;
-      final r = base * 0.06 * (1 - crownT);
-      if (r > 0) {
-        canvas.drawCircle(Offset(px, py), r, i.isEven ? sparkB : sparkC);
+      // Trailing speed lines behind the knob.
+      final linePaint = Paint()
+        ..color = _accentGold.withValues(alpha: 0.65 * smearFade)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = math.max(1.2, base * 0.08)
+        ..strokeCap = StrokeCap.round;
+      for (var i = -1; i <= 1; i++) {
+        final yOff = i * base * 0.26;
+        final xStart = center.dx - dir * base * (0.2 + 0.35 * smearProgress);
+        final xEnd = xStart - dir * base * (0.55 - 0.15 * i.abs());
+        canvas.drawLine(
+          Offset(xStart, center.dy + yOff),
+          Offset(xEnd, center.dy + yOff),
+          linePaint,
+        );
       }
     }
 
-    // Late glint (katalog kira), four-point and bounded to the last 22%.
-    if (local > 0.78) {
-      final g = ((local - 0.78) / 0.22).clamp(0.0, 1.0);
-      final s = base * 0.35 * math.sin(g * math.pi);
-      final gc = center + Offset(base * 0.9, -base * 0.6);
-      canvas.drawLine(gc - Offset(s, 0), gc + Offset(s, 0), sparkC);
-      canvas.drawLine(gc - Offset(0, s), gc + Offset(0, s), sparkC);
+    if (isOff) return;
+
+    // Splash crown at the slam point (right side of the switch):
+    // 7 filled curved tongues + 7 falling teardrop droplets.
+    final crownT = ((local - 0.28) / _splashLife).clamp(0.0, 1.0);
+    if (crownT > 0 && crownT < 1) {
+      final scale = base / _splashW;
+      final crown = center + Offset(base * 0.55, -base * 0.52);
+      final rise = math.sin(crownT * math.pi);
+      final crownAlpha = (1.0 - crownT * crownT).clamp(0.0, 1.0);
+
+      final crownFill = Paint()
+        ..color = _accent.withValues(alpha: 0.85 * crownAlpha)
+        ..style = PaintingStyle.fill;
+      final crownPath = Path();
+      final crownW = _splashW * scale * 1.15;
+      crownPath.moveTo(crown.dx - crownW * 0.55, crown.dy);
+      for (var i = 0; i < 7; i++) {
+        final u = i / 6 - 0.5;
+        final h = _splashH * (1.0 - u.abs() * 0.65) * scale * rise * 1.1;
+        final bx = crown.dx + u * crownW;
+        final half = crownW / 12;
+        final tx = bx + u * h * 0.55;
+        crownPath.quadraticBezierTo(
+          bx - half,
+          crown.dy - h * 0.35,
+          tx,
+          crown.dy - h,
+        );
+        crownPath.quadraticBezierTo(
+          bx + half,
+          crown.dy - h * 0.35,
+          bx + half,
+          crown.dy,
+        );
+      }
+      crownPath.close();
+      canvas.drawPath(crownPath, crownFill);
+
+      final dropFill = Paint()
+        ..color = _accentGold.withValues(alpha: 0.9 * crownAlpha)
+        ..style = PaintingStyle.fill;
+      for (var i = 0; i < 7; i++) {
+        final a = -math.pi / 2 + ((i - 3) / 3) * 1.05;
+        final v = (95 + (i % 3) * 50) * scale;
+        final tt = crownT * _splashLife;
+        final px = crown.dx + math.cos(a) * v * tt;
+        final py =
+            crown.dy -
+            4 * scale +
+            math.sin(a) * v * tt +
+            _dropGravity * scale * tt * tt;
+        final r = base * 0.085 * (1 - crownT);
+        if (r > 0.3) {
+          canvas.drawCircle(Offset(px, py), r, i.isEven ? crownFill : dropFill);
+        }
+      }
+    }
+
+    // Late glint (katalog kira), crisp 4-point star at top-right of the switch.
+    if (local > 0.72) {
+      final g = ((local - 0.72) / 0.28).clamp(0.0, 1.0);
+      final s = base * 0.42 * math.sin(g * math.pi);
+      if (s > 0.5) {
+        final gc = center + Offset(base * 0.85, -base * 0.58);
+        final glintPaint = Paint()
+          ..color = _accentGold.withValues(alpha: math.sin(g * math.pi))
+          ..style = PaintingStyle.fill;
+        final star = Path()
+          ..moveTo(gc.dx, gc.dy - s)
+          ..quadraticBezierTo(
+            gc.dx + s * 0.16,
+            gc.dy - s * 0.16,
+            gc.dx + s,
+            gc.dy,
+          )
+          ..quadraticBezierTo(
+            gc.dx + s * 0.16,
+            gc.dy + s * 0.16,
+            gc.dx,
+            gc.dy + s,
+          )
+          ..quadraticBezierTo(
+            gc.dx - s * 0.16,
+            gc.dy + s * 0.16,
+            gc.dx - s,
+            gc.dy,
+          )
+          ..quadraticBezierTo(
+            gc.dx - s * 0.16,
+            gc.dy - s * 0.16,
+            gc.dx,
+            gc.dy - s,
+          )
+          ..close();
+        canvas.drawPath(star, glintPaint);
+      }
     }
   }
 
@@ -739,12 +805,7 @@ abstract final class KuronFx {
     required KuronFxKind kind,
     bool isReader = false,
   }) {
-    _fire(
-      context,
-      kind: kind,
-      isReader: isReader,
-      targetRect: rect,
-    );
+    _fire(context, kind: kind, isReader: isReader, targetRect: rect);
   }
 
   /// Single shared gate + dispatch path for [trigger] and [triggerOn].
@@ -817,5 +878,4 @@ abstract final class KuronFx {
       return null;
     }
   }
-
 }

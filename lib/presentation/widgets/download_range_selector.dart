@@ -33,9 +33,7 @@ class DownloadRangeSelector extends StatefulWidget {
 }
 
 class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
-  late int startPage;
-  late int endPage;
-  late RangeValues _currentRangeValues;
+  late final ValueNotifier<({int start, int end})> _rangeNotifier;
 
   final TextEditingController _startController = TextEditingController();
   final TextEditingController _endController = TextEditingController();
@@ -54,31 +52,32 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
   @override
   void initState() {
     super.initState();
-    startPage = 1;
-    endPage = widget.totalPages;
-    _currentRangeValues = RangeValues(1, widget.totalPages.toDouble());
-    _updateControllers();
+    _rangeNotifier = ValueNotifier((start: 1, end: widget.totalPages));
+    _updateControllers(1, widget.totalPages);
   }
 
   @override
   void dispose() {
     _textSyncTimer?.cancel();
+    _rangeNotifier.dispose();
     _startController.dispose();
     _endController.dispose();
     super.dispose();
   }
 
-  void _updateControllers() {
-    _startController.text = startPage.toString();
-    _endController.text = endPage.toString();
+  void _updateControllers(int start, int end) {
+    _startController.text = start.toString();
+    _endController.text = end.toString();
   }
 
-  void _updateFromSlider() {
-    setState(() {
-      startPage = _currentRangeValues.start.round();
-      endPage = _currentRangeValues.end.round();
-      _updateControllers();
-    });
+  void _applyRange(int start, int end, {bool syncControllers = true}) {
+    if (syncControllers) {
+      _updateControllers(start, end);
+    }
+    final current = _rangeNotifier.value;
+    if (current.start != start || current.end != end) {
+      _rangeNotifier.value = (start: start, end: end);
+    }
   }
 
   void _updateFromTextFields() {
@@ -90,11 +89,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
         start >= 1 &&
         end <= widget.totalPages &&
         start <= end) {
-      setState(() {
-        startPage = start;
-        endPage = end;
-        _currentRangeValues = RangeValues(start.toDouble(), end.toDouble());
-      });
+      _applyRange(start, end, syncControllers: false);
     }
   }
 
@@ -118,10 +113,6 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
     _updateFromTextFields();
   }
 
-  int get selectedPageCount => endPage - startPage + 1;
-  double get selectionPercentage =>
-      (selectedPageCount / widget.totalPages) * 100;
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -134,282 +125,306 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
           color: colorScheme.onSurface,
         ),
       ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Content info
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                border: Border.all(color: colorScheme.outline),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${AppLocalizations.of(context)!.content}: ${widget.contentTitle}',
-                    style: TextStyleConst.bodyLarge.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${AppLocalizations.of(context)!.totalPages}: ${widget.totalPages}',
-                    style: TextStyleConst.bodySmall.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                  ),
-                  if ((widget.scopeTitle ?? '').trim().isNotEmpty) ...[
-                    const SizedBox(height: 8),
+      content: RepaintBoundary(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Content info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                  border: Border.all(color: colorScheme.outline),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      widget.scopeTitle!,
-                      style: TextStyleConst.bodyMedium.copyWith(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w700,
+                      '${AppLocalizations.of(context)!.content}: ${widget.contentTitle}',
+                      style: TextStyleConst.bodyLarge.copyWith(
+                        color: colorScheme.onSurface,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ],
-                  if ((widget.scopeDescription ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
-                      widget.scopeDescription!,
+                      '${AppLocalizations.of(context)!.totalPages}: ${widget.totalPages}',
                       style: TextStyleConst.bodySmall.copyWith(
-                        color: colorScheme.onSurfaceVariant,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
                       ),
+                    ),
+                    if ((widget.scopeTitle ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.scopeTitle!,
+                        style: TextStyleConst.bodyMedium.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                    if ((widget.scopeDescription ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.scopeDescription!,
+                        style: TextStyleConst.bodySmall.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Selection summary
+              ValueListenableBuilder<({int start, int end})>(
+                valueListenable: _rangeNotifier,
+                builder: (context, range, _) {
+                  final count = range.end - range.start + 1;
+                  final pct = (count / widget.totalPages) * 100;
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(
+                        DesignTokens.radiusMd,
+                      ),
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          AppLocalizations.of(context)!
+                              .selectedPagesTo(range.start, range.end),
+                          style: TextStyleConst.headingSmall.copyWith(
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          AppLocalizations.of(context)!
+                              .pagesPercentage(count, pct.toStringAsFixed(1)),
+                          style: TextStyleConst.bodySmall.copyWith(
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Range slider
+              Text(
+                AppLocalizations.of(context)!.useSliderToSelectRange,
+                style: TextStyleConst.bodyLarge.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              RepaintBoundary(
+                child: ValueListenableBuilder<({int start, int end})>(
+                  valueListenable: _rangeNotifier,
+                  builder: (context, range, _) => SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      activeTrackColor: colorScheme.primary,
+                      inactiveTrackColor: colorScheme.onSurface.withValues(
+                        alpha: 0.4,
+                      ),
+                      thumbColor: colorScheme.primary,
+                      overlayColor: colorScheme.primary.withValues(alpha: 0.2),
+                      valueIndicatorColor: colorScheme.primary,
+                      valueIndicatorTextStyle: TextStyleConst.bodySmall
+                          .copyWith(color: colorScheme.onPrimary),
+                    ),
+                    child: RangeSlider(
+                      values: RangeValues(
+                        range.start.toDouble(),
+                        range.end.toDouble(),
+                      ),
+                      min: 1,
+                      max: widget.totalPages.toDouble(),
+                      divisions: _sliderDivisions,
+                      labels: RangeLabels(
+                        range.start.toString(),
+                        range.end.toString(),
+                      ),
+                      onChanged: (values) {
+                        _applyRange(values.start.round(), values.end.round());
+                      },
+                    ).withKuronSliderFx(),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Manual input fields
+              Text(
+                AppLocalizations.of(context)!.orEnterManually,
+                style: TextStyleConst.bodyLarge.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _startController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      style: TextStyleConst.bodyMedium.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.startPage,
+                        labelStyle: TextStyleConst.bodySmall.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) => _scheduleTextSync(),
+                      onSubmitted: (_) => _applyTextSyncNow(),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextField(
+                      controller: _endController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.done,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        LengthLimitingTextInputFormatter(6),
+                      ],
+                      style: TextStyleConst.bodyMedium.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
+                      decoration: InputDecoration(
+                        labelText: AppLocalizations.of(context)!.endPage,
+                        labelStyle: TextStyleConst.bodySmall.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHighest,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(color: colorScheme.outline),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            DesignTokens.radiusMd,
+                          ),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onChanged: (_) => _scheduleTextSync(),
+                      onSubmitted: (_) => _applyTextSyncNow(),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Quick selection buttons
+              Text(
+                AppLocalizations.of(context)!.quickSelections,
+                style: TextStyleConst.bodyLarge.copyWith(
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<({int start, int end})>(
+                valueListenable: _rangeNotifier,
+                builder: (context, range, _) => Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildQuickSelectChip(
+                      AppLocalizations.of(context)!.allPages,
+                      1,
+                      widget.totalPages,
+                      range,
+                      context,
+                    ),
+                    _buildQuickSelectChip(
+                      AppLocalizations.of(context)!.firstHalf,
+                      1,
+                      (widget.totalPages / 2).round(),
+                      range,
+                      context,
+                    ),
+                    _buildQuickSelectChip(
+                      AppLocalizations.of(context)!.secondHalf,
+                      (widget.totalPages / 2).round() + 1,
+                      widget.totalPages,
+                      range,
+                      context,
+                    ),
+                    _buildQuickSelectChip(
+                      AppLocalizations.of(context)!.first10,
+                      1,
+                      (widget.totalPages >= 10) ? 10 : widget.totalPages,
+                      range,
+                      context,
+                    ),
+                    _buildQuickSelectChip(
+                      AppLocalizations.of(context)!.last10,
+                      (widget.totalPages >= 10) ? widget.totalPages - 9 : 1,
+                      widget.totalPages,
+                      range,
+                      context,
                     ),
                   ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Selection summary
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                border: Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.3),
                 ),
               ),
-              child: Column(
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!
-                        .selectedPagesTo(startPage, endPage),
-                    style: TextStyleConst.headingSmall.copyWith(
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    AppLocalizations.of(context)!.pagesPercentage(
-                      selectedPageCount,
-                      selectionPercentage.toStringAsFixed(1),
-                    ),
-                    style: TextStyleConst.bodySmall.copyWith(
-                      color: colorScheme.primary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Range slider
-            Text(
-              AppLocalizations.of(context)!.useSliderToSelectRange,
-              style: TextStyleConst.bodyLarge.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SliderTheme(
-              data: SliderTheme.of(context).copyWith(
-                activeTrackColor: colorScheme.primary,
-                inactiveTrackColor: colorScheme.onSurface.withValues(
-                  alpha: 0.4,
-                ),
-                thumbColor: colorScheme.primary,
-                overlayColor: colorScheme.primary.withValues(alpha: 0.2),
-                valueIndicatorColor: colorScheme.primary,
-                valueIndicatorTextStyle: TextStyleConst.bodySmall.copyWith(
-                  color: colorScheme.onPrimary,
-                ),
-              ),
-              child: RangeSlider(
-                values: _currentRangeValues,
-                min: 1,
-                max: widget.totalPages.toDouble(),
-                divisions: _sliderDivisions,
-                labels: RangeLabels(startPage.toString(), endPage.toString()),
-                onChanged: (values) {
-                  setState(() {
-                    _currentRangeValues = values;
-                  });
-                  _updateFromSlider();
-                },
-              ).withKuronSliderFx(),
-            ),
-            const SizedBox(height: 20),
-
-            // Manual input fields
-            Text(
-              AppLocalizations.of(context)!.orEnterManually,
-              style: TextStyleConst.bodyLarge.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _startController,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    style: TextStyleConst.bodyMedium.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.startPage,
-                      labelStyle: TextStyleConst.bodySmall.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(color: colorScheme.outline),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(color: colorScheme.outline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    onChanged: (_) => _scheduleTextSync(),
-                    onSubmitted: (_) => _applyTextSyncNow(),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _endController,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(6),
-                    ],
-                    style: TextStyleConst.bodyMedium.copyWith(
-                      color: colorScheme.onSurface,
-                    ),
-                    decoration: InputDecoration(
-                      labelText: AppLocalizations.of(context)!.endPage,
-                      labelStyle: TextStyleConst.bodySmall.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.7),
-                      ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(color: colorScheme.outline),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(color: colorScheme.outline),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(
-                          DesignTokens.radiusMd,
-                        ),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary,
-                          width: 2,
-                        ),
-                      ),
-                    ),
-                    onChanged: (_) => _scheduleTextSync(),
-                    onSubmitted: (_) => _applyTextSyncNow(),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Quick selection buttons
-            Text(
-              AppLocalizations.of(context)!.quickSelections,
-              style: TextStyleConst.bodyLarge.copyWith(
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _buildQuickSelectChip(
-                  AppLocalizations.of(context)!.allPages,
-                  1,
-                  widget.totalPages,
-                  context,
-                ),
-                _buildQuickSelectChip(
-                  AppLocalizations.of(context)!.firstHalf,
-                  1,
-                  (widget.totalPages / 2).round(),
-                  context,
-                ),
-                _buildQuickSelectChip(
-                  AppLocalizations.of(context)!.secondHalf,
-                  (widget.totalPages / 2).round() + 1,
-                  widget.totalPages,
-                  context,
-                ),
-                _buildQuickSelectChip(
-                  AppLocalizations.of(context)!.first10,
-                  1,
-                  (widget.totalPages >= 10) ? 10 : widget.totalPages,
-                  context,
-                ),
-                _buildQuickSelectChip(
-                  AppLocalizations.of(context)!.last10,
-                  (widget.totalPages >= 10) ? widget.totalPages - 9 : 1,
-                  widget.totalPages,
-                  context,
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
       actions: [
@@ -424,7 +439,8 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
         ),
         ElevatedButton.icon(
           onPressed: () {
-            widget.onRangeSelected(startPage, endPage);
+            final range = _rangeNotifier.value;
+            widget.onRangeSelected(range.start, range.end);
             Navigator.pop(context);
           },
           icon: const Icon(Icons.download),
@@ -443,22 +459,16 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
     String label,
     int start,
     int end,
+    ({int start, int end}) currentRange,
     BuildContext context,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isSelected = startPage == start && endPage == end;
+    final isSelected = currentRange.start == start && currentRange.end == end;
 
     return FilterChip(
       label: Text(label),
       selected: isSelected,
-      onSelected: (_) {
-        setState(() {
-          startPage = start;
-          endPage = end;
-          _currentRangeValues = RangeValues(start.toDouble(), end.toDouble());
-          _updateControllers();
-        });
-      },
+      onSelected: (_) => _applyRange(start, end),
       backgroundColor: colorScheme.surfaceContainerHighest,
       selectedColor: colorScheme.primary.withValues(alpha: 0.2),
       labelStyle: isSelected

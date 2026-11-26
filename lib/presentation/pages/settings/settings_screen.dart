@@ -222,30 +222,16 @@ class _SettingsScreenState extends State<SettingsScreen>
               theme: theme,
             ),
             buildSettingsDivider(theme),
-            buildSettingsDropdownTile(
-              context: context,
+            buildSettingsSwitchTile(
               title: l10n.kuronFxMode,
               subtitle: l10n.kuronFxModeDescription,
-              value: prefs.kuronFxMode,
-              items: [
-                DropdownMenuItem(
-                  value: KuronFxMode.quiet.storageValue,
-                  child: Text(l10n.kuronFxQuiet),
-                ),
-                DropdownMenuItem(
-                  value: KuronFxMode.standard.storageValue,
-                  child: Text(l10n.kuronFxStandard),
-                ),
-                DropdownMenuItem(
-                  value: KuronFxMode.satire.storageValue,
-                  child: Text(l10n.kuronFxSatire),
-                ),
-              ],
-              // Changing the FX mode must not launch a full-screen effect;
-              // the setting itself is the only feedback here.
-              onChanged: (v) {
-                if (v == null) return;
-                context.read<SettingsCubit>().updateKuronFxMode(v);
+              value: prefs.kuronFxMode != KuronFxMode.quiet.storageValue,
+              onChanged: (enabled) {
+                context.read<SettingsCubit>().updateKuronFxMode(
+                  enabled
+                      ? KuronFxMode.satire.storageValue
+                      : KuronFxMode.quiet.storageValue,
+                );
               },
               theme: theme,
             ),
