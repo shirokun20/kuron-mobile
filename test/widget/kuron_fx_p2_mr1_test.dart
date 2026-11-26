@@ -19,6 +19,7 @@ void main() {
       containsAll(<KuronFxKind>{
         KuronFxKind.toggleOn,
         KuronFxKind.toggleOff,
+        KuronFxKind.sliderDrag,
         KuronFxKind.sliderFling,
         KuronFxKind.tabSwitch,
         KuronFxKind.toastLand,
@@ -26,8 +27,8 @@ void main() {
         KuronFxKind.progressComplete,
       }),
     );
-    // The four original beats remain for backwards compatibility.
-    expect(KuronFxKind.values.length, 11);
+    // The four original beats + P2 beats + sliderDrag.
+    expect(KuronFxKind.values.length, 12);
   });
 
   testWidgets('triggerOn anchors on the explicit rect and bakes JEDER!', (

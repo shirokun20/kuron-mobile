@@ -873,9 +873,9 @@ class _DetailScreenState extends State<DetailScreen> {
           }
         },
         child: Scaffold(
-          // Avoid relayouting the heavy detail scroll view + BackdropFilter
-          // every frame when a modal dialog above it opens the keyboard.
-          resizeToAvoidBottomInset: ModalRoute.of(context)?.isCurrent ?? true,
+          // Keep false so dialogs/bottom-sheets opening the keyboard never
+          // relayout the heavy detail scroll view + BackdropFilter per frame.
+          resizeToAvoidBottomInset: false,
           backgroundColor: Theme.of(context).colorScheme.surface,
           body: StreamBuilder<bool>(
             // Listen to offline mode changes
@@ -909,6 +909,36 @@ class _DetailScreenState extends State<DetailScreen> {
                   }
                 },
                 child: BlocBuilder<DetailCubit, DetailState>(
+                  buildWhen: (previous, current) {
+                    // Transient side-effect states are handled by BlocListener;
+                    // rebuilding the body for them flashes an empty screen.
+                    if (current is DetailReaderReady ||
+                        current is DetailActionFailure) {
+                      return false;
+                    }
+                    if (previous is DetailReaderReady ||
+                        previous is DetailActionFailure) {
+                      return false;
+                    }
+                    if (previous is DetailLoaded && current is DetailLoaded) {
+                      if ((previous is DetailOpeningChapter) !=
+                          (current is DetailOpeningChapter)) {
+                        return true;
+                      }
+                      // Favorite icon & menu have their own BlocSelectors.
+                      return previous.content != current.content ||
+                          previous.isChaptersLoading !=
+                              current.isChaptersLoading ||
+                          previous.chapterHistory != current.chapterHistory ||
+                          previous.relatedContent != current.relatedContent ||
+                          previous.comments != current.comments ||
+                          previous.chaptersError != current.chaptersError ||
+                          previous.chaptersChallengeUrl !=
+                              current.chaptersChallengeUrl;
+                    }
+                    return previous.runtimeType != current.runtimeType ||
+                        previous != current;
+                  },
                   builder: (context, state) =>
                       _buildDetailStateBody(state, isOfflineMode),
                 ),
@@ -1451,11 +1481,6 @@ class _DetailScreenState extends State<DetailScreen> {
       (f) => f.chapters,
     );
     final hasChapters = content.chapters?.isNotEmpty == true;
-
-    Logger().i('content.sourceId: ${content.sourceId}');
-    Logger().i('hasChaptersFeature: $hasChaptersFeature');
-    Logger().i('content.chapters: ${content.chapters}');
-    Logger().i('content.chapters.isNotEmpty: ${content.chapters?.isNotEmpty}');
 
     // Chapter-based sources should either show chapter list or an explicit
     // no-chapters message (without Read Now button).

@@ -11,6 +11,7 @@ import '../../domain/entities/entities.dart';
 import '../blocs/download/download_bloc.dart';
 import 'content_list_widget.dart';
 import 'kuron_fx.dart';
+import 'kuron_sakuga_progress.dart';
 import 'kuron_squash.dart';
 import 'kuron_toast.dart';
 import '../../domain/services/ehentai_download_strategy.dart';
@@ -37,6 +38,31 @@ class DownloadButtonWidget extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     final button = BlocConsumer<DownloadBloc, DownloadBlocState>(
+      buildWhen: (previous, current) {
+        if (previous.runtimeType != current.runtimeType) return true;
+        if (previous is DownloadLoaded && current is DownloadLoaded) {
+          final prevItem = previous.downloads
+              .where(
+                (d) => ContentDownloadCache.matchesDownload(
+                  d,
+                  content.id,
+                  sourceId: content.sourceId,
+                ),
+              )
+              .firstOrNull;
+          final currItem = current.downloads
+              .where(
+                (d) => ContentDownloadCache.matchesDownload(
+                  d,
+                  content.id,
+                  sourceId: content.sourceId,
+                ),
+              )
+              .firstOrNull;
+          return prevItem != currItem;
+        }
+        return previous != current;
+      },
       listenWhen: (previous, current) {
         if (previous is! DownloadLoaded || current is! DownloadLoaded) {
           return false;
@@ -399,31 +425,25 @@ class DownloadButtonWidget extends StatelessWidget {
       height: buttonHeight,
       child: Stack(
         fit: StackFit.expand,
+        clipBehavior: Clip.none,
         children: [
-          // Enhanced progress background with rounded corners
+          // Sakuga-styled progress bar (`progress.js` inspired): eased fill,
+          // highlight streaks, and leading-edge storm cloud when FX is active.
           Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(isLarge ? 12 : 8),
-                color: backgroundColor,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(isLarge ? 12 : 8),
-                child: LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.transparent,
-                  valueColor: AlwaysStoppedAnimation<Color>(progressValueColor),
-                  minHeight: buttonHeight,
-                ),
-              ),
+            child: KuronSakugaProgressBar(
+              progress: progress,
+              height: buttonHeight,
+              borderRadius: BorderRadius.circular(isLarge ? 12 : 8),
+              color: progressValueColor,
+              backgroundColor: backgroundColor,
             ),
           ),
-          // Enhanced button with better styling
+          // Transparent button overlay so the eased progress & cloud show through.
           Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(isLarge ? 12 : 8),
               border: Border.all(
-                color: progressColor.withValues(alpha: 0.3),
+                color: progressColor.withValues(alpha: 0.35),
                 width: 1,
               ),
             ),
@@ -432,22 +452,23 @@ class DownloadButtonWidget extends StatelessWidget {
               icon: Icon(
                 Icons.pause,
                 size: isLarge ? 20 : 18,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
               label: showText
                   ? Text(
                       '${download.progressPercentage.toInt()}%',
                       style: TextStyleConst.labelLarge.copyWith(
-                        color: Theme.of(context).colorScheme.onPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: isLarge ? 16 : 14,
+                        fontWeight: FontWeight.w700,
                       ),
                     )
                   : const SizedBox.shrink(),
               style: ElevatedButton.styleFrom(
-                backgroundColor: progressColor,
-                foregroundColor: Colors.white,
-                elevation: DesignTokens.elevationMd,
-                shadowColor: progressColor.withValues(alpha: 0.3),
+                backgroundColor: Colors.transparent,
+                foregroundColor: Theme.of(context).colorScheme.onSurface,
+                elevation: 0,
+                shadowColor: Colors.transparent,
                 padding: EdgeInsets.symmetric(
                   horizontal: showText
                       ? (isLarge ? 24 : 16)

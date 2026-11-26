@@ -45,6 +45,31 @@ void main() {
     await settleAndClose(tester, injected);
   });
 
+  testWidgets(
+    'long multi-line toast anchors BYAR! above the rendered toast box',
+    (tester) async {
+      final injected = await pumpFxApp(tester, mode: KuronFxMode.standard);
+      final context = tester.element(find.byType(Scaffold));
+      const longMsg =
+          'Unduhan dimulai untuk konten dengan judul yang sangat panjang sekali '
+          'sehingga membungkus menjadi beberapa baris di layar ponsel pengguna';
+      KuronToast.show(context, message: longMsg);
+      await tester.pump();
+
+      await tester.pump(const Duration(milliseconds: 550));
+      await tester.pump();
+
+      final fx = painterOf(tester);
+      final textRect = tester.getRect(find.text(longMsg));
+      expect(fx.kind, KuronFxKind.toastLand);
+      expect(fx.targetRect!.bottom, lessThanOrEqualTo(textRect.top));
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(KuronToast.totalDuration);
+      await settleAndClose(tester, injected);
+    },
+  );
+
   testWidgets('quiet mode keeps the message as a plain snack bar', (
     tester,
   ) async {
@@ -79,7 +104,10 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 120));
-      expect(find.text(reduced ? 'reduced toast' : 'reader toast'), findsOneWidget);
+      expect(
+        find.text(reduced ? 'reduced toast' : 'reader toast'),
+        findsOneWidget,
+      );
       expect(KuronToast.isActive, isFalse);
       expect(maybePainterOf(tester), isNull);
       expect(KuronFx.activeController!.activeEntryCount, 0);

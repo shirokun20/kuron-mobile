@@ -90,8 +90,12 @@ abstract final class KuronToast {
       48,
     );
     final anchor = KuronSnackBarContent.anchorRectOf(context, contentRect);
+    final toastKey = GlobalKey();
 
-    final controller = AnimationController(vsync: vsync, duration: totalDuration);
+    final controller = AnimationController(
+      vsync: vsync,
+      duration: totalDuration,
+    );
     var landed = false;
     _controller = controller;
 
@@ -106,13 +110,26 @@ abstract final class KuronToast {
             final t = controller.value * (totalDuration.inMilliseconds / 1000);
             if (!landed && t >= _showSeconds) {
               landed = true;
-              // Fire off-frame: the overlay is already mounted and the single
-              // KuronFx burst owns its own entry/timer.
+              // Fire off-frame: measure the actual laid-out toast box so tall
+              // multi-line messages never overlap or cover the BYAR! burst.
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (_entry == entry && _controller == controller) {
+                  final liveRect = toastKey.currentContext != null
+                      ? KuronFx.targetRectOf(toastKey.currentContext!)
+                      : null;
+                  final base = liveRect ?? contentRect;
+                  final liveAnchor = Rect.fromLTWH(
+                    base.center.dx - 24,
+                    (base.top - 28).clamp(
+                      0.0,
+                      math.max(0.0, media.size.height - safeBottom - 12),
+                    ),
+                    48,
+                    12,
+                  );
                   KuronFx.triggerOn(
                     context,
-                    rect: anchor,
+                    rect: liveAnchor,
                     kind: KuronFxKind.toastLand,
                   );
                 }
@@ -123,8 +140,7 @@ abstract final class KuronToast {
             final x = _streak.x(shown);
             final v = _streak.dx(shown).abs();
             final stretch = 1 + math.min(1.5, v * 0.0017);
-            final hideT =
-                ((t - _hideStart) / _hideSeconds).clamp(0.0, 1.0);
+            final hideT = ((t - _hideStart) / _hideSeconds).clamp(0.0, 1.0);
             final scale =
                 stretch * _hide.x(hideT * _hideSeconds).clamp(0.0, 1.0);
 
@@ -153,6 +169,7 @@ abstract final class KuronToast {
                         maxWidth: math.max(0.0, media.size.width - 32),
                       ),
                       child: Material(
+                        key: toastKey,
                         color: monochrome
                             ? const Color(0xFF111111)
                             : theme.colorScheme.inverseSurface,
@@ -250,21 +267,23 @@ class _KuronToastStreakPainter extends CustomPainter {
     // Land: 3 ground puffs, 4 shards and 2 ticks under the anchor.
     _puff.color = accent;
     for (var i = 0; i < 3; i++) {
-      final p = anchor.center +
+      final p =
+          anchor.center +
           Offset((i - 1) * anchor.width * 0.8, anchor.height * 1.6);
       canvas.drawCircle(p, anchor.width * (0.22 - i * 0.04), _puff);
     }
     _shard.color = ground;
     _shard.strokeWidth = 2;
     for (var i = 0; i < 4; i++) {
-      final p = anchor.center +
-          Offset((i - 1.5) * anchor.width, anchor.height * 1.4);
+      final p =
+          anchor.center + Offset((i - 1.5) * anchor.width, anchor.height * 1.4);
       canvas.drawLine(p, p + Offset((i - 1.5) * 4, -anchor.height), _shard);
     }
     _tick.color = accent;
     _tick.strokeWidth = 2.5;
     for (var i = 0; i < 2; i++) {
-      final p = anchor.center +
+      final p =
+          anchor.center +
           Offset((i == 0 ? -1 : 1) * anchor.width * 1.8, anchor.height);
       canvas.drawLine(p, p + Offset(0, -anchor.height * 0.9), _tick);
     }

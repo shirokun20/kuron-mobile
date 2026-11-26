@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
 
@@ -42,15 +43,30 @@ class KuronSnackBarContent extends StatefulWidget {
     final measured = snackBox is RenderBox && snackBox.hasSize
         ? snackBox.size.height
         : 0.0;
+    final liveSnackTop = snackBox is RenderBox && snackBox.hasSize
+        ? snackBox.localToGlobal(Offset.zero).dy
+        : double.infinity;
     // The box can still be unsized mid slide-in; fall back to the message
     // height + Material's 14dp vertical padding on each side.
     final snackHeight = measured > 0 ? measured : contentRect.height + 28;
-    final top = snackElement == null
+    final fallbackTop = snackElement == null
         ? contentRect.top - 8
-        : screen.height - safeBottom - snackHeight;
+        : math.min(
+            screen.height - safeBottom - snackHeight,
+            contentRect.top - 14,
+          );
+    final top =
+        liveSnackTop.isFinite &&
+            liveSnackTop > 0 &&
+            liveSnackTop < screen.height
+        ? math.min(liveSnackTop, contentRect.top - 14)
+        : fallbackTop;
     const clearance = 24.0;
     const height = 12.0;
-    final upper = (screen.height - safeBottom - height).clamp(0.0, screen.height);
+    final upper = (screen.height - safeBottom - height).clamp(
+      0.0,
+      screen.height,
+    );
     final anchorTop = (top - clearance).clamp(0.0, upper);
     return Rect.fromLTWH(contentRect.center.dx - 24, anchorTop, 48, height);
   }
@@ -84,7 +100,10 @@ class _KuronSnackBarContentState extends State<KuronSnackBarContent> {
     if (contentContext == null) return;
     final contentRect = KuronFx.targetRectOf(contentContext);
     if (contentRect == null) return;
-    final anchor = KuronSnackBarContent.anchorRectOf(contentContext, contentRect);
+    final anchor = KuronSnackBarContent.anchorRectOf(
+      contentContext,
+      contentRect,
+    );
     KuronFx.triggerOn(
       contentContext,
       rect: anchor,

@@ -22,6 +22,7 @@ enum KuronFxKind {
   sheetConfirm,
   toggleOn,
   toggleOff,
+  sliderDrag,
   sliderFling,
   tabSwitch,
   toastLand,
@@ -51,6 +52,7 @@ class KuronFxController {
   int _particleCount = 0;
   int _burstCount = 0;
   bool _monochrome = false;
+  double _direction = 1.0;
   KuronSfxSpec? _wordSpec;
   ui.Image? _wordImage;
   final KuronSfxBakeCache _words = KuronSfxBakeCache();
@@ -64,6 +66,7 @@ class KuronFxController {
   static Duration animationDurationFor(KuronFxKind kind) => switch (kind) {
     KuronFxKind.toggleOn => const Duration(milliseconds: 1433),
     KuronFxKind.toggleOff => const Duration(milliseconds: 400),
+    KuronFxKind.sliderDrag => const Duration(milliseconds: 360),
     _ => const Duration(milliseconds: 720),
   };
 
@@ -103,6 +106,7 @@ class KuronFxController {
     Rect? targetRect,
     bool monochrome = false,
     bool dark = false,
+    double direction = 1.0,
   }) {
     if (mode == KuronFxMode.quiet) {
       // Switching to quiet mid-burst must also tear down an in-flight effect.
@@ -114,6 +118,7 @@ class KuronFxController {
     _kind = kind;
     _targetRect = targetRect;
     _monochrome = monochrome;
+    _direction = direction >= 0 ? 1.0 : -1.0;
     _wordSpec = _specForKind(kind);
     _wordImage = null;
     _particleCount = mode == KuronFxMode.standard
@@ -140,6 +145,7 @@ class KuronFxController {
                   targetRect: _targetRect,
                   wordSpec: _wordSpec,
                   wordImage: _wordImage,
+                  direction: _direction,
                 ),
               ),
             ),
@@ -157,6 +163,7 @@ class KuronFxController {
     _ttl = Timer(switch (kind) {
       KuronFxKind.toggleOn => const Duration(milliseconds: 1450),
       KuronFxKind.toggleOff => const Duration(milliseconds: 430),
+      KuronFxKind.sliderDrag => const Duration(milliseconds: 380),
       _ => maxDuration,
     }, _clear);
   }
@@ -238,6 +245,7 @@ class KuronFxController {
       accent: true,
     ),
     // Wordless beats: motion comes from the control's own layout / painter.
+    KuronFxKind.sliderDrag => null,
     KuronFxKind.tabSwitch => null,
     KuronFxKind.toggleOn => null,
     KuronFxKind.toggleOff => null,
@@ -290,6 +298,7 @@ class KuronFxOverlayPainter extends CustomPainter {
     this.targetRect,
     this.wordSpec,
     this.wordImage,
+    this.direction = 1.0,
   });
 
   final double progress;
@@ -305,6 +314,7 @@ class KuronFxOverlayPainter extends CustomPainter {
   /// the bake lands or when the kind carries no word.
   final KuronSfxSpec? wordSpec;
   final ui.Image? wordImage;
+  final double direction;
 
   static const _coral = Color(0xFFF1958E);
   static const _deep = Color(0xFFC76A62);
@@ -399,42 +409,54 @@ class KuronFxOverlayPainter extends CustomPainter {
       );
       return;
     }
-
-    // 1. Impact ring: thin shockwave expanding from the button perimeter,
-    // fading out fast.
-    canvas.drawCircle(center, base * 0.7 + base * 2.0 * springValue, ring);
-
-    // 2. Slash cuts: three parallel diagonal light slashes across the
-    // button (classic bottom-left -> top-right sakuga angle).
-    final slashDir = Offset(math.cos(-math.pi / 4), math.sin(-math.pi / 4));
-    final slashNormal = Offset(-slashDir.dy, slashDir.dx);
-    final slashLen = base * (1.6 + 1.2 * springValue);
-    for (var i = -1; i <= 1; i++) {
-      final c = center + slashNormal * (i * base * 0.45);
-      canvas.drawLine(c - slashDir * slashLen, c + slashDir * slashLen, slash);
+    if (kind == KuronFxKind.sliderDrag) {
+      _paintSliderDrag(canvas, center, base, t, alpha);
+      return;
     }
+    if (kind == KuronFxKind.sliderFling) {
+      _paintSliderFling(canvas, center, base, t, springValue, alpha);
+    } else {
+      // 1. Impact ring: thin shockwave expanding from the button perimeter,
+      // fading out fast.
+      canvas.drawCircle(center, base * 0.7 + base * 2.0 * springValue, ring);
 
-    // 3. Spark burst: diamond sparkles (crossed ticks) and embers flying
-    // out of the button edges. Deterministic, hard-capped count.
-    final count = particleCount.clamp(0, maxParticles);
-    for (var i = 0; i < count; i++) {
-      final angle = (i * 137.5) * math.pi / 180;
-      final dir = Offset(math.cos(angle), math.sin(angle));
-      final radius = base * (1.0 + 2.0 * springValue) * (0.55 + (i % 5) * 0.11);
-      final p = center + dir * radius;
-      final arm = base * 0.22 * (1 - 0.4 * t) * (0.6 + (i % 3) * 0.2);
-      final paint = i % 3 == 0
-          ? sparkB
-          : i % 3 == 1
-          ? sparkC
-          : sparkA;
-      if (i % 3 == 2) {
-        // Diamond sparkle: crossed ticks along the travel direction.
-        final perp = Offset(-dir.dy, dir.dx);
-        canvas.drawLine(p - dir * arm, p + dir * arm, paint);
-        canvas.drawLine(p - perp * arm * 0.6, p + perp * arm * 0.6, paint);
-      } else {
-        canvas.drawCircle(p, arm * 0.45, paint);
+      // 2. Slash cuts: three parallel diagonal light slashes across the
+      // button (classic bottom-left -> top-right sakuga angle).
+      final slashDir = Offset(math.cos(-math.pi / 4), math.sin(-math.pi / 4));
+      final slashNormal = Offset(-slashDir.dy, slashDir.dx);
+      final slashLen = base * (1.6 + 1.2 * springValue);
+      for (var i = -1; i <= 1; i++) {
+        final c = center + slashNormal * (i * base * 0.45);
+        canvas.drawLine(
+          c - slashDir * slashLen,
+          c + slashDir * slashLen,
+          slash,
+        );
+      }
+
+      // 3. Spark burst: diamond sparkles (crossed ticks) and embers flying
+      // out of the button edges. Deterministic, hard-capped count.
+      final count = particleCount.clamp(0, maxParticles);
+      for (var i = 0; i < count; i++) {
+        final angle = (i * 137.5) * math.pi / 180;
+        final dir = Offset(math.cos(angle), math.sin(angle));
+        final radius =
+            base * (1.0 + 2.0 * springValue) * (0.55 + (i % 5) * 0.11);
+        final p = center + dir * radius;
+        final arm = base * 0.22 * (1 - 0.4 * t) * (0.6 + (i % 3) * 0.2);
+        final paint = i % 3 == 0
+            ? sparkB
+            : i % 3 == 1
+            ? sparkC
+            : sparkA;
+        if (i % 3 == 2) {
+          // Diamond sparkle: crossed ticks along the travel direction.
+          final perp = Offset(-dir.dy, dir.dx);
+          canvas.drawLine(p - dir * arm, p + dir * arm, paint);
+          canvas.drawLine(p - perp * arm * 0.6, p + perp * arm * 0.6, paint);
+        } else {
+          canvas.drawCircle(p, arm * 0.45, paint);
+        }
       }
     }
 
@@ -689,6 +711,124 @@ class KuronFxOverlayPainter extends CustomPainter {
     }
   }
 
+  /// Slider mid-drag trail (katalog slider §3): cumulus puffs + horizontal
+  /// speed lines rolling behind the thumb in `-direction`.
+  void _paintSliderDrag(
+    Canvas canvas,
+    Offset center,
+    double base,
+    double t,
+    double alpha,
+  ) {
+    final dir = direction >= 0 ? 1.0 : -1.0;
+    final grow = (t / 0.25).clamp(0.0, 1.0);
+    final die = (1.0 - ((t - 0.45) / 0.55).clamp(0.0, 1.0));
+    final s = grow * die;
+    if (s <= 0.02) return;
+
+    final puffPaint = Paint()
+      ..color = _accent.withValues(alpha: 0.42 * alpha)
+      ..style = PaintingStyle.fill;
+    final puffCore = Paint()
+      ..color = _paper.withValues(alpha: 0.55 * alpha)
+      ..style = PaintingStyle.fill;
+
+    for (var i = 0; i < 3; i++) {
+      final drift = base * (0.65 + i * 0.45 + t * 1.1);
+      final px = center.dx - dir * drift;
+      final py = center.dy - base * (0.15 + i * 0.22 + t * 0.6);
+      final r = base * (0.36 - i * 0.06) * s;
+      canvas.drawCircle(Offset(px, py), r, puffPaint);
+      canvas.drawCircle(
+        Offset(px - dir * r * 0.15, py - r * 0.18),
+        r * 0.55,
+        puffCore,
+      );
+    }
+
+    final linePaint = Paint()
+      ..color = _accentGold.withValues(alpha: 0.7 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.2, base * 0.09)
+      ..strokeCap = StrokeCap.round;
+    for (var i = -1; i <= 1; i++) {
+      final yOff = i * base * 0.28;
+      final x0 = center.dx - dir * (base * 0.4 + t * base * 1.4);
+      final x1 = x0 - dir * base * (0.85 - 0.2 * i.abs()) * (1.0 - 0.5 * t);
+      canvas.drawLine(
+        Offset(x0, center.dy + yOff),
+        Offset(x1, center.dy + yOff),
+        linePaint,
+      );
+    }
+  }
+
+  /// Slider fast-release (katalog slider §3): directional crescent slash
+  /// flying ahead of the thumb (`+direction`), impact star, and trailing puffs.
+  void _paintSliderFling(
+    Canvas canvas,
+    Offset center,
+    double base,
+    double t,
+    double springValue,
+    double alpha,
+  ) {
+    final dir = direction >= 0 ? 1.0 : -1.0;
+
+    // 1. Directional crescent slash ahead of the thumb.
+    final head = (1.0 - math.pow(1.0 - (t / 0.45).clamp(0.0, 1.0), 3))
+        .toDouble();
+    final tail = math.pow(((t - 0.22) / 0.78).clamp(0.0, 1.0), 3).toDouble();
+    if (head - tail > 0.02) {
+      final arcR = base * 2.2;
+      final arcCenter =
+          center + Offset(dir * base * (0.4 + 0.8 * springValue), 0);
+      final baseAngle = dir > 0 ? 0.0 : math.pi;
+      final startA = baseAngle - 0.75 + 1.5 * tail;
+      final sweepA = 1.5 * (head - tail);
+      final slashPaint = Paint()
+        ..color = _accent.withValues(alpha: 0.85 * alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = base * 0.36 * (1.0 - 0.4 * tail)
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(
+        Rect.fromCircle(center: arcCenter, radius: arcR),
+        startA,
+        sweepA,
+        false,
+        slashPaint,
+      );
+    }
+
+    // 2. Impact spikes + directional ticks at thumb.
+    final tickPaint = Paint()
+      ..color = _accentGold.withValues(alpha: 0.9 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, base * 0.12)
+      ..strokeCap = StrokeCap.round;
+    for (var i = -2; i <= 2; i++) {
+      final a = (dir > 0 ? 0.0 : math.pi) + i * 0.45;
+      final r0 = base * (0.45 + 0.6 * t);
+      final r1 = r0 + base * (0.75 * (1.0 - t * 0.6));
+      canvas.drawLine(
+        center + Offset(math.cos(a) * r0, math.sin(a) * r0),
+        center + Offset(math.cos(a) * r1, math.sin(a) * r1),
+        tickPaint,
+      );
+    }
+
+    // 3. Trailing puffs behind the thumb.
+    final puffPaint = Paint()
+      ..color = _accentDeep.withValues(alpha: 0.35 * alpha)
+      ..style = PaintingStyle.fill;
+    for (var i = 0; i < 2; i++) {
+      final px = center.dx - dir * base * (1.2 + i * 0.8 + t * 0.9);
+      final py = center.dy - base * (0.45 + t * 0.7);
+      final r = base * (0.42 - i * 0.1) * (1.0 - 0.5 * t);
+      if (r > 0.5) canvas.drawCircle(Offset(px, py), r, puffPaint);
+    }
+  }
+
   /// Tab landing beat: three ticks above the selected label and side puffs.
   /// No word and no slash cuts — the springy indicator supplies the stretch.
   void _paintTabTicks(
@@ -725,7 +865,8 @@ class KuronFxOverlayPainter extends CustomPainter {
       old.dpr != dpr ||
       old.targetRect != targetRect ||
       old.wordSpec != wordSpec ||
-      old.wordImage != wordImage;
+      old.wordImage != wordImage ||
+      old.direction != direction;
 }
 
 /// Host widget: owns the single shared controller and keeps the whole burst
@@ -804,8 +945,15 @@ abstract final class KuronFx {
     required Rect rect,
     required KuronFxKind kind,
     bool isReader = false,
+    double direction = 1.0,
   }) {
-    _fire(context, kind: kind, isReader: isReader, targetRect: rect);
+    _fire(
+      context,
+      kind: kind,
+      isReader: isReader,
+      targetRect: rect,
+      direction: direction,
+    );
   }
 
   /// Single shared gate + dispatch path for [trigger] and [triggerOn].
@@ -814,6 +962,7 @@ abstract final class KuronFx {
     required KuronFxKind kind,
     required bool isReader,
     required Rect? targetRect,
+    double direction = 1.0,
   }) {
     // Triggered from callbacks: read once, never register a rebuild dependency.
     final mode = KuronMotionPolicy.effectiveMode(
@@ -835,6 +984,7 @@ abstract final class KuronFx {
       targetRect: targetRect,
       monochrome: KuronMotionPolicy.isNoteTheme(context, listen: false),
       dark: Theme.of(context).brightness == Brightness.dark,
+      direction: direction,
     );
   }
 

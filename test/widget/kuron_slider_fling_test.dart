@@ -10,7 +10,9 @@ import 'kuron_fx_p2_support.dart';
 /// The one-line `.withKuronSliderFx()` extension must make a real finger fling
 /// mount CAIR! above the thumb; a slow drag / quiet mode stay decoration-free.
 class _SliderHost extends StatefulWidget {
-  const _SliderHost();
+  const _SliderHost({this.isReader = false});
+
+  final bool isReader;
 
   @override
   State<_SliderHost> createState() => _SliderHostState();
@@ -26,7 +28,7 @@ class _SliderHostState extends State<_SliderHost> {
       child: Slider(
         value: _value,
         onChanged: (v) => setState(() => _value = v),
-      ).withKuronSliderFx(),
+      ).withKuronSliderFx(isReader: widget.isReader),
     ),
   );
 }
@@ -97,6 +99,64 @@ void main() {
     expect(maybePainterOf(tester), isNull);
     expect(KuronFx.activeController!.activeEntryCount, 0);
     expect(KuronFx.activeController!.activeTimerCount, 0);
+    expect(tester.takeException(), isNull);
+    await settleAndClose(tester, injected);
+  });
+
+  testWidgets('fling left sets negative direction on painter', (tester) async {
+    final injected = await pumpFxApp(
+      tester,
+      mode: KuronFxMode.standard,
+      home: const Scaffold(body: _SliderHost()),
+    );
+    await tester.fling(find.byType(Slider), const Offset(-180, 0), 4000);
+    await tester.pump();
+
+    final painter = painterOf(tester);
+    expect(painter.kind, KuronFxKind.sliderFling);
+    expect(painter.direction, -1.0);
+    expect(tester.takeException(), isNull);
+    await settleAndClose(tester, injected);
+  });
+
+  testWidgets('fast mid-drag mounts wordless sliderDrag trail', (tester) async {
+    final injected = await pumpFxApp(
+      tester,
+      mode: KuronFxMode.standard,
+      home: const Scaffold(body: _SliderHost()),
+    );
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(Slider)),
+    );
+    await tester.pump(const Duration(milliseconds: 16));
+    await gesture.moveBy(
+      const Offset(120, 0),
+      timeStamp: const Duration(milliseconds: 16),
+    );
+    await tester.pump();
+
+    final painter = painterOf(tester);
+    expect(painter.kind, KuronFxKind.sliderDrag);
+    expect(painter.wordSpec, isNull);
+    expect(painter.direction, 1.0);
+    expect(tester.takeException(), isNull);
+
+    await gesture.up();
+    await settleAndClose(tester, injected);
+  });
+
+  testWidgets('reader slider stays hard-off even in standard mode', (
+    tester,
+  ) async {
+    final injected = await pumpFxApp(
+      tester,
+      mode: KuronFxMode.standard,
+      home: const Scaffold(body: _SliderHost(isReader: true)),
+    );
+    await tester.fling(find.byType(Slider), const Offset(180, 0), 4000);
+    await tester.pump();
+    expect(maybePainterOf(tester), isNull);
+    expect(KuronFx.activeController!.activeEntryCount, 0);
     expect(tester.takeException(), isNull);
     await settleAndClose(tester, injected);
   });
