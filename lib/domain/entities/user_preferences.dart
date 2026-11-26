@@ -17,12 +17,7 @@ class BlacklistedTagMetadata extends Equatable {
   List<Object?> get props => [id, type, name, slug];
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'type': type,
-      'name': name,
-      'slug': slug,
-    };
+    return {'id': id, 'type': type, 'name': name, 'slug': slug};
   }
 
   factory BlacklistedTagMetadata.fromJson(Map<String, dynamic> json) {
@@ -78,6 +73,7 @@ class UserPreferences extends Equatable {
     this.lastAppAccess,
     this.lastHistoryCleanup,
     this.disguiseMode = 'default',
+    this.kuronFxMode = 'quiet',
     this.customStorageRoot = '',
     // Download settings
     this.autoRetry = true,
@@ -127,7 +123,9 @@ class UserPreferences extends Equatable {
   final DateTime? lastAppAccess; // Track last app access
   final DateTime? lastHistoryCleanup; // Track last cleanup
   final String
-      disguiseMode; // App disguise mode: default, calculator, notes, weather
+  disguiseMode; // App disguise mode: default, calculator, notes, weather
+  // Transient effects: quiet (default), standard, satire.
+  final String kuronFxMode;
   final String customStorageRoot;
 
   // Download settings
@@ -141,51 +139,52 @@ class UserPreferences extends Equatable {
 
   @override
   List<Object?> get props => [
-        theme,
-        defaultLanguage,
-        imageQuality,
-        autoDownload,
-        showTitles,
-        blurThumbnails,
-        usePagination,
-        columnsPortrait,
-        columnsLandscape,
-        useVolumeKeys,
-        readingDirection,
-        keepScreenOn,
-        showSystemUI,
-        downloadPath,
-        maxConcurrentDownloads,
-        autoBackup,
-        showNsfwContent,
-        blacklistedTags,
-        blacklistedTagMetadata,
-        favoriteCategories,
-        readerBrightness,
-        readerInvertColors,
-        readerShowPageNumbers,
-        readerShowProgressBar,
-        readerAutoHideUI,
-        readerAutoHideDelay,
-        readerHideOnTap,
-        readerHideOnSwipe,
-        autoCleanupHistory,
-        historyCleanupIntervalHours,
-        maxHistoryDays,
-        cleanupOnInactivity,
-        inactivityCleanupDays,
-        lastAppAccess,
-        lastHistoryCleanup,
-        disguiseMode,
-        customStorageRoot,
-        autoRetry,
-        retryAttempts,
-        retryDelaySeconds,
-        timeoutDurationSeconds,
-        enableNotifications,
-        wifiOnly,
-        pauseOnOnlineReaderOnly,
-      ];
+    theme,
+    defaultLanguage,
+    imageQuality,
+    autoDownload,
+    showTitles,
+    blurThumbnails,
+    usePagination,
+    columnsPortrait,
+    columnsLandscape,
+    useVolumeKeys,
+    readingDirection,
+    keepScreenOn,
+    showSystemUI,
+    downloadPath,
+    maxConcurrentDownloads,
+    autoBackup,
+    showNsfwContent,
+    blacklistedTags,
+    blacklistedTagMetadata,
+    favoriteCategories,
+    readerBrightness,
+    readerInvertColors,
+    readerShowPageNumbers,
+    readerShowProgressBar,
+    readerAutoHideUI,
+    readerAutoHideDelay,
+    readerHideOnTap,
+    readerHideOnSwipe,
+    autoCleanupHistory,
+    historyCleanupIntervalHours,
+    maxHistoryDays,
+    cleanupOnInactivity,
+    inactivityCleanupDays,
+    lastAppAccess,
+    lastHistoryCleanup,
+    disguiseMode,
+    kuronFxMode,
+    customStorageRoot,
+    autoRetry,
+    retryAttempts,
+    retryDelaySeconds,
+    timeoutDurationSeconds,
+    enableNotifications,
+    wifiOnly,
+    pauseOnOnlineReaderOnly,
+  ];
 
   UserPreferences copyWith({
     String? theme,
@@ -226,6 +225,7 @@ class UserPreferences extends Equatable {
     DateTime? lastAppAccess,
     DateTime? lastHistoryCleanup,
     String? disguiseMode,
+    String? kuronFxMode,
     String? customStorageRoot,
     // Download settings
     bool? autoRetry,
@@ -281,6 +281,7 @@ class UserPreferences extends Equatable {
       lastAppAccess: lastAppAccess ?? this.lastAppAccess,
       lastHistoryCleanup: lastHistoryCleanup ?? this.lastHistoryCleanup,
       disguiseMode: disguiseMode ?? this.disguiseMode,
+      kuronFxMode: kuronFxMode ?? this.kuronFxMode,
       customStorageRoot: customStorageRoot ?? this.customStorageRoot,
       // Download settings
       autoRetry: autoRetry ?? this.autoRetry,
@@ -312,8 +313,9 @@ class UserPreferences extends Equatable {
 
   // Check if tag is blacklisted
   bool isTagBlacklisted(String tagName) {
-    return blacklistedTags
-        .any((tag) => tag.toLowerCase() == tagName.toLowerCase());
+    return blacklistedTags.any(
+      (tag) => tag.toLowerCase() == tagName.toLowerCase(),
+    );
   }
 
   // Add tag to blacklist
@@ -340,8 +342,9 @@ class UserPreferences extends Equatable {
   // Remove favorite category
   UserPreferences removeFavoriteCategory(String category) {
     return copyWith(
-      favoriteCategories:
-          favoriteCategories.where((c) => c != category).toList(),
+      favoriteCategories: favoriteCategories
+          .where((c) => c != category)
+          .toList(),
     );
   }
 
@@ -410,6 +413,7 @@ class UserPreferences extends Equatable {
       'lastAppAccess': lastAppAccess?.millisecondsSinceEpoch,
       'lastHistoryCleanup': lastHistoryCleanup?.millisecondsSinceEpoch,
       'disguiseMode': disguiseMode,
+      'kuronFxMode': kuronFxMode,
       'customStorageRoot': customStorageRoot,
       // Download settings
       'autoRetry': autoRetry,
@@ -446,15 +450,20 @@ class UserPreferences extends Equatable {
       autoBackup: _safeParseBool(json['autoBackup'], false),
       showNsfwContent: _safeParseBool(json['showNsfwContent'], true),
       blacklistedTags: List<String>.from(json['blacklistedTags'] ?? []),
-      blacklistedTagMetadata:
-          _parseBlacklistedTagMetadata(json['blacklistedTagMetadata']),
+      blacklistedTagMetadata: _parseBlacklistedTagMetadata(
+        json['blacklistedTagMetadata'],
+      ),
       favoriteCategories: List<String>.from(json['favoriteCategories'] ?? []),
       readerBrightness: (json['readerBrightness'] ?? 1.0).toDouble(),
       readerInvertColors: _safeParseBool(json['readerInvertColors'], false),
-      readerShowPageNumbers:
-          _safeParseBool(json['readerShowPageNumbers'], true),
-      readerShowProgressBar:
-          _safeParseBool(json['readerShowProgressBar'], true),
+      readerShowPageNumbers: _safeParseBool(
+        json['readerShowPageNumbers'],
+        true,
+      ),
+      readerShowProgressBar: _safeParseBool(
+        json['readerShowProgressBar'],
+        true,
+      ),
       readerAutoHideUI: _safeParseBool(json['readerAutoHideUI'], true),
       readerAutoHideDelay: _safeParseInt(json['readerAutoHideDelay'], 3),
       readerHideOnTap: _safeParseBool(json['readerHideOnTap'], true),
@@ -462,31 +471,43 @@ class UserPreferences extends Equatable {
 
       // History cleanup settings
       autoCleanupHistory: _safeParseBool(json['autoCleanupHistory'], false),
-      historyCleanupIntervalHours:
-          _safeParseInt(json['historyCleanupIntervalHours'], 24),
+      historyCleanupIntervalHours: _safeParseInt(
+        json['historyCleanupIntervalHours'],
+        24,
+      ),
       maxHistoryDays: _safeParseInt(json['maxHistoryDays'], 30),
       cleanupOnInactivity: _safeParseBool(json['cleanupOnInactivity'], true),
       inactivityCleanupDays: _safeParseInt(json['inactivityCleanupDays'], 7),
       lastAppAccess: json['lastAppAccess'] != null
           ? DateTime.fromMillisecondsSinceEpoch(
-              _safeParseInt(json['lastAppAccess'], 0))
+              _safeParseInt(json['lastAppAccess'], 0),
+            )
           : null,
       lastHistoryCleanup: json['lastHistoryCleanup'] != null
           ? DateTime.fromMillisecondsSinceEpoch(
-              _safeParseInt(json['lastHistoryCleanup'], 0))
+              _safeParseInt(json['lastHistoryCleanup'], 0),
+            )
           : null,
       disguiseMode: json['disguiseMode'] ?? 'default',
+      kuronFxMode:
+          const ['quiet', 'standard', 'satire'].contains(json['kuronFxMode'])
+          ? json['kuronFxMode'] as String
+          : 'quiet',
       customStorageRoot: json['customStorageRoot'] ?? '',
       // Download settings
       autoRetry: _safeParseBool(json['autoRetry'], true),
       retryAttempts: _safeParseInt(json['retryAttempts'], 3),
       retryDelaySeconds: _safeParseInt(json['retryDelaySeconds'], 5),
-      timeoutDurationSeconds:
-          _safeParseInt(json['timeoutDurationSeconds'], 300),
+      timeoutDurationSeconds: _safeParseInt(
+        json['timeoutDurationSeconds'],
+        300,
+      ),
       enableNotifications: _safeParseBool(json['enableNotifications'], true),
       wifiOnly: _safeParseBool(json['wifiOnly'], false),
-      pauseOnOnlineReaderOnly:
-          _safeParseBool(json['pauseOnOnlineReaderOnly'], true),
+      pauseOnOnlineReaderOnly: _safeParseBool(
+        json['pauseOnOnlineReaderOnly'],
+        true,
+      ),
     );
   }
 
@@ -563,11 +584,7 @@ class UserPreferences extends Equatable {
 }
 
 // Reading direction options
-enum ReadingDirection {
-  leftToRight,
-  rightToLeft,
-  vertical,
-}
+enum ReadingDirection { leftToRight, rightToLeft, vertical }
 
 // Extension for ReadingDirection display names
 extension ReadingDirectionExtension on ReadingDirection {

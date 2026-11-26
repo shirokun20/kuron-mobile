@@ -3389,6 +3389,22 @@ class AppLocalizationsId extends AppLocalizations {
   String get disguiseWeather => 'Cuaca';
 
   @override
+  String get kuronFxMode => 'Efek Visual';
+
+  @override
+  String get kuronFxModeDescription =>
+      'Reaksi singkat saat konfirmasi, favorit, dan unduhan. Selalu mati saat membaca.';
+
+  @override
+  String get kuronFxQuiet => 'Tenang';
+
+  @override
+  String get kuronFxStandard => 'Standar';
+
+  @override
+  String get kuronFxSatire => 'Satir';
+
+  @override
   String get storagePermissionScan =>
       'Izin penyimpanan diperlukan untuk memindai folder backup';
 

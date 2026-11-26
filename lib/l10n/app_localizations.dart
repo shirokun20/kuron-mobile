@@ -5823,6 +5823,36 @@ abstract class AppLocalizations {
   /// **'Weather'**
   String get disguiseWeather;
 
+  /// No description provided for @kuronFxMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Visual Effects'**
+  String get kuronFxMode;
+
+  /// No description provided for @kuronFxModeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Transient reactions on confirm, favorite and download. Always off while reading.'**
+  String get kuronFxModeDescription;
+
+  /// No description provided for @kuronFxQuiet.
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet'**
+  String get kuronFxQuiet;
+
+  /// No description provided for @kuronFxStandard.
+  ///
+  /// In en, this message translates to:
+  /// **'Standard'**
+  String get kuronFxStandard;
+
+  /// No description provided for @kuronFxSatire.
+  ///
+  /// In en, this message translates to:
+  /// **'Satire'**
+  String get kuronFxSatire;
+
   /// No description provided for @storagePermissionScan.
   ///
   /// In en, this message translates to:

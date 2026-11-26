@@ -28,6 +28,7 @@ import 'package:nhasixapp/presentation/utils/chapter_language_presenter.dart';
 import '../../../core/services/anomaly/anomaly_store.dart';
 import '../../../core/utils/error_message_utils.dart';
 import '../../widgets/download_button_widget.dart';
+import '../../widgets/kuron_fx.dart';
 import '../../widgets/kuro_mascot.dart';
 import '../../widgets/permission_request_sheet.dart';
 import 'widgets/chapter_list_bottom_sheet.dart';
@@ -467,6 +468,9 @@ class _DetailScreenState extends State<DetailScreen> {
 
     if (!supportsOnlineFavorite) {
       await _detailCubit.toggleFavorite();
+      if (mounted) {
+        KuronFx.trigger(context, kind: KuronFxKind.favorite);
+      }
       return;
     }
 
@@ -543,6 +547,10 @@ class _DetailScreenState extends State<DetailScreen> {
         await _detailCubit.toggleFavorite();
         await _toggleOnlineFavorite(detailState);
         break;
+    }
+    if (mounted) {
+      // Confirmation of the favorite sheet: one coalesced reaction.
+      KuronFx.trigger(context, kind: KuronFxKind.favorite);
     }
   }
 

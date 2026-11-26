@@ -1,10 +1,38 @@
 import 'dart:math' as math;
 
 import 'package:material_ui/material_ui.dart';
+import 'package:nhasixapp/core/constants/colors_const.dart'
+    show AppColors, KuronColors;
 import 'package:nhasixapp/domain/entities/kuro_mood.dart';
+import 'package:nhasixapp/presentation/utils/kuron_motion_policy.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 
 export 'package:nhasixapp/domain/entities/kuro_mood.dart';
+
+const Color _thumbCoral = Color(0xFFF1958E);
+
+/// Scaled float offset: reference size 64 -> -12px, clamped -12..-6 so a
+/// 38px FAB floats -7.1px and a 44px compact streak card -8.25px instead of
+/// clipping the ears.
+double kuroScaledFloatY(double size) =>
+    (-0.1875 * size).clamp(-12.0, -6.0).toDouble();
+
+/// Sob-shake amplitude scales with the mascot instead of using raw pixels.
+double kuroScaledSobX(double size) => 3 * (size / 200.0);
+
+/// `huff` is only painted for tsundere; other moods must not repaint on it.
+bool kuroHuffAffectsRepaint(KuroMood mood) => mood == KuroMood.tsundere;
+
+/// Thumbnail size ladder used by [KuroThumbPlaceholder].
+double kuroThumbSizeForSlot(double width, double height) {
+  final finite = [width, height].where((v) => v.isFinite).toList();
+  if (finite.isEmpty) return 48;
+  final shortest = finite.reduce(math.min);
+  if (shortest >= 64) return 64;
+  if (shortest >= 56) return 56;
+  if (shortest >= 48) return 48;
+  return math.max(20.0, shortest - 8);
+}
 
 // Kuro mascot, moods A–G (mirrors prototype/kuro-mascot-prototype.html).
 //
@@ -47,22 +75,30 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
       widget.mood == KuroMood.cry || widget.mood == KuroMood.frozenCry;
 
   @override
-  void initState() {
-    super.initState();
-    _idle.repeat();
-    if (_needsCry) _cry.repeat();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _applyMotionPolicy(KuronMotionPolicy.reducedMotion(context));
+  }
+
+  void _applyMotionPolicy(bool reducedMotion) {
+    if (reducedMotion) {
+      _idle.stop();
+      if (_cry.isAnimating) _cry.stop();
+      return;
+    }
+    if (!_idle.isAnimating) _idle.repeat();
+    if (_needsCry && !_cry.isAnimating) _cry.repeat();
   }
 
   @override
   void didUpdateWidget(KuroMascot oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_needsCry && !_cry.isAnimating) {
-      _cry.repeat();
-    } else if (!_needsCry && _cry.isAnimating) {
+    if (!_needsCry && _cry.isAnimating) {
       _cry
         ..stop()
         ..reset();
     }
+    _applyMotionPolicy(KuronMotionPolicy.reducedMotion(context));
   }
 
   @override
@@ -74,57 +110,90 @@ class _KuroMascotState extends State<KuroMascot> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_idle, _cry]),
-      builder: (_, _) {
-        final t = _idle.value;
-        final c = _cry.value;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final kuron = theme.extension<KuronColors>();
+    final monochrome = KuronMotionPolicy.isNoteTheme(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isAmoled =
+        kuron?.readerBg == AppColors.readerBgAmoled ||
+        colorScheme.surface == AppColors.amoledSurface;
+    final rimColor = isAmoled
+        ? const Color(0xEAEFE6DC) // 0.9 paper
+        : const Color(0xCCC8A06A); // 0.8 warm gold
+    final discColor = monochrome
+        ? colorScheme.outline.withValues(alpha: isDark ? 0.18 : 0.10)
+        : isAmoled
+        ? const Color(0x1AEFE6DC) // 10% paper
+        : isDark
+        ? const Color(0x24EFE6DC) // 14% paper
+        : const Color(0xFF3B322C);
 
-        // blink: smooth cosine dip (0→1→0), bukan threshold jepret.
-        // Threshold kemarin (1→0.08 instan) yang bikin kedip patah.
-        final blink = _blinkBump(t);
-        final eyeScale = 1 - 0.92 * blink;
-        // breathe 3s x2 = 2 cycle/loop (nutup sempurna, tanpa sentak wrap).
-        final breathe = 1 + 0.04 * math.sin(t * math.pi * 4);
-        // floaty 3s x2 (happy + ghost only).
-        final floatY =
-            (widget.mood == KuroMood.happy || widget.mood == KuroMood.ghost)
-            ? -12 * (0.5 - 0.5 * math.cos(t * math.pi * 4))
-            : 0.0;
-        // sob-shake for cry moods (3 cycle/loop, sudah nutup).
-        final sobX = _needsCry ? 3 * math.sin(c * math.pi * 6) : 0.0;
-        // tsundere glance: stare right, flick back at the end.
-        // waiting glance: slow L-R oscillation, 1 cycle/loop (nutup mulus).
-        final glanceX = widget.mood == KuroMood.tsundere
-            ? (t < 0.3 ? 0.0 : (t < 0.8 ? 8.0 : -2.0))
-            : widget.mood == KuroMood.waiting
-            ? 5.0 * math.sin(t * math.pi * 2)
-            : 0.0;
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_idle, _cry]),
+        builder: (_, _) {
+          final t = _idle.value;
+          final c = _cry.value;
 
-        Widget body = CustomPaint(
-          size: Size.square(widget.size),
-          painter: _KuroPainter(
-            mood: widget.mood,
-            // Tsundere kedip dari base half-lid 0.75 -> 0.06, ikut bump halus.
-            eyeScale: widget.mood == KuroMood.tsundere
-                ? 0.75 * (1 - 0.92 * blink)
-                : eyeScale,
-            glanceX: glanceX,
-            tearL: _tear(const Interval(0.0, 0.7).transform(c)),
-            tearR: _tear(const Interval(0.3, 1.0).transform(c)),
-            huff: 0.5 - 0.5 * math.cos(t * math.pi * 4),
-          ),
-        );
+          // blink: smooth cosine dip (0→1→0), bukan threshold jepret.
+          final blink = _blinkBump(t);
+          final eyeScale = 1 - 0.92 * blink;
+          // breathe 3s x2 = 2 cycle/loop (nutup sempurna, tanpa sentak wrap).
+          final breathe = 1 + 0.04 * math.sin(t * math.pi * 4);
+          // Float offset scales with the mascot so small 38/44px slots do not
+          // clip the ears: 38px -> -7.1px, 44px -> -8.25px, 64px -> -12px.
+          final floatY =
+              (widget.mood == KuroMood.happy || widget.mood == KuroMood.ghost)
+              ? kuroScaledFloatY(widget.size) *
+                    (0.5 - 0.5 * math.cos(t * math.pi * 4))
+              : 0.0;
+          // Sob-shake scales with size as well (raw 3px is 8% at 38px).
+          final sobX = _needsCry
+              ? kuroScaledSobX(widget.size) * math.sin(c * math.pi * 6)
+              : 0.0;
+          // tsundere glance: stare right, flick back at the end.
+          // waiting glance: slow L-R oscillation, 1 cycle/loop (nutup mulus).
+          final glanceX = widget.mood == KuroMood.tsundere
+              ? (t < 0.3 ? 0.0 : (t < 0.8 ? 8.0 : -2.0))
+              : widget.mood == KuroMood.waiting
+              ? 5.0 * math.sin(t * math.pi * 2)
+              : 0.0;
 
-        if (widget.mood == KuroMood.frozenCry) {
-          body = Transform.rotate(angle: -8 * math.pi / 180, child: body);
-        }
+          Widget body = CustomPaint(
+            size: Size.square(widget.size),
+            painter: _KuroPainter(
+              mood: widget.mood,
+              // Tsundere kedip dari base half-lid 0.75 -> 0.06, ikut bump halus.
+              eyeScale: widget.mood == KuroMood.tsundere
+                  ? 0.75 * (1 - 0.92 * blink)
+                  : eyeScale,
+              glanceX: glanceX,
+              tearL: _tear(const Interval(0.0, 0.7).transform(c)),
+              tearR: _tear(const Interval(0.3, 1.0).transform(c)),
+              // Only tsundere paints huff; other moods must not repaint on it.
+              huff: widget.mood == KuroMood.tsundere
+                  ? 0.5 - 0.5 * math.cos(t * math.pi * 4)
+                  : 0.0,
+              monochrome: monochrome,
+              neutral: colorScheme.onSurfaceVariant,
+              neutralStrong: colorScheme.onSurface,
+              showContrastAid: isDark || isAmoled,
+              discColor: discColor,
+              rimColor: rimColor,
+            ),
+          );
 
-        return Transform.translate(
-          offset: Offset(sobX, floatY),
-          child: Transform.scale(scale: breathe, child: body),
-        );
-      },
+          if (widget.mood == KuroMood.frozenCry) {
+            body = Transform.rotate(angle: -8 * math.pi / 180, child: body);
+          }
+
+          return Transform.translate(
+            offset: Offset(sobX, floatY),
+            child: Transform.scale(scale: breathe, child: body),
+          );
+        },
+      ),
     );
   }
 
@@ -151,6 +220,12 @@ class _KuroPainter extends CustomPainter {
   final ({double dy, double opacity}) tearL;
   final ({double dy, double opacity}) tearR;
   final double huff;
+  final bool monochrome;
+  final Color neutral;
+  final Color neutralStrong;
+  final bool showContrastAid;
+  final Color discColor;
+  final Color rimColor;
 
   const _KuroPainter({
     required this.mood,
@@ -159,6 +234,12 @@ class _KuroPainter extends CustomPainter {
     required this.tearL,
     required this.tearR,
     required this.huff,
+    required this.monochrome,
+    required this.neutral,
+    required this.neutralStrong,
+    required this.showContrastAid,
+    required this.discColor,
+    required this.rimColor,
   });
 
   static const _ink = Color(0xFF1A1A1F);
@@ -167,6 +248,17 @@ class _KuroPainter extends CustomPainter {
   static const _pupil = Color(0xFF3A2B2B);
   static const _tear = Color(0xFF7DD3FC);
   static const _wail = Color(0xFF5B2226);
+  static const _sparkleYellow = Color(0xFFFFE66D);
+  static const _sparkleViolet = Color(0xFF9D8CFF);
+
+  // Note / Note Dark use only monochrome neutral tokens.
+  Color get _accent => monochrome ? neutral : _coral;
+  Color get _tearColor => monochrome ? neutral : _tear;
+  Color get _wailColor => monochrome ? neutralStrong : _wail;
+  Color get _yellow => monochrome ? neutral : _sparkleYellow;
+  Color get _violet => monochrome ? neutralStrong : _sparkleViolet;
+  Color get _brow => monochrome ? neutralStrong : const Color(0xFF55556A);
+  Color get _hoodColor => monochrome ? neutral : _hood;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -174,6 +266,11 @@ class _KuroPainter extends CustomPainter {
     canvas.scale(s);
     final w = Paint()..color = Colors.white;
     final ink = Paint()..color = Colors.black;
+
+    // Tonal disc keeps the black silhouette legible on Warm Dark / AMOLED.
+    if (showContrastAid) {
+      canvas.drawCircle(const Offset(100, 104), 92, Paint()..color = discColor);
+    }
 
     // shadow
     canvas.drawOval(
@@ -193,10 +290,23 @@ class _KuroPainter extends CustomPainter {
           ..strokeWidth = 14
           ..strokeCap = StrokeCap.round,
       );
+      if (showContrastAid) {
+        final tail = Path()
+          ..moveTo(148, 150)
+          ..quadraticBezierTo(178, 158, 168, 122);
+        canvas.drawPath(
+          tail,
+          Paint()
+            ..color = rimColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..strokeCap = StrokeCap.round,
+        );
+      }
     }
 
     final isGhost = mood == KuroMood.ghost;
-    final bodyPaint = Paint()..color = isGhost ? _hood : _ink;
+    final bodyPaint = Paint()..color = isGhost ? _hoodColor : _ink;
 
     // ears
     for (final left in [true, false]) {
@@ -213,6 +323,16 @@ class _KuroPainter extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 4,
       );
+      if (showContrastAid) {
+        canvas.drawPath(
+          ear,
+          Paint()
+            ..color = rimColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..strokeJoin = StrokeJoin.round,
+        );
+      }
       ink.style = PaintingStyle.fill;
       // inner ear pink (prototipe A/B/D/E; ghost tanpa pink)
       if (!isGhost) {
@@ -221,7 +341,7 @@ class _KuroPainter extends CustomPainter {
           ..lineTo(left ? 54.0 : 146.0, 40)
           ..lineTo(left ? 72.0 : 128.0, 52)
           ..close();
-        canvas.drawPath(inner, Paint()..color = _coral.withValues(alpha: 0.7));
+        canvas.drawPath(inner, Paint()..color = _accent.withValues(alpha: 0.7));
       }
     }
 
@@ -269,18 +389,27 @@ class _KuroPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 4,
     );
+    if (showContrastAid) {
+      canvas.drawRRect(
+        head,
+        Paint()
+          ..color = rimColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
     if (isGhost) {
       canvas.drawOval(
         const Rect.fromLTWH(58, 65, 84, 80),
         Paint()..color = _ink,
       );
       // sparkles (prototipe C)
-      _sparkle(canvas, 40, 60, 7, const Color(0xFF9D8CFF));
-      _sparkle(canvas, 162, 90, 7, const Color(0xFFFFE66D));
+      _sparkle(canvas, 40, 60, 7, _violet);
+      _sparkle(canvas, 162, 90, 7, _yellow);
     }
     if (mood == KuroMood.happy) {
       // sparkle (prototipe A)
-      _sparkle(canvas, 160, 40, 8, const Color(0xFFFFE66D));
+      _sparkle(canvas, 160, 40, 8, _yellow);
     }
 
     _eyes(canvas, w);
@@ -288,7 +417,7 @@ class _KuroPainter extends CustomPainter {
 
     // static blush (cry moods skip pulsing; widget has no cheap static hook)
     if (mood != KuroMood.cry && mood != KuroMood.frozenCry) {
-      final blush = Paint()..color = _coral.withValues(alpha: 0.8);
+      final blush = Paint()..color = _accent.withValues(alpha: 0.8);
       canvas.drawOval(const Rect.fromLTWH(44, 122, 24, 12), blush);
       canvas.drawOval(const Rect.fromLTWH(132, 122, 24, 12), blush);
     }
@@ -299,7 +428,7 @@ class _KuroPainter extends CustomPainter {
       // blush nyebrang batang hidung = malu ketahuan (ciri tsundere inti).
       canvas.drawOval(
         const Rect.fromLTWH(88, 112, 24, 10),
-        Paint()..color = _coral.withValues(alpha: 0.5),
+        Paint()..color = _accent.withValues(alpha: 0.5),
       );
       _arms(canvas);
       _huff(canvas);
@@ -375,7 +504,7 @@ class _KuroPainter extends CustomPainter {
       // alis jutek: abu terang (alis _ink kemarin tenggelam di kepala hitam),
       // tipis, tinggi, miring tajem. Marah + malu, bukan marah doang.
       final brow = Paint()
-        ..color = const Color(0xFF55556A)
+        ..color = _brow
         ..style = PaintingStyle.stroke
         ..strokeWidth = 5
         ..strokeCap = StrokeCap.round;
@@ -386,7 +515,7 @@ class _KuroPainter extends CustomPainter {
 
   void _mouth(Canvas canvas) {
     final line = Paint()
-      ..color = _coral
+      ..color = _accent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.5
       ..strokeCap = StrokeCap.round;
@@ -397,16 +526,16 @@ class _KuroPainter extends CustomPainter {
             ..moveTo(90, 144)
             ..quadraticBezierTo(100, 136, 110, 144)
             ..quadraticBezierTo(100, 152, 90, 144),
-          Paint()..color = _wail,
+          Paint()..color = _wailColor,
         );
       case KuroMood.frozenCry:
         canvas.drawRRect(
           RRect.fromLTRBR(89, 140, 111, 156, const Radius.circular(8)),
-          Paint()..color = _wail,
+          Paint()..color = _wailColor,
         );
         canvas.drawOval(
           const Rect.fromLTWH(93, 148, 14, 8),
-          Paint()..color = _coral,
+          Paint()..color = _accent,
         );
       case KuroMood.tsundere:
         // pout ASIMETRIS geser ke arah nolehan + congklak di ujung.
@@ -419,7 +548,7 @@ class _KuroPainter extends CustomPainter {
       case KuroMood.ghost:
         canvas.drawOval(
           const Rect.fromLTWH(95, 124, 10, 7),
-          Paint()..color = _coral,
+          Paint()..color = _accent,
         );
       case KuroMood.happy:
       case KuroMood.reader:
@@ -440,7 +569,7 @@ class _KuroPainter extends CustomPainter {
         mood != KuroMood.ghost) {
       canvas.drawOval(
         const Rect.fromLTWH(93, 128, 14, 10),
-        Paint()..color = _coral,
+        Paint()..color = _accent,
       );
     }
   }
@@ -450,7 +579,7 @@ class _KuroPainter extends CustomPainter {
   void _book(Canvas canvas) {
     canvas.drawRRect(
       RRect.fromLTRBR(56, 118, 144, 174, const Radius.circular(10)),
-      Paint()..color = _coral,
+      Paint()..color = _accent,
     );
     canvas.drawLine(
       const Offset(100, 118),
@@ -485,7 +614,7 @@ class _KuroPainter extends CustomPainter {
   void _cryFace(Canvas canvas) {
     if (mood == KuroMood.frozenCry) {
       // Duo-style static pools + hanging drops (the PNG-safe part).
-      final pool = Paint()..color = _tear;
+      final pool = Paint()..color = _tearColor;
       canvas.drawOval(const Rect.fromLTWH(47, 131, 26, 18), pool);
       canvas.drawOval(const Rect.fromLTWH(127, 131, 26, 18), pool);
       final hi = Paint()..color = Colors.white.withValues(alpha: 0.9);
@@ -495,7 +624,7 @@ class _KuroPainter extends CustomPainter {
     // falling drops (animated; opacity 0 when idle).
     for (final (cx, t) in [(64.0, tearL), (136.0, tearR)]) {
       if (t.opacity <= 0) continue;
-      final drop = Paint()..color = _tear.withValues(alpha: t.opacity);
+      final drop = Paint()..color = _tearColor.withValues(alpha: t.opacity);
       canvas.drawOval(
         Rect.fromCenter(center: Offset(cx, 118 + t.dy), width: 12, height: 18),
         drop,
@@ -542,7 +671,7 @@ class _KuroPainter extends CustomPainter {
         a,
         b,
         Paint()
-          ..color = _hood
+          ..color = _hoodColor
           ..style = PaintingStyle.stroke
           ..strokeWidth = 16
           ..strokeCap = StrokeCap.round,
@@ -551,7 +680,7 @@ class _KuroPainter extends CustomPainter {
     // paws: lingkaran + outline, di ujung dalam tiap lengan (dekat siku lawan).
     for (final paw in [const Offset(98, 160), const Offset(102, 160)]) {
       canvas.drawCircle(paw, 10, Paint()..color = Colors.black);
-      canvas.drawCircle(paw, 7, Paint()..color = _hood);
+      canvas.drawCircle(paw, 7, Paint()..color = _hoodColor);
     }
   }
 
@@ -562,7 +691,15 @@ class _KuroPainter extends CustomPainter {
       old.glanceX != glanceX ||
       old.tearL != tearL ||
       old.tearR != tearR ||
-      old.huff != huff;
+      old.monochrome != monochrome ||
+      old.neutral != neutral ||
+      old.neutralStrong != neutralStrong ||
+      old.showContrastAid != showContrastAid ||
+      old.discColor != discColor ||
+      old.rimColor != rimColor ||
+      // huff is only painted for tsundere; other moods must stay static
+      // between blinks instead of repainting on every display frame.
+      (kuroHuffAffectsRepaint(mood) && old.huff != huff);
 }
 
 /// Full-screen loading: Kuro waiting + message. Pengganti
@@ -581,37 +718,39 @@ class KuroLoading extends StatelessWidget {
     // Tanpa message (overlay detail/pdf) = badge LINGKARAN pas badan Kuro.
     // Ada message (reader) = rounded rect biar teks nggak kepotong.
     final circle = message == null;
-    return Container(
-      width: circle ? size + 48 : null,
-      height: circle ? size + 48 : null,
-      padding: circle
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
-      alignment: circle ? Alignment.center : null,
-      decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-        shape: circle ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: circle ? null : BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.4),
-          width: 1,
+    return RepaintBoundary(
+      child: Container(
+        width: circle ? size + 48 : null,
+        height: circle ? size + 48 : null,
+        padding: circle
+            ? EdgeInsets.zero
+            : const EdgeInsets.symmetric(horizontal: 28, vertical: 20),
+        alignment: circle ? Alignment.center : null,
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
+          shape: circle ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: circle ? null : BorderRadius.circular(20),
+          border: Border.all(
+            color: colorScheme.outline.withValues(alpha: 0.4),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          KuroMascot(mood: KuroMood.waiting, size: size),
-          if (message != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              message!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.7),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            KuroMascot(mood: KuroMood.waiting, size: size),
+            if (message != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                message!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -628,29 +767,71 @@ class KuroThumbPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return ClipRRect(
-      borderRadius: borderRadius ?? BorderRadius.zero,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          KuronShimmer(
-            baseColor: colorScheme.surfaceContainerHighest,
-            highlightColor: colorScheme.surfaceContainerHighest.withValues(
-              alpha: 0.8,
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final kuron = theme.extension<KuronColors>();
+    final monochrome = KuronMotionPolicy.isNoteTheme(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isAmoled =
+        kuron?.readerBg == AppColors.readerBgAmoled ||
+        colorScheme.surface == AppColors.amoledSurface;
+    final base = colorScheme.surfaceContainerHighest;
+    // ~0.12 luma delta so the sweep is actually visible, 1200ms linear.
+    final highlight = Color.lerp(base, colorScheme.onSurface, 0.12)!;
+    final discColor = monochrome
+        ? colorScheme.outline.withValues(alpha: isDark ? 0.18 : 0.10)
+        : isAmoled
+        ? const Color(0x1AEFE6DC)
+        : isDark
+        ? const Color(0x24EFE6DC)
+        : const Color(0xFF3B322C);
+    final rimColor = isAmoled
+        ? const Color(0xEAEFE6DC)
+        : const Color(0xCCC8A06A);
+
+    return RepaintBoundary(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Ladder 48 / 56 / 64, shrinking cleanly into smaller slots.
+          final size = kuroThumbSizeForSlot(
+            constraints.maxWidth,
+            constraints.maxHeight,
+          );
+
+          return ClipRRect(
+            borderRadius: borderRadius ?? BorderRadius.zero,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                KuronShimmer(
+                  enabled: KuronMotionPolicy.ambientAnimationsEnabled(context),
+                  period: const Duration(milliseconds: 1200),
+                  baseColor: base,
+                  highlightColor: highlight,
+                  child: Container(color: base),
+                ),
+                Center(
+                  child: SizedBox.square(
+                    dimension: size,
+                    child: CustomPaint(
+                      size: Size.square(size),
+                      painter: _KuroThumbPainter(
+                        monochrome: monochrome,
+                        neutral: colorScheme.onSurfaceVariant,
+                        accent: monochrome
+                            ? colorScheme.onSurface
+                            : _thumbCoral,
+                        showContrastAid: isDark || isAmoled,
+                        discColor: discColor,
+                        rimColor: rimColor,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            child: Container(color: colorScheme.surfaceContainerHighest),
-          ),
-          const Center(
-            child: SizedBox.square(
-              dimension: 48,
-              child: CustomPaint(
-                size: Size.square(48),
-                painter: _KuroThumbPainter(),
-              ),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -659,43 +840,76 @@ class KuroThumbPlaceholder extends StatelessWidget {
 /// Static subset of [_KuroPainter]: head + waiting eyes + coral mouth.
 /// Eye scale 1.0 (open), glance centered — the honest idle pose.
 class _KuroThumbPainter extends CustomPainter {
-  const _KuroThumbPainter();
+  const _KuroThumbPainter({
+    this.monochrome = false,
+    this.neutral = Colors.grey,
+    this.accent = _thumbCoral,
+    this.showContrastAid = false,
+    this.discColor = const Color(0xFF3B322C),
+    this.rimColor = const Color(0xCCC8A06A),
+  });
+
+  final bool monochrome;
+  final Color neutral;
+  final Color accent;
+  final bool showContrastAid;
+  final Color discColor;
+  final Color rimColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final s = size.width / 200;
     canvas.save();
     canvas.scale(s);
-    final w = Paint()..color = Colors.white;
-    final ink = Paint()..color = Colors.black;
+    final w = Paint()..color = monochrome ? neutral : Colors.white;
+    final ink = Paint()..color = monochrome ? neutral : Colors.black;
+
+    if (showContrastAid) {
+      canvas.drawCircle(const Offset(100, 104), 92, Paint()..color = discColor);
+    }
 
     for (final left in [true, false]) {
       final x = left ? 42.0 : 158.0;
-      canvas.drawPath(
-        Path()
-          ..moveTo(x, 70)
-          ..lineTo(left ? x + 10 : x - 10, 28)
-          ..lineTo(left ? x + 40 : x - 40, 52)
-          ..close(),
-        ink,
-      );
+      final ear = Path()
+        ..moveTo(x, 70)
+        ..lineTo(left ? x + 10 : x - 10, 28)
+        ..lineTo(left ? x + 40 : x - 40, 52)
+        ..close();
+      canvas.drawPath(ear, ink);
+      if (showContrastAid) {
+        canvas.drawPath(
+          ear,
+          Paint()
+            ..color = rimColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5
+            ..strokeJoin = StrokeJoin.round,
+        );
+      }
       canvas.drawPath(
         Path()
           ..moveTo(left ? 48.0 : 152.0, 62)
           ..lineTo(left ? 54.0 : 146.0, 40)
           ..lineTo(left ? 72.0 : 128.0, 52)
           ..close(),
-        Paint()..color = const Color(0xFFF1958E),
+        Paint()..color = accent,
       );
     }
 
-    canvas.drawRRect(
-      RRect.fromLTRBR(40, 50, 160, 166, const Radius.circular(58)),
-      ink,
-    );
+    final head = RRect.fromLTRBR(40, 50, 160, 166, const Radius.circular(58));
+    canvas.drawRRect(head, ink);
+    if (showContrastAid) {
+      canvas.drawRRect(
+        head,
+        Paint()
+          ..color = rimColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+    }
 
     // Waiting eyes: open white ovals, pupils centered + down 3.
-    final pupil = Paint()..color = Colors.black;
+    final pupil = Paint()..color = monochrome ? neutral : Colors.black;
     for (final cx in [72.0, 128.0]) {
       canvas.drawOval(
         Rect.fromCenter(center: Offset(cx, 106), width: 36, height: 40),
@@ -705,7 +919,7 @@ class _KuroThumbPainter extends CustomPainter {
       canvas.drawCircle(Offset(cx + 2, 106), 3, w);
     }
     final mouth = Paint()
-      ..color = const Color(0xFFF1958E)
+      ..color = accent
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
@@ -714,5 +928,11 @@ class _KuroThumbPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_KuroThumbPainter oldDelegate) => false;
+  bool shouldRepaint(_KuroThumbPainter old) =>
+      old.monochrome != monochrome ||
+      old.neutral != neutral ||
+      old.accent != accent ||
+      old.showContrastAid != showContrastAid ||
+      old.discColor != discColor ||
+      old.rimColor != rimColor;
 }

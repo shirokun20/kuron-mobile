@@ -2486,6 +2486,11 @@
   "disguiseCalculator": "计算器",
   "disguiseNotes": "笔记",
   "disguiseWeather": "天气",
+  "kuronFxMode": "视觉效果",
+  "kuronFxModeDescription": "确认、收藏和下载完成时的短暂反馈。阅读时始终关闭。",
+  "kuronFxQuiet": "安静",
+  "kuronFxStandard": "标准",
+  "kuronFxSatire": "讽刺",
   "storagePermissionScan": "扫描备份文件夹需要存储权限",
   "syncResult": "同步结果: 导入 {synced} 个，更新 {updated} 个",
   "@syncResult": {

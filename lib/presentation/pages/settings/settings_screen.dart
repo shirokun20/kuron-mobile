@@ -28,6 +28,7 @@ import '../../../core/utils/app_update_test.dart';
 import '../../widgets/app_main_drawer_widget.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/kuro_mascot.dart';
+import '../../utils/kuron_motion_policy.dart';
 import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
 import 'settings_privacy_widgets.dart';
@@ -217,6 +218,30 @@ class _SettingsScreenState extends State<SettingsScreen>
                   .toList(),
               onChanged: (v) =>
                   context.read<SettingsCubit>().updateImageQuality(v!),
+              theme: theme,
+            ),
+            buildSettingsDivider(theme),
+            buildSettingsDropdownTile(
+              context: context,
+              title: l10n.kuronFxMode,
+              subtitle: l10n.kuronFxModeDescription,
+              value: prefs.kuronFxMode,
+              items: [
+                DropdownMenuItem(
+                  value: KuronFxMode.quiet.storageValue,
+                  child: Text(l10n.kuronFxQuiet),
+                ),
+                DropdownMenuItem(
+                  value: KuronFxMode.standard.storageValue,
+                  child: Text(l10n.kuronFxStandard),
+                ),
+                DropdownMenuItem(
+                  value: KuronFxMode.satire.storageValue,
+                  child: Text(l10n.kuronFxSatire),
+                ),
+              ],
+              onChanged: (v) =>
+                  context.read<SettingsCubit>().updateKuronFxMode(v!),
               theme: theme,
             ),
             buildSettingsDivider(theme),

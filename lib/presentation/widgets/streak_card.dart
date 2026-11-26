@@ -200,10 +200,12 @@ class _StreakCardState extends State<StreakCard> with WidgetsBindingObserver {
                     ),
                   ),
                   const SizedBox(width: DesignTokens.spaceSm),
-                  KuroMascot(
-                    key: ValueKey(state.mood),
-                    mood: state.mood,
-                    size: mascotSize,
+                  RepaintBoundary(
+                    child: KuroMascot(
+                      key: ValueKey(state.mood),
+                      mood: state.mood,
+                      size: mascotSize,
+                    ),
                   ),
                 ],
               ),

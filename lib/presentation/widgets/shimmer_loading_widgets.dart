@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+import 'package:nhasixapp/presentation/utils/kuron_motion_policy.dart';
 
 class _SlidingGradientTransform extends GradientTransform {
   final double slidePercent;
@@ -53,6 +54,30 @@ class ShimmerControllerScope extends InheritedWidget {
       animation != oldWidget.animation;
 }
 
+/// Counts live [KuronShimmer] descendants. The scope ticker only runs while
+/// at least one shimmer is mounted, so wrapping a live feed does not leave an
+/// idle 60–120fps ticker running after loading finishes.
+class ShimmerActivity extends ValueNotifier<int> {
+  ShimmerActivity() : super(0);
+}
+
+class ShimmerActivityScope extends InheritedWidget {
+  const ShimmerActivityScope({
+    super.key,
+    required this.activity,
+    required super.child,
+  });
+
+  final ShimmerActivity activity;
+
+  static ShimmerActivity? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<ShimmerActivityScope>()
+      ?.activity;
+
+  @override
+  bool updateShouldNotify(ShimmerActivityScope oldWidget) => false;
+}
+
 class ShimmerScope extends StatefulWidget {
   final Widget child;
   final Duration period;
@@ -70,35 +95,84 @@ class ShimmerScope extends StatefulWidget {
 class _ShimmerScopeState extends State<ShimmerScope>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
+  final ShimmerActivity _activity = ShimmerActivity();
+  bool _reducedMotion = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.period)
-      ..repeat();
+    _controller = AnimationController(vsync: this, duration: widget.period);
+    _activity.addListener(_onActivityChanged);
+  }
+
+  void _onActivityChanged() {
+    if (_reducedMotion) {
+      if (_controller.isAnimating) _controller.stop();
+      return;
+    }
+    if (_activity.value > 0) {
+      if (!_controller.isAnimating) _controller.repeat();
+    } else if (_controller.isAnimating) {
+      _controller.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reducedMotion = KuronMotionPolicy.reducedMotion(context);
+    _onActivityChanged();
   }
 
   @override
   void dispose() {
+    _activity.removeListener(_onActivityChanged);
+    _activity.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return ShimmerControllerScope(animation: _controller, child: widget.child);
+    return ShimmerActivityScope(
+      activity: _activity,
+      child: ShimmerControllerScope(
+        animation: _controller,
+        child: widget.child,
+      ),
+    );
   }
 }
 
 class _KuronShimmerState extends State<KuronShimmer>
     with SingleTickerProviderStateMixin {
   AnimationController? _ownController;
+  ShimmerActivity? _activity;
 
   AnimationController _ensureOwnController() {
     return _ownController ??= AnimationController(
       vsync: this,
       duration: widget.period,
     )..repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final activity = ShimmerActivityScope.maybeOf(context);
+    if (!identical(activity, _activity)) {
+      if (_activity != null) _activity!.value--;
+      _activity = activity;
+      if (activity != null) activity.value++;
+    }
+    // If this shimmer later lands under a ShimmerScope, the private ticker
+    // becomes redundant: stop and release it instead of running two clocks.
+    if (_ownController != null &&
+        ShimmerControllerScope.maybeOf(context) != null) {
+      _ownController!.stop();
+      _ownController!.dispose();
+      _ownController = null;
+    }
   }
 
   @override
@@ -123,13 +197,19 @@ class _KuronShimmerState extends State<KuronShimmer>
 
   @override
   void dispose() {
+    if (_activity != null) _activity!.value--;
     _ownController?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled) return widget.child;
+    final enabled =
+        widget.enabled && KuronMotionPolicy.ambientAnimationsEnabled(context);
+    if (!enabled) {
+      _ownController?.stop();
+      return RepaintBoundary(child: widget.child);
+    }
 
     final colorScheme = Theme.of(context).colorScheme;
     final baseColor =
@@ -142,26 +222,28 @@ class _KuronShimmerState extends State<KuronShimmer>
     final sharedAnimation = ShimmerControllerScope.maybeOf(context);
     final effectiveAnimation = sharedAnimation ?? _ensureOwnController();
 
-    return AnimatedBuilder(
-      animation: effectiveAnimation,
-      builder: (context, child) {
-        return ShaderMask(
-          blendMode: BlendMode.srcIn,
-          shaderCallback: (bounds) {
-            return LinearGradient(
-              colors: [baseColor, highlightColor, baseColor],
-              stops: const [0.1, 0.5, 0.9],
-              begin: const Alignment(-1.0, -0.3),
-              end: const Alignment(1.0, 0.3),
-              transform: _SlidingGradientTransform(
-                slidePercent: effectiveAnimation.value,
-              ),
-            ).createShader(bounds);
-          },
-          child: child,
-        );
-      },
-      child: widget.child,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: effectiveAnimation,
+        builder: (context, child) {
+          return ShaderMask(
+            blendMode: BlendMode.srcIn,
+            shaderCallback: (bounds) {
+              return LinearGradient(
+                colors: [baseColor, highlightColor, baseColor],
+                stops: const [0.1, 0.5, 0.9],
+                begin: const Alignment(-1.0, -0.3),
+                end: const Alignment(1.0, 0.3),
+                transform: _SlidingGradientTransform(
+                  slidePercent: effectiveAnimation.value,
+                ),
+              ).createShader(bounds);
+            },
+            child: child,
+          );
+        },
+        child: widget.child,
+      ),
     );
   }
 }

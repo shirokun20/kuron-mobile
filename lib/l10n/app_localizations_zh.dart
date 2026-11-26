@@ -3277,6 +3277,21 @@ class AppLocalizationsZh extends AppLocalizations {
   String get disguiseWeather => '天气';
 
   @override
+  String get kuronFxMode => '视觉效果';
+
+  @override
+  String get kuronFxModeDescription => '确认、收藏和下载完成时的短暂反馈。阅读时始终关闭。';
+
+  @override
+  String get kuronFxQuiet => '安静';
+
+  @override
+  String get kuronFxStandard => '标准';
+
+  @override
+  String get kuronFxSatire => '讽刺';
+
+  @override
   String get storagePermissionScan => '扫描备份文件夹需要存储权限';
 
   @override

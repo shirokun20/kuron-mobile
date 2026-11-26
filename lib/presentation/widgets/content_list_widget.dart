@@ -11,6 +11,7 @@ import '../cubits/settings/settings_cubit.dart';
 import '../pages/main/widgets/main_featured_card.dart';
 export '../../core/services/content_card_cache_service.dart';
 import '../pages/main/widgets/main_grid_card.dart';
+import 'shimmer_loading_widgets.dart';
 
 extension StringCapitalize on String {
   String get capitalize {
@@ -262,110 +263,117 @@ class _ContentListWidgetState extends State<ContentListWidget> {
 
   // Build the content grid layout
   Widget _buildContentGrid(ContentLoaded state) {
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        // Content type header (conditional based on showHeader parameter)
-        if (widget.showHeader)
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          state.contentTypeDescription,
-                          style: TextStyleConst.bodyLarge.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
+    // One shared shimmer clock for every cover cell in this live grid.
+    return ShimmerScope(
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          // Content type header (conditional based on showHeader parameter)
+          if (widget.showHeader)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            state.contentTypeDescription,
+                            style: TextStyleConst.bodyLarge.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                           ),
-                        ),
-                        Text(
-                          '${state.totalCount} ${AppLocalizations.of(context)?.content ?? 'items'} • ${AppLocalizations.of(context)?.pageOf ?? 'Page'} ${state.currentPage} ${AppLocalizations.of(context)?.ofWord ?? 'of'} ${state.totalPages}',
-                          style: TextStyleConst.bodySmall.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface
-                                .withValues(alpha: 0.7),
+                          Text(
+                            '${state.totalCount} ${AppLocalizations.of(context)?.content ?? 'items'} • ${AppLocalizations.of(context)?.pageOf ?? 'Page'} ${state.currentPage} ${AppLocalizations.of(context)?.ofWord ?? 'of'} ${state.totalPages}',
+                            style: TextStyleConst.bodySmall.copyWith(
+                              color: Theme.of(context).colorScheme.onSurface
+                                  .withValues(alpha: 0.7),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (state.lastUpdated != null)
-                    Text(
-                      '${AppLocalizations.of(context)!.lastUpdatedLabel} ${_formatTime(state.lastUpdated!)}',
-                      style: TextStyleConst.bodySmall.copyWith(
-                        color: Theme.of(context).colorScheme.onSurface
-                            .withValues(alpha: 0.5),
+                        ],
                       ),
                     ),
-                ],
+                    if (state.lastUpdated != null)
+                      Text(
+                        '${AppLocalizations.of(context)!.lastUpdatedLabel} ${_formatTime(state.lastUpdated!)}',
+                        style: TextStyleConst.bodySmall.copyWith(
+                          color: Theme.of(context).colorScheme.onSurface
+                              .withValues(alpha: 0.5),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+          // Featured content card (first item displayed as full-width)
+          if (state.contents.isNotEmpty && state.currentPage == 1)
+            SliverToBoxAdapter(
+              child: Builder(
+                builder: (context) {
+                  final isBlacklisted =
+                      widget.shouldBlurContent?.call(state.contents.first) ??
+                      false;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                    child: MainFeaturedCard(
+                      content: state.contents.first,
+                      onTap: () =>
+                          widget.onContentTap?.call(state.contents.first),
+                      blurThumbnails: widget.blurThumbnails,
+                      isBlacklisted: isBlacklisted,
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          // Content grid (skip first item if on page 1 since it's featured)
+          SliverPadding(
+            padding: EdgeInsets.all(widget.showHeader ? 8.0 : 16.0),
+            sliver: SliverGrid(
+              gridDelegate: ResponsiveGridDelegate.createGridDelegate(
+                context,
+                context.read<SettingsCubit>(),
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  // Skip index 0 on page 1 (already shown as featured)
+                  final adjustedIndex = state.currentPage == 1
+                      ? index + 1
+                      : index;
+                  if (adjustedIndex >= state.contents.length) {
+                    return const SizedBox.shrink();
+                  }
+                  final content = state.contents[adjustedIndex];
+
+                  final isBlacklisted =
+                      widget.shouldBlurContent?.call(content) ?? false;
+                  return MainGridCard(
+                    content: content,
+                    onTap: () => widget.onContentTap?.call(content),
+                    blurThumbnails: widget.blurThumbnails,
+                    isBlacklisted: isBlacklisted,
+                  );
+                },
+                // Reduce child count by 1 on first page (featured card is separate)
+                childCount: state.currentPage == 1
+                    ? (state.contents.length > 1
+                          ? state.contents.length - 1
+                          : 0)
+                    : state.contents.length,
               ),
             ),
           ),
 
-        // Featured content card (first item displayed as full-width)
-        if (state.contents.isNotEmpty && state.currentPage == 1)
-          SliverToBoxAdapter(
-            child: Builder(
-              builder: (context) {
-                final isBlacklisted =
-                    widget.shouldBlurContent?.call(state.contents.first) ??
-                    false;
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: MainFeaturedCard(
-                    content: state.contents.first,
-                    onTap: () =>
-                        widget.onContentTap?.call(state.contents.first),
-                    blurThumbnails: widget.blurThumbnails,
-                    isBlacklisted: isBlacklisted,
-                  ),
-                );
-              },
-            ),
+          // Bottom padding
+          const SliverToBoxAdapter(
+            child: SizedBox(height: DesignTokens.spaceLg),
           ),
-
-        // Content grid (skip first item if on page 1 since it's featured)
-        SliverPadding(
-          padding: EdgeInsets.all(widget.showHeader ? 8.0 : 16.0),
-          sliver: SliverGrid(
-            gridDelegate: ResponsiveGridDelegate.createGridDelegate(
-              context,
-              context.read<SettingsCubit>(),
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                // Skip index 0 on page 1 (already shown as featured)
-                final adjustedIndex = state.currentPage == 1
-                    ? index + 1
-                    : index;
-                if (adjustedIndex >= state.contents.length) {
-                  return const SizedBox.shrink();
-                }
-                final content = state.contents[adjustedIndex];
-
-                final isBlacklisted =
-                    widget.shouldBlurContent?.call(content) ?? false;
-                return MainGridCard(
-                  content: content,
-                  onTap: () => widget.onContentTap?.call(content),
-                  blurThumbnails: widget.blurThumbnails,
-                  isBlacklisted: isBlacklisted,
-                );
-              },
-              // Reduce child count by 1 on first page (featured card is separate)
-              childCount: state.currentPage == 1
-                  ? (state.contents.length > 1 ? state.contents.length - 1 : 0)
-                  : state.contents.length,
-            ),
-          ),
-        ),
-
-        // Bottom padding
-        const SliverToBoxAdapter(child: SizedBox(height: DesignTokens.spaceLg)),
-      ],
+        ],
+      ),
     );
   }
 

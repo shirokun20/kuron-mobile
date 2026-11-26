@@ -2286,7 +2286,9 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                 children: [
                   // 1 ticker pair per kartu loading; cuma window visible±4
                   // yang hidup — masih di bawah budget thermal.
-                  const KuroMascot(mood: KuroMood.waiting, size: 64),
+                  const RepaintBoundary(
+                    child: KuroMascot(mood: KuroMood.waiting, size: 64),
+                  ),
                   SizedBox(height: DesignTokens.spaceSm),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
@@ -2370,8 +2372,18 @@ class _ExtendedImageReaderWidgetState extends State<ExtendedImageReaderWidget>
                       height: logoSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        image: const DecorationImage(
-                          image: AssetImage('assets/icons/frame.webp'),
+                        image: DecorationImage(
+                          image: ResizeImage(
+                            const AssetImage('assets/icons/frame.webp'),
+                            width:
+                                (logoSize *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                            height:
+                                (logoSize *
+                                        MediaQuery.devicePixelRatioOf(context))
+                                    .round(),
+                          ),
                           fit: BoxFit.cover,
                         ),
                         border: Border.all(

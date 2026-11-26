@@ -260,11 +260,13 @@ class _ChapterContinueFabState extends State<ChapterContinueFab> {
                         ),
                         child: Row(
                           children: [
-                            KuroMascot(
-                              mood: target.mode == ChapterContinueMode.restart
-                                  ? KuroMood.happy
-                                  : KuroMood.reader,
-                              size: 38,
+                            RepaintBoundary(
+                              child: KuroMascot(
+                                mood: target.mode == ChapterContinueMode.restart
+                                    ? KuroMood.happy
+                                    : KuroMood.reader,
+                                size: 38,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(

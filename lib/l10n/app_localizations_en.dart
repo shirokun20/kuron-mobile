@@ -3371,6 +3371,22 @@ class AppLocalizationsEn extends AppLocalizations {
   String get disguiseWeather => 'Weather';
 
   @override
+  String get kuronFxMode => 'Visual Effects';
+
+  @override
+  String get kuronFxModeDescription =>
+      'Transient reactions on confirm, favorite and download. Always off while reading.';
+
+  @override
+  String get kuronFxQuiet => 'Quiet';
+
+  @override
+  String get kuronFxStandard => 'Standard';
+
+  @override
+  String get kuronFxSatire => 'Satire';
+
+  @override
   String get storagePermissionScan =>
       'Storage permission required to scan backup folders';
 

@@ -62,35 +62,37 @@ class CombinedHomeList extends StatelessWidget {
     bool overlayLoading = false,
   }) {
     final columns = _getColumnCount(context);
-    final grid = RefreshIndicator(
-      onRefresh: () => context.read<CombinedHomeCubit>().refresh(),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          if (state.isFallback && !overlayLoading)
-            SliverToBoxAdapter(child: _buildFallbackBanner(context, state)),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            sliver: SliverGrid(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final content = state.contents[index];
-                return CombinedHomeGridCard(
-                  content: content,
-                  onTap: onContentTap == null
-                      ? null
-                      : () => onContentTap!(content),
-                );
-              }, childCount: state.contents.length),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                childAspectRatio: 0.68,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+    final grid = ShimmerScope(
+      child: RefreshIndicator(
+        onRefresh: () => context.read<CombinedHomeCubit>().refresh(),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            if (state.isFallback && !overlayLoading)
+              SliverToBoxAdapter(child: _buildFallbackBanner(context, state)),
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              sliver: SliverGrid(
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final content = state.contents[index];
+                  return CombinedHomeGridCard(
+                    content: content,
+                    onTap: onContentTap == null
+                        ? null
+                        : () => onContentTap!(content),
+                  );
+                }, childCount: state.contents.length),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  childAspectRatio: 0.68,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                ),
               ),
             ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-        ],
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          ],
+        ),
       ),
     );
 

@@ -12,6 +12,7 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/core/services/source_auth_service.dart';
 
 import '../../core/routing/app_route.dart';
+import '../utils/kuron_disposables.dart';
 import '../../domain/entities/reader_badge.dart';
 import '../../domain/usecases/reader_identity/reader_identity_usecases.dart';
 import 'common/source_selector.dart';
@@ -43,6 +44,7 @@ class _AppDrawerContentState extends State<AppDrawerContent>
   ReaderBadge? _badge;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
+  KuronConnectivityListener<List<ConnectivityResult>>? _connectivityListener;
 
   @override
   void initState() {
@@ -60,15 +62,19 @@ class _AppDrawerContentState extends State<AppDrawerContent>
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
-    Connectivity().onConnectivityChanged.listen((results) {
-      if (mounted) {
-        setState(() {});
-      }
-    });
+    _connectivityListener = KuronConnectivityListener<List<ConnectivityResult>>(
+      Connectivity().onConnectivityChanged,
+      () {
+        if (mounted) {
+          setState(() {});
+        }
+      },
+    );
   }
 
   @override
   void dispose() {
+    _connectivityListener?.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -580,9 +586,15 @@ class _AppDrawerContentState extends State<AppDrawerContent>
                   child: CircleAvatar(
                     radius: 42,
                     backgroundColor: theme.colorScheme.surface,
-                    child: const CircleAvatar(
+                    child: CircleAvatar(
                       radius: 38,
-                      backgroundImage: AssetImage('assets/icons/logo_app.webp'),
+                      backgroundImage: ResizeImage(
+                        const AssetImage('assets/icons/logo_app.webp'),
+                        width: (114 * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                        height: (76 * MediaQuery.devicePixelRatioOf(context))
+                            .round(),
+                      ),
                     ),
                   ),
                 ),

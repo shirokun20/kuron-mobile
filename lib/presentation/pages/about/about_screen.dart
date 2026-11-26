@@ -176,8 +176,19 @@ class _AboutContentState extends State<_AboutContent>
                               ),
                             ],
                           ),
-                          child: const Image(
-                            image: AssetImage('assets/icons/logo_app.webp'),
+                          child: Image(
+                            width: 120,
+                            height: 120,
+                            fit: BoxFit.cover,
+                            image: ResizeImage(
+                              const AssetImage('assets/icons/logo_app.webp'),
+                              width:
+                                  (180 * MediaQuery.devicePixelRatioOf(context))
+                                      .round(),
+                              height:
+                                  (120 * MediaQuery.devicePixelRatioOf(context))
+                                      .round(),
+                            ),
                           ),
                         ),
                       );
@@ -300,8 +311,14 @@ class _AboutContentState extends State<_AboutContent>
                       context: context,
                       applicationName: l10n.appTitle,
                       applicationVersion: _version,
-                      applicationIcon: const Image(
-                        image: AssetImage('assets/icons/frame.webp'),
+                      applicationIcon: Image(
+                        image: ResizeImage(
+                          const AssetImage('assets/icons/frame.webp'),
+                          width: (48 * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                          height: (48 * MediaQuery.devicePixelRatioOf(context))
+                              .round(),
+                        ),
                         height: 48,
                         width: 48,
                       ),

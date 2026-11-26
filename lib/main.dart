@@ -15,6 +15,7 @@ import 'package:nhasixapp/core/routing/app_router.dart';
 import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
 import 'package:nhasixapp/presentation/cubits/theme/theme_cubit.dart';
 import 'package:nhasixapp/presentation/widgets/app_privacy_overlay_gate.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 import 'package:nhasixapp/presentation/widgets/platform_not_supported_dialog.dart';
 import 'package:nhasixapp/presentation/widgets/lifecycle_watcher.dart';
 import 'package:nhasixapp/core/services/analytics_service.dart';
@@ -290,13 +291,15 @@ class MyApp extends StatelessWidget {
                           PlatformNotSupportedDialog.show(context);
                         });
                       }
-                      final child_ = Stack(
-                        children: [
-                          AppPrivacyOverlayGate(
-                            child: child ?? const SizedBox.shrink(),
-                          ),
-                          _LaunchPayloadNavigator(payload: launchPayload),
-                        ],
+                      final child_ = KuronFxHost(
+                        child: Stack(
+                          children: [
+                            AppPrivacyOverlayGate(
+                              child: child ?? const SizedBox.shrink(),
+                            ),
+                            _LaunchPayloadNavigator(payload: launchPayload),
+                          ],
+                        ),
                       );
                       if (themeState.currentTheme != 'note' &&
                           themeState.currentTheme != 'note_dark') {

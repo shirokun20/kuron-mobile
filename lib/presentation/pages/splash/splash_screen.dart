@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +11,8 @@ import 'package:nhasixapp/core/di/service_locator.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/core/routing/app_route.dart';
 import 'package:nhasixapp/presentation/blocs/splash/splash_bloc.dart';
+import 'package:nhasixapp/presentation/utils/kuron_disposables.dart';
+import 'package:nhasixapp/presentation/utils/kuron_motion_policy.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -41,6 +41,7 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
   late AnimationController _successAnimationController;
   late Animation<double> _successScaleAnimation;
   late Animation<double> _successOpacityAnimation;
+  final KuronTimerGroup _navigationTimers = KuronTimerGroup();
 
   @override
   void initState() {
@@ -91,8 +92,23 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
 
     // Start the splash process after the widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<SplashBloc>().add(SplashStartedEvent());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (KuronMotionPolicy.reducedMotion(context)) {
+      if (_dotsAnimationController.isAnimating) {
+        _dotsAnimationController.stop();
+      }
+    } else if (!_dotsAnimationController.isAnimating &&
+        _successAnimationController.status != AnimationStatus.forward &&
+        _successAnimationController.status != AnimationStatus.completed) {
+      _dotsAnimationController.repeat(reverse: true);
+    }
   }
 
   void _showOfflineOptionsDialog(BuildContext context) {
@@ -222,8 +238,16 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
     );
   }
 
+  /// Coalesce navigation: at most one pending timer at a time.
+  void _scheduleNavigation() {
+    _navigationTimers.scheduleSingle(DesignTokens.durationPageTurn, () {
+      if (mounted) context.go(AppRoute.main);
+    });
+  }
+
   @override
   void dispose() {
+    _navigationTimers.dispose();
     _dotsAnimationController.dispose();
     _successAnimationController.dispose();
     super.dispose();
@@ -262,442 +286,484 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
 
   @override
   Widget build(BuildContext context) {
-    final kuron = Theme.of(context).extension<KuronColors>();
+    final theme = Theme.of(context);
+    final kuron = theme.extension<KuronColors>();
+    final note = KuronMotionPolicy.isNoteTheme(context);
+    // Note / Note Dark must stay strictly monochrome.
+    final accent = note
+        ? theme.colorScheme.onSurfaceVariant
+        : AppColors.brandCoral;
 
-    return Scaffold(
-      backgroundColor: kuron?.readerBg ?? Theme.of(context).colorScheme.surface,
-      body: BlocConsumer<SplashBloc, SplashState>(
-        listenWhen: (previous, current) => previous != current,
-        listener: (_, state) {
-          if (!mounted) return;
+    return RepaintBoundary(
+      child: Scaffold(
+        backgroundColor: kuron?.readerBg ?? theme.colorScheme.surface,
+        body: BlocConsumer<SplashBloc, SplashState>(
+          listenWhen: (previous, current) => previous != current,
+          listener: (_, state) {
+            if (!mounted) return;
 
-          if (state is SplashSuccess) {
-            // Stop dots animation and start success animation
-            _dotsAnimationController.stop();
-            _successAnimationController.forward().then((_) {
-              // Navigate after success animation completes
-              Timer(DesignTokens.durationPageTurn, () {
-                // Optimized from 1200ms
-                if (mounted) {
-                  context.go(AppRoute.main);
-                }
+            if (state is SplashSuccess ||
+                state is SplashOfflineReady ||
+                state is SplashOfflineMode) {
+              _dotsAnimationController.stop();
+              _successAnimationController.forward().then((_) {
+                if (!mounted) return;
+                _scheduleNavigation();
               });
-            });
-          } else if (state is SplashOfflineReady) {
-            // Has offline content - auto navigate to main
-            _dotsAnimationController.stop();
-            _successAnimationController.forward().then((_) {
-              Timer(DesignTokens.durationPageTurn, () {
-                if (mounted) {
-                  context.go(AppRoute.main);
-                }
-              });
-            });
-          } else if (state is SplashOfflineMode) {
-            // Limited offline mode - still can navigate
-            _dotsAnimationController.stop();
-            _successAnimationController.forward().then((_) {
-              Timer(DesignTokens.durationPageTurn, () {
-                if (mounted) {
-                  context.go(AppRoute.main);
-                }
-              });
-            });
-          } else if (state is SplashError) {
-            // Stop dots animation on error
-            _dotsAnimationController.stop();
-          }
-        },
-        builder: (context, state) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Kuro mascot: mood follows bloc state, sync ring wraps it.
-                // Initializing -> happy, bypass -> reader, success -> happy,
-                // offline-empty -> tsundere, error -> cry.
-                TweenAnimationBuilder<double>(
-                  tween: Tween(begin: 0, end: _progressForState(state)),
-                  duration: const Duration(milliseconds: 500),
-                  builder: (context, ring, _) {
-                    return Stack(
-                      alignment: Alignment.center,
+            } else if (state is SplashError) {
+              // Stop dots animation on error
+              _dotsAnimationController.stop();
+            }
+          },
+          builder: (context, state) {
+            return LayoutBuilder(
+              builder: (context, constraints) => SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Segmented sync ring (ikut Figma Group.png: 4 segmen
-                        // rounded, yang nyala = round(progress*4)).
-                        _SyncRing(progress: ring, size: 260),
-                        // inner thin ring (ikut referensi: ring tebal progres +
-                        // ring tipis dalam).
-                        Container(
-                          width: 216,
-                          height: 216,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.brandCoral.withValues(
-                                alpha: 0.25,
-                              ),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainer
-                                .withValues(alpha: 0.3),
-                            border: Border.all(
-                              color: AppColors.brandCoral.withValues(
-                                alpha: 0.3,
-                              ),
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.brandCoral.withValues(
-                                  alpha: 0.2,
+                        // Kuro mascot: mood follows bloc state, sync ring wraps it.
+                        // Initializing -> happy, bypass -> reader, success -> happy,
+                        // offline-empty -> tsundere, error -> cry.
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: _progressForState(state)),
+                          duration: const Duration(milliseconds: 500),
+                          builder: (context, ring, _) {
+                            return Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Segmented sync ring (ikut Figma Group.png: 4 segmen
+                                // rounded, yang nyala = round(progress*4)).
+                                _SyncRing(
+                                  progress: ring,
+                                  size: 260,
+                                  lit: accent.withValues(alpha: 0.9),
+                                  dim: accent.withValues(alpha: 0.18),
                                 ),
-                                blurRadius: 30,
-                                spreadRadius: 4,
-                              ),
-                            ],
-                          ),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 300),
-                            transitionBuilder: (child, anim) =>
-                                ScaleTransition(scale: anim, child: child),
-                            child: KuroMascot(
-                              key: ValueKey(_moodForState(state)),
-                              mood: _moodForState(state),
-                              size: 184,
-                            ),
-                          ),
+                                // inner thin ring (ikut referensi: ring tebal progres +
+                                // ring tipis dalam).
+                                Container(
+                                  width: 216,
+                                  height: 216,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: accent.withValues(alpha: 0.25),
+                                      width: 1,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainer
+                                        .withValues(alpha: 0.3),
+                                    border: Border.all(
+                                      color: accent.withValues(alpha: 0.3),
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: accent.withValues(alpha: 0.2),
+                                        blurRadius: 30,
+                                        spreadRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    transitionBuilder: (child, anim) =>
+                                        ScaleTransition(
+                                          scale: anim,
+                                          child: child,
+                                        ),
+                                    child: KuroMascot(
+                                      key: ValueKey(_moodForState(state)),
+                                      mood: _moodForState(state),
+                                      size: 184,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
-                      ],
-                    );
-                  },
-                ),
 
-                const SizedBox(height: 40),
+                        const SizedBox(height: 40),
 
-                // App title (proporsi ikut Figma: judul 0.21 lebar layar)
-                Text(
-                  AppLocalizations.of(context)!.appTitle,
-                  style: TextStyleConst.headingLarge.copyWith(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    letterSpacing: 1.2,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                SizedBox(height: DesignTokens.spaceSm),
-                Text(
-                  AppLocalizations.of(context)?.appSubtitle ??
-                      AppLocalizations.of(context)!.enhancedReadingExperience,
-                  style: TextStyleConst.bodyMedium.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 15,
-                  ),
-                ),
-
-                const SizedBox(height: 40),
-
-                // Loading States with enhanced progress indicators
-                if (state is SplashInitializing ||
-                    state is SplashBypassInProgress)
-                  Column(
-                    children: [
-                      // Single status pill (ikut Figma Group.png: 1 pill +
-                      // dots, simple. Gear + detail text + linear bar dibuang).
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 48),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 14,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainer
-                                .withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(
-                              DesignTokens.radius2xl,
-                            ),
-                          ),
-                          child: Text(
-                            state is SplashInitializing
-                                ? '${AppLocalizations.of(context)?.settingUpComponents ?? AppLocalizations.of(context)!.settingUpConnection} ${(_progressForState(state) * 100).toInt()}%'
-                                : '${AppLocalizations.of(context)?.bypassingProtection ?? AppLocalizations.of(context)!.bypassingProtection} ${(_progressForState(state) * 100).toInt()}%',
-                            style: TextStyleConst.bodyMedium.copyWith(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontSize: 18,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildProgressDots(),
-                    ],
-                  ),
-
-                // Success State
-                if (state is SplashSuccess) _buildSuccessState(state),
-
-                // Offline States
-                if (state is SplashOfflineDetected)
-                  Column(
-                    children: [
-                      SizedBox(
-                        width: 60,
-                        height: 60,
-                        child: CircularProgressIndicator(
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                          strokeWidth: 4,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceXl),
-                      Icon(
-                        Icons.wifi_off,
-                        size: 48,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      SizedBox(height: DesignTokens.spaceLg),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _resolveSplashMessage(context, state.message),
-                          style: TextStyleConst.headingSmall.copyWith(
+                        // App title (proporsi ikut Figma: judul 0.21 lebar layar)
+                        Text(
+                          AppLocalizations.of(context)!.appTitle,
+                          style: TextStyleConst.headingLarge.copyWith(
                             color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceLg),
-                      _buildProgressDots(),
-                    ],
-                  ),
-
-                if (state is SplashOfflineReady)
-                  Column(
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer
-                              .withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.primary
-                                .withValues(alpha: 0.3),
-                            width: 2,
+                            letterSpacing: 1.2,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        child: Icon(
-                          Icons.offline_bolt,
-                          size: 48,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceXl),
-                      Text(
-                        AppLocalizations.of(context)!
-                            .offlineContentAvailableLabel,
-                        style: TextStyleConst.headingMedium.copyWith(
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: DesignTokens.spaceSm),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _resolveSplashMessage(
-                            context,
-                            state.message,
-                            offlineCount: state.offlineContentCount,
-                          ),
-                          style: TextStyleConst.bodyMedium.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceLg),
-                      _buildProgressDots(),
-                    ],
-                  ),
-
-                if (state is SplashOfflineEmpty)
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.cloud_off,
-                        size: 64,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                      SizedBox(height: DesignTokens.spaceXl),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          AppLocalizations.of(context)!.noInternetConnection,
-                          style: TextStyleConst.headingMedium.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceSm),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _resolveSplashMessage(context, state.message),
+                        SizedBox(height: DesignTokens.spaceSm),
+                        Text(
+                          AppLocalizations.of(context)?.appSubtitle ??
+                              AppLocalizations.of(context)!
+                                  .enhancedReadingExperience,
                           style: TextStyleConst.bodyMedium.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
                                 .onSurfaceVariant,
+                            fontStyle: FontStyle.italic,
+                            fontSize: 15,
                           ),
-                          textAlign: TextAlign.center,
                         ),
-                      ),
-                      SizedBox(height: DesignTokens.space2xl),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => _showOfflineOptionsDialog(context),
-                            icon: const Icon(Icons.wifi_off),
-                            label: Text(
-                              AppLocalizations.of(context)!.offlineModeLabel,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .primary,
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimary,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                                vertical: 12,
+
+                        const SizedBox(height: 40),
+
+                        // Loading States with enhanced progress indicators
+                        if (state is SplashInitializing ||
+                            state is SplashBypassInProgress)
+                          Column(
+                            children: [
+                              // Single status pill (ikut Figma Group.png: 1 pill +
+                              // dots, simple. Gear + detail text + linear bar dibuang).
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 48,
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 32,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainer
+                                        .withValues(alpha: 0.5),
+                                    borderRadius: BorderRadius.circular(
+                                      DesignTokens.radius2xl,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    state is SplashInitializing
+                                        ? '${AppLocalizations.of(context)?.settingUpComponents ?? AppLocalizations.of(context)!.settingUpConnection} ${(_progressForState(state) * 100).toInt()}%'
+                                        : '${AppLocalizations.of(context)?.bypassingProtection ?? AppLocalizations.of(context)!.bypassingProtection} ${(_progressForState(state) * 100).toInt()}%',
+                                    style: TextStyleConst.bodyMedium.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      fontSize: 18,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                               ),
-                              textStyle: TextStyleConst.buttonMedium,
-                            ),
+                              const SizedBox(height: 20),
+                              _buildProgressDots(),
+                            ],
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
 
-                if (state is SplashOfflineMode)
-                  Column(
-                    children: [
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .secondaryContainer
-                              .withValues(alpha: 0.3),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Theme.of(context).colorScheme.secondary
-                                .withValues(alpha: 0.3),
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.offline_pin,
-                          size: 48,
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceXl),
-                      Text(
-                        AppLocalizations.of(context)!.offlineModeEnabled,
-                        style: TextStyleConst.headingMedium.copyWith(
-                          color: Theme.of(context).colorScheme.secondary,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      SizedBox(height: DesignTokens.spaceSm),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          _resolveSplashMessage(context, state.message),
-                          style: TextStyleConst.bodyMedium.copyWith(
-                            color: Theme.of(context).colorScheme.onSurface,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceLg),
-                      _buildProgressDots(),
-                    ],
-                  ),
+                        // Success State
+                        if (state is SplashSuccess) _buildSuccessState(state),
 
-                // Error State with Retry Button
-                if (state is SplashError && state.canRetry)
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        size: 48,
-                        color: Theme.of(context).colorScheme.error,
-                      ),
-                      SizedBox(height: DesignTokens.spaceLg),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
-                        child: Text(
-                          AppLocalizations.of(context)?.connectionFailed ??
-                              AppLocalizations.of(context)!.connectionFailed,
-                          style: TextStyleConst.statusError.copyWith(
-                            fontSize: 18,
+                        // Offline States
+                        if (state is SplashOfflineDetected)
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: 60,
+                                height: 60,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Theme.of(context).colorScheme.primary,
+                                  ),
+                                  strokeWidth: 4,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceXl),
+                              Icon(
+                                Icons.wifi_off,
+                                size: 48,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              SizedBox(height: DesignTokens.spaceLg),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  _resolveSplashMessage(context, state.message),
+                                  style: TextStyleConst.headingSmall.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceLg),
+                              _buildProgressDots(),
+                            ],
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      SizedBox(height: DesignTokens.spaceXl),
-                      ElevatedButton.icon(
-                        onPressed: () => context.read<SplashBloc>().add(
-                          SplashRetryBypassEvent(),
-                        ),
-                        icon: const Icon(Icons.refresh),
-                        label: Text(AppLocalizations.of(context)!.retry),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .primary,
-                          foregroundColor: Theme.of(context)
-                              .colorScheme
-                              .onPrimary,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 12,
+
+                        if (state is SplashOfflineReady)
+                          Column(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .primaryContainer
+                                      .withValues(alpha: 0.3),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Theme.of(context).colorScheme.primary
+                                        .withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.offline_bolt,
+                                  size: 48,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceXl),
+                              Text(
+                                AppLocalizations.of(context)!
+                                    .offlineContentAvailableLabel,
+                                style: TextStyleConst.headingMedium.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: DesignTokens.spaceSm),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  _resolveSplashMessage(
+                                    context,
+                                    state.message,
+                                    offlineCount: state.offlineContentCount,
+                                  ),
+                                  style: TextStyleConst.bodyMedium.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceLg),
+                              _buildProgressDots(),
+                            ],
                           ),
-                          textStyle: TextStyleConst.buttonMedium,
-                        ),
-                      ),
-                    ],
+
+                        if (state is SplashOfflineEmpty)
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.cloud_off,
+                                size: 64,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                              SizedBox(height: DesignTokens.spaceXl),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  AppLocalizations.of(context)!
+                                      .noInternetConnection,
+                                  style: TextStyleConst.headingMedium.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceSm),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  _resolveSplashMessage(context, state.message),
+                                  style: TextStyleConst.bodyMedium.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.space2xl),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () =>
+                                        _showOfflineOptionsDialog(context),
+                                    icon: const Icon(Icons.wifi_off),
+                                    label: Text(
+                                      AppLocalizations.of(context)!
+                                          .offlineModeLabel,
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                      foregroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                        vertical: 12,
+                                      ),
+                                      textStyle: TextStyleConst.buttonMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+
+                        if (state is SplashOfflineMode)
+                          Column(
+                            children: [
+                              Container(
+                                width: 80,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondaryContainer
+                                      .withValues(alpha: 0.3),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .secondary
+                                        .withValues(alpha: 0.3),
+                                    width: 2,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.offline_pin,
+                                  size: 48,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceXl),
+                              Text(
+                                AppLocalizations.of(context)!
+                                    .offlineModeEnabled,
+                                style: TextStyleConst.headingMedium.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .secondary,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                              SizedBox(height: DesignTokens.spaceSm),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  _resolveSplashMessage(context, state.message),
+                                  style: TextStyleConst.bodyMedium.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceLg),
+                              _buildProgressDots(),
+                            ],
+                          ),
+
+                        // Error State with Retry Button
+                        if (state is SplashError && state.canRetry)
+                          Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                size: 48,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              SizedBox(height: DesignTokens.spaceLg),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                ),
+                                child: Text(
+                                  AppLocalizations.of(context)
+                                          ?.connectionFailed ??
+                                      AppLocalizations.of(context)!
+                                          .connectionFailed,
+                                  style: TextStyleConst.statusError.copyWith(
+                                    fontSize: 18,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                              SizedBox(height: DesignTokens.spaceXl),
+                              ElevatedButton.icon(
+                                onPressed: () => context.read<SplashBloc>().add(
+                                  SplashRetryBypassEvent(),
+                                ),
+                                icon: const Icon(Icons.refresh),
+                                label: Text(
+                                  AppLocalizations.of(context)!.retry,
+                                ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .primary,
+                                  foregroundColor: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimary,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                    vertical: 12,
+                                  ),
+                                  textStyle: TextStyleConst.buttonMedium,
+                                ),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
                   ),
-              ],
-            ),
-          );
-        },
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
 
   Widget _buildSuccessState(SplashSuccess state) {
+    final note = KuronMotionPolicy.isNoteTheme(context);
+    final theme = Theme.of(context);
     return AnimatedBuilder(
       animation: _successAnimationController,
       builder: (context, child) {
@@ -722,7 +788,9 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
                   child: Icon(
                     Icons.check,
                     size: 56,
-                    color: AppColors.brandDark,
+                    color: note
+                        ? theme.colorScheme.onSurface
+                        : AppColors.brandDark,
                   ),
                 ),
 
@@ -801,9 +869,11 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: AppColors.brandCoral.withValues(
-                  alpha: _dotAnimations[index].value,
-                ),
+                color:
+                    (KuronMotionPolicy.isNoteTheme(context)
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : AppColors.brandCoral)
+                        .withValues(alpha: _dotAnimations[index].value),
                 shape: BoxShape.circle,
               ),
             );
@@ -819,19 +889,24 @@ class _SplashMainWidgetState extends State<SplashMainWidget>
 class _SyncRing extends StatelessWidget {
   final double progress;
   final double size;
+  final Color lit;
+  final Color dim;
 
-  const _SyncRing({required this.progress, required this.size});
+  const _SyncRing({
+    required this.progress,
+    required this.size,
+    required this.lit,
+    required this.dim,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _SyncRingPainter(
-          progress: progress,
-          lit: AppColors.brandCoral.withValues(alpha: 0.9),
-          dim: AppColors.brandCoral.withValues(alpha: 0.18),
+    return RepaintBoundary(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _SyncRingPainter(progress: progress, lit: lit, dim: dim),
         ),
       ),
     );

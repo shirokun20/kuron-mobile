@@ -14,9 +14,7 @@ class SettingsCubit extends BaseCubit<SettingsState> {
     required this._preferencesService,
     required super.logger,
     this.localizations,
-  })  : super(
-          initialState: const SettingsInitial(),
-        ) {
+  }) : super(initialState: const SettingsInitial()) {
     _loadSettings();
   }
 
@@ -30,39 +28,46 @@ class SettingsCubit extends BaseCubit<SettingsState> {
 
       final preferences = await _preferencesService.getUserPreferences();
       logInfo(
-          'Loaded preferences: blur=${preferences.blurThumbnails}, blacklistTags=${preferences.blacklistedTags.length}');
+        'Loaded preferences: blur=${preferences.blurThumbnails}, blacklistTags=${preferences.blacklistedTags.length}',
+      );
 
       // Check current disguise mode from Android
       try {
         final currentAndroidMode =
             await AppDisguiseService.getCurrentDisguiseMode();
         logInfo(
-            'Current Android disguise mode: $currentAndroidMode, saved mode: ${preferences.disguiseMode}');
+          'Current Android disguise mode: $currentAndroidMode, saved mode: ${preferences.disguiseMode}',
+        );
 
         // If Android mode differs from saved preferences, update preferences
         if (currentAndroidMode != preferences.disguiseMode) {
           logInfo(
-              'Updating preferences to match Android mode: $currentAndroidMode');
-          final updatedPreferences =
-              preferences.copyWith(disguiseMode: currentAndroidMode);
+            'Updating preferences to match Android mode: $currentAndroidMode',
+          );
+          final updatedPreferences = preferences.copyWith(
+            disguiseMode: currentAndroidMode,
+          );
           await _preferencesService.saveUserPreferences(updatedPreferences);
 
-          emit(SettingsLoaded(
-            preferences: updatedPreferences,
-            lastUpdated: DateTime.now(),
-          ));
+          emit(
+            SettingsLoaded(
+              preferences: updatedPreferences,
+              lastUpdated: DateTime.now(),
+            ),
+          );
         } else {
-          emit(SettingsLoaded(
-            preferences: preferences,
-            lastUpdated: DateTime.now(),
-          ));
+          emit(
+            SettingsLoaded(
+              preferences: preferences,
+              lastUpdated: DateTime.now(),
+            ),
+          );
         }
       } catch (e) {
         logWarning('Failed to get current disguise mode from Android: $e');
-        emit(SettingsLoaded(
-          preferences: preferences,
-          lastUpdated: DateTime.now(),
-        ));
+        emit(
+          SettingsLoaded(preferences: preferences, lastUpdated: DateTime.now()),
+        );
       }
 
       logInfo('Successfully loaded user preferences');
@@ -75,20 +80,25 @@ class SettingsCubit extends BaseCubit<SettingsState> {
       try {
         logWarning('Attempting graceful fallback: reading blur directly');
         final blurValue = _preferencesService.getBlurThumbnailsDirect();
-        final fallbackPrefs =
-            _getDefaultPreferences().copyWith(blurThumbnails: blurValue);
+        final fallbackPrefs = _getDefaultPreferences().copyWith(
+          blurThumbnails: blurValue,
+        );
         logInfo('Fallback preferences loaded: blur=$blurValue');
-        emit(SettingsLoaded(
-          preferences: fallbackPrefs,
-          lastUpdated: DateTime.now(),
-        ));
+        emit(
+          SettingsLoaded(
+            preferences: fallbackPrefs,
+            lastUpdated: DateTime.now(),
+          ),
+        );
       } catch (_) {
         // If even fallback fails, use full defaults
         logWarning('Graceful fallback failed, using full defaults');
-        emit(SettingsLoaded(
-          preferences: _getDefaultPreferences(),
-          lastUpdated: DateTime.now(),
-        ));
+        emit(
+          SettingsLoaded(
+            preferences: _getDefaultPreferences(),
+            lastUpdated: DateTime.now(),
+          ),
+        );
       }
     }
   }
@@ -103,6 +113,11 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   // Update theme setting
   Future<void> updateTheme(String theme) async {
     await _updateSetting((prefs) => prefs.copyWith(theme: theme));
+  }
+
+  // Update transient effects mode (quiet / standard / satire)
+  Future<void> updateKuronFxMode(String mode) async {
+    await _updateSetting((prefs) => prefs.copyWith(kuronFxMode: mode));
   }
 
   // Update default language setting
@@ -129,7 +144,8 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   Future<void> updateBlurThumbnails(bool blurThumbnails) async {
     logInfo('updateBlurThumbnails called: $blurThumbnails');
     await _updateSetting(
-        (prefs) => prefs.copyWith(blurThumbnails: blurThumbnails));
+      (prefs) => prefs.copyWith(blurThumbnails: blurThumbnails),
+    );
     logInfo('updateBlurThumbnails completed: $blurThumbnails');
   }
 
@@ -138,20 +154,21 @@ class SettingsCubit extends BaseCubit<SettingsState> {
     final currentState = state;
     if (currentState is SettingsLoaded) {
       logInfo(
-          '🔍 Current state snapshot: blur=${currentState.preferences.blurThumbnails}, existing_tags=${currentState.preferences.blacklistedTags.length}');
+        '🔍 Current state snapshot: blur=${currentState.preferences.blurThumbnails}, existing_tags=${currentState.preferences.blacklistedTags.length}',
+      );
     }
 
     final sanitized = TagBlacklistUtils.sanitizeEntries(blacklistedTags);
-    await _updateSetting(
-      (prefs) {
-        logInfo(
-            '🔍 In updateFunction: prefs.blur=${prefs.blurThumbnails}, will add ${sanitized.length} tags');
-        final updated = prefs.copyWith(blacklistedTags: sanitized);
-        logInfo(
-            '🔍 After copyWith: updated.blur=${updated.blurThumbnails}, updated.tags=${updated.blacklistedTags.length}');
-        return updated;
-      },
-    );
+    await _updateSetting((prefs) {
+      logInfo(
+        '🔍 In updateFunction: prefs.blur=${prefs.blurThumbnails}, will add ${sanitized.length} tags',
+      );
+      final updated = prefs.copyWith(blacklistedTags: sanitized);
+      logInfo(
+        '🔍 After copyWith: updated.blur=${updated.blurThumbnails}, updated.tags=${updated.blacklistedTags.length}',
+      );
+      return updated;
+    });
   }
 
   Future<void> updateBlacklistedTagsWithMetadata(
@@ -179,7 +196,8 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   // Update pagination setting
   Future<void> updateUsePagination(bool usePagination) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(usePagination: usePagination));
+      (prefs) => prefs.copyWith(usePagination: usePagination),
+    );
   }
 
   // Update columns portrait setting
@@ -203,13 +221,15 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   // Update use volume keys setting
   Future<void> updateUseVolumeKeys(bool useVolumeKeys) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(useVolumeKeys: useVolumeKeys));
+      (prefs) => prefs.copyWith(useVolumeKeys: useVolumeKeys),
+    );
   }
 
   // Update reading direction setting
   Future<void> updateReadingDirection(ReadingDirection direction) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(readingDirection: direction));
+      (prefs) => prefs.copyWith(readingDirection: direction),
+    );
   }
 
   // Update keep screen on setting
@@ -225,13 +245,15 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   // Update auto cleanup history setting
   Future<void> updateAutoCleanupHistory(bool autoCleanupHistory) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(autoCleanupHistory: autoCleanupHistory));
+      (prefs) => prefs.copyWith(autoCleanupHistory: autoCleanupHistory),
+    );
   }
 
   // Update history cleanup interval setting
   Future<void> updateHistoryCleanupInterval(int intervalHours) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(historyCleanupIntervalHours: intervalHours));
+      (prefs) => prefs.copyWith(historyCleanupIntervalHours: intervalHours),
+    );
   }
 
   // Update max history days setting
@@ -242,13 +264,15 @@ class SettingsCubit extends BaseCubit<SettingsState> {
   // Update cleanup on inactivity setting
   Future<void> updateCleanupOnInactivity(bool cleanupOnInactivity) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(cleanupOnInactivity: cleanupOnInactivity));
+      (prefs) => prefs.copyWith(cleanupOnInactivity: cleanupOnInactivity),
+    );
   }
 
   // Update inactivity cleanup days setting
   Future<void> updateInactivityCleanupDays(int inactivityDays) async {
     await _updateSetting(
-        (prefs) => prefs.copyWith(inactivityCleanupDays: inactivityDays));
+      (prefs) => prefs.copyWith(inactivityCleanupDays: inactivityDays),
+    );
   }
 
   // Update disguise mode setting with loading
@@ -263,15 +287,18 @@ class SettingsCubit extends BaseCubit<SettingsState> {
       // Update preferences directly (without calling _updateSetting to avoid double emit)
       final currentState2 = state;
       if (currentState2 is SettingsLoaded) {
-        final updatedPreferences =
-            currentState2.preferences.copyWith(disguiseMode: disguiseMode);
+        final updatedPreferences = currentState2.preferences.copyWith(
+          disguiseMode: disguiseMode,
+        );
         await _preferencesService.saveUserPreferences(updatedPreferences);
 
-        emit(currentState2.copyWith(
-          preferences: updatedPreferences,
-          lastUpdated: DateTime.now(),
-          isUpdatingDisguiseMode: true, // Keep loading
-        ));
+        emit(
+          currentState2.copyWith(
+            preferences: updatedPreferences,
+            lastUpdated: DateTime.now(),
+            isUpdatingDisguiseMode: true, // Keep loading
+          ),
+        );
       }
 
       // Apply disguise mode to Android
@@ -305,27 +332,34 @@ class SettingsCubit extends BaseCubit<SettingsState> {
       final updatedPreferences = updateFunction(currentState.preferences);
 
       logInfo(
-          'Before save: blur=${updatedPreferences.blurThumbnails}, tags=${updatedPreferences.blacklistedTags.length}');
+        'Before save: blur=${updatedPreferences.blurThumbnails}, tags=${updatedPreferences.blacklistedTags.length}',
+      );
 
       // Save to SharedPreferences via PreferencesService
       await _preferencesService.saveUserPreferences(updatedPreferences);
 
-      emit(currentState.copyWith(
-        preferences: updatedPreferences,
-        lastUpdated: DateTime.now(),
-      ));
+      emit(
+        currentState.copyWith(
+          preferences: updatedPreferences,
+          lastUpdated: DateTime.now(),
+        ),
+      );
 
       logInfo(
-          'Successfully updated and emitted: blur=${updatedPreferences.blurThumbnails}, tags=${updatedPreferences.blacklistedTags.length}');
+        'Successfully updated and emitted: blur=${updatedPreferences.blurThumbnails}, tags=${updatedPreferences.blacklistedTags.length}',
+      );
     } catch (e, stackTrace) {
       logger.e('_updateSetting failed: $e', error: e, stackTrace: stackTrace);
       handleError(e, stackTrace, 'update setting');
 
-      emit(SettingsError(
-        message: localizations?.failedToUpdateSetting(e.toString()) ??
-            'Failed to update setting: ${e.toString()}',
-        errorType: determineErrorType(e),
-      ));
+      emit(
+        SettingsError(
+          message:
+              localizations?.failedToUpdateSetting(e.toString()) ??
+              'Failed to update setting: ${e.toString()}',
+          errorType: determineErrorType(e),
+        ),
+      );
     }
   }
 
@@ -344,11 +378,14 @@ class SettingsCubit extends BaseCubit<SettingsState> {
     } catch (e, stackTrace) {
       handleError(e, stackTrace, 'reset settings');
 
-      emit(SettingsError(
-        message: localizations?.failedToResetSettings(e.toString()) ??
-            'Failed to reset settings: ${e.toString()}',
-        errorType: determineErrorType(e),
-      ));
+      emit(
+        SettingsError(
+          message:
+              localizations?.failedToResetSettings(e.toString()) ??
+              'Failed to reset settings: ${e.toString()}',
+          errorType: determineErrorType(e),
+        ),
+      );
     }
   }
 
@@ -358,7 +395,8 @@ class SettingsCubit extends BaseCubit<SettingsState> {
       final currentState = state;
       if (currentState is! SettingsLoaded) {
         throw Exception(
-            localizations?.settingsNotLoaded ?? 'Settings not loaded');
+          localizations?.settingsNotLoaded ?? 'Settings not loaded',
+        );
       }
 
       logInfo('Exporting settings');
@@ -388,8 +426,10 @@ class SettingsCubit extends BaseCubit<SettingsState> {
       return jsonString;
     } catch (e, stackTrace) {
       handleError(e, stackTrace, 'export settings');
-      throw Exception(localizations?.failedToExportSettings(e.toString()) ??
-          'Failed to export settings: ${e.toString()}');
+      throw Exception(
+        localizations?.failedToExportSettings(e.toString()) ??
+            'Failed to export settings: ${e.toString()}',
+      );
     }
   }
 
@@ -406,11 +446,14 @@ class SettingsCubit extends BaseCubit<SettingsState> {
     } catch (e, stackTrace) {
       handleError(e, stackTrace, 'import settings');
 
-      emit(SettingsError(
-        message: localizations?.failedToImportSettings(e.toString()) ??
-            'Failed to import settings: ${e.toString()}',
-        errorType: determineErrorType(e),
-      ));
+      emit(
+        SettingsError(
+          message:
+              localizations?.failedToImportSettings(e.toString()) ??
+              'Failed to import settings: ${e.toString()}',
+          errorType: determineErrorType(e),
+        ),
+      );
     }
   }
 
