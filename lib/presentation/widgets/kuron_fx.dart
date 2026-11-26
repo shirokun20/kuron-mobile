@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
-import 'package:material_ui/material_ui.dart';
 import 'package:flutter/physics.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'package:nhasixapp/presentation/utils/kuron_motion_policy.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_sfx_words.dart';
 
 /// The only moments allowed to fire a `kuron_fx` burst. Scroll, page turn,
 /// tabs, sliders, inputs and tooltips are deliberately absent.
@@ -48,6 +50,10 @@ class KuronFxController {
   KuronFxKind _kind = KuronFxKind.favorite;
   int _particleCount = 0;
   int _burstCount = 0;
+  bool _monochrome = false;
+  KuronSfxSpec? _wordSpec;
+  ui.Image? _wordImage;
+  final KuronSfxBakeCache _words = KuronSfxBakeCache();
 
   static const int maxParticles = 40;
   static const Duration maxDuration = Duration(milliseconds: 800);
@@ -81,6 +87,8 @@ class KuronFxController {
     required KuronFxKind kind,
     KuronSticker? sticker,
     Rect? targetRect,
+    bool monochrome = false,
+    bool dark = false,
   }) {
     if (mode == KuronFxMode.quiet) {
       // Switching to quiet mid-burst must also tear down an in-flight effect.
@@ -92,11 +100,15 @@ class KuronFxController {
     _kind = kind;
     _sticker = mode == KuronFxMode.satire ? sticker : null;
     _targetRect = targetRect;
+    _monochrome = monochrome;
+    _wordSpec = _specForKind(kind);
+    _wordImage = null;
     _particleCount = mode == KuronFxMode.standard
         ? 14
         : 18; // always <= maxParticles
     assert(_particleCount <= maxParticles);
     _burstCount++;
+    _bakeWord(dark: dark);
 
     final entry = OverlayEntry(
       opaque: false,
@@ -111,9 +123,11 @@ class KuronFxController {
                   kind: _kind,
                   particleCount: _particleCount,
                   sticker: _sticker,
-                  monochrome: false,
+                  monochrome: _monochrome,
                   dpr: MediaQuery.devicePixelRatioOf(context),
                   targetRect: _targetRect,
+                  wordSpec: _wordSpec,
+                  wordImage: _wordImage,
                 ),
                 child: _sticker == null
                     ? null
@@ -164,11 +178,70 @@ class KuronFxController {
     _entry = null;
     _sticker = null;
     _targetRect = null;
+    _wordSpec = null;
+    _wordImage = null;
     _particleCount = 0;
+  }
+
+  /// Canonical Indonesian word per kind (LOCKED). Every current kind carries
+  /// a word; kinds added later without an entry stay wordless.
+  static KuronSfxSpec? _specForKind(KuronFxKind kind) => switch (kind) {
+    // Button confirm + progress 100%: JEDER! solid.
+    KuronFxKind.favorite => KuronSfxSpec(
+      word: KuronSfxWord.byName('JEDER!')!,
+      sizeFactor: 1.75,
+      rot: -0.12,
+      life: 1.05,
+    ),
+    KuronFxKind.downloadComplete => KuronSfxSpec(
+      word: KuronSfxWord.byName('JEDER!')!,
+      sizeFactor: 1.75,
+      rot: -0.12,
+      life: 1.05,
+    ),
+    // Radio/rating: SAH! hollow.
+    KuronFxKind.rating => KuronSfxSpec(
+      word: KuronSfxWord.byName('SAH!')!,
+      sizeFactor: 1.5,
+      rot: 0.08,
+      life: 0.85,
+    ),
+    // Sheet confirm: KLIK! hollow (lock/confirm beat).
+    KuronFxKind.sheetConfirm => KuronSfxSpec(
+      word: KuronSfxWord.byName('KLIK!')!,
+      sizeFactor: 1.5,
+      rot: -0.08,
+      life: 0.8,
+    ),
+  };
+
+  /// Bakes the kind's word off the frame loop; when the raster lands, the
+  /// in-flight burst picks it up on its next frame. Stale completions
+  /// (a newer burst replaced this one) are dropped — the cache owns them.
+  void _bakeWord({required bool dark}) {
+    final spec = _wordSpec;
+    if (spec == null) return;
+    final token = _burstCount;
+    final palette = KuronSfxPalette.resolve(
+      spec.word.style,
+      dark: dark,
+      monochrome: _monochrome,
+      accent: spec.accent,
+    );
+    _words
+        .bake(word: spec.word.name, style: spec.word.style, palette: palette)
+        .then((img) {
+          if (img == null) return;
+          if (token == _burstCount && _entry != null) {
+            _wordImage = img;
+            _entry?.markNeedsBuild();
+          }
+        });
   }
 
   void dispose() {
     _clear();
+    _words.dispose();
     _controller.dispose();
   }
 }
@@ -188,6 +261,8 @@ class KuronFxOverlayPainter extends CustomPainter {
     required this.monochrome,
     required this.dpr,
     this.targetRect,
+    this.wordSpec,
+    this.wordImage,
   });
 
   final double progress;
@@ -200,12 +275,20 @@ class KuronFxOverlayPainter extends CustomPainter {
   /// Button bounding box in overlay coordinates. Null = screen center.
   final Rect? targetRect;
 
+  /// Baked SFX word (P3): raster produced off the frame loop. Null until
+  /// the bake lands or when the kind carries no word.
+  final KuronSfxSpec? wordSpec;
+  final ui.Image? wordImage;
+
   static const _coral = Color(0xFFF1958E);
   static const _deep = Color(0xFFC76A62);
   static const _gold = Color(0xFFC8A06A);
   static const _paper = Color(0xFFEFE6DC);
 
   static const int maxParticles = KuronFxController.maxParticles;
+
+  /// Hoisted: the word paint never changes per frame.
+  static final Paint _wordPaint = Paint();
 
   Color get _accent => monochrome ? _paper : _coral;
   Color get _accentDeep => monochrome ? _paper : _deep;
@@ -297,42 +380,55 @@ class KuronFxOverlayPainter extends CustomPainter {
       }
     }
 
-    // Transient manga SFX lettering, sized to the button.
-    final sfx = switch (kind) {
-      KuronFxKind.favorite => 'ドン!',
-      KuronFxKind.rating => 'カチッ!',
-      KuronFxKind.downloadComplete => 'ズザッ!',
-      KuronFxKind.sheetConfirm => 'ポン!',
-    };
-    final sfxSize = math.min(22.0, math.max(12.0, strokeScale * 18));
-    if (sticker != null) _drawSfx(canvas, center, sticker!.sfx, alpha, 22);
-    _drawSfx(canvas, center - Offset(0, base * 1.9), sfx, alpha * 0.9, sfxSize);
-  }
-
-  void _drawSfx(
-    Canvas canvas,
-    Offset center,
-    String text,
-    double alpha,
-    double size,
-  ) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: _paper.withValues(alpha: alpha),
-          fontSize: size,
-          fontWeight: FontWeight.w900,
-          fontFamily: 'Bangers',
-        ),
-      ),
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(
-      canvas,
-      center - Offset(painter.width / 2, painter.height / 2),
-    );
+    // Baked Indonesian SFX word (P3): one drawImage per frame, driven by the
+    // gallery spring (0.2, 520, 17) with jitter/roll; shrinks (never fades)
+    // over the last 14% of its life. ~1.5–2× the control width, floating
+    // above the button. Null until the bake lands — no TextPainter.layout()
+    // in the frame loop anymore.
+    final spec = wordSpec;
+    final baked = wordImage;
+    if (spec != null && baked != null && spec.life > 0) {
+      // The overlay is hard-capped at 720 ms, while a word's gallery life can
+      // be longer: use `life` as the spring's time base and `t` for the
+      // end-of-life shrink so every word actually reaches its last 14%.
+      final age = t * spec.life;
+      final k = t;
+      if (k <= 1) {
+        var wordScale = KuronSfxMotion.spring.x(age);
+        if (k > KuronSfxMotion.fadeStart) {
+          final f =
+              (k - KuronSfxMotion.fadeStart) / (1 - KuronSfxMotion.fadeStart);
+          wordScale *= 1 - f * f * f;
+        }
+        if (wordScale > 0.01) {
+          final controlW = target?.width ?? base * 2;
+          final dstW = controlW * spec.sizeFactor;
+          final dstH = dstW * baked.height / baked.width;
+          canvas.save();
+          canvas.translate(
+            center.dx + math.sin(age * 31) * KuronSfxMotion.jitter,
+            center.dy - base * 1.9 + math.cos(age * 27) * KuronSfxMotion.jitter,
+          );
+          canvas.rotate(spec.rot + math.sin(age * 6) * KuronSfxMotion.roll);
+          canvas.drawImageRect(
+            baked,
+            Rect.fromLTWH(
+              0,
+              0,
+              baked.width.toDouble(),
+              baked.height.toDouble(),
+            ),
+            Rect.fromCenter(
+              center: Offset.zero,
+              width: dstW * wordScale,
+              height: dstH * wordScale,
+            ),
+            _wordPaint,
+          );
+          canvas.restore();
+        }
+      }
+    }
   }
 
   @override
@@ -342,7 +438,9 @@ class KuronFxOverlayPainter extends CustomPainter {
       old.particleCount != particleCount ||
       old.sticker != sticker ||
       old.dpr != dpr ||
-      old.targetRect != targetRect;
+      old.targetRect != targetRect ||
+      old.wordSpec != wordSpec ||
+      old.wordImage != wordImage;
 }
 
 /// Host widget: owns the single shared controller and keeps the whole burst
@@ -421,6 +519,8 @@ abstract final class KuronFx {
       kind: kind,
       sticker: sticker ?? _defaultStickerFor(kind),
       targetRect: targetRect ?? targetRectOf(context),
+      monochrome: KuronMotionPolicy.isNoteTheme(context, listen: false),
+      dark: Theme.of(context).brightness == Brightness.dark,
     );
   }
 

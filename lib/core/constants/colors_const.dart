@@ -55,6 +55,14 @@ class AppColors {
   static const Color readGold = Color(0xFFC8A06A);
   static const Color readGoldLight = Color(0xFFB89060);
 
+  // Sakuga SFX palette — gallery `P`/VARS mapped to Kuron tokens (#79).
+  // Light follows the gallery (ink fill on white); dark swaps solid fills
+  // to paper with an ink/coral edge; note themes collapse to monochrome.
+  static const Color sfxInk = Color(0xFF1D1A4A);
+  static const Color sfxPaper = Color(0xFFEFE6DC);
+  static const Color sfxLavender = Color(0xFFB8B3FF);
+  static const Color sfxLine = Color(0xFF5A4FD8);
+
   // Reader backgrounds
   static const Color readerBgDark = Color(0xFF1A1614);
   static const Color readerTextDark = Color(0xFFD0C8C0);

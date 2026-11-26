@@ -120,7 +120,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         backgroundColor: Colors.transparent,
       ),
       drawer: AppMainDrawerWidget(context: context),
-      extendBodyBehindAppBar: true,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -158,9 +157,9 @@ class _SettingsScreenState extends State<SettingsScreen>
     ThemeData theme,
     AppLocalizations l10n,
   ) {
-    // The AppBar (and the download progress banner) already supply their own
-    // top inset. Applying SafeArea's top inset here as well left an ~84dp void
-    // above the first section on notched devices.
+    // Body sits below the AppBar (extendBodyBehindAppBar is off), so this
+    // top-unpadded SafeArea + list padding is the single correct inset:
+    // no overlap with the bar, no double void when the download banner shows.
     return SafeArea(
       top: false,
       child: ListView(

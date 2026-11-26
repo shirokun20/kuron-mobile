@@ -11,6 +11,7 @@ import '../../domain/entities/entities.dart';
 import '../blocs/download/download_bloc.dart';
 import 'content_list_widget.dart';
 import 'kuron_fx.dart';
+import 'kuron_squash.dart';
 import '../../domain/services/ehentai_download_strategy.dart';
 import 'download_range_selector.dart';
 import 'download_settings_widget.dart';
@@ -34,7 +35,7 @@ class DownloadButtonWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return BlocConsumer<DownloadBloc, DownloadBlocState>(
+    final button = BlocConsumer<DownloadBloc, DownloadBlocState>(
       listenWhen: (previous, current) {
         if (previous is! DownloadLoaded || current is! DownloadLoaded) {
           return false;
@@ -183,6 +184,7 @@ class DownloadButtonWidget extends StatelessWidget {
         }
       },
     );
+    return KuronSquash(child: button);
   }
 
   Widget _buildButton({

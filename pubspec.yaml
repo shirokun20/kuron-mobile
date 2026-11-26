@@ -129,6 +129,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/stickers/
+    - assets/sfx/
     - assets/legal/en/
     - assets/legal/id/
     - assets/configs/

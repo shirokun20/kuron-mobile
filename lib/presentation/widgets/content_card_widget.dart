@@ -18,6 +18,7 @@ import 'progressive_image_widget.dart';
 import 'package:nhasixapp/presentation/widgets/kuro_mascot.dart';
 
 import 'highlighted_text_widget.dart';
+import 'kuron_squash.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 
@@ -117,7 +118,7 @@ class ContentCard extends StatelessWidget {
       );
     }
 
-    return Container(
+    final card = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -261,6 +262,7 @@ class ContentCard extends StatelessWidget {
         ],
       ),
     );
+    return KuronSquash(child: card);
   }
 
   Widget _buildMixedStatusBorderOverlay({
@@ -1055,7 +1057,7 @@ class CompactContentCard extends StatelessWidget {
         kuronColors?.cardGradientEnd ?? AppColors.darkGradientEnd;
     final cardBorder = kuronColors?.cardBorder ?? AppColors.darkBorder;
 
-    return Container(
+    final card = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1189,5 +1191,6 @@ class CompactContentCard extends StatelessWidget {
         ),
       ),
     );
+    return KuronSquash(child: card);
   }
 }
