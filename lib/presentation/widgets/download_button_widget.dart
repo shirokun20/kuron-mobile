@@ -12,6 +12,7 @@ import '../blocs/download/download_bloc.dart';
 import 'content_list_widget.dart';
 import 'kuron_fx.dart';
 import 'kuron_squash.dart';
+import 'kuron_snack_bar_content.dart';
 import '../../domain/services/ehentai_download_strategy.dart';
 import 'download_range_selector.dart';
 import 'download_settings_widget.dart';
@@ -54,8 +55,12 @@ class DownloadButtonWidget extends StatelessWidget {
         return !isDone(previous) && isDone(current);
       },
       listener: (context, state) {
-        // Coalesced inside KuronFx: batch completions never stack overlays.
-        KuronFx.trigger(context, kind: KuronFxKind.downloadComplete);
+        // Leading edge of the progress/download bar reaching 100%. This
+        // supersedes the old `downloadComplete` beat at this hook: both map to
+        // JEDER!, but `progressComplete` carries the finish staging (control
+        // x 1.2 / 1.05 s) and is anchored on this button's rect. Coalesced
+        // inside KuronFx: batch completions never stack overlays.
+        KuronFx.trigger(context, kind: KuronFxKind.progressComplete);
       },
       builder: (context, state) {
         if (state is! DownloadLoaded) {
@@ -490,8 +495,10 @@ class DownloadButtonWidget extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          AppLocalizations.of(context)!.downloadStarted(content.title),
+        content: KuronSnackBarContent(
+          child: Text(
+            AppLocalizations.of(context)!.downloadStarted(content.title),
+          ),
         ),
         duration: const Duration(seconds: 2),
       ),
@@ -751,9 +758,11 @@ class DownloadButtonWidget extends StatelessWidget {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(
-          AppLocalizations.of(context)!
-              .rangeDownloadStarted(targetContent.title, pageText),
+        content: KuronSnackBarContent(
+          child: Text(
+            AppLocalizations.of(context)!
+                .rangeDownloadStarted(targetContent.title, pageText),
+          ),
         ),
         duration: const Duration(seconds: 3),
       ),

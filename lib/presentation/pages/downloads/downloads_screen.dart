@@ -16,6 +16,7 @@ import '../../blocs/download/download_bloc.dart';
 import '../../widgets/widgets.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/permission_request_sheet.dart';
+import '../../widgets/kuron_fx.dart';
 
 // Screen for managing downloads with status tracking and progress indicators
 class DownloadsScreen extends StatefulWidget {
@@ -29,6 +30,22 @@ class _DownloadsScreenState extends State<DownloadsScreen>
     with TickerProviderStateMixin {
   late TabController _tabController;
   bool _permissionsChecked = false;
+
+  /// Label render boxes for the wordless tab-switch beat. Keys are stable so
+  /// the post-frame callback can capture the selected label's rect.
+  final List<GlobalKey> _tabKeys = List.generate(5, (_) => GlobalKey());
+
+  void _onTabTap(int index) {
+    // The indicator settles after the tap frame; capture the label there.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tabContext = _tabKeys[index].currentContext;
+      if (tabContext == null) return;
+      final rect = KuronFx.targetRectOf(tabContext);
+      if (rect == null) return;
+      KuronFx.triggerOn(context, rect: rect, kind: KuronFxKind.tabSwitch);
+    });
+  }
 
   @override
   void initState() {
@@ -443,16 +460,29 @@ class _DownloadsScreenState extends State<DownloadsScreen>
             ],
             bottom: TabBar(
               controller: _tabController,
+              onTap: _onTabTap,
               labelColor: Theme.of(context).colorScheme.primary,
               unselectedLabelColor: Theme.of(context).colorScheme.onSurface
                   .withValues(alpha: 0.6),
               indicatorColor: Theme.of(context).colorScheme.primary,
               tabs: [
-                Tab(text: AppLocalizations.of(context)!.all),
-                Tab(text: AppLocalizations.of(context)!.active),
-                Tab(text: AppLocalizations.of(context)!.queued),
-                Tab(text: AppLocalizations.of(context)!.completed),
-                Tab(text: AppLocalizations.of(context)!.failed),
+                Tab(key: _tabKeys[0], text: AppLocalizations.of(context)!.all),
+                Tab(
+                  key: _tabKeys[1],
+                  text: AppLocalizations.of(context)!.active,
+                ),
+                Tab(
+                  key: _tabKeys[2],
+                  text: AppLocalizations.of(context)!.queued,
+                ),
+                Tab(
+                  key: _tabKeys[3],
+                  text: AppLocalizations.of(context)!.completed,
+                ),
+                Tab(
+                  key: _tabKeys[4],
+                  text: AppLocalizations.of(context)!.failed,
+                ),
               ],
             ),
           );

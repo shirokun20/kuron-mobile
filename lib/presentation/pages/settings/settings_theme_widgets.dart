@@ -11,6 +11,7 @@ import 'package:nhasixapp/core/network/source_health_monitor.dart';
 import 'package:nhasixapp/core/utils/storage_settings.dart';
 import 'package:nhasixapp/domain/entities/user_preferences.dart';
 import 'package:nhasixapp/presentation/cubits/settings/settings_cubit.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 
 // ======================================================================
 // Shared Builder Helpers
@@ -138,24 +139,41 @@ Widget buildSettingsSwitchTile({
   required ThemeData theme,
   bool enabled = true,
 }) {
-  return SwitchListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    title: Text(
-      title,
-      style: TextStyleConst.bodyLarge.copyWith(
-        fontWeight: FontWeight.w600,
-        color: enabled ? theme.colorScheme.onSurface : theme.disabledColor,
+  return Builder(
+    builder: (context) => SwitchListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      title: Text(
+        title,
+        style: TextStyleConst.bodyLarge.copyWith(
+          fontWeight: FontWeight.w600,
+          color: enabled ? theme.colorScheme.onSurface : theme.disabledColor,
+        ),
       ),
-    ),
-    subtitle: Text(
-      subtitle,
-      style: TextStyleConst.bodySmall.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
+      subtitle: Text(
+        subtitle,
+        style: TextStyleConst.bodySmall.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
+      value: value,
+      onChanged: enabled
+          ? (next) {
+              // Wordless toggle beat, anchored on the tile (SwitchListTile
+              // does not expose its thumb RenderBox). KuronFx.triggerOn is a
+              // no-op in quiet/reduced-motion/note/reader contexts.
+              final rect = KuronFx.targetRectOf(context);
+              if (rect != null) {
+                KuronFx.triggerOn(
+                  context,
+                  rect: rect,
+                  kind: next ? KuronFxKind.toggleOn : KuronFxKind.toggleOff,
+                );
+              }
+              onChanged(next);
+            }
+          : null,
+      activeThumbColor: theme.colorScheme.primary,
     ),
-    value: value,
-    onChanged: enabled ? onChanged : null,
-    activeThumbColor: theme.colorScheme.primary,
   );
 }
 

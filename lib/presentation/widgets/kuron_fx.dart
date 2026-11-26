@@ -8,9 +8,26 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/presentation/utils/kuron_motion_policy.dart';
 import 'package:nhasixapp/presentation/widgets/kuron_sfx_words.dart';
 
-/// The only moments allowed to fire a `kuron_fx` burst. Scroll, page turn,
-/// tabs, sliders, inputs and tooltips are deliberately absent.
-enum KuronFxKind { favorite, rating, downloadComplete, sheetConfirm }
+/// The only moments allowed to fire a `kuron_fx` burst.
+///
+/// Allow-list: the four original beats (`favorite`, `rating`,
+/// `downloadComplete`, `sheetConfirm`) plus the P2 anchored control beats
+/// `toggleOn`, `toggleOff`, `sliderFling`, `tabSwitch`, `toastLand`,
+/// `tooltipPop` and `progressComplete`. Scroll, page turns, inputs and idle
+/// states stay deliberately absent.
+enum KuronFxKind {
+  favorite,
+  rating,
+  downloadComplete,
+  sheetConfirm,
+  toggleOn,
+  toggleOff,
+  sliderFling,
+  tabSwitch,
+  toastLand,
+  tooltipPop,
+  progressComplete,
+}
 
 /// Transparent die-cut satire stickers shipped as pre-sized WebP assets.
 /// Each sticker is decorative and carries its own local SFX word.
@@ -213,6 +230,43 @@ class KuronFxController {
       rot: -0.08,
       life: 0.8,
     ),
+    // P2 anchored beats. Staging follows the katalog §2 numbers mapped to
+    // control-relative factors (gallery sizes are absolute px on small
+    // controls); every word still bakes/evicts through the same cache.
+    //
+    // Progress/download leading edge: JEDER! solid, ~control x 1.2 / 1.05 s.
+    KuronFxKind.progressComplete => KuronSfxSpec(
+      word: KuronSfxWord.byName('JEDER!')!,
+      sizeFactor: 1.2,
+      rot: -0.12,
+      life: 1.05,
+    ),
+    // Toast landing: BYAR! dotted (LOCKED handoff; SAH!-vs-BYAR! flagged).
+    KuronFxKind.toastLand => KuronSfxSpec(
+      word: KuronSfxWord.byName('BYAR!')!,
+      sizeFactor: 1.2,
+      rot: -0.1,
+      life: 1.0,
+    ),
+    // Tooltip icon: KLIK! hollow + procedural ring (drawn by the painter).
+    KuronFxKind.tooltipPop => KuronSfxSpec(
+      word: KuronSfxWord.byName('KLIK!')!,
+      sizeFactor: 1.8,
+      rot: -0.08,
+      life: 0.8,
+    ),
+    // Slider fast release: CAIR! accent solid above the thumb only.
+    KuronFxKind.sliderFling => KuronSfxSpec(
+      word: KuronSfxWord.byName('CAIR!')!,
+      sizeFactor: 1.2,
+      rot: -0.06,
+      life: 0.75,
+      accent: true,
+    ),
+    // Wordless beats: motion comes from the control's own layout / painter.
+    KuronFxKind.tabSwitch => null,
+    KuronFxKind.toggleOn => null,
+    KuronFxKind.toggleOff => null,
   };
 
   /// Bakes the kind's word off the frame loop; when the raster lands, the
@@ -342,6 +396,38 @@ class KuronFxOverlayPainter extends CustomPainter {
       ..strokeWidth = strokeScale * 2
       ..strokeCap = StrokeCap.round;
 
+    // Wordless control beats (P2): a lighter procedural silhouette that
+    // reuses the paints above — no word raster, no sticker, no per-frame
+    // image work. Toggle = knob stretch + splash + flood wash; tab = ticks
+    // and puffs only (velocity stretch comes from the tab layout itself).
+    if (kind == KuronFxKind.toggleOn || kind == KuronFxKind.toggleOff) {
+      _paintToggle(
+        canvas,
+        center,
+        base,
+        t,
+        springValue,
+        ring,
+        sparkA,
+        sparkB,
+        sparkC,
+      );
+      return;
+    }
+    if (kind == KuronFxKind.tabSwitch) {
+      _paintTabTicks(
+        canvas,
+        center,
+        base,
+        t,
+        springValue,
+        ring,
+        sparkA,
+        sparkB,
+      );
+      return;
+    }
+
     // 1. Impact ring: thin shockwave expanding from the button perimeter,
     // fading out fast.
     canvas.drawCircle(center, base * 0.7 + base * 2.0 * springValue, ring);
@@ -431,6 +517,81 @@ class KuronFxOverlayPainter extends CustomPainter {
     }
   }
 
+  /// Toggle procedural beat (katalog toggle §2, redrawn with Kuron painter
+  /// primitives instead of the gallery's 43-frame webp sheet): an elliptical
+  /// knob stretch toward the new state, a flood wash along the track and a
+  /// bounded rim splash. Wordless — the state change is the message.
+  void _paintToggle(
+    Canvas canvas,
+    Offset center,
+    double base,
+    double t,
+    double springValue,
+    Paint ring,
+    Paint sparkA,
+    Paint sparkB,
+    Paint sparkC,
+  ) {
+    final dir = kind == KuronFxKind.toggleOn ? 1.0 : -1.0;
+    // Flood wash: track-shaped stroke sweeping out from the knob.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: center,
+          width: base * (2.2 + 1.4 * springValue),
+          height: base * 0.9,
+        ),
+        Radius.circular(base * 0.45),
+      ),
+      ring,
+    );
+    // Knob stretch: ellipse offset toward the travel direction.
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: center + Offset(dir * base * 0.5 * springValue, 0),
+        width: base * (0.9 + 1.1 * springValue),
+        height: base * (0.9 + 0.35 * (1 - t)),
+      ),
+      sparkA,
+    );
+    // Splash / shards around the rim (8 deterministic strokes, hard-capped).
+    for (var i = 0; i < 8; i++) {
+      final angle = (i * 45) * math.pi / 180;
+      final d = Offset(math.cos(angle), math.sin(angle));
+      final p = center + d * base * (0.9 + springValue * 0.9);
+      final arm = base * 0.18 * (1 - t * 0.5);
+      canvas.drawLine(p - d * arm, p + d * arm, i.isEven ? sparkB : sparkC);
+    }
+  }
+
+  /// Tab landing beat: three ticks above the selected label and side puffs.
+  /// No word and no slash cuts — the springy indicator supplies the stretch.
+  void _paintTabTicks(
+    Canvas canvas,
+    Offset center,
+    double base,
+    double t,
+    double springValue,
+    Paint ring,
+    Paint sparkA,
+    Paint sparkB,
+  ) {
+    canvas.drawCircle(center, base * (0.5 + springValue * 0.7), ring);
+    for (var i = -1; i <= 1; i++) {
+      final top =
+          center +
+          Offset(i * base * 0.6, -base * 0.9 - springValue * base * 0.5);
+      canvas.drawLine(top, top + Offset(0, -base * 0.4 * (1 - t)), sparkB);
+    }
+    for (var i = 0; i < 4; i++) {
+      final side = i.isEven ? -1.0 : 1.0;
+      final p =
+          center +
+          Offset(side * base * (1.0 + springValue), (i - 1.5) * base * 0.35);
+      canvas.drawCircle(p, base * 0.14 * (1 - t * 0.5), sparkA);
+    }
+  }
+
   @override
   bool shouldRepaint(KuronFxOverlayPainter old) =>
       old.progress != progress ||
@@ -500,6 +661,46 @@ abstract final class KuronFx {
     bool isReader = false,
     Rect? targetRect,
   }) {
+    _fire(
+      context,
+      kind: kind,
+      sticker: sticker,
+      isReader: isReader,
+      targetRect: targetRect ?? targetRectOf(context),
+    );
+  }
+
+  /// Fires a burst anchored on an explicit [rect] instead of a render box.
+  ///
+  /// Non-widget anchors (a tab label captured through a `GlobalKey`, a slider
+  /// thumb fraction, a snack-bar content box, a toggle tile) hand over their
+  /// rect here. Gating is identical to [trigger] — quiet mode, reduced motion,
+  /// note themes and the reader are all no-ops — and both funnel through the
+  /// same [_fire] path, so there is exactly one overlay entry and one timer.
+  static void triggerOn(
+    BuildContext context, {
+    required Rect rect,
+    required KuronFxKind kind,
+    KuronSticker? sticker,
+    bool isReader = false,
+  }) {
+    _fire(
+      context,
+      kind: kind,
+      sticker: sticker,
+      isReader: isReader,
+      targetRect: rect,
+    );
+  }
+
+  /// Single shared gate + dispatch path for [trigger] and [triggerOn].
+  static void _fire(
+    BuildContext context, {
+    required KuronFxKind kind,
+    KuronSticker? sticker,
+    required bool isReader,
+    required Rect? targetRect,
+  }) {
     // Triggered from callbacks: read once, never register a rebuild dependency.
     final mode = KuronMotionPolicy.effectiveMode(
       context,
@@ -518,9 +719,33 @@ abstract final class KuronFx {
       mode: mode,
       kind: kind,
       sticker: sticker ?? _defaultStickerFor(kind),
-      targetRect: targetRect ?? targetRectOf(context),
+      targetRect: targetRect,
       monochrome: KuronMotionPolicy.isNoteTheme(context, listen: false),
       dark: Theme.of(context).brightness == Brightness.dark,
+    );
+  }
+
+  /// Thumb-center box for a horizontal [Slider] track, derived from the value
+  /// fraction (katalog slider §3). [thumbSize] matches Material's thumb
+  /// diameter; the result is passed straight to [triggerOn] for `sliderFling`.
+  /// The caller decides *when* to fire (fast release only); this only computes
+  /// where the word lands.
+  static Rect thumbRectOf(
+    Rect trackRect,
+    double value, {
+    double min = 0,
+    double max = 1,
+    double thumbSize = 20,
+  }) {
+    final span = max - min;
+    final fraction = span <= 0 ? 0.0 : ((value - min) / span).clamp(0.0, 1.0);
+    final inset = thumbSize / 2;
+    final usable = math.max(0.0, trackRect.width - thumbSize);
+    final cx = trackRect.left + inset + usable * fraction;
+    return Rect.fromCenter(
+      center: Offset(cx, trackRect.center.dy),
+      width: thumbSize,
+      height: thumbSize,
     );
   }
 
@@ -550,5 +775,14 @@ abstract final class KuronFx {
     KuronFxKind.rating => KuronSticker.sah,
     KuronFxKind.downloadComplete => null,
     KuronFxKind.sheetConfirm => KuronSticker.resmi,
+    // Anchored control beats are too small for the giant satire sticker;
+    // their feedback is the procedural burst + baked word only.
+    KuronFxKind.toggleOn => null,
+    KuronFxKind.toggleOff => null,
+    KuronFxKind.sliderFling => null,
+    KuronFxKind.tabSwitch => null,
+    KuronFxKind.toastLand => null,
+    KuronFxKind.tooltipPop => null,
+    KuronFxKind.progressComplete => null,
   };
 }

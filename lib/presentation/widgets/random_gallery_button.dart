@@ -10,6 +10,7 @@ import 'package:nhasixapp/domain/usecases/content/get_random_galleries_usecase.d
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 import 'animated_dice_widget.dart';
+import 'kuron_tooltip.dart';
 
 // Random Gallery Button — Rolls a dice to get random content
 class RandomGalleryButton extends StatefulWidget {
@@ -242,12 +243,11 @@ class _RandomGalleryButtonState extends State<RandomGalleryButton> {
     final colorScheme = Theme.of(context).colorScheme;
     final l10n = AppLocalizations.of(context)!;
 
-    return Tooltip(
+    return KuronTooltip(
       message: l10n.randomGallery,
       child: IconButton(
         onPressed: _isLoading ? null : _handleRandomGallery,
         icon: const AnimatedDiceWidget(isSpinning: false),
-        tooltip: l10n.randomGallery,
         splashRadius: 24,
         color: colorScheme.onSurface,
       ),
