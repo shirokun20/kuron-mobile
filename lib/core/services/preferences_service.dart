@@ -31,6 +31,11 @@ class PreferencesService {
   static const String _keyBlurThumbnails = 'blur_thumbnails';
   static const String _keyBlacklistedTags = 'blacklistedTags';
   static const String _keyBlacklistedTagMetadata = 'blacklistedTagMetadata';
+  static const String _keyKuronFxMode = 'kuron_fx_mode';
+
+  /// Stored verbatim (matches `KuronFxMode.storageValue`). Unknown/legacy
+  /// values degrade to `quiet` so a stale key can never enable effects.
+  static const List<String> _kuronFxModes = ['quiet', 'standard', 'satire'];
 
   // Get blur thumbnails setting directly (for fallback scenarios)
   bool getBlurThumbnailsDirect() {
@@ -40,6 +45,7 @@ class PreferencesService {
   // Get all user preferences
   Future<UserPreferences> getUserPreferences() async {
     final blurValue = _prefs.getBool(_keyBlurThumbnails) ?? true;
+    final storedFxMode = _prefs.getString(_keyKuronFxMode);
     _logger.d(
         'PREFS_READ: blur=$blurValue (raw=${_prefs.getBool(_keyBlurThumbnails)}, key=$_keyBlurThumbnails)');
     return UserPreferences(
@@ -52,6 +58,9 @@ class PreferencesService {
       blacklistedTagMetadata: _readBlacklistedTagMetadata(
         _keyBlacklistedTagMetadata,
       ),
+      kuronFxMode: _kuronFxModes.contains(storedFxMode)
+          ? storedFxMode!
+          : 'quiet',
 
       // History cleanup settings
       autoCleanupHistory: _prefs.getBool(_keyAutoCleanupHistory) ?? false,
@@ -102,6 +111,7 @@ class PreferencesService {
               ),
             ),
           ),
+        _prefs.setString(_keyKuronFxMode, preferences.kuronFxMode),
 
         // History cleanup settings
         _prefs.setBool(_keyAutoCleanupHistory, preferences.autoCleanupHistory),
@@ -178,8 +188,14 @@ class PreferencesService {
       _prefs.getInt(_keyInactivityCleanupDays) ?? 7;
   DateTime? get lastHistoryCleanup => _getDateTime(_keyLastHistoryCleanup);
   DateTime? get lastAppAccess => _getDateTime(_keyLastAppAccess);
+  String get kuronFxMode =>
+      _kuronFxModes.contains(_prefs.getString(_keyKuronFxMode))
+          ? _prefs.getString(_keyKuronFxMode)!
+          : 'quiet';
 
   // Individual setters
+  Future<void> setKuronFxMode(String value) =>
+      _prefs.setString(_keyKuronFxMode, value);
   Future<void> setAutoCleanupHistory(bool value) =>
       _prefs.setBool(_keyAutoCleanupHistory, value);
   Future<void> setHistoryCleanupIntervalHours(int value) =>

@@ -28,6 +28,7 @@ import '../../../core/utils/app_update_test.dart';
 import '../../widgets/app_main_drawer_widget.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/kuro_mascot.dart';
+import '../../widgets/kuron_fx.dart';
 import '../../utils/kuron_motion_policy.dart';
 import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
@@ -240,8 +241,14 @@ class _SettingsScreenState extends State<SettingsScreen>
                   child: Text(l10n.kuronFxSatire),
                 ),
               ],
-              onChanged: (v) =>
-                  context.read<SettingsCubit>().updateKuronFxMode(v!),
+              onChanged: (v) async {
+                if (v == null) return;
+                await context.read<SettingsCubit>().updateKuronFxMode(v);
+                if (!context.mounted) return;
+                // Preview the newly selected mode (quiet is a no-op inside
+                // KuronFx). Fired only after the cubit emits the new state.
+                KuronFx.trigger(context, kind: KuronFxKind.sheetConfirm);
+              },
               theme: theme,
             ),
             buildSettingsDivider(theme),

@@ -77,7 +77,11 @@ class KuronFxController {
     required KuronFxKind kind,
     KuronSticker? sticker,
   }) {
-    if (mode == KuronFxMode.quiet) return;
+    if (mode == KuronFxMode.quiet) {
+      // Switching to quiet mid-burst must also tear down an in-flight effect.
+      _clear();
+      return;
+    }
     _clear();
 
     _kind = kind;
@@ -351,7 +355,9 @@ abstract final class KuronFx {
     if (mode == KuronFxMode.quiet) return;
     final controller = _controller;
     if (controller == null) return;
-    final overlay = Overlay.maybeOf(context);
+    // Always target the root overlay: a trigger fired from a bottom sheet or
+    // dialog must render above that route, not into a short-lived nested one.
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
     controller.show(
       overlay: overlay,
