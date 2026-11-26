@@ -54,11 +54,13 @@ enum KuronSticker {
 /// released in [dispose].
 class KuronFxController {
   KuronFxController({required TickerProvider vsync})
-    : _controller = AnimationController(
+    : _vsync = vsync,
+      _controller = AnimationController(
         vsync: vsync,
         duration: const Duration(milliseconds: 720),
       );
 
+  final TickerProvider _vsync;
   final AnimationController _controller;
   OverlayEntry? _entry;
   Timer? _ttl;
@@ -75,6 +77,22 @@ class KuronFxController {
   static const int maxParticles = 40;
   static const Duration maxDuration = Duration(milliseconds: 800);
   static const double stickerLogicalSize = 72;
+
+  /// Katalog toggle §2: ON plays frames 0→42 at 30 fps (1.433 s), OFF plays
+  /// frames 11→0 backward (0.4 s). Every other beat keeps the shared 720 ms
+  /// animation / 800 ms TTL.
+  static Duration animationDurationFor(KuronFxKind kind) => switch (kind) {
+    KuronFxKind.toggleOn => const Duration(milliseconds: 1433),
+    KuronFxKind.toggleOff => const Duration(milliseconds: 400),
+    _ => const Duration(milliseconds: 720),
+  };
+
+  /// Live animation duration (exposed for diagnostics/tests).
+  Duration? get duration => _controller.duration;
+
+  /// Shared ticker host, reused by the custom Kuron toast so it needs no
+  /// second [TickerProviderStateMixin] or extra host widget.
+  TickerProvider get vsync => _vsync;
 
   bool get isActive => _entry != null;
   int get particleCount => _particleCount;
@@ -115,7 +133,10 @@ class KuronFxController {
     _clear();
 
     _kind = kind;
-    _sticker = mode == KuronFxMode.satire ? sticker : null;
+    // Stickers are removed from every burst: the setting is on/off only and
+    // no trigger path (including satire) renders a die-cut asset. The
+    // [sticker] parameter is kept for source compatibility but ignored.
+    _sticker = null;
     _targetRect = targetRect;
     _monochrome = monochrome;
     _wordSpec = _specForKind(kind);
@@ -180,10 +201,19 @@ class KuronFxController {
     );
     _entry = entry;
     overlay.insert(entry);
+    _controller.duration = animationDurationFor(kind);
     _controller
       ..reset()
       ..forward(from: 0);
-    _ttl = Timer(maxDuration, _clear);
+    // Toggle beats own their katalog pacing; other beats keep the 800 ms cap.
+    _ttl = Timer(
+      switch (kind) {
+        KuronFxKind.toggleOn => const Duration(milliseconds: 1450),
+        KuronFxKind.toggleOff => const Duration(milliseconds: 430),
+        _ => maxDuration,
+      },
+      _clear,
+    );
   }
 
   void _clear() {
@@ -517,10 +547,46 @@ class KuronFxOverlayPainter extends CustomPainter {
     }
   }
 
-  /// Toggle procedural beat (katalog toggle §2, redrawn with Kuron painter
-  /// primitives instead of the gallery's 43-frame webp sheet): an elliptical
-  /// knob stretch toward the new state, a flood wash along the track and a
-  /// bounded rim splash. Wordless — the state change is the message.
+  /// Gallery toggle.js: `N = 43, FPS = 30, COLS = 8`; ON = `[0..42]`,
+  /// OFF = `[11,10,…,0]` (12 frames played backward). No words, no sheet.
+  static const double _toggleFps = 30;
+  static const int toggleOnFrames = 43;
+  static const int toggleOffFrames = 12;
+
+  /// The discrete sprite-sheet frame the gallery would draw at [progress].
+  /// ON advances 0→42; OFF replays only the first 12 frames in reverse, so
+  /// the splash/flood/glint (later frames) never appear on OFF.
+  static int toggleFrameFor(KuronFxKind kind, double progress) {
+    final reversed = kind == KuronFxKind.toggleOff;
+    final raw = reversed
+        ? (1 - progress) * ((toggleOffFrames - 1) / toggleOnFrames)
+        : progress;
+    return (raw * toggleOnFrames).floor().clamp(0, toggleOnFrames - 1);
+  }
+
+  /// Knob spring, katalog slider §3 (420/30) — the only spring number the
+  /// catalog gives for a control thumb. The gallery toggle itself is a frame
+  /// sheet; this spring maps those frames onto a procedural knob smear/slam.
+  static final SpringSimulation _knobSpring = SpringSimulation(
+    const SpringDescription(mass: 1, stiffness: 420, damping: 30),
+    0,
+    1,
+    0,
+  );
+
+  /// Splash crown defaults, katalog effect #10: w34 / h26 / life 0.7 s,
+  /// 7 tongues + 7 teardrop drops under gravity 520 (no random numbers).
+  static const double _splashW = 34;
+  static const double _splashH = 26;
+  static const double _splashLife = 0.7;
+  static const double _dropGravity = 520;
+
+  /// Procedural redraw of the gallery's 43 drawn frames with Kuron painter
+  /// primitives: frames 0–11 knob smear with a torn tail, slam, frames 12–42
+  /// splash crown + flood/slosh wash + glint + settle. OFF replays only frames
+  /// 11→0 backward (gallery `OFF = [11..0]`), so it has no crown/flood/glint.
+  /// Wordless — the state change is the message; reduced motion never reaches
+  /// this painter because the shared gate jumps to the end state instead.
   void _paintToggle(
     Canvas canvas,
     Offset center,
@@ -532,35 +598,83 @@ class KuronFxOverlayPainter extends CustomPainter {
     Paint sparkB,
     Paint sparkC,
   ) {
-    final dir = kind == KuronFxKind.toggleOn ? 1.0 : -1.0;
-    // Flood wash: track-shaped stroke sweeping out from the knob.
+    // Gallery frame stepping: ON 0→42, OFF 11→0 (reverse, early frames only).
+    final frame = toggleFrameFor(kind, t);
+    final local = frame / toggleOnFrames;
+    final seconds = local * (toggleOnFrames / _toggleFps); // 30 fps time base
+    final knob = _knobSpring.x(seconds).clamp(0.0, 1.15);
+    final smear = (local / 0.36).clamp(0.0, 1.0); // frames 0..11
+    final slam = 1 - ((local - 0.36) / 0.64).clamp(0.0, 1.0);
+    final crownT = ((local - 0.34) / _splashLife).clamp(0.0, 1.0);
+
+    // Flood/slosh wash: track-shaped stroke sweeping out from the knob, with
+    // two bounded surface ripples instead of a static fill.
     canvas.drawRRect(
       RRect.fromRectAndRadius(
         Rect.fromCenter(
           center: center,
-          width: base * (2.2 + 1.4 * springValue),
+          width: base * (2.2 + 1.4 * springValue) * (0.55 + 0.45 * smear),
           height: base * 0.9,
         ),
         Radius.circular(base * 0.45),
       ),
       ring,
     );
-    // Knob stretch: ellipse offset toward the travel direction.
+    for (var i = 0; i < 2; i++) {
+      final wave = math.sin(local * 14 + i * math.pi) * base * 0.18 * slam;
+      final wc = center + Offset(base * 0.6 * (i - 0.5), -base * 0.32 + wave);
+      canvas.drawLine(
+        wc - Offset(base * 0.35, 0),
+        wc + Offset(base * 0.35, 0),
+        i.isEven ? sparkA : sparkB,
+      );
+    }
+
+    // Knob stretch: ellipse smearing toward the new state, then slamming.
     canvas.drawOval(
       Rect.fromCenter(
-        center: center + Offset(dir * base * 0.5 * springValue, 0),
-        width: base * (0.9 + 1.1 * springValue),
-        height: base * (0.9 + 0.35 * (1 - t)),
+        center: center + Offset(base * 0.5 * knob, 0),
+        width: base * (0.9 + 1.1 * knob),
+        height: base * (0.9 + 0.35 * slam),
       ),
       sparkA,
     );
-    // Splash / shards around the rim (8 deterministic strokes, hard-capped).
-    for (var i = 0; i < 8; i++) {
-      final angle = (i * 45) * math.pi / 180;
-      final d = Offset(math.cos(angle), math.sin(angle));
-      final p = center + d * base * (0.9 + springValue * 0.9);
-      final arm = base * 0.18 * (1 - t * 0.5);
-      canvas.drawLine(p - d * arm, p + d * arm, i.isEven ? sparkB : sparkC);
+
+    // Splash crown at the slam point: 7 rising tongues + 7 falling drops,
+    // scaled from the katalog's 34×26 crown to this control.
+    final scale = base / _splashW;
+    final crown = center + Offset(base * 0.5, -base * 0.45);
+    final rise = math.sin(crownT * math.pi);
+    for (var i = 0; i < 7; i++) {
+      final u = i / 6 - 0.5;
+      final h = _splashH * (1 - u.abs() * 0.7) * scale * rise;
+      final bx = crown.dx + u * _splashW * scale;
+      canvas.drawLine(
+        Offset(bx, crown.dy),
+        Offset(bx + u * h * 0.5, crown.dy - h),
+        i.isEven ? sparkA : sparkC,
+      );
+    }
+    for (var i = 0; i < 7; i++) {
+      final a = -math.pi / 2 + ((i - 3) / 3) * 1.1;
+      final v = (100 + (i % 3) * 55) * scale;
+      final tt = crownT * _splashLife;
+      final px = crown.dx + math.cos(a) * v * tt;
+      final py =
+          crown.dy - 6 * scale + math.sin(a) * v * tt + _dropGravity * scale * tt * tt;
+      final r = base * 0.06 * (1 - crownT);
+      if (r > 0) {
+        canvas.drawCircle(Offset(px, py), r, i.isEven ? sparkB : sparkC);
+      }
+    }
+
+    // Late glint (katalog kira), four-point and bounded to the last 22%.
+    if (local > 0.78) {
+      final g = ((local - 0.78) / 0.22).clamp(0.0, 1.0);
+      final s = base * 0.35 * math.sin(g * math.pi);
+      final gc = center + Offset(base * 0.9, -base * 0.6);
+      canvas.drawLine(gc - Offset(s, 0), gc + Offset(s, 0), sparkC);
+      canvas.drawLine(gc - Offset(0, s), gc + Offset(0, s), sparkC);
     }
   }
 
@@ -664,7 +778,6 @@ abstract final class KuronFx {
     _fire(
       context,
       kind: kind,
-      sticker: sticker,
       isReader: isReader,
       targetRect: targetRect ?? targetRectOf(context),
     );
@@ -687,7 +800,6 @@ abstract final class KuronFx {
     _fire(
       context,
       kind: kind,
-      sticker: sticker,
       isReader: isReader,
       targetRect: rect,
     );
@@ -697,7 +809,6 @@ abstract final class KuronFx {
   static void _fire(
     BuildContext context, {
     required KuronFxKind kind,
-    KuronSticker? sticker,
     required bool isReader,
     required Rect? targetRect,
   }) {
@@ -718,7 +829,7 @@ abstract final class KuronFx {
       overlay: overlay,
       mode: mode,
       kind: kind,
-      sticker: sticker ?? _defaultStickerFor(kind),
+      sticker: null, // stickers removed from every burst
       targetRect: targetRect,
       monochrome: KuronMotionPolicy.isNoteTheme(context, listen: false),
       dark: Theme.of(context).brightness == Brightness.dark,
@@ -766,23 +877,4 @@ abstract final class KuronFx {
     }
   }
 
-  /// Button bursts (favorite, download complete) never show the giant satire
-  /// sticker — the anchored slash/sparks/ring carry the feedback on their own.
-  /// Stickers stay available in `assets/stickers` for mascot/gamification
-  /// surfaces, which pass an explicit [KuronSticker].
-  static KuronSticker? _defaultStickerFor(KuronFxKind kind) => switch (kind) {
-    KuronFxKind.favorite => null,
-    KuronFxKind.rating => KuronSticker.sah,
-    KuronFxKind.downloadComplete => null,
-    KuronFxKind.sheetConfirm => KuronSticker.resmi,
-    // Anchored control beats are too small for the giant satire sticker;
-    // their feedback is the procedural burst + baked word only.
-    KuronFxKind.toggleOn => null,
-    KuronFxKind.toggleOff => null,
-    KuronFxKind.sliderFling => null,
-    KuronFxKind.tabSwitch => null,
-    KuronFxKind.toastLand => null,
-    KuronFxKind.tooltipPop => null,
-    KuronFxKind.progressComplete => null,
-  };
 }

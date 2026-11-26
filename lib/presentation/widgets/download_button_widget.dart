@@ -12,7 +12,7 @@ import '../blocs/download/download_bloc.dart';
 import 'content_list_widget.dart';
 import 'kuron_fx.dart';
 import 'kuron_squash.dart';
-import 'kuron_snack_bar_content.dart';
+import 'kuron_toast.dart';
 import '../../domain/services/ehentai_download_strategy.dart';
 import 'download_range_selector.dart';
 import 'download_settings_widget.dart';
@@ -493,15 +493,9 @@ class DownloadButtonWidget extends StatelessWidget {
     context.read<DownloadBloc>().add(DownloadQueueEvent(content: content));
     context.read<DownloadBloc>().add(DownloadStartEvent(content.id));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: KuronSnackBarContent(
-          child: Text(
-            AppLocalizations.of(context)!.downloadStarted(content.title),
-          ),
-        ),
-        duration: const Duration(seconds: 2),
-      ),
+    KuronToast.show(
+      context,
+      message: AppLocalizations.of(context)!.downloadStarted(content.title),
     );
   }
 
@@ -756,16 +750,10 @@ class DownloadButtonWidget extends StatelessWidget {
         ? AppLocalizations.of(context)!.pageText(startPage)
         : AppLocalizations.of(context)!.pagesText(startPage, endPage);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: KuronSnackBarContent(
-          child: Text(
-            AppLocalizations.of(context)!
-                .rangeDownloadStarted(targetContent.title, pageText),
-          ),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
+    KuronToast.show(
+      context,
+      message: AppLocalizations.of(context)!
+          .rangeDownloadStarted(targetContent.title, pageText),
     );
   }
 

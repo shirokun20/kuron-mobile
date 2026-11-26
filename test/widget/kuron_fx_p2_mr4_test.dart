@@ -14,7 +14,7 @@ void main() {
   setUp(setUpFxChannel);
   tearDown(tearDownFxChannel);
 
-  testWidgets('KuronSnackBarContent anchors BYAR! below the message', (
+  testWidgets('KuronSnackBarContent anchors BYAR! above the snackbar in bounds', (
     tester,
   ) async {
     final injected = await pumpFxApp(tester, mode: KuronFxMode.standard);
@@ -24,15 +24,20 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump(const Duration(milliseconds: 250));
 
     final contentRect = tester.getRect(find.text('unduhan selesai'));
+    final snackRect = tester.getRect(find.byType(SnackBar));
+    final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
     final painter = painterOf(tester);
     expect(painter.kind, KuronFxKind.toastLand);
     expect(painter.targetRect, isNotNull);
-    // Below-content anchor: the burst box starts under the message box and
-    // is horizontally centered on it.
-    expect(painter.targetRect!.top, greaterThanOrEqualTo(contentRect.bottom));
+    // Anchor sits ABOVE the snackbar/bottom bar (not sunk into it), stays
+    // horizontally centered on the message and inside the visible screen.
+    expect(painter.targetRect!.bottom, lessThanOrEqualTo(snackRect.top + 1));
+    expect(painter.targetRect!.top, greaterThanOrEqualTo(0));
+    expect(painter.targetRect!.right, lessThanOrEqualTo(screen.width));
+    expect(painter.targetRect!.bottom, lessThanOrEqualTo(screen.height));
     expect(
       painter.targetRect!.center.dx,
       moreOrLessEquals(contentRect.center.dx, epsilon: 1),
@@ -94,7 +99,7 @@ void main() {
       const SnackBar(content: KuronSnackBarContent(child: Text('quiet toast'))),
     );
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 120));
+    await tester.pump(const Duration(milliseconds: 250));
 
     expect(find.text('quiet toast'), findsOneWidget);
     expect(KuronFx.activeController!.activeEntryCount, 0);

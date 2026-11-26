@@ -8,6 +8,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+ - 🔧 (kuron_fx/toggle): match gallery toggle.js frame-for-frame — ON steps discrete frames 0→42 at 30 fps (1433 ms) with knob smear/slam, 7-tongue/7-drop splash crown (34×26, gravity 520), flood/slosh wash and a late glint, while OFF replays only frames 11→0 backward (400 ms) so it never shows the crown/flood/glint; reduced motion jumps to the end state, with no words, assets or per-frame allocation.
+ - 📤 (settings/kuron_fx): remove sticker options from the Visual Effects setting entirely (on/off only) and null every burst's default sticker so no die-cut asset is rendered on any trigger path, including satire; the burst is procedural/baked-word only.
+ - 🐛 (kuron_fx/slider): make the fast-release CAIR! beat reachable with one line on every slider via `Widget.withKuronSliderFx()` — a transparent pointer wrapper samples velocity in range fractions/s and fires the katalog `|peak| > 1.3` release beat without a cooldown, anchored through `thumbRectOf` on the slider box; applied to all settings sliders while the reader slider uses `isReader: true` to stay hard-off.
+ - 🐛 (kuron_fx/toast): lift the toast burst above the snack bar — `KuronSnackBarContent.anchorRectOf` now uses the snack bar's rendered box plus view/safe-area bounds so BYAR! and its burst stay fully on-screen instead of sinking into the bottom bar.
+ - 🆕 (kuron_toast): replace the two plain "download started" snack bars with Kuron's own toast — streak-in (`Spring 280/18`, v0 1000), land with ground puffs/shards/ticks and the baked dotted BYAR! burst, 2.6 s hold and a spring shrink-out (≈3.7 s total); one bounded overlay/timer/controller reused from the shared FX host, with quiet/reduced-motion/note/reader falling back to a plain message and state intact.
  - 🆕 (kuron_fx/P2/MR1): extend `KuronFxKind` with `toggleOn`, `toggleOff`, `sliderFling`, `tabSwitch`, `toastLand`, `tooltipPop` and `progressComplete`, and add `KuronFx.triggerOn` — an explicit-rect trigger sharing one gated dispatch path with `trigger` (quiet/reduced-motion/note/reader no-op, single overlay entry, one TTL timer); wire the LOCKED word specs (JEDER! solid for the progress finish, BYAR! dotted for toast landing, KLIK! hollow for tooltips, CAIR! accent for slider fling, wordless toggle/tab) and `thumbRectOf` for thumb-fraction anchoring.
  - 🆕 (kuron_fx/P2/MR2): fire the `progressComplete` leading edge at the download 100% hook (superseding the redundant `downloadComplete` beat there) so the finish burst carries the JEDER! control×1.2/1.05 s staging; `sliderFling` accepts a caller-supplied thumb rect for CAIR! on fast release — no non-reader slider exposes a clean velocity signal yet, so the runtime caller hook stays unwired (reported, not invented).
  - 🆕 (kuron_fx/P2/MR3): add wordless procedural `toggleOn`/`toggleOff` (knob stretch + flood wash + rim splash) and `tabSwitch` (ticks/puffs) painter paths reusing existing ring/puff/shard primitives — no images and no per-frame allocations; wire toggles through the shared settings switch tile and tab switches through keyed labels captured post-frame in the downloads screen.
@@ -52,6 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - ⚙️ (build): AGP 9.1.1 + Gradle 9.3.1 (required by `androidx.core:core-ktx:1.19.0`).
 - 📤 (APK diet): ARM-only + debug symbols stripped — 359.6MB → 238.2MB (−34%).
 - 🐛 (reader): leading-slash chapter ids (Komikcast `/series/...`) no longer crash cache writes.
+- 🐛 (download range): fix range-input jank on large galleries (ehentai) — slider divisions capped at 200 (from one-per-page) and manual-field keystrokes sync to the slider only after 400ms idle or submit, so typing no longer rebuilds the dialog every frame during the keyboard-show animation.
 
 ## [0.9.29+39] - 2026-11-06
 

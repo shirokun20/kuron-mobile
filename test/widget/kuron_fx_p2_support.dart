@@ -37,6 +37,8 @@ Future<List<dynamic>> pumpFxApp(
   required KuronFxMode mode,
   Widget? home,
   bool reducedMotion = false,
+  Iterable<LocalizationsDelegate<dynamic>>? localizationsDelegates,
+  List<Locale>? supportedLocales,
 }) async {
   SharedPreferences.setMockInitialValues({'kuron_fx_mode': mode.storageValue});
   final prefs = await SharedPreferences.getInstance();
@@ -54,6 +56,9 @@ Future<List<dynamic>> pumpFxApp(
         BlocProvider<ThemeCubit>.value(value: theme),
       ],
       child: MaterialApp(
+        localizationsDelegates: localizationsDelegates,
+        supportedLocales:
+            supportedLocales ?? const <Locale>[Locale('en', 'US')],
         builder: (context, child) => KuronFxHost(
           child: MediaQuery(
             data: MediaQuery.of(context)

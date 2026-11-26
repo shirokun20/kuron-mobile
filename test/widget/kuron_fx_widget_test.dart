@@ -158,7 +158,7 @@ void main() {
     }
   });
 
-  testWidgets('satire mode: sticker Image renders alongside the painter', (
+  testWidgets('satire mode renders the painter only, no sticker Image', (
     tester,
   ) async {
     final injected = await pumpApp(
@@ -170,7 +170,7 @@ void main() {
     await tester.pump();
 
     expect(KuronFx.activeController!.activeEntryCount, 1);
-    expect(find.byType(Image), findsOneWidget);
+    expect(find.byType(Image), findsNothing);
     final finder = find.byWidgetPredicate(
       (widget) =>
           widget is CustomPaint && widget.painter is KuronFxOverlayPainter,

@@ -50,6 +50,7 @@ import '../../utils/chapter_language_presenter.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/extended_image_reader_widget.dart';
 import '../../widgets/kuro_mascot.dart';
+import '../../widgets/kuron_slider_fling.dart';
 import 'chapter_open_overlay.dart';
 import 'end_of_chapter_overlay.dart';
 import 'reader_video_chapter.dart';

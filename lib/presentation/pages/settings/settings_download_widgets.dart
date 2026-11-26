@@ -4,6 +4,7 @@ import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/blocs/download/download_bloc.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_slider_fling.dart';
 
 import 'settings_theme_widgets.dart';
 
@@ -119,7 +120,7 @@ Widget buildDownloadSection(
                     ),
                   );
                 },
-              ),
+              ).withKuronSliderFx(),
               Text(
                 l10n.concurrentDownloadsWarning,
                 style: TextStyleConst.bodySmall.copyWith(
@@ -238,7 +239,7 @@ Widget buildDownloadSection(
                   ),
                 );
               },
-            ),
+            ).withKuronSliderFx(),
           ),
         ],
         buildSettingsDivider(theme),
@@ -312,7 +313,7 @@ Widget buildDownloadSection(
                     ),
                   );
                 },
-              ),
+              ).withKuronSliderFx(),
             ],
           ),
         ),

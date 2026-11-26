@@ -253,7 +253,7 @@ class _ReaderSettingsSheet extends StatelessWidget {
             activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (v) => cubit.setReaderBrightness(v, persist: false),
             onChangeEnd: (v) => cubit.setReaderBrightness(v),
-          ),
+          ).withKuronSliderFx(isReader: true, thumbSize: 12),
         ),
       ],
     );

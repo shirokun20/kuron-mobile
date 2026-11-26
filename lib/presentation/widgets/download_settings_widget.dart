@@ -4,6 +4,7 @@ import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../core/constants/design_tokens.dart';
 import '../blocs/download/download_bloc.dart';
+import 'kuron_slider_fling.dart';
 
 // Widget for configuring download settings
 class DownloadSettingsWidget extends StatefulWidget {
@@ -212,7 +213,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
               );
             });
           },
-        ),
+        ).withKuronSliderFx(),
         Text(
           AppLocalizations.of(context)?.concurrentDownloadsWarning ??
               AppLocalizations.of(context)!.higherValuesBandwidth,
@@ -370,7 +371,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
               _settings = _settings.copyWith(retryAttempts: value.toInt());
             });
           },
-        ),
+        ).withKuronSliderFx(),
       ],
     );
   }
@@ -450,7 +451,7 @@ class _DownloadSettingsWidgetState extends State<DownloadSettingsWidget> {
               );
             });
           },
-        ),
+        ).withKuronSliderFx(),
       ],
     );
   }

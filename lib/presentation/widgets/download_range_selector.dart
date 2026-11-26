@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
@@ -5,6 +7,8 @@ import 'package:nhasixapp/core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 
 import 'package:nhasixapp/core/constants/design_tokens.dart';
+
+import 'kuron_slider_fling.dart';
 
 // Widget for selecting download range (page X to page Y)
 // Allows users to download partial content instead of all pages
@@ -36,6 +40,17 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
   final TextEditingController _startController = TextEditingController();
   final TextEditingController _endController = TextEditingController();
 
+  /// Coarse scrub granularity for the slider. Precision comes from the
+  /// manual fields, so there is no need for one division per page.
+  static const int _maxSliderDivisions = 200;
+
+  /// Idle delay before keystrokes in the manual fields sync to the slider.
+  /// Keystrokes keep echoing via the controllers without rebuilding the
+  /// slider on every character.
+  static const Duration _textSyncDebounce = Duration(milliseconds: 400);
+
+  Timer? _textSyncTimer;
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +62,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
 
   @override
   void dispose() {
+    _textSyncTimer?.cancel();
     _startController.dispose();
     _endController.dispose();
     super.dispose();
@@ -80,6 +96,26 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
         _currentRangeValues = RangeValues(start.toDouble(), end.toDouble());
       });
     }
+  }
+
+  /// Slider tick marks cost O(divisions) paint per frame. Galleries with
+  /// hundreds–thousands of pages (e.g. ehentai) jank on every rebuild
+  /// during the keyboard-show resize animation, so cap the divisions.
+  int? get _sliderDivisions {
+    if (widget.totalPages <= 1) return null;
+    return widget.totalPages > _maxSliderDivisions
+        ? _maxSliderDivisions
+        : widget.totalPages - 1;
+  }
+
+  void _scheduleTextSync() {
+    _textSyncTimer?.cancel();
+    _textSyncTimer = Timer(_textSyncDebounce, _updateFromTextFields);
+  }
+
+  void _applyTextSyncNow() {
+    _textSyncTimer?.cancel();
+    _updateFromTextFields();
   }
 
   int get selectedPageCount => endPage - startPage + 1;
@@ -212,7 +248,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                 values: _currentRangeValues,
                 min: 1,
                 max: widget.totalPages.toDouble(),
-                divisions: widget.totalPages - 1,
+                divisions: _sliderDivisions,
                 labels: RangeLabels(startPage.toString(), endPage.toString()),
                 onChanged: (values) {
                   setState(() {
@@ -220,7 +256,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                   });
                   _updateFromSlider();
                 },
-              ),
+              ).withKuronSliderFx(),
             ),
             const SizedBox(height: 20),
 
@@ -238,6 +274,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                   child: TextField(
                     controller: _startController,
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(6),
@@ -274,7 +311,8 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                         ),
                       ),
                     ),
-                    onChanged: (_) => _updateFromTextFields(),
+                    onChanged: (_) => _scheduleTextSync(),
+                    onSubmitted: (_) => _applyTextSyncNow(),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -282,6 +320,7 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                   child: TextField(
                     controller: _endController,
                     keyboardType: TextInputType.number,
+                    textInputAction: TextInputAction.done,
                     inputFormatters: [
                       FilteringTextInputFormatter.digitsOnly,
                       LengthLimitingTextInputFormatter(6),
@@ -318,7 +357,8 @@ class _DownloadRangeSelectorState extends State<DownloadRangeSelector> {
                         ),
                       ),
                     ),
-                    onChanged: (_) => _updateFromTextFields(),
+                    onChanged: (_) => _scheduleTextSync(),
+                    onSubmitted: (_) => _applyTextSyncNow(),
                   ),
                 ),
               ],
