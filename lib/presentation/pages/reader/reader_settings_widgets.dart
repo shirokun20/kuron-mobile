@@ -24,7 +24,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kuron = Theme.of(context).extension<KuronColors>();
-    final glassBg = kuron?.readerBg.withValues(alpha: 0.92) ??
+    final glassBg =
+        kuron?.readerBg.withValues(alpha: 0.92) ??
         Theme.of(context).colorScheme.surfaceContainer;
 
     return ClipRRect(
@@ -109,7 +110,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
           final newMode = _getNextReadingMode(
             currentMode,
             disableContinuousScroll: readingModeLabel.contains(
-                AppLocalizations.of(context)!.readerContinuousOffHeavyImage),
+              AppLocalizations.of(context)!.readerContinuousOffHeavyImage,
+            ),
           );
           cubit.changeReadingMode(newMode);
         },
@@ -145,8 +147,9 @@ class _ReaderSettingsSheet extends StatelessWidget {
           ButtonSegment(
             value: TapDirection.inverted,
             icon: const Icon(Icons.arrow_back, size: 16),
-            label:
-                Text(AppLocalizations.of(context)!.readerTapDirectionInverted),
+            label: Text(
+              AppLocalizations.of(context)!.readerTapDirectionInverted,
+            ),
           ),
         ],
         selected: {state.tapDirection ?? TapDirection.normal},
@@ -177,10 +180,7 @@ class _ReaderSettingsSheet extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Icon(
-        Icons.list,
-        color: Theme.of(context).colorScheme.primary,
-      ),
+      trailing: Icon(Icons.list, color: Theme.of(context).colorScheme.primary),
       onTap: onShowChapterSelector,
     );
   }
@@ -199,10 +199,22 @@ class _ReaderSettingsSheet extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: Switch(
-        value: state.keepScreenOn ?? false,
-        onChanged: (_) => cubit.toggleKeepScreenOn(),
-        activeThumbColor: Theme.of(context).colorScheme.primary,
+      trailing: Builder(
+        builder: (switchContext) => Switch(
+          value: state.keepScreenOn ?? false,
+          onChanged: (next) {
+            final rect = KuronFx.targetRectOf(switchContext);
+            if (rect != null) {
+              KuronFx.triggerOn(
+                switchContext,
+                rect: rect,
+                kind: next ? KuronFxKind.toggleOn : KuronFxKind.toggleOff,
+              );
+            }
+            cubit.toggleKeepScreenOn();
+          },
+          activeThumbColor: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
@@ -239,10 +251,8 @@ class _ReaderSettingsSheet extends StatelessWidget {
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
             trackHeight: 2.5,
-            thumbShape:
-                const RoundSliderThumbShape(enabledThumbRadius: 6),
-            overlayShape:
-                const RoundSliderOverlayShape(overlayRadius: 14),
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
           ),
           child: Slider(
             value: brightness.clamp(0.2, 1.0),
@@ -253,7 +263,7 @@ class _ReaderSettingsSheet extends StatelessWidget {
             activeColor: Theme.of(context).colorScheme.primary,
             onChanged: (v) => cubit.setReaderBrightness(v, persist: false),
             onChangeEnd: (v) => cubit.setReaderBrightness(v),
-          ).withKuronSliderFx(isReader: true, thumbSize: 12),
+          ).withKuronSliderFx(thumbSize: 12),
         ),
       ],
     );
@@ -312,10 +322,7 @@ class _ReaderSettingsSheet extends StatelessWidget {
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: onShowResetConfirmation,
-        icon: Icon(
-          Icons.restore,
-          color: Theme.of(context).colorScheme.error,
-        ),
+        icon: Icon(Icons.restore, color: Theme.of(context).colorScheme.error),
         label: Text(
           AppLocalizations.of(context)!.resetToDefaults,
           style: TextStyleConst.buttonMedium.copyWith(
@@ -383,9 +390,7 @@ class _ReaderChapterSelector extends StatelessWidget {
               _buildHeader(context, scrollController),
               Divider(
                 height: 1,
-                color: Theme.of(context)
-                    .colorScheme
-                    .outlineVariant
+                color: Theme.of(context).colorScheme.outlineVariant
                     .withValues(alpha: 0.5),
               ),
               Container(
@@ -395,9 +400,7 @@ class _ReaderChapterSelector extends StatelessWidget {
                   AppLocalizations.of(context)!
                       .showingFirstChapters(chapters.length),
                   style: TextStyleConst.bodySmall.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurfaceVariant
+                    color: Theme.of(context).colorScheme.onSurfaceVariant
                         .withValues(alpha: 0.7),
                     fontStyle: FontStyle.italic,
                   ),
@@ -406,8 +409,10 @@ class _ReaderChapterSelector extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   controller: scrollController,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   itemCount: chapters.length,
                   itemBuilder: (_, index) =>
                       _buildChapterTile(context, index, scrollController),
@@ -429,9 +434,7 @@ class _ReaderChapterSelector extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurfaceVariant
+              color: Theme.of(context).colorScheme.onSurfaceVariant
                   .withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
@@ -467,7 +470,7 @@ class _ReaderChapterSelector extends StatelessWidget {
                       activeLanguage != null && chapters.isNotEmpty
                           ? '${AppLocalizations.of(context)!.nChapters(chapters.length)} • ${activeLanguage!.toUpperCase()}'
                           : AppLocalizations.of(context)!
-                              .nChapters(chapters.length),
+                                .nChapters(chapters.length),
                       style: TextStyleConst.bodySmall.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -483,7 +486,10 @@ class _ReaderChapterSelector extends StatelessWidget {
   }
 
   Widget _buildChapterTile(
-      BuildContext context, int index, ScrollController _) {
+    BuildContext context,
+    int index,
+    ScrollController _,
+  ) {
     final chapter = chapters[index];
     final isCurrent = index == currentIndex;
 
@@ -491,10 +497,8 @@ class _ReaderChapterSelector extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
         color: isCurrent
-            ? Theme.of(context)
-                .colorScheme
-                .primaryContainer
-                .withValues(alpha: 0.4)
+            ? Theme.of(context).colorScheme.primaryContainer
+                  .withValues(alpha: 0.4)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(DesignTokens.radiusLg),
         child: InkWell(
@@ -520,8 +524,9 @@ class _ReaderChapterSelector extends StatelessWidget {
                           color: isCurrent
                               ? Theme.of(context).colorScheme.primary
                               : Theme.of(context).colorScheme.onSurface,
-                          fontWeight:
-                              isCurrent ? FontWeight.w700 : FontWeight.w500,
+                          fontWeight: isCurrent
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -531,8 +536,9 @@ class _ReaderChapterSelector extends StatelessWidget {
                         Text(
                           _formatChapterDate(context, chapter.uploadDate!),
                           style: TextStyleConst.bodySmall.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -550,7 +556,11 @@ class _ReaderChapterSelector extends StatelessWidget {
   }
 
   Widget _buildNumberBadge(
-      BuildContext context, Chapter chapter, bool isCurrent, int index) {
+    BuildContext context,
+    Chapter chapter,
+    bool isCurrent,
+    int index,
+  ) {
     return Container(
       width: 40,
       height: 40,
@@ -634,7 +644,9 @@ String _getReadingModeLabel(BuildContext context, ReadingMode mode) {
 }
 
 String _getTapDirectionDescription(
-    BuildContext context, TapDirection direction) {
+  BuildContext context,
+  TapDirection direction,
+) {
   switch (direction) {
     case TapDirection.normal:
       return AppLocalizations.of(context)!.readerTapDirectionNormalDescription;
@@ -712,7 +724,9 @@ Future<void> _clearReaderImageCache(BuildContext context) async {
 }
 
 Future<void> _resetReaderSettings(
-    BuildContext context, ReaderCubit cubit) async {
+  BuildContext context,
+  ReaderCubit cubit,
+) async {
   try {
     context.pop();
     await cubit.resetReaderSettings();
@@ -784,18 +798,22 @@ void _showChapterSelector(
 
   final isVolumeMode = state.currentChapter?.scanGroup == 'Volume';
   final chaptersOnly = cubit.allChapters!
-      .where((c) => isVolumeMode
-          ? c.scanGroup == 'Volume'
-          : c.scanGroup == null || c.scanGroup != 'Volume')
+      .where(
+        (c) => isVolumeMode
+            ? c.scanGroup == 'Volume'
+            : c.scanGroup == null || c.scanGroup != 'Volume',
+      )
       .toList();
 
   final normalizedLanguage = _normalizeLanguageForFilter(activeLanguage);
   final chapters = normalizedLanguage == null
       ? chaptersOnly
       : chaptersOnly
-          .where((c) =>
-              _normalizeLanguageForFilter(c.language) == normalizedLanguage)
-          .toList();
+            .where(
+              (c) =>
+                  _normalizeLanguageForFilter(c.language) == normalizedLanguage,
+            )
+            .toList();
   final effectiveChapters = chapters.isNotEmpty ? chapters : chaptersOnly;
 
   int currentIndex = -1;

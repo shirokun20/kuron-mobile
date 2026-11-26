@@ -7,6 +7,7 @@ import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../domain/entities/download_status.dart';
 import '../blocs/download/download_bloc.dart';
+import 'kuron_sakuga_progress.dart';
 
 class GlobalDownloadProgressWidget extends StatefulWidget {
   const GlobalDownloadProgressWidget({super.key, this.topInset = 0.0});
@@ -180,22 +181,20 @@ class _GlobalDownloadProgressWidgetState
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
-                          child: LinearProgressIndicator(
-                            value: totalProgress > 0 ? totalProgress : null,
+                          child: KuronSakugaProgressBar(
+                            progress: totalProgress.clamp(0.0, 1.0),
+                            height: 9,
+                            borderRadius: BorderRadius.circular(4.5),
+                            color: Theme.of(context).colorScheme.primary,
                             backgroundColor: Theme.of(context)
                                 .colorScheme
                                 .surface
                                 .withValues(alpha: 0.3),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.primary,
-                            ),
-                            minHeight: 6,
-                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -206,6 +205,7 @@ class _GlobalDownloadProgressWidgetState
                                 .colorScheme
                                 .onPrimaryContainer
                                 .withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],
@@ -277,21 +277,19 @@ class _GlobalDownloadProgressWidgetState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
-                          child: LinearProgressIndicator(
-                            value: progress > 0 ? progress : null,
+                          child: KuronSakugaProgressBar(
+                            progress: progress.clamp(0.0, 1.0),
+                            height: 7,
+                            borderRadius: BorderRadius.circular(3.5),
+                            color: Theme.of(context).colorScheme.primary,
                             backgroundColor: Theme.of(context)
                                 .colorScheme
                                 .surface
                                 .withValues(alpha: 0.3),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Theme.of(context).colorScheme.primary,
-                            ),
-                            minHeight: 6,
-                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -302,6 +300,7 @@ class _GlobalDownloadProgressWidgetState
                                 .colorScheme
                                 .onPrimaryContainer
                                 .withValues(alpha: 0.85),
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],

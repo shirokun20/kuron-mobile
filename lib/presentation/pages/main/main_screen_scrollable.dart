@@ -36,6 +36,7 @@ import 'package:nhasixapp/presentation/widgets/app_main_header_widget.dart';
 import 'package:nhasixapp/presentation/widgets/content_list_widget.dart';
 
 import 'package:nhasixapp/presentation/widgets/app_scaffold_with_offline.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_sakuga_progress.dart';
 import 'package:nhasixapp/presentation/widgets/pagination_widget.dart';
 import 'package:nhasixapp/presentation/widgets/shimmer_loading_widgets.dart';
 import 'package:nhasixapp/presentation/pages/main/widgets/main_grid_card.dart';
@@ -605,18 +606,22 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
                     ),
                   ],
                 ),
-                child: Row(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
+                      width: 220,
+                      child: KuronSakugaProgressBar(
+                        progress: state.progress,
+                        height: 18,
+                        borderRadius: BorderRadius.circular(9),
                         color: Theme.of(context).colorScheme.primary,
-                        strokeWidth: 2.5,
+                        backgroundColor: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(height: 14),
                     Builder(
                       builder: (context) {
                         final l10n = AppLocalizations.of(context)!;
@@ -670,8 +675,23 @@ class _MainScreenScrollableState extends State<MainScreenScrollable>
       );
     }
 
-    // Full loading for initial load
-    return const ListShimmer(itemCount: 8);
+    // Full loading for initial load: stage-based sakuga bar above shimmer grid.
+    final colorScheme = Theme.of(context).colorScheme;
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+          child: KuronSakugaProgressBar(
+            progress: state.progress,
+            height: 14,
+            borderRadius: BorderRadius.circular(7),
+            color: colorScheme.primary,
+            backgroundColor: colorScheme.surfaceContainerHighest,
+          ),
+        ),
+        const Expanded(child: ListShimmer(itemCount: 8)),
+      ],
+    );
   }
 
   // Build empty state UI

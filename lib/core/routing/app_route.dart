@@ -12,6 +12,7 @@ class AppRoute {
   // User data routes
   static const String favorites = '/favorites';
   static const String downloads = '/downloads';
+  static const String downloadRange = '/download-range';
   static const String history = '/history';
   static const String offline = '/offline';
   static const String offlineSeriesDetail = '/offline/detail';
@@ -51,6 +52,7 @@ class AppRoute {
   static const String readerName = 'reader';
   static const String favoritesName = 'favorites';
   static const String downloadsName = 'downloads';
+  static const String downloadRangeName = 'download-range';
   static const String historyName = 'history';
   static const String offlineName = 'offline';
   static const String offlineSeriesDetailName = 'offline-series-detail';

@@ -15,7 +15,6 @@ import 'kuron_sakuga_progress.dart';
 import 'kuron_squash.dart';
 import 'kuron_toast.dart';
 import '../../domain/services/ehentai_download_strategy.dart';
-import 'download_range_selector.dart';
 import 'download_settings_widget.dart';
 
 // Widget untuk tombol download dengan status dan progress
@@ -730,24 +729,22 @@ class DownloadButtonWidget extends StatelessWidget {
     }
   }
 
-  void _showRangeSelector(
+  Future<void> _showRangeSelector(
     BuildContext context,
     Content targetContent, {
     String? scopeTitle,
     String? scopeDescription,
-  }) {
-    showDialog(
-      context: context,
-      builder: (context) => DownloadRangeSelector(
-        totalPages: targetContent.pageCount,
-        contentTitle: targetContent.title,
-        scopeTitle: scopeTitle,
-        scopeDescription: scopeDescription,
-        onRangeSelected: (startPage, endPage) {
-          _startRangeDownload(context, targetContent, startPage, endPage);
-        },
-      ),
+  }) async {
+    final result = await AppRouter.goToDownloadRange(
+      context,
+      totalPages: targetContent.pageCount,
+      contentTitle: targetContent.title,
+      scopeTitle: scopeTitle,
+      scopeDescription: scopeDescription,
     );
+    if (result != null && context.mounted) {
+      _startRangeDownload(context, targetContent, result.$1, result.$2);
+    }
   }
 
   void _startRangeDownload(

@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import 'package:kuron_core/kuron_core.dart' as core;
@@ -21,7 +22,7 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
     required this._getContentByTagUseCase,
     required this._getPopularContentUseCase,
     required this._logger,
-  })  : super(const ContentInitial()) {
+  }) : super(const ContentInitial()) {
     // Register event handlers
     on<ContentLoadEvent>(_onContentLoad);
     on<ContentLoadMoreEvent>(_onContentLoadMore);
@@ -125,11 +126,15 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // Show loading state if not already loading
       if (state is! ContentLoading) {
         if (state is! ContentLoaded || event.forceRefresh) {
-          emit(ContentLoading(
-            message:
-                event.forceRefresh ? 'Refreshing...' : 'Loading content...',
-            previousContents: previousContents,
-          ));
+          emit(
+            ContentLoading(
+              message: event.forceRefresh
+                  ? 'Refreshing...'
+                  : 'Loading content...',
+              previousContents: previousContents,
+              progress: 0.25,
+            ),
+          );
         }
       }
 
@@ -140,21 +145,34 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       );
 
       final result = await _runCancellableFetch(
-        (onCancel) => _getContentListUseCase(
-          params.copyWith(onCancel: onCancel),
-        ),
+        (onCancel) =>
+            _getContentListUseCase(params.copyWith(onCancel: onCancel)),
       );
+
+      if (state is ContentLoading) {
+        emit(
+          ContentLoading(
+            message: (state as ContentLoading).message,
+            previousContents: previousContents,
+            pageNumber: event.page,
+            progress: 0.78,
+          ),
+        );
+      }
 
       if (result.isEmpty) {
         _logger.w(
-            'ContentBloc: Load page ${event.page} returned empty result, emitting ContentEmpty with currentPage: ${event.page}');
-        emit(ContentEmpty(
-          message: 'noContentAtMoment',
-          sortBy: event.sortBy,
-          currentPage: event.page,
-          // If we are on page > 1 and it's empty, we might want to capture that
-          // But usually empty page > 1 just means end of list, handled by UI
-        ));
+          'ContentBloc: Load page ${event.page} returned empty result, emitting ContentEmpty with currentPage: ${event.page}',
+        );
+        emit(
+          ContentEmpty(
+            message: 'noContentAtMoment',
+            sortBy: event.sortBy,
+            currentPage: event.page,
+            // If we are on page > 1 and it's empty, we might want to capture that
+            // But usually empty page > 1 just means end of list, handled by UI
+          ),
+        );
         return;
       }
 
@@ -173,17 +191,22 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       );
 
       _logger.i(
-          'ContentBloc: Emitting ContentLoaded with ${result.contents.length} contents');
+        'ContentBloc: Emitting ContentLoaded with ${result.contents.length} contents',
+      );
       emit(loadedState);
       _logger.i(
-          'ContentBloc: ContentLoaded emitted successfully, state type: ${state.runtimeType}');
+        'ContentBloc: ContentLoaded emitted successfully, state type: ${state.runtimeType}',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error loading content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error loading content',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
 
@@ -198,15 +221,17 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       }
 
       // Capture context for retry
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        errorType: errorType,
-        previousContents: previousContents,
-        stackTrace: stackTrace,
-        currentPage: event.page,
-        sortBy: event.sortBy,
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          errorType: errorType,
+          previousContents: previousContents,
+          stackTrace: stackTrace,
+          currentPage: event.page,
+          sortBy: event.sortBy,
+        ),
+      );
     }
   }
 
@@ -222,30 +247,34 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
     try {
       _logger.i(
-          'ContentBloc: Loading more content, page: ${currentState.currentPage + 1}');
+        'ContentBloc: Loading more content, page: ${currentState.currentPage + 1}',
+      );
 
       // Show loading more state
-      emit(ContentLoadingMore(
-        contents: currentState.contents,
-        currentPage: currentState.currentPage,
-        totalPages: currentState.totalPages,
-        totalCount: currentState.totalCount,
-        hasNext: currentState.hasNext,
-        hasPrevious: currentState.hasPrevious,
-        sortBy: currentState.sortBy,
-        searchFilter: currentState.searchFilter,
-        tag: currentState.tag,
-        timeframe: currentState.timeframe,
-        lastUpdated: currentState.lastUpdated,
-      ));
+      emit(
+        ContentLoadingMore(
+          contents: currentState.contents,
+          currentPage: currentState.currentPage,
+          totalPages: currentState.totalPages,
+          totalCount: currentState.totalCount,
+          hasNext: currentState.hasNext,
+          hasPrevious: currentState.hasPrevious,
+          sortBy: currentState.sortBy,
+          searchFilter: currentState.searchFilter,
+          tag: currentState.tag,
+          timeframe: currentState.timeframe,
+          lastUpdated: currentState.lastUpdated,
+        ),
+      );
 
       ContentListResult result;
 
       // Load more based on current context
       if (currentState.searchFilter != null) {
         // Load more search results
-        final nextPageFilter = currentState.searchFilter!
-            .copyWith(page: currentState.currentPage + 1);
+        final nextPageFilter = currentState.searchFilter!.copyWith(
+          page: currentState.currentPage + 1,
+        );
         result = await _runCancellableFetch(
           (onCancel) =>
               _searchContentUseCase(nextPageFilter, onCancel: onCancel),
@@ -253,21 +282,25 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       } else if (currentState.tag != null) {
         // Load more content by tag
         result = await _runCancellableFetch(
-          (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
-            tag: currentState.tag!,
-            page: currentState.currentPage + 1,
-            sortBy: currentState.sortBy,
-            onCancel: onCancel,
-          )),
+          (onCancel) => _getContentByTagUseCase(
+            GetContentByTagParams(
+              tag: currentState.tag!,
+              page: currentState.currentPage + 1,
+              sortBy: currentState.sortBy,
+              onCancel: onCancel,
+            ),
+          ),
         );
       } else if (currentState.timeframe != null) {
         // Load more popular content
         result = await _runCancellableFetch(
-          (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
-            timeframe: currentState.timeframe!,
-            page: currentState.currentPage + 1,
-            onCancel: onCancel,
-          )),
+          (onCancel) => _getPopularContentUseCase(
+            GetPopularContentParams(
+              timeframe: currentState.timeframe!,
+              page: currentState.currentPage + 1,
+              onCancel: onCancel,
+            ),
+          ),
         );
       } else {
         // Load more regular content
@@ -276,9 +309,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
           sortBy: currentState.sortBy,
         );
         result = await _runCancellableFetch(
-          (onCancel) => _getContentListUseCase(
-            params.copyWith(onCancel: onCancel),
-          ),
+          (onCancel) =>
+              _getContentListUseCase(params.copyWith(onCancel: onCancel)),
         );
       }
 
@@ -286,13 +318,15 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       _lastFetchTime = DateTime.now();
 
       // Update state with more content
-      emit(currentState.copyWith(
-        contents: [...currentState.contents, ...result.contents],
-        currentPage: result.currentPage,
-        hasNext: result.hasNext,
-        isLoadingMore: false,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        currentState.copyWith(
+          contents: [...currentState.contents, ...result.contents],
+          currentPage: result.currentPage,
+          hasNext: result.hasNext,
+          isLoadingMore: false,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
       _logger.i('ContentBloc: Loaded ${result.contents.length} more contents');
     } on OperationCancelledException {
@@ -301,8 +335,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       if (s is ContentLoadingMore) emit(s.copyWith(isLoadingMore: false));
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error loading more content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error loading more content',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       // Return to previous state without loading more indicator
       emit(currentState.copyWith(isLoadingMore: false));
@@ -321,19 +358,21 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
 
       // Show refreshing state if we have previous content
       if (currentState is ContentLoaded) {
-        emit(ContentRefreshing(
-          contents: currentState.contents,
-          currentPage: currentState.currentPage,
-          totalPages: currentState.totalPages,
-          totalCount: currentState.totalCount,
-          hasNext: currentState.hasNext,
-          hasPrevious: currentState.hasPrevious,
-          sortBy: currentState.sortBy,
-          searchFilter: currentState.searchFilter,
-          tag: currentState.tag,
-          timeframe: currentState.timeframe,
-          lastUpdated: currentState.lastUpdated,
-        ));
+        emit(
+          ContentRefreshing(
+            contents: currentState.contents,
+            currentPage: currentState.currentPage,
+            totalPages: currentState.totalPages,
+            totalCount: currentState.totalCount,
+            hasNext: currentState.hasNext,
+            hasPrevious: currentState.hasPrevious,
+            sortBy: currentState.sortBy,
+            searchFilter: currentState.searchFilter,
+            tag: currentState.tag,
+            timeframe: currentState.timeframe,
+            lastUpdated: currentState.lastUpdated,
+          ),
+        );
       } else {
         emit(const ContentLoading(message: 'refreshingContentMsg'));
       }
@@ -344,8 +383,9 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       if (currentState is ContentLoaded) {
         if (currentState.searchFilter != null) {
           // Refresh search results from current page
-          final refreshFilter =
-              currentState.searchFilter!.copyWith(page: event.currentPage);
+          final refreshFilter = currentState.searchFilter!.copyWith(
+            page: event.currentPage,
+          );
           result = await _runCancellableFetch(
             (onCancel) =>
                 _searchContentUseCase(refreshFilter, onCancel: onCancel),
@@ -353,21 +393,25 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         } else if (currentState.tag != null) {
           // Refresh content by tag from current page
           result = await _runCancellableFetch(
-            (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
-              tag: currentState.tag!,
-              page: event.currentPage,
-              sortBy: currentState.sortBy,
-              onCancel: onCancel,
-            )),
+            (onCancel) => _getContentByTagUseCase(
+              GetContentByTagParams(
+                tag: currentState.tag!,
+                page: event.currentPage,
+                sortBy: currentState.sortBy,
+                onCancel: onCancel,
+              ),
+            ),
           );
         } else if (currentState.timeframe != null) {
           // Refresh popular content from current page
           result = await _runCancellableFetch(
-            (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
-              timeframe: currentState.timeframe!,
-              page: event.currentPage,
-              onCancel: onCancel,
-            )),
+            (onCancel) => _getPopularContentUseCase(
+              GetPopularContentParams(
+                timeframe: currentState.timeframe!,
+                page: event.currentPage,
+                onCancel: onCancel,
+              ),
+            ),
           );
         } else {
           // Refresh regular content from current page
@@ -376,28 +420,21 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
             sortBy: event.sortBy,
           );
           result = await _runCancellableFetch(
-            (onCancel) => _getContentListUseCase(
-              params.copyWith(onCancel: onCancel),
-            ),
+            (onCancel) =>
+                _getContentListUseCase(params.copyWith(onCancel: onCancel)),
           );
         }
       } else {
         // Fresh load from page 1
-        final params = GetContentListParams(
-          page: 1,
-          sortBy: event.sortBy,
-        );
+        final params = GetContentListParams(page: 1, sortBy: event.sortBy);
         result = await _runCancellableFetch(
-          (onCancel) => _getContentListUseCase(
-            params.copyWith(onCancel: onCancel),
-          ),
+          (onCancel) =>
+              _getContentListUseCase(params.copyWith(onCancel: onCancel)),
         );
       }
 
       if (result.isEmpty) {
-        emit(const ContentEmpty(
-          message: 'noContentAtMoment',
-        ));
+        emit(const ContentEmpty(message: 'noContentAtMoment'));
         return;
       }
 
@@ -407,35 +444,44 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // Update fetch time when we refresh data from server
       _lastFetchTime = DateTime.now();
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: event.sortBy,
-        searchFilter:
-            currentState is ContentLoaded ? currentState.searchFilter : null,
-        tag: currentState is ContentLoaded ? currentState.tag : null,
-        timeframe:
-            currentState is ContentLoaded ? currentState.timeframe : null,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: event.sortBy,
+          searchFilter: currentState is ContentLoaded
+              ? currentState.searchFilter
+              : null,
+          tag: currentState is ContentLoaded ? currentState.tag : null,
+          timeframe: currentState is ContentLoaded
+              ? currentState.timeframe
+              : null,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
-      _logger
-          .i('ContentBloc: Refreshed with ${result.contents.length} contents');
+      _logger.i(
+        'ContentBloc: Refreshed with ${result.contents.length} contents',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error refreshing content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error refreshing content',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
-      final previousContents =
-          currentState is ContentLoaded ? currentState.contents : null;
+      final previousContents = currentState is ContentLoaded
+          ? currentState.contents
+          : null;
 
       // Extract context from current state for the error
       int? currentPage;
@@ -452,19 +498,21 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         timeframe = currentState.timeframe;
       }
 
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        previousContents: previousContents,
-        errorType: errorType,
-        stackTrace: stackTrace,
-        // Preserve context
-        currentPage: currentPage,
-        sortBy: sortBy,
-        searchFilter: searchFilter,
-        tag: tag,
-        timeframe: timeframe,
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          previousContents: previousContents,
+          errorType: errorType,
+          stackTrace: stackTrace,
+          // Preserve context
+          currentPage: currentPage,
+          sortBy: sortBy,
+          searchFilter: searchFilter,
+          tag: tag,
+          timeframe: timeframe,
+        ),
+      );
     }
   }
 
@@ -490,17 +538,21 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         add(ContentSearchEvent(updatedFilter));
       } else if (currentState.tag != null) {
         // Apply sorting to tag-based content
-        add(ContentLoadByTagEvent(
-          tag: currentState.tag!,
-          sortBy: event.sortBy,
-          forceRefresh: true,
-        ));
+        add(
+          ContentLoadByTagEvent(
+            tag: currentState.tag!,
+            sortBy: event.sortBy,
+            forceRefresh: true,
+          ),
+        );
       } else if (currentState.timeframe != null) {
         // Popular content doesn't support custom sorting, reload with popular
-        add(ContentLoadPopularEvent(
-          timeframe: currentState.timeframe!,
-          forceRefresh: true,
-        ));
+        add(
+          ContentLoadPopularEvent(
+            timeframe: currentState.timeframe!,
+            forceRefresh: true,
+          ),
+        );
       } else {
         // Apply sorting to normal content
         add(ContentLoadEvent(sortBy: event.sortBy, forceRefresh: true));
@@ -518,7 +570,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
   ) async {
     _logger.i('ContentBloc: Retrying content load');
     _logger.d(
-        'ContentBloc: Current state type before retry: ${state.runtimeType}');
+      'ContentBloc: Current state type before retry: ${state.runtimeType}',
+    );
 
     // Get previous content if available for better UX
     List<Content>? previousContents;
@@ -538,7 +591,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       retryTag = errorState.tag;
       retryTimeframe = errorState.timeframe;
       _logger.d(
-          'ContentBloc: Extracted from ContentError - page: $retryPage, sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}');
+        'ContentBloc: Extracted from ContentError - page: $retryPage, sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}',
+      );
     } else if (state is ContentEmpty) {
       final emptyState = state as ContentEmpty;
       retryPage = emptyState.currentPage ?? 1;
@@ -547,7 +601,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       retryTag = emptyState.tag;
       retryTimeframe = emptyState.timeframe;
       _logger.d(
-          'ContentBloc: Extracted from ContentEmpty - page: $retryPage (raw: ${emptyState.currentPage}), sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}');
+        'ContentBloc: Extracted from ContentEmpty - page: $retryPage (raw: ${emptyState.currentPage}), sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}',
+      );
     } else if (state is ContentLoaded) {
       final loadedState = state as ContentLoaded;
       previousContents = loadedState.contents;
@@ -557,19 +612,24 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       retryTag = loadedState.tag;
       retryTimeframe = loadedState.timeframe;
       _logger.d(
-          'ContentBloc: Extracted from ContentLoaded - page: $retryPage, sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}');
+        'ContentBloc: Extracted from ContentLoaded - page: $retryPage, sort: $retrySort, hasFilter: ${retryFilter != null}, hasTag: ${retryTag != null}',
+      );
     } else {
       _logger.w(
-          'ContentBloc: Retry called from unexpected state: ${state.runtimeType}');
+        'ContentBloc: Retry called from unexpected state: ${state.runtimeType}',
+      );
     }
 
     // Emit loading state immediately for instant visual feedback
-    emit(ContentLoading(
-      message: 'retryingMsg',
-      previousContents: previousContents,
-    ));
-    _logger
-        .i('ContentBloc: Emitted ContentLoading for retry on page $retryPage');
+    emit(
+      ContentLoading(
+        message: 'retryingMsg',
+        previousContents: previousContents,
+      ),
+    );
+    _logger.i(
+      'ContentBloc: Emitted ContentLoading for retry on page $retryPage',
+    );
 
     // Retry based on extracted context
     if (retryFilter != null) {
@@ -605,15 +665,26 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // Tags/Popular don't have page in event.
       // Let's handle Main List and Search perfectly first.
 
-      add(ContentLoadByTagEvent(
-          tag: retryTag, sortBy: retrySort, forceRefresh: true));
+      add(
+        ContentLoadByTagEvent(
+          tag: retryTag,
+          sortBy: retrySort,
+          forceRefresh: true,
+        ),
+      );
     } else if (retryTimeframe != null) {
-      add(ContentLoadPopularEvent(
-          timeframe: retryTimeframe, forceRefresh: true));
+      add(
+        ContentLoadPopularEvent(timeframe: retryTimeframe, forceRefresh: true),
+      );
     } else {
       // Regular content
-      add(ContentLoadEvent(
-          sortBy: retrySort, forceRefresh: true, page: retryPage));
+      add(
+        ContentLoadEvent(
+          sortBy: retrySort,
+          forceRefresh: true,
+          page: retryPage,
+        ),
+      );
     }
   }
 
@@ -633,8 +704,9 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
     Emitter<ContentState> emit,
   ) async {
     try {
-      _logger
-          .i('ContentBloc: Clearing search results and loading normal content');
+      _logger.i(
+        'ContentBloc: Clearing search results and loading normal content',
+      );
 
       // Show loading state with proper message
       ContentLoaded? previousState;
@@ -642,33 +714,30 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         previousState = state as ContentLoaded;
       }
 
-      emit(ContentLoading(
-        message: 'clearingSearchMsg',
-        previousContents: previousState?.contents,
-      ));
+      emit(
+        ContentLoading(
+          message: 'clearingSearchMsg',
+          previousContents: previousState?.contents,
+        ),
+      );
 
       // Clear saved search filter via UserDataRepository
       final userDataRepository = GetIt.instance<UserDataRepository>();
       await userDataRepository.clearSearchFilter(event.sourceId);
       _logger.i(
-          'ContentBloc: Cleared search filter from local storage for source: ${event.sourceId}');
-
-      // Load normal content with specified sort option
-      final params = GetContentListParams(
-        page: 1,
-        sortBy: event.sortBy,
+        'ContentBloc: Cleared search filter from local storage for source: ${event.sourceId}',
       );
 
+      // Load normal content with specified sort option
+      final params = GetContentListParams(page: 1, sortBy: event.sortBy);
+
       final result = await _runCancellableFetch(
-        (onCancel) => _getContentListUseCase(
-          params.copyWith(onCancel: onCancel),
-        ),
+        (onCancel) =>
+            _getContentListUseCase(params.copyWith(onCancel: onCancel)),
       );
 
       if (result.isEmpty) {
-        emit(const ContentEmpty(
-          message: 'noContentAtMoment',
-        ));
+        emit(const ContentEmpty(message: 'noContentAtMoment'));
         return;
       }
 
@@ -676,36 +745,45 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       _lastFetchTime = DateTime.now();
       _currentSortBy = event.sortBy;
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: event.sortBy,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: event.sortBy,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
       _logger.i(
-          'ContentBloc: Successfully cleared search and loaded ${result.contents.length} normal contents');
+        'ContentBloc: Successfully cleared search and loaded ${result.contents.length} normal contents',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error clearing search results',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error clearing search results',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
-      emit(ContentError(
-        message: 'failedToClearSearch',
-        canRetry: true,
-        errorType: errorType,
-        stackTrace: stackTrace,
-        previousContents:
-            (state is ContentLoaded) ? (state as ContentLoaded).contents : null,
-      ));
+      emit(
+        ContentError(
+          message: 'failedToClearSearch',
+          canRetry: true,
+          errorType: errorType,
+          stackTrace: stackTrace,
+          previousContents: (state is ContentLoaded)
+              ? (state as ContentLoaded).contents
+              : null,
+        ),
+      );
     }
   }
 
@@ -716,7 +794,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
   ) async {
     try {
       _logger.i(
-          'ContentBloc: Searching content with filter: ${event.filter.toQueryString()}');
+        'ContentBloc: Searching content with filter: ${event.filter.toQueryString()}',
+      );
 
       // Show loading state
       emit(const ContentLoading(message: 'searchingContentMsg'));
@@ -726,30 +805,34 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       );
 
       if (result.isEmpty) {
-        emit(ContentEmpty(
-          message: 'noContentMatchingSearch',
-          searchFilter: event.filter,
-          // Context
-          sortBy: event.filter.sortBy,
-          currentPage: event.filter.page,
-        ));
+        emit(
+          ContentEmpty(
+            message: 'noContentMatchingSearch',
+            searchFilter: event.filter,
+            // Context
+            sortBy: event.filter.sortBy,
+            currentPage: event.filter.page,
+          ),
+        );
         return;
       }
 
       // Update fetch time when we search from server
       _lastFetchTime = DateTime.now();
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: event.filter.sortBy,
-        searchFilter: event.filter,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: event.filter.sortBy,
+          searchFilter: event.filter,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
       _logger.i('ContentBloc: Found ${result.contents.length} search results');
     } on OperationCancelledException {
@@ -757,8 +840,11 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error searching content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error searching content',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
 
@@ -772,17 +858,19 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         previousContents = (state as ContentError).previousContents;
       }
 
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        errorType: errorType,
-        previousContents: previousContents,
-        stackTrace: stackTrace,
-        // Context
-        searchFilter: event.filter,
-        currentPage: event.filter.page,
-        sortBy: event.filter.sortBy,
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          errorType: errorType,
+          previousContents: previousContents,
+          stackTrace: stackTrace,
+          // Context
+          searchFilter: event.filter,
+          currentPage: event.filter.page,
+          sortBy: event.filter.sortBy,
+        ),
+      );
     }
   }
 
@@ -800,46 +888,56 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       }
 
       final result = await _runCancellableFetch(
-        (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
-          timeframe: event.timeframe,
-          page: 1,
-          onCancel: onCancel,
-        )),
+        (onCancel) => _getPopularContentUseCase(
+          GetPopularContentParams(
+            timeframe: event.timeframe,
+            page: 1,
+            onCancel: onCancel,
+          ),
+        ),
       );
 
       if (result.isEmpty) {
-        emit(const ContentEmpty(
-          message: 'noPopularContent',
-          currentPage: 1,
-          sortBy: SortOption.popular,
-        ));
+        emit(
+          const ContentEmpty(
+            message: 'noPopularContent',
+            currentPage: 1,
+            sortBy: SortOption.popular,
+          ),
+        );
         return;
       }
 
       // Update fetch time when we load popular content from server
       _lastFetchTime = DateTime.now();
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: SortOption.popular,
-        timeframe: event.timeframe,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: SortOption.popular,
+          timeframe: event.timeframe,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
-      _logger
-          .i('ContentBloc: Loaded ${result.contents.length} popular contents');
+      _logger.i(
+        'ContentBloc: Loaded ${result.contents.length} popular contents',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error loading popular content',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error loading popular content',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
 
@@ -853,17 +951,19 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         previousContents = (state as ContentError).previousContents;
       }
 
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        errorType: errorType,
-        previousContents: previousContents,
-        stackTrace: stackTrace,
-        // Context
-        timeframe: event.timeframe,
-        sortBy: SortOption.popular,
-        currentPage: 1, // Popular always starts at page 1 unless paginated
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          errorType: errorType,
+          previousContents: previousContents,
+          stackTrace: stackTrace,
+          // Context
+          timeframe: event.timeframe,
+          sortBy: SortOption.popular,
+          currentPage: 1, // Popular always starts at page 1 unless paginated
+        ),
+      );
     }
   }
 
@@ -881,49 +981,59 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       }
 
       final result = await _runCancellableFetch(
-        (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
-          tag: event.tag,
-          page: 1,
-          sortBy: event.sortBy,
-          onCancel: onCancel,
-        )),
+        (onCancel) => _getContentByTagUseCase(
+          GetContentByTagParams(
+            tag: event.tag,
+            page: 1,
+            sortBy: event.sortBy,
+            onCancel: onCancel,
+          ),
+        ),
       );
 
       if (result.isEmpty) {
-        emit(ContentEmpty(
-          message: 'noContentForTag',
-          tag: event.tag,
-          // Context
-          sortBy: event.sortBy,
-          currentPage: 1,
-        ));
+        emit(
+          ContentEmpty(
+            message: 'noContentForTag',
+            tag: event.tag,
+            // Context
+            sortBy: event.sortBy,
+            currentPage: 1,
+          ),
+        );
         return;
       }
 
       // Update fetch time when we load content by tag from server
       _lastFetchTime = DateTime.now();
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: event.sortBy,
-        tag: event.tag,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: event.sortBy,
+          tag: event.tag,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
-      _logger
-          .i('ContentBloc: Loaded ${result.contents.length} contents for tag');
+      _logger.i(
+        'ContentBloc: Loaded ${result.contents.length} contents for tag',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error loading content by tag',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error loading content by tag',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
 
@@ -937,17 +1047,19 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         previousContents = (state as ContentError).previousContents;
       }
 
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        errorType: errorType,
-        previousContents: previousContents,
-        stackTrace: stackTrace,
-        // Context
-        tag: event.tag,
-        sortBy: event.sortBy,
-        currentPage: 1, // Assume start page for now
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          errorType: errorType,
+          previousContents: previousContents,
+          stackTrace: stackTrace,
+          // Context
+          tag: event.tag,
+          sortBy: event.sortBy,
+          currentPage: 1, // Assume start page for now
+        ),
+      );
     }
   }
 
@@ -983,7 +1095,8 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
   ) async {
     final currentState = state;
     _logger.i(
-        'on ContentLoaded is ${currentState is ContentLoaded} and hasNext ${currentState is ContentLoaded && currentState.hasNext}');
+      'on ContentLoaded is ${currentState is ContentLoaded} and hasNext ${currentState is ContentLoaded && currentState.hasNext}',
+    );
     if (currentState is! ContentLoaded || !currentState.hasNext) {
       return;
     }
@@ -1044,11 +1157,14 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
   ) async {
     try {
       // Show minimal loading state for pagination (include target page for localization)
-      emit(ContentLoading(
-        message: 'loadingPageNum',
-        previousContents: currentState.contents,
-        pageNumber: page,
-      ));
+      emit(
+        ContentLoading(
+          message: 'loadingPageNum',
+          previousContents: currentState.contents,
+          pageNumber: page,
+          progress: 0.25,
+        ),
+      );
 
       ContentListResult result;
 
@@ -1062,21 +1178,25 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
       } else if (currentState.tag != null) {
         // Load content by tag page
         result = await _runCancellableFetch(
-          (onCancel) => _getContentByTagUseCase(GetContentByTagParams(
-            tag: currentState.tag!,
-            page: page,
-            sortBy: currentState.sortBy,
-            onCancel: onCancel,
-          )),
+          (onCancel) => _getContentByTagUseCase(
+            GetContentByTagParams(
+              tag: currentState.tag!,
+              page: page,
+              sortBy: currentState.sortBy,
+              onCancel: onCancel,
+            ),
+          ),
         );
       } else if (currentState.timeframe != null) {
         // Load popular content page
         result = await _runCancellableFetch(
-          (onCancel) => _getPopularContentUseCase(GetPopularContentParams(
-            timeframe: currentState.timeframe!,
-            page: page,
-            onCancel: onCancel,
-          )),
+          (onCancel) => _getPopularContentUseCase(
+            GetPopularContentParams(
+              timeframe: currentState.timeframe!,
+              page: page,
+              onCancel: onCancel,
+            ),
+          ),
         );
       } else {
         // Load regular content page
@@ -1085,53 +1205,70 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
           sortBy: currentState.sortBy,
         );
         result = await _runCancellableFetch(
-          (onCancel) => _getContentListUseCase(
-            params.copyWith(onCancel: onCancel),
-          ),
+          (onCancel) =>
+              _getContentListUseCase(params.copyWith(onCancel: onCancel)),
         );
       }
 
+      emit(
+        ContentLoading(
+          message: 'loadingPageNum',
+          previousContents: currentState.contents,
+          pageNumber: page,
+          progress: 0.78,
+        ),
+      );
+
       if (result.isEmpty) {
         _logger.w(
-            'ContentBloc: Page $page returned empty result, emitting ContentEmpty with currentPage: $page');
-        emit(ContentEmpty(
-          message: 'noContentOnPage',
-          // Context
-          currentPage: page,
-          sortBy: currentState.sortBy,
-          searchFilter: currentState.searchFilter,
-          tag: currentState.tag,
-          timeframe: currentState.timeframe,
-        ));
+          'ContentBloc: Page $page returned empty result, emitting ContentEmpty with currentPage: $page',
+        );
+        emit(
+          ContentEmpty(
+            message: 'noContentOnPage',
+            // Context
+            currentPage: page,
+            sortBy: currentState.sortBy,
+            searchFilter: currentState.searchFilter,
+            tag: currentState.tag,
+            timeframe: currentState.timeframe,
+          ),
+        );
         return;
       }
 
       // Update fetch time when we load a specific page from server
       _lastFetchTime = DateTime.now();
 
-      emit(ContentLoaded(
-        contents: result.contents,
-        currentPage: result.currentPage,
-        totalPages: result.totalPages,
-        totalCount: result.totalCount,
-        hasNext: result.hasNext,
-        hasPrevious: result.hasPrevious,
-        sortBy: currentState.sortBy,
-        searchFilter: currentState.searchFilter,
-        tag: currentState.tag,
-        timeframe: currentState.timeframe,
-        lastUpdated: _lastFetchTime,
-      ));
+      emit(
+        ContentLoaded(
+          contents: result.contents,
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalCount: result.totalCount,
+          hasNext: result.hasNext,
+          hasPrevious: result.hasPrevious,
+          sortBy: currentState.sortBy,
+          searchFilter: currentState.searchFilter,
+          tag: currentState.tag,
+          timeframe: currentState.timeframe,
+          lastUpdated: _lastFetchTime,
+        ),
+      );
 
       _logger.i(
-          'ContentBloc: Loaded page $page with ${result.contents.length} contents');
+        'ContentBloc: Loaded page $page with ${result.contents.length} contents',
+      );
     } on OperationCancelledException {
       // Superseded by a newer fetch (or bloc closed): stay silent, no
       // error UI, no stale emit.
       return;
     } catch (e, stackTrace) {
-      _logger.e('ContentBloc: Error loading page $page',
-          error: e, stackTrace: stackTrace);
+      _logger.e(
+        'ContentBloc: Error loading page $page',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       final errorType = _determineErrorType(e);
 
@@ -1145,19 +1282,21 @@ class ContentBloc extends Bloc<ContentEvent, ContentState> {
         previousContents = (state as ContentError).previousContents;
       }
 
-      emit(ContentError(
-        message: e.toString(),
-        canRetry: errorType.isRetryable,
-        previousContents: previousContents,
-        errorType: errorType,
-        stackTrace: stackTrace,
-        // Context
-        currentPage: page,
-        sortBy: currentState.sortBy,
-        searchFilter: currentState.searchFilter,
-        tag: currentState.tag,
-        timeframe: currentState.timeframe,
-      ));
+      emit(
+        ContentError(
+          message: e.toString(),
+          canRetry: errorType.isRetryable,
+          previousContents: previousContents,
+          errorType: errorType,
+          stackTrace: stackTrace,
+          // Context
+          currentPage: page,
+          sortBy: currentState.sortBy,
+          searchFilter: currentState.searchFilter,
+          tag: currentState.tag,
+          timeframe: currentState.timeframe,
+        ),
+      );
     }
   }
 }

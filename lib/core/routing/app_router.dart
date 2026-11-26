@@ -22,6 +22,7 @@ import 'package:nhasixapp/core/services/tag_blacklist_service.dart';
 import 'package:nhasixapp/presentation/pages/filter_data/filter_data_screen.dart';
 import 'package:nhasixapp/presentation/pages/favorites/favorites_screen.dart';
 import 'package:nhasixapp/presentation/pages/downloads/downloads_screen.dart';
+import 'package:nhasixapp/presentation/pages/download_range/download_range_screen.dart';
 import 'package:nhasixapp/presentation/pages/offline/offline_content_screen.dart';
 import 'package:nhasixapp/presentation/pages/offline/offline_series_detail_screen.dart';
 import 'package:nhasixapp/core/services/offline_series_detail_service.dart';
@@ -296,6 +297,23 @@ class AppRouter {
           const DownloadsScreen(),
           kind: RouteKind.tab,
         ),
+      ),
+      GoRoute(
+        path: AppRoute.downloadRange,
+        name: AppRoute.downloadRangeName,
+        pageBuilder: (context, state) {
+          final args = state.extra as Map<String, dynamic>? ?? const {};
+          return AppAnimations.animatedPageBuilder(
+            context,
+            state,
+            DownloadRangeScreen(
+              totalPages: (args['totalPages'] as int?) ?? 1,
+              contentTitle: (args['contentTitle'] as String?) ?? '',
+              scopeTitle: args['scopeTitle'] as String?,
+              scopeDescription: args['scopeDescription'] as String?,
+            ),
+          );
+        },
       ),
 
       // Offline Content Screen
@@ -704,6 +722,24 @@ class AppRouter {
 
   static void goToDownloads(BuildContext context) {
     context.go(AppRoute.downloads);
+  }
+
+  static Future<(int, int)?> goToDownloadRange(
+    BuildContext context, {
+    required int totalPages,
+    required String contentTitle,
+    String? scopeTitle,
+    String? scopeDescription,
+  }) {
+    return context.push<(int, int)>(
+      AppRoute.downloadRange,
+      extra: {
+        'totalPages': totalPages,
+        'contentTitle': contentTitle,
+        'scopeTitle': scopeTitle,
+        'scopeDescription': scopeDescription,
+      },
+    );
   }
 
   static void goToOffline(BuildContext context) {

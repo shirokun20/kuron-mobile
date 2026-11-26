@@ -19,14 +19,16 @@ class ContentLoading extends ContentState {
     this.message = 'Loading content...',
     this.previousContents,
     this.pageNumber,
+    this.progress = 0.2,
   });
 
   final String message;
   final List<Content>? previousContents;
   final int? pageNumber;
+  final double progress;
 
   @override
-  List<Object?> get props => [message, previousContents, pageNumber];
+  List<Object?> get props => [message, previousContents, pageNumber, progress];
 }
 
 // State when content is successfully loaded
@@ -63,20 +65,20 @@ class ContentLoaded extends ContentState {
 
   @override
   List<Object?> get props => [
-        contents,
-        currentPage,
-        totalPages,
-        totalCount,
-        hasNext,
-        hasPrevious,
-        sortBy,
-        isLoadingMore,
-        isRefreshing,
-        searchFilter,
-        tag,
-        timeframe,
-        lastUpdated,
-      ];
+    contents,
+    currentPage,
+    totalPages,
+    totalCount,
+    hasNext,
+    hasPrevious,
+    sortBy,
+    isLoadingMore,
+    isRefreshing,
+    searchFilter,
+    tag,
+    timeframe,
+    lastUpdated,
+  ];
 
   // Check if content list is empty
   bool get isEmpty => contents.isEmpty;
@@ -166,16 +168,14 @@ class ContentLoaded extends ContentState {
       return content.id == updatedContent.id ? updatedContent : content;
     }).toList();
 
-    return copyWith(
-      contents: updatedContents,
-      lastUpdated: DateTime.now(),
-    );
+    return copyWith(contents: updatedContents, lastUpdated: DateTime.now());
   }
 
   // Create copy with removed content
   ContentLoaded copyWithRemovedContent(String contentId) {
-    final filteredContents =
-        contents.where((content) => content.id != contentId).toList();
+    final filteredContents = contents
+        .where((content) => content.id != contentId)
+        .toList();
 
     return copyWith(
       contents: filteredContents,
@@ -267,19 +267,19 @@ class ContentError extends ContentState {
 
   @override
   List<Object?> get props => [
-        message,
-        canRetry,
-        previousContents,
-        errorType,
-        stackTrace,
-        currentPage,
-        totalPages,
-        totalCount,
-        sortBy,
-        searchFilter,
-        tag,
-        timeframe,
-      ];
+    message,
+    canRetry,
+    previousContents,
+    errorType,
+    stackTrace,
+    currentPage,
+    totalPages,
+    totalCount,
+    sortBy,
+    searchFilter,
+    tag,
+    timeframe,
+  ];
 
   // Check if has previous content to show
   bool get hasPreviousContent =>
@@ -351,16 +351,16 @@ class ContentEmpty extends ContentState {
 
   @override
   List<Object?> get props => [
-        message,
-        searchFilter,
-        tag,
-        canRetry,
-        currentPage,
-        totalPages,
-        totalCount,
-        sortBy,
-        timeframe,
-      ];
+    message,
+    searchFilter,
+    tag,
+    canRetry,
+    currentPage,
+    totalPages,
+    totalCount,
+    sortBy,
+    timeframe,
+  ];
 
   // Get appropriate empty message based on context (returns l10n key)
   String get contextualMessage {
