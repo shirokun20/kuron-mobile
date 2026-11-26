@@ -1062,6 +1062,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appLanguage => 'App Language';
 
   @override
+  String get selectLanguageDescription => 'Select your preferred language';
+
+  @override
   String get allowAnalytics => 'Allow Analytics';
 
   @override

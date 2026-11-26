@@ -44,6 +44,7 @@ class KuronFxController {
   OverlayEntry? _entry;
   Timer? _ttl;
   KuronSticker? _sticker;
+  Rect? _targetRect;
   KuronFxKind _kind = KuronFxKind.favorite;
   int _particleCount = 0;
   int _burstCount = 0;
@@ -71,11 +72,15 @@ class KuronFxController {
   );
 
   /// Replaces any in-flight burst: rapid taps coalesce instead of stacking.
+  ///
+  /// When [targetRect] is given, the burst is drawn anchored on that button
+  /// bounding box (in overlay coordinates) instead of the screen center.
   void show({
     required OverlayState overlay,
     required KuronFxMode mode,
     required KuronFxKind kind,
     KuronSticker? sticker,
+    Rect? targetRect,
   }) {
     if (mode == KuronFxMode.quiet) {
       // Switching to quiet mid-burst must also tear down an in-flight effect.
@@ -86,6 +91,7 @@ class KuronFxController {
 
     _kind = kind;
     _sticker = mode == KuronFxMode.satire ? sticker : null;
+    _targetRect = targetRect;
     _particleCount = mode == KuronFxMode.standard
         ? 14
         : 18; // always <= maxParticles
@@ -107,6 +113,7 @@ class KuronFxController {
                   sticker: _sticker,
                   monochrome: false,
                   dpr: MediaQuery.devicePixelRatioOf(context),
+                  targetRect: _targetRect,
                 ),
                 child: _sticker == null
                     ? null
@@ -156,6 +163,7 @@ class KuronFxController {
     _entry?.remove();
     _entry = null;
     _sticker = null;
+    _targetRect = null;
     _particleCount = 0;
   }
 
@@ -165,8 +173,12 @@ class KuronFxController {
   }
 }
 
-/// Procedural sakuga burst: impact ring, speed lines, sparkles and transient
-/// manga SFX lettering in Kuron's warm editorial palette.
+/// Procedural sakuga burst anchored on the triggering button: an impact ring
+/// expanding from the button perimeter, diagonal slash cuts across it, and
+/// diamond sparkles bursting out of its edges — all sized proportionally to
+/// the button, plus transient manga SFX lettering in Kuron's warm palette.
+/// A null [targetRect] keeps the legacy screen-center fallback (used by tests
+/// and by callers whose render box is unavailable).
 class KuronFxOverlayPainter extends CustomPainter {
   const KuronFxOverlayPainter({
     required this.progress,
@@ -175,6 +187,7 @@ class KuronFxOverlayPainter extends CustomPainter {
     required this.sticker,
     required this.monochrome,
     required this.dpr,
+    this.targetRect,
   });
 
   final double progress;
@@ -183,6 +196,9 @@ class KuronFxOverlayPainter extends CustomPainter {
   final KuronSticker? sticker;
   final bool monochrome;
   final double dpr;
+
+  /// Button bounding box in overlay coordinates. Null = screen center.
+  final Rect? targetRect;
 
   static const _coral = Color(0xFFF1958E);
   static const _deep = Color(0xFFC76A62);
@@ -205,60 +221,92 @@ class KuronFxOverlayPainter extends CustomPainter {
     )).clamp(0.0, 1.15);
     final alpha = (1 - t * t).clamp(0.0, 1.0);
     if (alpha <= 0) return;
-    canvas.save();
-    final center = Offset(size.width / 2, size.height / 2);
-
-    // Impact ring.
+    // Anchor on the triggering button; fall back to the screen center when
+    // no target was captured (tests, missing render box).
+    final Rect? target = targetRect;
+    final Offset center =
+        target?.center ?? Offset(size.width / 2, size.height / 2);
+    // Effect scale follows the button: half the shortest side, clamped so a
+    // 48dp icon button bursts ~24dp while a wide download bar stays bounded.
+    final double base = target == null
+        ? 60.0
+        : math.min(96.0, math.max(16.0, target.shortestSide / 2));
+    // Hoisted paints: nothing is allocated inside the loops below.
+    final double strokeScale = base / 60;
     final ring = Paint()
       ..color = _accent.withValues(alpha: 0.85 * alpha)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3 + 5 * (1 - t);
-    canvas.drawCircle(center, 18 + 120 * springValue, ring);
+      ..strokeWidth = strokeScale * (3 + 5 * (1 - t))
+      ..strokeCap = StrokeCap.round;
+    final slash = Paint()
+      ..color = _accentGold.withValues(alpha: 0.75 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeScale * 3
+      ..strokeCap = StrokeCap.round;
+    final sparkA = Paint()
+      ..color = _accent.withValues(alpha: alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeScale * 2
+      ..strokeCap = StrokeCap.round;
+    final sparkB = Paint()
+      ..color = _accentDeep.withValues(alpha: alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeScale * 2
+      ..strokeCap = StrokeCap.round;
+    final sparkC = Paint()
+      ..color = _accentGold.withValues(alpha: alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeScale * 2
+      ..strokeCap = StrokeCap.round;
 
-    // Speed lines: bounded loop, hard cap enforced here as well.
-    final lines = math.min(12, maxParticles);
-    for (var i = 0; i < lines; i++) {
-      final angle = (i / lines) * math.pi * 2;
-      final inner = 40 + 70 * springValue;
-      final outer = inner + 26 + 18 * springValue;
-      canvas.drawLine(
-        center + Offset(math.cos(angle) * inner, math.sin(angle) * inner),
-        center + Offset(math.cos(angle) * outer, math.sin(angle) * outer),
-        Paint()
-          ..color = _accentGold.withValues(alpha: 0.55 * alpha)
-          ..strokeWidth = 2
-          ..strokeCap = StrokeCap.round,
-      );
+    // 1. Impact ring: thin shockwave expanding from the button perimeter,
+    // fading out fast.
+    canvas.drawCircle(center, base * 0.7 + base * 2.0 * springValue, ring);
+
+    // 2. Slash cuts: three parallel diagonal light slashes across the
+    // button (classic bottom-left -> top-right sakuga angle).
+    final slashDir = Offset(math.cos(-math.pi / 4), math.sin(-math.pi / 4));
+    final slashNormal = Offset(-slashDir.dy, slashDir.dx);
+    final slashLen = base * (1.6 + 1.2 * springValue);
+    for (var i = -1; i <= 1; i++) {
+      final c = center + slashNormal * (i * base * 0.45);
+      canvas.drawLine(c - slashDir * slashLen, c + slashDir * slashLen, slash);
     }
 
-    // Particles: deterministic directions, hard-capped count.
+    // 3. Spark burst: diamond sparkles (crossed ticks) and embers flying
+    // out of the button edges. Deterministic, hard-capped count.
     final count = particleCount.clamp(0, maxParticles);
     for (var i = 0; i < count; i++) {
       final angle = (i * 137.5) * math.pi / 180;
-      final radius = (28 + 96 * springValue) * (0.55 + (i % 5) * 0.11);
-      final offset = Offset(math.cos(angle) * radius, math.sin(angle) * radius);
-      final color = i % 3 == 0
-          ? _accentDeep
+      final dir = Offset(math.cos(angle), math.sin(angle));
+      final radius = base * (1.0 + 2.0 * springValue) * (0.55 + (i % 5) * 0.11);
+      final p = center + dir * radius;
+      final arm = base * 0.22 * (1 - 0.4 * t) * (0.6 + (i % 3) * 0.2);
+      final paint = i % 3 == 0
+          ? sparkB
           : i % 3 == 1
-          ? _accentGold
-          : _accent;
-      canvas.drawCircle(
-        center + offset,
-        (2.5 + (i % 4) * 1.2) * (1 - 0.4 * t),
-        Paint()..color = color.withValues(alpha: alpha),
-      );
+          ? sparkC
+          : sparkA;
+      if (i % 3 == 2) {
+        // Diamond sparkle: crossed ticks along the travel direction.
+        final perp = Offset(-dir.dy, dir.dx);
+        canvas.drawLine(p - dir * arm, p + dir * arm, paint);
+        canvas.drawLine(p - perp * arm * 0.6, p + perp * arm * 0.6, paint);
+      } else {
+        canvas.drawCircle(p, arm * 0.45, paint);
+      }
     }
 
-    // Transient manga SFX lettering.
+    // Transient manga SFX lettering, sized to the button.
     final sfx = switch (kind) {
       KuronFxKind.favorite => 'ドン!',
       KuronFxKind.rating => 'カチッ!',
       KuronFxKind.downloadComplete => 'ズザッ!',
       KuronFxKind.sheetConfirm => 'ポン!',
     };
+    final sfxSize = math.min(22.0, math.max(12.0, strokeScale * 18));
     if (sticker != null) _drawSfx(canvas, center, sticker!.sfx, alpha, 22);
-    _drawSfx(canvas, center - const Offset(0, 92), sfx, alpha * 0.9, 18);
-    canvas.restore();
+    _drawSfx(canvas, center - Offset(0, base * 1.9), sfx, alpha * 0.9, sfxSize);
   }
 
   void _drawSfx(
@@ -293,7 +341,8 @@ class KuronFxOverlayPainter extends CustomPainter {
       old.kind != kind ||
       old.particleCount != particleCount ||
       old.sticker != sticker ||
-      old.dpr != dpr;
+      old.dpr != dpr ||
+      old.targetRect != targetRect;
 }
 
 /// Host widget: owns the single shared controller and keeps the whole burst
@@ -340,11 +389,18 @@ abstract final class KuronFx {
   /// Exposed for tests and diagnostics.
   static KuronFxController? get activeController => _controller;
 
+  /// Fires an anchored sakuga burst on the given [context]'s render box:
+  /// the effect is drawn around that button's bounding box, sized to it.
+  ///
+  /// Pass an explicit [targetRect] (in overlay coordinates) when the firing
+  /// context is not the button itself — e.g. capture it with [targetRectOf]
+  /// before an `await` gap and hand it over afterwards.
   static void trigger(
     BuildContext context, {
     required KuronFxKind kind,
     KuronSticker? sticker,
     bool isReader = false,
+    Rect? targetRect,
   }) {
     // Triggered from callbacks: read once, never register a rebuild dependency.
     final mode = KuronMotionPolicy.effectiveMode(
@@ -364,13 +420,35 @@ abstract final class KuronFx {
       mode: mode,
       kind: kind,
       sticker: sticker ?? _defaultStickerFor(kind),
+      targetRect: targetRect ?? targetRectOf(context),
     );
   }
 
+  /// Button bounding box of [context] in global (overlay) coordinates.
+  /// Returns null when there is no attached render box — callers then fall
+  /// back to the legacy screen-center burst. Never throws.
+  static Rect? targetRectOf(BuildContext context) {
+    try {
+      final renderObject = context.findRenderObject();
+      if (renderObject is! RenderBox) return null;
+      if (!renderObject.attached || !renderObject.hasSize) return null;
+      if (renderObject.size.isEmpty) return null;
+      final offset = renderObject.localToGlobal(Offset.zero);
+      if (!offset.dx.isFinite || !offset.dy.isFinite) return null;
+      return offset & renderObject.size;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Button bursts (favorite, download complete) never show the giant satire
+  /// sticker — the anchored slash/sparks/ring carry the feedback on their own.
+  /// Stickers stay available in `assets/stickers` for mascot/gamification
+  /// surfaces, which pass an explicit [KuronSticker].
   static KuronSticker? _defaultStickerFor(KuronFxKind kind) => switch (kind) {
-    KuronFxKind.favorite => KuronSticker.acc,
+    KuronFxKind.favorite => null,
     KuronFxKind.rating => KuronSticker.sah,
-    KuronFxKind.downloadComplete => KuronSticker.cair,
+    KuronFxKind.downloadComplete => null,
     KuronFxKind.sheetConfirm => KuronSticker.resmi,
   };
 }

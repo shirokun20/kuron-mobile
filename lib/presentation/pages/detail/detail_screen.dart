@@ -450,7 +450,10 @@ class _DetailScreenState extends State<DetailScreen> {
     return null;
   }
 
-  Future<void> _onFavoritePressed(DetailLoaded detailState) async {
+  Future<void> _onFavoritePressed(
+    BuildContext buttonContext,
+    DetailLoaded detailState,
+  ) async {
     final sourceId = detailState.content.sourceId;
     final favoriteEnabled = _detailCubit.isFeatureEnabled(
       sourceId,
@@ -466,10 +469,17 @@ class _DetailScreenState extends State<DetailScreen> {
       sourceId,
     );
 
+    // Capture the button box before any await gap: the anchored burst is
+    // drawn around this rect, sized to it.
+    final anchor = KuronFx.targetRectOf(buttonContext);
     if (!supportsOnlineFavorite) {
       await _detailCubit.toggleFavorite();
-      if (mounted) {
-        KuronFx.trigger(context, kind: KuronFxKind.favorite);
+      if (buttonContext.mounted) {
+        KuronFx.trigger(
+          buttonContext,
+          kind: KuronFxKind.favorite,
+          targetRect: anchor,
+        );
       }
       return;
     }
@@ -548,9 +558,14 @@ class _DetailScreenState extends State<DetailScreen> {
         await _toggleOnlineFavorite(detailState);
         break;
     }
-    if (mounted) {
-      // Confirmation of the favorite sheet: one coalesced reaction.
-      KuronFx.trigger(context, kind: KuronFxKind.favorite);
+    if (buttonContext.mounted) {
+      // Confirmation of the favorite sheet: one coalesced reaction,
+      // anchored on the button that opened it.
+      KuronFx.trigger(
+        buttonContext,
+        kind: KuronFxKind.favorite,
+        targetRect: anchor,
+      );
     }
   }
 
@@ -1074,7 +1089,7 @@ class _DetailScreenState extends State<DetailScreen> {
               onPressed: favoriteEnabled
                   ? () {
                       final ds = cubit.state;
-                      if (ds is DetailLoaded) _onFavoritePressed(ds);
+                      if (ds is DetailLoaded) _onFavoritePressed(context, ds);
                     }
                   : null,
             ),

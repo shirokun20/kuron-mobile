@@ -182,6 +182,7 @@ class _GlobalDownloadProgressWidgetState
                     ),
                     const SizedBox(height: 2),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Expanded(
                           child: LinearProgressIndicator(
@@ -193,8 +194,8 @@ class _GlobalDownloadProgressWidgetState
                             valueColor: AlwaysStoppedAnimation<Color>(
                               Theme.of(context).colorScheme.primary,
                             ),
-                            minHeight: 4,
-                            borderRadius: BorderRadius.circular(2),
+                            minHeight: 6,
+                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -203,7 +204,8 @@ class _GlobalDownloadProgressWidgetState
                           style: TextStyleConst.labelSmall.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
-                                .onSurfaceVariant,
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.85),
                           ),
                         ),
                       ],
@@ -288,8 +290,8 @@ class _GlobalDownloadProgressWidgetState
                             valueColor: AlwaysStoppedAnimation<Color>(
                               Theme.of(context).colorScheme.primary,
                             ),
-                            minHeight: 4,
-                            borderRadius: BorderRadius.circular(2),
+                            minHeight: 6,
+                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -298,7 +300,8 @@ class _GlobalDownloadProgressWidgetState
                           style: TextStyleConst.labelSmall.copyWith(
                             color: Theme.of(context)
                                 .colorScheme
-                                .onSurfaceVariant,
+                                .onPrimaryContainer
+                                .withValues(alpha: 0.85),
                           ),
                         ),
                       ],

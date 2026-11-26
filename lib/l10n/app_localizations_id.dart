@@ -1066,6 +1066,9 @@ class AppLocalizationsId extends AppLocalizations {
   String get appLanguage => 'Bahasa Aplikasi';
 
   @override
+  String get selectLanguageDescription => 'Pilih bahasa yang Anda inginkan';
+
+  @override
   String get allowAnalytics => 'Izinkan Analytics';
 
   @override

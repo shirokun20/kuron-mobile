@@ -1015,6 +1015,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get appLanguage => '应用语言';
 
   @override
+  String get selectLanguageDescription => '选择您偏好的语言';
+
+  @override
   String get allowAnalytics => '允许分析统计';
 
   @override

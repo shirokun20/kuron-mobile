@@ -600,6 +600,7 @@
   "lightMode": "Mode Terang",
   "systemMode": "Mengikuti Sistem",
   "appLanguage": "Bahasa Aplikasi",
+  "selectLanguageDescription": "Pilih bahasa yang Anda inginkan",
   "allowAnalytics": "Izinkan Analytics",
   "privacyAnalytics": "Privasi Analytics",
   "termsAndConditions": "Syarat dan Ketentuan",

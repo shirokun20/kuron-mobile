@@ -2002,6 +2002,12 @@ abstract class AppLocalizations {
   /// **'App Language'**
   String get appLanguage;
 
+  /// No description provided for @selectLanguageDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Select your preferred language'**
+  String get selectLanguageDescription;
+
   /// No description provided for @allowAnalytics.
   ///
   /// In en, this message translates to:

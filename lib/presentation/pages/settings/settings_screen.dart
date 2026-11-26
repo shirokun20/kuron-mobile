@@ -28,7 +28,6 @@ import '../../../core/utils/app_update_test.dart';
 import '../../widgets/app_main_drawer_widget.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/kuro_mascot.dart';
-import '../../widgets/kuron_fx.dart';
 import '../../utils/kuron_motion_policy.dart';
 import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
@@ -159,12 +158,14 @@ class _SettingsScreenState extends State<SettingsScreen>
     ThemeData theme,
     AppLocalizations l10n,
   ) {
+    // The AppBar (and the download progress banner) already supply their own
+    // top inset. Applying SafeArea's top inset here as well left an ~84dp void
+    // above the first section on notched devices.
     return SafeArea(
+      top: false,
       child: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          SizedBox(height: DesignTokens.spaceLg),
-
           // Display Settings Card
           buildSettingsSectionHeader(Icons.palette_outlined, 'DISPLAY', theme),
           SizedBox(height: DesignTokens.spaceMd),
@@ -189,7 +190,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             buildSettingsDropdownTile(
               context: context,
               title: l10n.appLanguage,
-              subtitle: 'Select your preferred language',
+              subtitle: l10n.selectLanguageDescription,
               value: prefs.defaultLanguage,
               items: [
                 DropdownMenuItem(value: 'english', child: Text(l10n.english)),
@@ -241,13 +242,11 @@ class _SettingsScreenState extends State<SettingsScreen>
                   child: Text(l10n.kuronFxSatire),
                 ),
               ],
-              onChanged: (v) async {
+              // Changing the FX mode must not launch a full-screen effect;
+              // the setting itself is the only feedback here.
+              onChanged: (v) {
                 if (v == null) return;
-                await context.read<SettingsCubit>().updateKuronFxMode(v);
-                if (!context.mounted) return;
-                // Preview the newly selected mode (quiet is a no-op inside
-                // KuronFx). Fired only after the cubit emits the new state.
-                KuronFx.trigger(context, kind: KuronFxKind.sheetConfirm);
+                context.read<SettingsCubit>().updateKuronFxMode(v);
               },
               theme: theme,
             ),
