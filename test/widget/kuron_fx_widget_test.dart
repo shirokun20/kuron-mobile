@@ -158,9 +158,7 @@ void main() {
     }
   });
 
-  testWidgets('satire mode renders the painter only, no sticker Image', (
-    tester,
-  ) async {
+  testWidgets('satire mode renders the painter only, no Image', (tester) async {
     final injected = await pumpApp(
       tester,
       mode: KuronFxMode.satire.storageValue,

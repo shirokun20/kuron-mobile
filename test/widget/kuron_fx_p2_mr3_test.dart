@@ -7,7 +7,7 @@ import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 import 'kuron_fx_p2_support.dart';
 
 /// MR3: wordless toggle (procedural knob/flood/splash) and tab (ticks/puffs)
-/// beats, reusing painter primitives without words, stickers or images.
+/// beats, reusing painter primitives without words or images.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(setUpFxChannel);
@@ -65,7 +65,6 @@ void main() {
       expect(painter.targetRect, rect);
       expect(painter.wordSpec, isNull);
       expect(painter.wordImage, isNull);
-      expect(painter.sticker, isNull);
       expect(find.byType(Image), findsNothing); // no words, no webp sheet
       expect(KuronFx.activeController!.activeEntryCount, 1);
       expect(

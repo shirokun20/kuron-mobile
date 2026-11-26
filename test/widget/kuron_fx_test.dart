@@ -22,7 +22,6 @@ void main() {
       overlay: overlay,
       mode: KuronFxMode.satire,
       kind: KuronFxKind.favorite,
-      sticker: KuronSticker.acc,
     );
     await tester.pump();
     expect(controller.activeEntryCount, 1);
@@ -34,7 +33,6 @@ void main() {
       overlay: overlay,
       mode: KuronFxMode.satire,
       kind: KuronFxKind.downloadComplete,
-      sticker: KuronSticker.cair,
     );
     await tester.pump();
     expect(controller.burstCount, 2);

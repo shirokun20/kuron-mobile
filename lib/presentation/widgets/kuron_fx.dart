@@ -29,24 +29,6 @@ enum KuronFxKind {
   progressComplete,
 }
 
-/// Transparent die-cut satire stickers shipped as pre-sized WebP assets.
-/// Each sticker is decorative and carries its own local SFX word.
-enum KuronSticker {
-  cair('01_cair.webp', 'CAIR!'),
-  wibuDetect('02_wibu_detect.webp', 'WIBU DETECTED!'),
-  acc('03_acc.webp', 'ACC!'),
-  sah('04_sah.webp', 'SAH!'),
-  gaspol('05_gaspol.webp', 'GASPOL!'),
-  resmi('06_resmi.webp', 'RESMI!');
-
-  const KuronSticker(this.asset, this.sfx);
-
-  final String asset;
-  final String sfx;
-
-  String get path => 'assets/stickers/$asset';
-}
-
 /// Single shared overlay host for all sakuga bursts.
 ///
 /// Constraints (hard-coded, not configurable): one overlay at a time, at most
@@ -64,7 +46,6 @@ class KuronFxController {
   final AnimationController _controller;
   OverlayEntry? _entry;
   Timer? _ttl;
-  KuronSticker? _sticker;
   Rect? _targetRect;
   KuronFxKind _kind = KuronFxKind.favorite;
   int _particleCount = 0;
@@ -76,7 +57,6 @@ class KuronFxController {
 
   static const int maxParticles = 40;
   static const Duration maxDuration = Duration(milliseconds: 800);
-  static const double stickerLogicalSize = 72;
 
   /// Katalog toggle §2: ON plays frames 0→42 at 30 fps (1.433 s), OFF plays
   /// frames 11→0 backward (0.4 s). Every other beat keeps the shared 720 ms
@@ -120,7 +100,6 @@ class KuronFxController {
     required OverlayState overlay,
     required KuronFxMode mode,
     required KuronFxKind kind,
-    KuronSticker? sticker,
     Rect? targetRect,
     bool monochrome = false,
     bool dark = false,
@@ -133,10 +112,6 @@ class KuronFxController {
     _clear();
 
     _kind = kind;
-    // Stickers are removed from every burst: the setting is on/off only and
-    // no trigger path (including satire) renders a die-cut asset. The
-    // [sticker] parameter is kept for source compatibility but ignored.
-    _sticker = null;
     _targetRect = targetRect;
     _monochrome = monochrome;
     _wordSpec = _specForKind(kind);
@@ -160,39 +135,12 @@ class KuronFxController {
                   progress: _controller.value,
                   kind: _kind,
                   particleCount: _particleCount,
-                  sticker: _sticker,
                   monochrome: _monochrome,
                   dpr: MediaQuery.devicePixelRatioOf(context),
                   targetRect: _targetRect,
                   wordSpec: _wordSpec,
                   wordImage: _wordImage,
                 ),
-                child: _sticker == null
-                    ? null
-                    : ExcludeSemantics(
-                        child: Center(
-                          child: Image(
-                            image: ResizeImage(
-                              AssetImage(_sticker!.path),
-                              width:
-                                  (stickerLogicalSize *
-                                          MediaQuery.devicePixelRatioOf(
-                                            context,
-                                          ))
-                                      .round(),
-                              height:
-                                  (stickerLogicalSize *
-                                          MediaQuery.devicePixelRatioOf(
-                                            context,
-                                          ))
-                                      .round(),
-                            ),
-                            width: stickerLogicalSize,
-                            height: stickerLogicalSize,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
               ),
             ),
           ),
@@ -223,7 +171,6 @@ class KuronFxController {
     _controller.reset();
     _entry?.remove();
     _entry = null;
-    _sticker = null;
     _targetRect = null;
     _wordSpec = null;
     _wordImage = null;
@@ -341,7 +288,6 @@ class KuronFxOverlayPainter extends CustomPainter {
     required this.progress,
     required this.kind,
     required this.particleCount,
-    required this.sticker,
     required this.monochrome,
     required this.dpr,
     this.targetRect,
@@ -352,7 +298,6 @@ class KuronFxOverlayPainter extends CustomPainter {
   final double progress;
   final KuronFxKind kind;
   final int particleCount;
-  final KuronSticker? sticker;
   final bool monochrome;
   final double dpr;
 
@@ -427,7 +372,7 @@ class KuronFxOverlayPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Wordless control beats (P2): a lighter procedural silhouette that
-    // reuses the paints above — no word raster, no sticker, no per-frame
+    // reuses the paints above — no word raster, no per-frame
     // image work. Toggle = knob stretch + splash + flood wash; tab = ticks
     // and puffs only (velocity stretch comes from the tab layout itself).
     if (kind == KuronFxKind.toggleOn || kind == KuronFxKind.toggleOff) {
@@ -711,7 +656,6 @@ class KuronFxOverlayPainter extends CustomPainter {
       old.progress != progress ||
       old.kind != kind ||
       old.particleCount != particleCount ||
-      old.sticker != sticker ||
       old.dpr != dpr ||
       old.targetRect != targetRect ||
       old.wordSpec != wordSpec ||
@@ -771,7 +715,6 @@ abstract final class KuronFx {
   static void trigger(
     BuildContext context, {
     required KuronFxKind kind,
-    KuronSticker? sticker,
     bool isReader = false,
     Rect? targetRect,
   }) {
@@ -794,7 +737,6 @@ abstract final class KuronFx {
     BuildContext context, {
     required Rect rect,
     required KuronFxKind kind,
-    KuronSticker? sticker,
     bool isReader = false,
   }) {
     _fire(
@@ -829,7 +771,6 @@ abstract final class KuronFx {
       overlay: overlay,
       mode: mode,
       kind: kind,
-      sticker: null, // stickers removed from every burst
       targetRect: targetRect,
       monochrome: KuronMotionPolicy.isNoteTheme(context, listen: false),
       dark: Theme.of(context).brightness == Brightness.dark,

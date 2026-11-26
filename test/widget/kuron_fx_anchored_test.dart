@@ -15,7 +15,7 @@ import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 
 /// Anchored sakuga bursts: the effect is drawn around the triggering button,
 /// sized to it — never as a fullscreen screen-center explosion, and never
-/// with a giant satire sticker on button kinds.
+/// with a bitmap overlay on button kinds.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   GoogleFonts.config.allowRuntimeFetching = false;
@@ -141,9 +141,7 @@ void main() {
     }
   });
 
-  testWidgets('button bursts never show the giant satire sticker', (
-    tester,
-  ) async {
+  testWidgets('button bursts never show a bitmap overlay', (tester) async {
     for (final kind in [KuronFxKind.favorite, KuronFxKind.downloadComplete]) {
       final injected = await pumpAnchoredApp(
         tester,
@@ -155,7 +153,6 @@ void main() {
       await tester.pump();
       expect(KuronFx.activeController!.activeEntryCount, 1);
       expect(find.byType(Image), findsNothing);
-      expect(painterOf(tester).sticker, isNull);
       expect(tester.takeException(), isNull);
 
       await tester.pumpWidget(const SizedBox.shrink());

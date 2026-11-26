@@ -60,7 +60,7 @@ void main() {
     await settleAndClose(tester, injected);
   });
 
-  testWidgets('wordless P2 kinds carry no word and no sticker', (tester) async {
+  testWidgets('wordless P2 kinds carry no word and no image', (tester) async {
     final injected = await pumpFxApp(tester, mode: KuronFxMode.satire);
     final context = tester.element(find.byType(Scaffold));
     const rect = Rect.fromLTWH(40, 60, 48, 48);
@@ -74,7 +74,6 @@ void main() {
       await tester.pump();
       final painter = painterOf(tester);
       expect(painter.wordSpec, isNull);
-      expect(painter.sticker, isNull);
       expect(painter.wordImage, isNull);
       expect(KuronFx.activeController!.activeEntryCount, 1);
     }

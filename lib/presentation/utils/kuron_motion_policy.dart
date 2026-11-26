@@ -8,7 +8,7 @@ import 'package:nhasixapp/presentation/cubits/theme/theme_cubit.dart';
 /// User-facing intensity of transient Kuron effects.
 ///
 /// `quiet` is the default everywhere and is the only mode allowed in the
-/// reader: a reading session is never interrupted by particles or stickers.
+/// reader: a reading session is never interrupted by particles or overlays.
 enum KuronFxMode { quiet, standard, satire }
 
 extension KuronFxModeStorage on KuronFxMode {
