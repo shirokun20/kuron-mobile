@@ -28,6 +28,7 @@ import 'package:nhasixapp/core/config/config_models.dart';
 
 import '../cubits/settings/settings_cubit.dart';
 import 'content_group_card_widget.dart';
+import 'kuron_fx.dart';
 import 'error_widget.dart';
 import 'kuro_mascot.dart';
 import 'offline_content_shimmer.dart';
@@ -393,63 +394,69 @@ class _OfflineContentBodyState extends State<OfflineContentBody>
             child: ValueListenableBuilder<TextEditingValue>(
               valueListenable: _searchController,
               builder: (context, value, child) {
-                return TextField(
-                  controller: _searchController,
-                  focusNode: _searchFocusNode,
-                  style: TextStyleConst.bodyMedium.copyWith(
-                    color: colorScheme.onSurface,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!
-                        .searchOfflineContentHint,
-                    hintStyle: TextStyleConst.bodyMedium.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
+                return Builder(
+                  builder: (fieldContext) => TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    style: TextStyleConst.bodyMedium.copyWith(
+                      color: colorScheme.onSurface,
                     ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: colorScheme.onSurface.withValues(alpha: 0.7),
-                    ),
-                    suffixIcon: value.text.isNotEmpty
-                        ? IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              _offlineSearchCubit.getAllOfflineContent();
-                            },
-                            icon: Icon(
-                              Icons.clear,
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.7,
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!
+                          .searchOfflineContentHint,
+                      hintStyle: TextStyleConst.bodyMedium.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                      suffixIcon: value.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: () {
+                                _searchController.clear();
+                                _offlineSearchCubit.getAllOfflineContent();
+                              },
+                              icon: Icon(
+                                Icons.clear,
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.7,
+                                ),
                               ),
-                            ),
-                          )
-                        : null,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        DesignTokens.radiusMd,
+                            )
+                          : null,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusMd,
+                        ),
+                        borderSide: BorderSide(color: colorScheme.outline),
                       ),
-                      borderSide: BorderSide(color: colorScheme.outline),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        DesignTokens.radiusMd,
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusMd,
+                        ),
+                        borderSide: BorderSide(color: colorScheme.primary),
                       ),
-                      borderSide: BorderSide(color: colorScheme.primary),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
+                    onChanged: (text) {
+                      // Reactive UI handled by ValueListenableBuilder
+                    },
+                    onSubmitted: (query) {
+                      KuronFx.trigger(
+                        fieldContext,
+                        kind: KuronFxKind.sheetConfirm,
+                      );
+                      if (query.trim().isNotEmpty) {
+                        _offlineSearchCubit.searchOfflineContent(query.trim());
+                      } else {
+                        _offlineSearchCubit.getAllOfflineContent();
+                      }
+                    },
                   ),
-                  onChanged: (text) {
-                    // Reactive UI handled by ValueListenableBuilder
-                  },
-                  onSubmitted: (query) {
-                    if (query.trim().isNotEmpty) {
-                      _offlineSearchCubit.searchOfflineContent(query.trim());
-                    } else {
-                      _offlineSearchCubit.getAllOfflineContent();
-                    }
-                  },
                 );
               },
             ),

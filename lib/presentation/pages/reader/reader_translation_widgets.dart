@@ -8,6 +8,7 @@ import 'package:nhasixapp/domain/usecases/reader/save_glossary_entry_usecase.dar
 import 'package:nhasixapp/domain/entities/reader_settings_entity.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/cubits/reader/reader_translation_cubit.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 
 import '../../../core/utils/polygon_geometry.dart';
 
@@ -138,6 +139,9 @@ Future<void> showReaderModelSwitcherSheet(BuildContext context) async {
   for (final p in vision) {
     if (p.isDefault) defaultId = p.id;
   }
+  // Tile contexts keyed by provider id, so the group onChanged can anchor
+  // the rating burst on the tapped tile without per-tile onChanged.
+  final tileContexts = <String, BuildContext>{};
   await showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -158,6 +162,17 @@ Future<void> showReaderModelSwitcherSheet(BuildContext context) async {
                 groupValue: defaultId,
                 onChanged: (id) async {
                   if (id == null) return;
+                  final tileContext = tileContexts[id];
+                  final rect = tileContext == null
+                      ? null
+                      : KuronFx.targetRectOf(tileContext);
+                  if (tileContext != null && rect != null) {
+                    KuronFx.triggerOn(
+                      tileContext,
+                      rect: rect,
+                      kind: KuronFxKind.rating,
+                    );
+                  }
                   final selected = vision.firstWhere((p) => p.id == id);
                   await repository.setDefault(selected.id);
                   if (sheetContext.mounted) {
@@ -178,10 +193,15 @@ Future<void> showReaderModelSwitcherSheet(BuildContext context) async {
                   itemCount: vision.length,
                   itemBuilder: (_, i) {
                     final p = vision[i];
-                    return RadioListTile<String>(
-                      value: p.id,
-                      title: Text(p.displayName),
-                      subtitle: Text(p.model),
+                    return Builder(
+                      builder: (tileContext) {
+                        tileContexts[p.id] = tileContext;
+                        return RadioListTile<String>(
+                          value: p.id,
+                          title: Text(p.displayName),
+                          subtitle: Text(p.model),
+                        );
+                      },
                     );
                   },
                 ),

@@ -20,6 +20,7 @@ class KuronSakugaProgressBar extends StatefulWidget {
     required this.color,
     required this.backgroundColor,
     this.isReader = false,
+    this.isAnimating = true,
   });
 
   final double progress;
@@ -28,6 +29,7 @@ class KuronSakugaProgressBar extends StatefulWidget {
   final Color color;
   final Color backgroundColor;
   final bool isReader;
+  final bool isAnimating;
 
   @override
   State<KuronSakugaProgressBar> createState() => _KuronSakugaProgressBarState();
@@ -60,7 +62,8 @@ class _KuronSakugaProgressBarState extends State<KuronSakugaProgressBar>
     );
     final sakugaEnabled = mode != KuronFxMode.quiet;
     final target = widget.progress.clamp(0.0, 1.0);
-    final shouldBoil = sakugaEnabled && target > 0.015 && target < 1.0;
+    final shouldBoil =
+        sakugaEnabled && widget.isAnimating && target > 0.015 && target < 1.0;
 
     if (shouldBoil && !_boilController.isAnimating) {
       _boilController.repeat();

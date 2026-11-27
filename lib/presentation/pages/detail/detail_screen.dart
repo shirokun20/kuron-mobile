@@ -40,6 +40,7 @@ import 'widgets/detail_info_sections.dart';
 import 'widgets/detail_wide_view.dart';
 import 'widgets/detail_state_views.dart';
 import 'services/detail_tag_query_resolver.dart';
+import 'services/reader_launch_payload_builder.dart';
 import 'services/detail_mangafire_coordinator.dart';
 import '../../widgets/kuron_checkbox.dart';
 
@@ -1453,36 +1454,50 @@ class _DetailScreenState extends State<DetailScreen> {
     required ColorScheme colorScheme,
   }) {
     final selected = _mangaFireCoordinator.selectedType == value;
-    return ChoiceChip(
-      selected: selected,
-      showCheckmark: false,
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: selected
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onSurfaceVariant,
+    return Builder(
+      builder: (chipContext) => ChoiceChip(
+        selected: selected,
+        showCheckmark: false,
+        avatar: Icon(
+          icon,
+          size: 16,
+          color: selected
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onSurfaceVariant,
+        ),
+        label: Text(label),
+        selectedColor: colorScheme.primaryContainer,
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        labelStyle: TextStyleConst.labelMedium.copyWith(
+          color: selected
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onSurfaceVariant,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+        side: BorderSide(
+          color: selected
+              ? colorScheme.primary.withValues(alpha: 0.5)
+              : colorScheme.outlineVariant,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+        ),
+        onSelected: (_) {
+          if (!selected) {
+            final rect = KuronFx.targetRectOf(chipContext);
+            if (rect != null) {
+              KuronFx.triggerOn(
+                chipContext,
+                rect: rect,
+                kind: KuronFxKind.rating,
+              );
+            } else {
+              KuronFx.trigger(chipContext, kind: KuronFxKind.rating);
+            }
+          }
+          unawaited(_mangaFireCoordinator.onTypeSelected(content, value));
+        },
       ),
-      label: Text(label),
-      selectedColor: colorScheme.primaryContainer,
-      backgroundColor: colorScheme.surfaceContainerHighest,
-      labelStyle: TextStyleConst.labelMedium.copyWith(
-        color: selected
-            ? colorScheme.onPrimaryContainer
-            : colorScheme.onSurfaceVariant,
-        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-      ),
-      side: BorderSide(
-        color: selected
-            ? colorScheme.primary.withValues(alpha: 0.5)
-            : colorScheme.outlineVariant,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-      ),
-      onSelected: (_) {
-        unawaited(_mangaFireCoordinator.onTypeSelected(content, value));
-      },
     );
   }
 
@@ -2620,7 +2635,7 @@ class _DetailScreenState extends State<DetailScreen> {
                               final isSelected = selectedIds.contains(
                                 collection.id,
                               );
-                              return CheckboxListTile(
+                              return KuronCheckboxListTile(
                                 value: isSelected,
                                 title: Text(collection.name),
                                 subtitle: Text(

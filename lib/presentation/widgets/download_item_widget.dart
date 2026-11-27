@@ -9,6 +9,8 @@ import '../../l10n/app_localizations.dart';
 import '../../core/services/pdf_conversion_service.dart';
 import '../../core/utils/download_storage_utils.dart';
 
+import 'package:nhasixapp/core/constants/design_tokens.dart';
+
 import 'kuron_checkbox.dart';
 
 // Widget for displaying individual download item with progress and actions
@@ -56,6 +58,7 @@ class DownloadItemWidget extends StatelessWidget {
                       },
                       activeColor: colorScheme.primary,
                     ),
+                    const SizedBox(width: 8),
                   ],
                   Expanded(
                     child: Column(

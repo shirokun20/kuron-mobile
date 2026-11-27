@@ -32,8 +32,10 @@ Widget _buildSourceInstallCard(
       const SizedBox(height: 12),
       buildSettingsCard([
         ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
           title: Text(
             l10n.settingsCustomSourceTitle,
             style: TextStyleConst.bodyLarge.copyWith(
@@ -90,19 +92,23 @@ Widget _buildInstalledSourcesList(
 
   return BlocBuilder<SourceCubit, SourceState>(
     builder: (context, srcState) {
-      final filteredSources = srcState.availableSources.where((s) {
-        if (searchQuery.isEmpty) return true;
-        final q = searchQuery.toLowerCase();
-        return s.displayName.toLowerCase().contains(q) ||
-            s.id.toLowerCase().contains(q);
-      }).toList(growable: false);
+      final filteredSources = srcState.availableSources
+          .where((s) {
+            if (searchQuery.isEmpty) return true;
+            final q = searchQuery.toLowerCase();
+            return s.displayName.toLowerCase().contains(q) ||
+                s.id.toLowerCase().contains(q);
+          })
+          .toList(growable: false);
       final reachableCount = filteredSources
           .where((s) => healthStatuses[s.id] == SourceHealthStatus.reachable)
           .length;
       return buildSettingsCard([
         ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 4,
+          ),
           title: Text(
             l10n.sourceSelectorSelectSource,
             style: TextStyleConst.bodyLarge.copyWith(
@@ -173,122 +179,134 @@ Widget _buildInstalledSourcesList(
           )
         else
           ...installer
-              .sortSourcesUpdateFirst(
-                  filteredSources, (source) => source.id)
+              .sortSourcesUpdateFirst(filteredSources, (source) => source.id)
               .map((ranked) {
-            final source = ranked.source;
-            final isActive = srcState.activeSource?.id == source.id;
-            final canUninstall = source.id != 'nhentai';
-            final health =
-                healthStatuses[source.id] ?? SourceHealthStatus.unknown;
-            final sourceInfo = installer.resolveDisplayInfo(source.id);
-            final hasUpdate =
-                ranked.status == SourceVersionStatus.updateAvailable;
-            final description = sourceInfo.description;
-            final subtitle = (description != null && description.isNotEmpty)
-                ? '$description\n${sourceInfo.idWithVersion}'
-                : sourceInfo.idWithVersion;
-            return ListTile(
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-              leading: buildHealthDot(source, health, theme),
-              title: Text(
-                source.displayName,
-                style: TextStyleConst.bodyMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              subtitle: Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyleConst.bodySmall.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (hasUpdate)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.18),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusMd),
-                      ),
-                      child: Text(
-                        l10n.sourceImportStatusUpdate,
-                        style: TextStyleConst.bodySmall.copyWith(
-                          color: AppColors.warning,
-                          fontWeight: FontWeight.w700,
+                final source = ranked.source;
+                final isActive = srcState.activeSource?.id == source.id;
+                final canUninstall = source.id != 'nhentai';
+                final health =
+                    healthStatuses[source.id] ?? SourceHealthStatus.unknown;
+                final sourceInfo = installer.resolveDisplayInfo(source.id);
+                final hasUpdate =
+                    ranked.status == SourceVersionStatus.updateAvailable;
+                final description = sourceInfo.description;
+                final subtitle = (description != null && description.isNotEmpty)
+                    ? '$description\n${sourceInfo.idWithVersion}'
+                    : sourceInfo.idWithVersion;
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 2,
+                  ),
+                  leading: buildHealthDot(source, health, theme),
+                  title: Text(
+                    source.displayName,
+                    style: TextStyleConst.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                  subtitle: Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyleConst.bodySmall.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasUpdate)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusMd,
+                            ),
+                          ),
+                          child: Text(
+                            l10n.sourceImportStatusUpdate,
+                            style: TextStyleConst.bodySmall.copyWith(
+                              color: AppColors.warning,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  if (hasUpdate && (isActive || canUninstall))
-                    const SizedBox(width: 4),
-                  if (isActive)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary
-                            .withValues(alpha: 0.12),
-                        borderRadius:
-                            BorderRadius.circular(DesignTokens.radiusMd),
-                      ),
-                      child: Text(
-                        l10n.sourceSelectorActiveSource,
-                        style: TextStyleConst.bodySmall.copyWith(
-                          color: theme.colorScheme.primary,
-                          fontWeight: FontWeight.w700,
+                      if (hasUpdate && (isActive || canUninstall))
+                        const SizedBox(width: 4),
+                      if (isActive)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.12,
+                            ),
+                            borderRadius: BorderRadius.circular(
+                              DesignTokens.radiusMd,
+                            ),
+                          ),
+                          child: Text(
+                            l10n.sourceSelectorActiveSource,
+                            style: TextStyleConst.bodySmall.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                  if (canUninstall) ...[
-                    if (isActive) const SizedBox(width: 4),
-                    IconButton(
-                      tooltip:
-                          AppLocalizations.of(context)!.uninstallSource,
-                      onPressed: () => _confirmAndUninstallSource(
-                        context,
-                        source.id,
-                        service: installer,
-                      ),
-                      icon: Icon(
-                        Icons.delete_outline,
-                        color: theme.colorScheme.error,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            );
-          }),
+                      if (canUninstall) ...[
+                        if (isActive) const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: AppLocalizations.of(context)!
+                              .uninstallSource,
+                          onPressed: () => _confirmAndUninstallSource(
+                            context,
+                            source.id,
+                            service: installer,
+                          ),
+                          icon: Icon(
+                            Icons.delete_outline,
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
       ], theme);
     },
   );
 }
 
 Widget _buildSourcesShortcut(
-    _SettingsScreenState state, ThemeData theme, AppLocalizations l10n) {
+  _SettingsScreenState state,
+  ThemeData theme,
+  AppLocalizations l10n,
+) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       buildSettingsSectionHeader(
-          Icons.download_outlined, l10n.availableSources, theme),
+        Icons.download_outlined,
+        l10n.availableSources,
+        theme,
+      ),
       const SizedBox(height: 12),
       BlocBuilder<SourceCubit, SourceState>(
         builder: (context, srcState) => buildSettingsCard([
           ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
             leading: const Icon(Icons.dns_outlined),
             title: Text(
               l10n.settingsCustomSourceTitle,
@@ -307,7 +325,8 @@ Widget _buildSourcesShortcut(
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute<void>(
-                  builder: (_) => const SourceManagerScreen()),
+                builder: (_) => const SourceManagerScreen(),
+              ),
             ),
           ),
         ], theme),
@@ -332,12 +351,15 @@ Future<void> _confirmAndUninstallSource(
   // Resolve before any await: fail fast instead of confirming an action
   // that cannot run, and satisfy use_build_context_synchronously.
   final installer = _resolveInstaller(context, service);
-  final confirmed = await showDialog<bool>(
+  final confirmed =
+      await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: theme.colorScheme.surface,
-          title: Text(AppLocalizations.of(context)!.uninstallSourceTitle,
-              style: TextStyle(color: theme.colorScheme.onSurface)),
+          title: Text(
+            AppLocalizations.of(context)!.uninstallSourceTitle,
+            style: TextStyle(color: theme.colorScheme.onSurface),
+          ),
           content: Text(
             AppLocalizations.of(context)!.removeSourceConfirmation(sourceId),
             style: TextStyle(color: theme.colorScheme.onSurface),
@@ -373,8 +395,9 @@ Future<void> _confirmAndUninstallSource(
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content:
-            Text(AppLocalizations.of(context)!.sourceUninstalled(sourceId)),
+        content: Text(
+          AppLocalizations.of(context)!.sourceUninstalled(sourceId),
+        ),
         backgroundColor: AppColors.success,
       ),
     );
@@ -385,8 +408,10 @@ Future<void> _confirmAndUninstallSource(
     messenger.hideCurrentSnackBar();
     messenger.showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context)!
-            .failedToUninstall(sourceId, e.toString())),
+        content: Text(
+          AppLocalizations.of(context)!
+              .failedToUninstall(sourceId, e.toString()),
+        ),
         backgroundColor: AppColors.error,
       ),
     );
@@ -406,8 +431,10 @@ Future<void> _installSourceFromLink(
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: theme.colorScheme.surface,
-      title: Text(l10n.sourceImportLinkDialogTitle,
-          style: TextStyle(color: theme.colorScheme.onSurface)),
+      title: Text(
+        l10n.sourceImportLinkDialogTitle,
+        style: TextStyle(color: theme.colorScheme.onSurface),
+      ),
       content: TextField(
         controller: controller,
         autofocus: true,
@@ -417,10 +444,7 @@ Future<void> _installSourceFromLink(
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => ctx.pop(),
-          child: Text(l10n.cancel),
-        ),
+        TextButton(onPressed: () => ctx.pop(), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: () => ctx.pop(controller.text.trim()),
           child: Text(l10n.sourceImportConfirmInstall),
@@ -475,10 +499,16 @@ Future<void> _installSourceFromLink(
 
     if (!context.mounted) return;
     final shouldInstall = candidates.length == 1
-        ? await _showInstallPreviewDialog(context, candidates.first,
-            service: installer)
-        : await _showBatchInstallPreviewDialog(context, candidates,
-            service: installer);
+        ? await _showInstallPreviewDialog(
+            context,
+            candidates.first,
+            service: installer,
+          )
+        : await _showBatchInstallPreviewDialog(
+            context,
+            candidates,
+            service: installer,
+          );
     if (!shouldInstall) {
       messenger.hideCurrentSnackBar();
       return;
@@ -498,10 +528,7 @@ Future<void> _installSourceFromLink(
           ? l10n.sourceImportInstalledFromLink(result.installed.first)
           : l10n.installedSourcesFromZip(result.installed.length);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.success),
       );
     } else {
       final reasonHint = result.failed.isNotEmpty
@@ -517,8 +544,10 @@ Future<void> _installSourceFromLink(
       );
     }
   } catch (e, stackTrace) {
-    Logger()
-        .e('Failed to install source from link: $e', stackTrace: stackTrace);
+    Logger().e(
+      'Failed to install source from link: $e',
+      stackTrace: stackTrace,
+    );
     if (!context.mounted) return;
 
     messenger.hideCurrentSnackBar();
@@ -589,10 +618,16 @@ Future<void> _installSourceFromZip(
 
     if (!context.mounted) return;
     final shouldInstall = candidates.length == 1
-        ? await _showInstallPreviewDialog(context, candidates.first,
-            service: installer)
-        : await _showBatchInstallPreviewDialog(context, candidates,
-            service: installer);
+        ? await _showInstallPreviewDialog(
+            context,
+            candidates.first,
+            service: installer,
+          )
+        : await _showBatchInstallPreviewDialog(
+            context,
+            candidates,
+            service: installer,
+          );
     if (!shouldInstall) {
       messenger.hideCurrentSnackBar();
       return;
@@ -611,12 +646,9 @@ Future<void> _installSourceFromZip(
       final message = result.installed.length == 1
           ? l10n.sourceImportInstalledFromZip(result.installed.first)
           : AppLocalizations.of(context)!
-              .installedSourcesFromZip(result.installed.length);
+                .installedSourcesFromZip(result.installed.length);
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: AppColors.success,
-        ),
+        SnackBar(content: Text(message), backgroundColor: AppColors.success),
       );
     } else {
       final reasonHint = result.failed.isNotEmpty
@@ -646,7 +678,9 @@ Future<void> _installSourceFromZip(
 }
 
 String _sourceVersionStatusLabel(
-    AppLocalizations l10n, SourceVersionStatus status) {
+  AppLocalizations l10n,
+  SourceVersionStatus status,
+) {
   switch (status) {
     case SourceVersionStatus.updateAvailable:
       return l10n.sourceImportStatusUpdate;
@@ -710,198 +744,210 @@ Future<List<GlobalManifestEntry>> _selectGlobalManifestEntries({
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (ctx) => StatefulBuilder(builder: (ctx, setModalState) {
-      final theme = Theme.of(ctx);
-      final query = searchQuery.trim().toLowerCase();
-      final base = query.isEmpty
-          ? entries
-          : entries.where((entry) {
-              final name = (entry.displayName ?? entry.id).toLowerCase();
-              return name.contains(query) ||
-                  entry.id.toLowerCase().contains(query);
-            }).toList(growable: false);
-      final filtered = service.applyManifestSort(base, sortMode);
-      return SafeArea(
-        child: SizedBox(
-          height: MediaQuery.of(ctx).size.height * 0.75,
-          child: Column(
-            children: [
-              ListTile(
-                title: Text(
-                    AppLocalizations.of(context)!.selectSourceFromManifest),
-                subtitle:
-                    Text(AppLocalizations.of(context)!.chooseMultipleSources),
-                trailing: TextButton(
-                  onPressed: filtered.isEmpty
-                      ? null
-                      : () => setModalState(() {
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setModalState) {
+        final theme = Theme.of(ctx);
+        final query = searchQuery.trim().toLowerCase();
+        final base = query.isEmpty
+            ? entries
+            : entries
+                  .where((entry) {
+                    final name = (entry.displayName ?? entry.id).toLowerCase();
+                    return name.contains(query) ||
+                        entry.id.toLowerCase().contains(query);
+                  })
+                  .toList(growable: false);
+        final filtered = service.applyManifestSort(base, sortMode);
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.75,
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(
+                    AppLocalizations.of(context)!.selectSourceFromManifest,
+                  ),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.chooseMultipleSources,
+                  ),
+                  trailing: TextButton(
+                    onPressed: filtered.isEmpty
+                        ? null
+                        : () => setModalState(() {
                             if (filtered.every(selected.contains)) {
                               selected.removeAll(filtered);
                             } else {
                               selected.addAll(filtered);
                             }
                           }),
-                  child: Text(
+                    child: Text(
                       filtered.isNotEmpty && filtered.every(selected.contains)
                           ? AppLocalizations.of(context)!.clearSelection
-                          : AppLocalizations.of(context)!.selectAll),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: TextField(
-                  onChanged: (value) {
-                    setModalState(() {
-                      searchQuery = value;
-                    });
-                  },
-                  style: TextStyleConst.bodyMedium.copyWith(
-                    color: theme.colorScheme.onSurface,
-                  ),
-                  decoration: InputDecoration(
-                    hintText:
-                        AppLocalizations.of(context)!.sourceSelectorSearchHint,
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surface,
-                    isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius:
-                          BorderRadius.circular(DesignTokens.radiusLg),
-                      borderSide: BorderSide.none,
+                          : AppLocalizations.of(context)!.selectAll,
                     ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.sort_rounded,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: TextField(
+                    onChanged: (value) {
+                      setModalState(() {
+                        searchQuery = value;
+                      });
+                    },
+                    style: TextStyleConst.bodyMedium.copyWith(
+                      color: theme.colorScheme.onSurface,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: DropdownButton<ManifestSortMode>(
-                        value: sortMode,
-                        isExpanded: true,
-                        isDense: true,
-                        underline: const SizedBox.shrink(),
-                        style: TextStyleConst.bodyMedium.copyWith(
-                          color: theme.colorScheme.onSurface,
+                    decoration: InputDecoration(
+                      hintText: AppLocalizations.of(context)!
+                          .sourceSelectorSearchHint,
+                      prefixIcon: Icon(
+                        Icons.search_rounded,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      filled: true,
+                      fillColor: theme.colorScheme.surface,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(
+                          DesignTokens.radiusLg,
                         ),
-                        onChanged: (value) {
-                          if (value != null) {
-                            setModalState(() => sortMode = value);
-                          }
-                        },
-                        items: [
-                          for (final mode in ManifestSortMode.values)
-                            DropdownMenuItem(
-                              value: mode,
-                              child: Text(
-                                _manifestSortLabel(
-                                  AppLocalizations.of(context)!,
-                                  mode,
-                                ),
-                              ),
-                            ),
-                        ],
+                        borderSide: BorderSide.none,
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              Expanded(
-                child: filtered.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            searchQuery.trim().isEmpty
-                                ? AppLocalizations.of(context)!
-                                    .sourceSelectorNoResults
-                                : 'No sources matching "$searchQuery"',
-                            textAlign: TextAlign.center,
-                            style: TextStyleConst.bodyMedium.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.sort_rounded,
+                        size: 20,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: DropdownButton<ManifestSortMode>(
+                          value: sortMode,
+                          isExpanded: true,
+                          isDense: true,
+                          underline: const SizedBox.shrink(),
+                          style: TextStyleConst.bodyMedium.copyWith(
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setModalState(() => sortMode = value);
+                            }
+                          },
+                          items: [
+                            for (final mode in ManifestSortMode.values)
+                              DropdownMenuItem(
+                                value: mode,
+                                child: Text(
+                                  _manifestSortLabel(
+                                    AppLocalizations.of(context)!,
+                                    mode,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              searchQuery.trim().isEmpty
+                                  ? AppLocalizations.of(context)!
+                                        .sourceSelectorNoResults
+                                  : 'No sources matching "$searchQuery"',
+                              textAlign: TextAlign.center,
+                              style: TextStyleConst.bodyMedium.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
-                        ),
-                      )
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (_, index) {
-                          final entry = filtered[index];
-                          final isSelected = selected.contains(entry);
-                          final installed =
-                              service.getInstalledVersion(entry.id);
-                          final status = resolveSourceVersionStatus(
-                            installedVersion: installed,
-                            candidateVersion: entry.version,
-                          );
-                          return CheckboxListTile(
-                            value: isSelected,
-                            title: Text(entry.displayName ?? entry.id),
-                            subtitle: Text(
-                              _manifestEntrySubtitle(
+                        )
+                      : ListView.separated(
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (_, index) {
+                            final entry = filtered[index];
+                            final isSelected = selected.contains(entry);
+                            final installed = service.getInstalledVersion(
+                              entry.id,
+                            );
+                            final status = resolveSourceVersionStatus(
+                              installedVersion: installed,
+                              candidateVersion: entry.version,
+                            );
+                            return KuronCheckboxListTile(
+                              value: isSelected,
+                              title: Text(entry.displayName ?? entry.id),
+                              subtitle: Text(
+                                _manifestEntrySubtitle(
                                   AppLocalizations.of(context)!,
                                   entry,
                                   installed,
-                                  status),
-                            ),
-                            onChanged: (value) {
-                              setModalState(() {
-                                if (value == true) {
-                                  selected.add(entry);
-                                } else {
-                                  selected.remove(entry);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => ctx.pop(<GlobalManifestEntry>[]),
-                        child: Text(AppLocalizations.of(context)!.cancel),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: selected.isEmpty
-                            ? null
-                            : () => ctx.pop(selected.toList(growable: false)),
-                        child: Text(
-                          selected.isEmpty
-                              ? AppLocalizations.of(context)!.installSelected
-                              : '${AppLocalizations.of(context)!.installSelected} (${selected.length})',
+                                  status,
+                                ),
+                              ),
+                              onChanged: (value) {
+                                setModalState(() {
+                                  if (value == true) {
+                                    selected.add(entry);
+                                  } else {
+                                    selected.remove(entry);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => ctx.pop(<GlobalManifestEntry>[]),
+                          child: Text(AppLocalizations.of(context)!.cancel),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: selected.isEmpty
+                              ? null
+                              : () => ctx.pop(selected.toList(growable: false)),
+                          child: Text(
+                            selected.isEmpty
+                                ? AppLocalizations.of(context)!.installSelected
+                                : '${AppLocalizations.of(context)!.installSelected} (${selected.length})',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-      );
-    }),
+        );
+      },
+    ),
   );
 
   return result ?? const [];
@@ -927,35 +973,45 @@ Future<bool> _showInstallPreviewDialog(
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: cs.surface,
-      title: Text(l10n.sourceImportPreviewTitle,
-          style: TextStyle(color: cs.onSurface)),
+      title: Text(
+        l10n.sourceImportPreviewTitle,
+        style: TextStyle(color: cs.onSurface),
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${l10n.sourceImportPreviewSourceId}: ${candidate.sourceId}',
-              style: TextStyle(color: cs.onSurface)),
+          Text(
+            '${l10n.sourceImportPreviewSourceId}: ${candidate.sourceId}',
+            style: TextStyle(color: cs.onSurface),
+          ),
           const SizedBox(height: 6),
-          Text('${l10n.sourceImportPreviewVersion}: $versionLine',
-              style: TextStyle(color: cs.onSurface)),
+          Text(
+            '${l10n.sourceImportPreviewVersion}: $versionLine',
+            style: TextStyle(color: cs.onSurface),
+          ),
           if (_sourceVersionStatusLabel(l10n, status).isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(_sourceVersionStatusLabel(l10n, status),
-                style:
-                    TextStyle(color: cs.primary, fontWeight: FontWeight.w700)),
+            Text(
+              _sourceVersionStatusLabel(l10n, status),
+              style: TextStyle(color: cs.primary, fontWeight: FontWeight.w700),
+            ),
           ],
           if (candidate.displayName != null &&
               candidate.displayName!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-                '${l10n.sourceImportPreviewDisplayName}: ${candidate.displayName}',
-                style: TextStyle(color: cs.onSurface)),
+              '${l10n.sourceImportPreviewDisplayName}: ${candidate.displayName}',
+              style: TextStyle(color: cs.onSurface),
+            ),
           ],
           if (candidate.description != null &&
               candidate.description!.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(candidate.description!,
-                style: TextStyle(color: cs.onSurfaceVariant)),
+            Text(
+              candidate.description!,
+              style: TextStyle(color: cs.onSurfaceVariant),
+            ),
           ],
           const SizedBox(height: 6),
           Text(
@@ -972,15 +1028,14 @@ Future<bool> _showInstallPreviewDialog(
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => ctx.pop(false),
-          child: Text(l10n.cancel),
-        ),
+        TextButton(onPressed: () => ctx.pop(false), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: () => ctx.pop(true),
-          child: Text(status == SourceVersionStatus.updateAvailable
-              ? l10n.sourceImportConfirmUpdate
-              : l10n.sourceImportConfirmInstall),
+          child: Text(
+            status == SourceVersionStatus.updateAvailable
+                ? l10n.sourceImportConfirmUpdate
+                : l10n.sourceImportConfirmInstall,
+          ),
         ),
       ],
     ),
@@ -1000,8 +1055,10 @@ Future<bool> _showBatchInstallPreviewDialog(
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: cs.surface,
-      title: Text(l10n.sourceImportPreviewTitle,
-          style: TextStyle(color: cs.onSurface)),
+      title: Text(
+        l10n.sourceImportPreviewTitle,
+        style: TextStyle(color: cs.onSurface),
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: Column(
@@ -1009,9 +1066,10 @@ Future<bool> _showBatchInstallPreviewDialog(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-                AppLocalizations.of(context)!
-                    .selectedSourcesCount(candidates.length),
-                style: TextStyle(color: cs.onSurface)),
+              AppLocalizations.of(context)!
+                  .selectedSourcesCount(candidates.length),
+              style: TextStyle(color: cs.onSurface),
+            ),
             const SizedBox(height: 8),
             Flexible(
               child: ListView.separated(
@@ -1020,8 +1078,9 @@ Future<bool> _showBatchInstallPreviewDialog(
                 separatorBuilder: (_, _) => const SizedBox(height: 4),
                 itemBuilder: (_, index) {
                   final candidate = candidates[index];
-                  final installed =
-                      service.getInstalledVersion(candidate.sourceId);
+                  final installed = service.getInstalledVersion(
+                    candidate.sourceId,
+                  );
                   final status = resolveSourceVersionStatus(
                     installedVersion: installed,
                     candidateVersion: candidate.version,
@@ -1029,7 +1088,9 @@ Future<bool> _showBatchInstallPreviewDialog(
                   final versionText = installed == null
                       ? 'v${candidate.version}'
                       : l10n.sourceImportVersionDiff(
-                          installed, candidate.version);
+                          installed,
+                          candidate.version,
+                        );
                   final label = _sourceVersionStatusLabel(l10n, status);
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1042,7 +1103,9 @@ Future<bool> _showBatchInstallPreviewDialog(
                           installed != null)
                         Text(
                           l10n.sourceImportDowngradeWarning(
-                              installed, candidate.version),
+                            installed,
+                            candidate.version,
+                          ),
                           style: TextStyle(color: cs.error, fontSize: 12),
                         ),
                     ],
@@ -1054,10 +1117,7 @@ Future<bool> _showBatchInstallPreviewDialog(
         ),
       ),
       actions: [
-        TextButton(
-          onPressed: () => ctx.pop(false),
-          child: Text(l10n.cancel),
-        ),
+        TextButton(onPressed: () => ctx.pop(false), child: Text(l10n.cancel)),
         FilledButton(
           onPressed: () => ctx.pop(true),
           child: Text(AppLocalizations.of(context)!.installSelected),

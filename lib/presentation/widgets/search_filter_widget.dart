@@ -6,6 +6,7 @@ import 'package:nhasixapp/core/constants/design_tokens.dart';
 import '../../core/constants/text_style_const.dart';
 import '../../l10n/app_localizations.dart';
 import '../../domain/entities/search_filter.dart';
+import 'kuron_fx.dart';
 
 // Advanced search filter widget with expandable sections
 class SearchFilterWidget extends StatefulWidget {
@@ -252,47 +253,54 @@ class _SearchFilterWidgetState extends State<SearchFilterWidget>
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _queryController,
-              style: TextStyleConst.bodyLarge,
-              decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!.searchContentHint,
-                hintStyle: TextStyleConst.placeholderText,
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-                suffixIcon: _queryController.text.isNotEmpty
-                    ? IconButton(
-                        icon: Icon(
-                          Icons.clear,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                        onPressed: () {
-                          _queryController.clear();
-                          _updateFilter();
-                        },
-                      )
-                    : null,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outline,
+            child: Builder(
+              builder: (fieldContext) => TextField(
+                controller: _queryController,
+                style: TextStyleConst.bodyLarge,
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!.searchContentHint,
+                  hintStyle: TextStyleConst.placeholderText,
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  suffixIcon: _queryController.text.isNotEmpty
+                      ? IconButton(
+                          icon: Icon(
+                            Icons.clear,
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
+                          onPressed: () {
+                            _queryController.clear();
+                            _updateFilter();
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
+                onChanged: (_) => _updateFilter(),
+                onSubmitted: (_) {
+                  KuronFx.trigger(fieldContext, kind: KuronFxKind.sheetConfirm);
+                  _updateFilter();
+                },
               ),
-              onChanged: (_) => _updateFilter(),
-              onSubmitted: (_) => _updateFilter(),
             ),
           ),
           if (widget.showAdvancedOptions) ...[

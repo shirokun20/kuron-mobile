@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
+import 'kuron_fx.dart';
+
 // Advanced pagination widget with page navigation and progress indicator
 class PaginationWidget extends StatefulWidget {
   const PaginationWidget({
@@ -72,39 +74,42 @@ class _PaginationWidgetState extends State<PaginationWidget> {
               ),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _pageController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(6),
-              ],
-              style: TextStyleConst.bodyLarge.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-              decoration: InputDecoration(
-                hintText: AppLocalizations.of(context)!
-                    .pageNumber(widget.currentPage),
-                hintStyle: TextStyleConst.placeholderText.copyWith(
-                  fontSize: 16,
+            Builder(
+              builder: (fieldContext) => TextField(
+                controller: _pageController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                style: TextStyleConst.bodyLarge.copyWith(
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.outline
-                        .withValues(alpha: 0.3),
+                decoration: InputDecoration(
+                  hintText: AppLocalizations.of(context)!
+                      .pageNumber(widget.currentPage),
+                  hintStyle: TextStyleConst.placeholderText.copyWith(
+                    fontSize: 16,
+                  ),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.outline
+                          .withValues(alpha: 0.3),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
+                autofocus: true,
+                onSubmitted: (value) {
+                  KuronFx.trigger(fieldContext, kind: KuronFxKind.sheetConfirm);
+                  _goToPage();
+                  Navigator.of(context).pop();
+                },
               ),
-              autofocus: true,
-              onSubmitted: (value) {
-                _goToPage();
-                Navigator.of(context).pop();
-              },
             ),
           ],
         ),

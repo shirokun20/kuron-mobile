@@ -290,6 +290,8 @@ class _GlobalDownloadProgressWidgetState
                                 .colorScheme
                                 .surface
                                 .withValues(alpha: 0.3),
+                            isAnimating:
+                                download.state == DownloadState.downloading,
                           ),
                         ),
                         const SizedBox(width: 8),

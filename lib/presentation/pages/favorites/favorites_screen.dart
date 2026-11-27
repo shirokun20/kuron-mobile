@@ -27,6 +27,8 @@ import '../../../core/utils/responsive_grid_delegate.dart';
 import '../../../core/services/source_auth_service.dart';
 import '../../cubits/favorite/favorite_cubit.dart';
 import '../../cubits/settings/settings_cubit.dart';
+import '../../widgets/kuron_checkbox.dart';
+import '../../widgets/kuron_fx.dart';
 import '../../widgets/widgets.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/highlighted_text_widget.dart';
@@ -57,6 +59,22 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   // Cubit instance to avoid context issues
   late FavoriteCubit _favoriteCubit;
   late SourceAuthService _sourceAuthService;
+
+  /// Label render boxes for the wordless tab-switch beat. Keys are stable so
+  /// the post-frame callback can capture the selected label's rect.
+  final List<GlobalKey> _tabKeys = List.generate(2, (_) => GlobalKey());
+
+  void _onTabTap(int index) {
+    // The indicator settles after the tap frame; capture the label there.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tabContext = _tabKeys[index].currentContext;
+      if (tabContext == null) return;
+      final rect = KuronFx.targetRectOf(tabContext);
+      if (rect == null) return;
+      KuronFx.triggerOn(context, rect: rect, kind: KuronFxKind.tabSwitch);
+    });
+  }
 
   int _activeTabIndex = 0;
   String? _onlineFavoriteSourceId;
@@ -614,8 +632,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (currentState is! FavoriteLoaded) return;
 
     final activeId = currentState.activeCollectionId;
-    final removeFromCollectionId =
-        move && _isInsideCollection(currentState) ? activeId : null;
+    final removeFromCollectionId = move && _isInsideCollection(currentState)
+        ? activeId
+        : null;
 
     final targetIds = await _showBatchCollectionsSheet(
       move: move,
@@ -641,9 +660,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         final count = keys.length;
         final message = move
             ? AppLocalizations.of(context)!
-                .movedToFolderCount(count, count == 1 ? '' : 's')
+                  .movedToFolderCount(count, count == 1 ? '' : 's')
             : AppLocalizations.of(context)!
-                .addedToFolderCount(count, count == 1 ? '' : 's');
+                  .addedToFolderCount(count, count == 1 ? '' : 's');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -663,9 +682,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppLocalizations.of(context)!.failedToSaveCollection(
-                e.toString(),
-              ),
+              AppLocalizations.of(context)!
+                  .failedToSaveCollection(e.toString()),
               style: TextStyleConst.withColor(
                 TextStyleConst.bodyMedium,
                 Theme.of(context).colorScheme.onError,
@@ -682,8 +700,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (_selectedItems.isEmpty) return;
 
     final currentState = _favoriteCubit.state;
-    if (currentState is! FavoriteLoaded ||
-        !_isInsideCollection(currentState)) {
+    if (currentState is! FavoriteLoaded || !_isInsideCollection(currentState)) {
       return;
     }
 
@@ -694,11 +711,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         .firstOrNull;
 
     final count = _selectedItems.length;
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor:
-                Theme.of(context).colorScheme.surfaceContainer,
+            backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
             title: Text(
               AppLocalizations.of(context)!.removeFromFolder,
               style: TextStyleConst.withColor(
@@ -780,9 +797,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              AppLocalizations.of(context)!.failedToSaveCollection(
-                e.toString(),
-              ),
+              AppLocalizations.of(context)!
+                  .failedToSaveCollection(e.toString()),
               style: TextStyleConst.withColor(
                 TextStyleConst.bodyMedium,
                 Theme.of(context).colorScheme.onError,
@@ -814,14 +830,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         return BlocBuilder<FavoriteCubit, FavoriteState>(
           bloc: _favoriteCubit,
           builder: (context, state) {
-            final collections =
-                state is FavoriteLoaded ? state.collections : const [];
+            final collections = state is FavoriteLoaded
+                ? state.collections
+                : const [];
             final sourceName = removeFromCollectionId == null
                 ? null
                 : collections
-                    .where((c) => c.id == removeFromCollectionId)
-                    .map((c) => c.name)
-                    .firstOrNull;
+                      .where((c) => c.id == removeFromCollectionId)
+                      .map((c) => c.name)
+                      .firstOrNull;
             return StatefulBuilder(
               builder: (context, setSheetState) => SafeArea(
                 child: Padding(
@@ -869,21 +886,20 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: collections
                                   .map(
-                                    (collection) => CheckboxListTile(
+                                    (collection) => KuronCheckboxListTile(
                                       value: selectedIds.contains(
                                         collection.id,
                                       ),
                                       title: Text(collection.name),
                                       subtitle: Text(
-                                        AppLocalizations.of(context)!.nItems(
-                                          collection.itemCount,
-                                        ),
+                                        AppLocalizations.of(context)!
+                                            .nItems(collection.itemCount),
                                       ),
                                       controlAffinity:
                                           ListTileControlAffinity.leading,
                                       onChanged: (value) {
                                         setSheetState(() {
-                                          if (value == true) {
+                                          if (value) {
                                             selectedIds.add(collection.id);
                                           } else {
                                             selectedIds.remove(collection.id);
@@ -903,9 +919,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                             onPressed: () async {
                               await _showCreateCollectionDialog();
                             },
-                            icon: const Icon(
-                              Icons.create_new_folder_outlined,
-                            ),
+                            icon: const Icon(Icons.create_new_folder_outlined),
                             label: Text(
                               AppLocalizations.of(context)!.newCollection,
                             ),
@@ -913,20 +927,16 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           const Spacer(),
                           TextButton(
                             onPressed: () => sheetContext.pop(),
-                            child: Text(
-                              AppLocalizations.of(context)!.cancel,
-                            ),
+                            child: Text(AppLocalizations.of(context)!.cancel),
                           ),
                           const SizedBox(width: 8),
                           FilledButton(
                             onPressed: selectedIds.isEmpty
                                 ? null
                                 : () => sheetContext.pop(
-                                      selectedIds.toList(growable: false),
-                                    ),
-                            child: Text(
-                              AppLocalizations.of(context)!.save,
-                            ),
+                                    selectedIds.toList(growable: false),
+                                  ),
+                            child: Text(AppLocalizations.of(context)!.save),
                           ),
                         ],
                       ),
@@ -1221,10 +1231,17 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         _selectedItems.clear();
                       }
                     });
+                    _onTabTap(index);
                   },
                   tabs: [
-                    Tab(text: AppLocalizations.of(context)!.offline),
-                    Tab(text: AppLocalizations.of(context)!.online),
+                    Tab(
+                      key: _tabKeys[0],
+                      text: AppLocalizations.of(context)!.offline,
+                    ),
+                    Tab(
+                      key: _tabKeys[1],
+                      text: AppLocalizations.of(context)!.online,
+                    ),
                   ],
                 ),
               ),
@@ -1689,7 +1706,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                               final isSelected = selectedIds.contains(
                                 collection.id,
                               );
-                              return CheckboxListTile(
+                              return KuronCheckboxListTile(
                                 value: isSelected,
                                 title: Text(collection.name),
                                 subtitle: Text(
@@ -1700,7 +1717,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                     ListTileControlAffinity.leading,
                                 onChanged: (value) {
                                   setSheetState(() {
-                                    if (value == true) {
+                                    if (value) {
                                       selectedIds.add(collection.id);
                                     } else {
                                       selectedIds.remove(collection.id);
@@ -2147,10 +2164,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Widget _buildEmptyState(FavoriteLoaded state) {
     final l10n = AppLocalizations.of(context)!;
-    final emptyMessage =
-        !state.isSearching && _isInsideCollection(state)
-            ? l10n.emptyCollection
-            : state.getEmptyMessage(l10n);
+    final emptyMessage = !state.isSearching && _isInsideCollection(state)
+        ? l10n.emptyCollection
+        : state.getEmptyMessage(l10n);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -2161,8 +2177,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               state.isSearching
                   ? Icons.search_off
                   : _isInsideCollection(state)
-                      ? Icons.folder_open
-                      : Icons.favorite_border,
+                  ? Icons.folder_open
+                  : Icons.favorite_border,
               size: 64,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -2242,8 +2258,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 }
 
                 final favorite = state.favorites[index];
-                final isSelected =
-                    _selectedItems.contains(favoriteKeyFromRow(favorite));
+                final isSelected = _selectedItems.contains(
+                  favoriteKeyFromRow(favorite),
+                );
 
                 return _buildFavoriteCard(
                   favorite,
@@ -2297,7 +2314,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
             const SizedBox(width: 8),
             buildAnimatedChip(
-              selected: state.activeCollectionId ==
+              selected:
+                  state.activeCollectionId ==
                   FavoriteCubit.uncategorizedCollectionId,
               child: ChoiceChip(
                 avatar: const Icon(Icons.folder_off_outlined, size: 18),
@@ -2307,7 +2325,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     state.uncategorizedCount,
                   ),
                 ),
-                selected: state.activeCollectionId ==
+                selected:
+                    state.activeCollectionId ==
                     FavoriteCubit.uncategorizedCollectionId,
                 onSelected: (_) => _favoriteCubit.selectCollection(
                   FavoriteCubit.uncategorizedCollectionId,

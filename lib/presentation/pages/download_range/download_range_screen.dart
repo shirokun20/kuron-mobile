@@ -444,14 +444,28 @@ class _DownloadRangeScreenState extends State<DownloadRangeScreen> {
     final e = end.clamp(s, _maxPages);
     final selected = _startPage == s && _endPage == e;
     final colorScheme = Theme.of(context).colorScheme;
-    return FilterChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => _applyRange(s, e),
-      backgroundColor: colorScheme.surfaceContainerHighest,
-      selectedColor: colorScheme.primary.withValues(alpha: 0.2),
-      side: BorderSide(
-        color: selected ? colorScheme.primary : colorScheme.outline,
+    return Builder(
+      builder: (chipContext) => FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) {
+          final rect = KuronFx.targetRectOf(chipContext);
+          if (rect != null) {
+            KuronFx.triggerOn(
+              chipContext,
+              rect: rect,
+              kind: KuronFxKind.rating,
+            );
+          } else {
+            KuronFx.trigger(chipContext, kind: KuronFxKind.rating);
+          }
+          _applyRange(s, e);
+        },
+        backgroundColor: colorScheme.surfaceContainerHighest,
+        selectedColor: colorScheme.primary.withValues(alpha: 0.2),
+        side: BorderSide(
+          color: selected ? colorScheme.primary : colorScheme.outline,
+        ),
       ),
     );
   }

@@ -6,10 +6,11 @@ import '../../cubits/reader/reader_cubit.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
 
 import '../../../core/constants/design_tokens.dart';
+import '../../widgets/kuron_fx.dart';
 
 // End-of-Chapter Overlay Widget
 // Shows at the last page of content with navigation options
-class EndOfChapterOverlay extends StatelessWidget {
+class EndOfChapterOverlay extends StatefulWidget {
   final ReaderState state;
   final VoidCallback onBackToDetail;
   final VoidCallback? onPreviousChapter;
@@ -37,15 +38,39 @@ class EndOfChapterOverlay extends StatelessWidget {
   });
 
   @override
+  State<EndOfChapterOverlay> createState() => _EndOfChapterOverlayState();
+}
+
+class _EndOfChapterOverlayState extends State<EndOfChapterOverlay> {
+  final GlobalKey _cardKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cardContext = _cardKey.currentContext;
+      final rect = cardContext == null
+          ? null
+          : KuronFx.targetRectOf(cardContext);
+      if (rect != null) {
+        KuronFx.triggerOn(context, rect: rect, kind: KuronFxKind.rating);
+      } else {
+        KuronFx.trigger(context, kind: KuronFxKind.rating);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final previousLabel = _resolveLabel(
-      state.chapterData?.prevChapterTitle,
-      resolvedPreviousChapterTitle,
+      widget.state.chapterData?.prevChapterTitle,
+      widget.resolvedPreviousChapterTitle,
       AppLocalizations.of(context)!.prevChapter,
     );
     final nextLabel = _resolveLabel(
-      state.chapterData?.nextChapterTitle,
-      resolvedNextChapterTitle,
+      widget.state.chapterData?.nextChapterTitle,
+      widget.resolvedNextChapterTitle,
       AppLocalizations.of(context)!.nextChapter,
     );
 
@@ -59,6 +84,7 @@ class EndOfChapterOverlay extends StatelessWidget {
           ),
           child: SingleChildScrollView(
             child: Container(
+              key: _cardKey,
               margin: const EdgeInsets.all(24),
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -75,7 +101,7 @@ class EndOfChapterOverlay extends StatelessWidget {
 
                   // Title
                   Text(
-                    isChapterMode
+                    widget.isChapterMode
                         ? AppLocalizations.of(context)!.chapterComplete
                         : AppLocalizations.of(context)!.finishedReading,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -88,7 +114,7 @@ class EndOfChapterOverlay extends StatelessWidget {
 
                   // Subtitle
                   Text(
-                    state.content?.title ?? '',
+                    widget.state.content?.title ?? '',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -100,13 +126,13 @@ class EndOfChapterOverlay extends StatelessWidget {
                   const SizedBox(height: DesignTokens.space2xl),
 
                   // Buttons
-                  if (isChapterMode) ...[
+                  if (widget.isChapterMode) ...[
                     // Chapter Mode: Show prev/next/back buttons
-                    if (onPreviousChapter != null)
+                    if (widget.onPreviousChapter != null)
                       SizedBox(
                         width: double.infinity,
                         child: OutlinedButton.icon(
-                          onPressed: onPreviousChapter,
+                          onPressed: widget.onPreviousChapter,
                           icon: const Icon(Icons.skip_previous),
                           label: Text(
                             previousLabel,
@@ -118,15 +144,16 @@ class EndOfChapterOverlay extends StatelessWidget {
                         ),
                       ),
 
-                    if (onPreviousChapter != null && onNextChapter != null)
+                    if (widget.onPreviousChapter != null &&
+                        widget.onNextChapter != null)
                       const SizedBox(height: DesignTokens.spaceMd),
 
                     // Next Chapter
-                    if (onNextChapter != null)
+                    if (widget.onNextChapter != null)
                       SizedBox(
                         width: double.infinity,
                         child: FilledButton.icon(
-                          onPressed: onNextChapter,
+                          onPressed: widget.onNextChapter,
                           icon: const Icon(Icons.skip_next),
                           label: Text(nextLabel, textAlign: TextAlign.center),
                           style: FilledButton.styleFrom(
@@ -141,10 +168,10 @@ class EndOfChapterOverlay extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: onBackToDetail,
+                      onPressed: widget.onBackToDetail,
                       icon: const Icon(Icons.arrow_back),
                       label: Text(
-                        isOfflineMode
+                        widget.isOfflineMode
                             ? AppLocalizations.of(context)!.backToPreviousPage
                             : AppLocalizations.of(context)!.backToDetail,
                       ),
@@ -155,12 +182,12 @@ class EndOfChapterOverlay extends StatelessWidget {
                   ),
 
                   // Go to First Page — CS mode only
-                  if (onGoToFirstPage != null) ...[
+                  if (widget.onGoToFirstPage != null) ...[
                     const SizedBox(height: DesignTokens.spaceMd),
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
-                        onPressed: onGoToFirstPage,
+                        onPressed: widget.onGoToFirstPage,
                         icon: const Icon(Icons.vertical_align_top),
                         label: Text(
                           AppLocalizations.of(context)!
