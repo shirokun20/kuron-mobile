@@ -27,8 +27,8 @@ void main() {
         KuronFxKind.progressComplete,
       }),
     );
-    // The four original beats + P2 beats + sliderDrag.
-    expect(KuronFxKind.values.length, 12);
+    // The four original beats + P2 beats + sliderDrag + checkboxTick.
+    expect(KuronFxKind.values.length, 13);
   });
 
   testWidgets('triggerOn anchors on the explicit rect and bakes JEDER!', (

@@ -4,7 +4,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:nhasixapp/core/constants/design_tokens.dart';
 import 'package:nhasixapp/core/constants/text_style_const.dart';
 import 'package:nhasixapp/l10n/app_localizations.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_fx.dart';
 import 'package:nhasixapp/presentation/widgets/kuron_slider_fling.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_squash.dart';
 
 enum _RangeField { start, end }
 
@@ -146,10 +148,18 @@ class _DownloadRangeScreenState extends State<DownloadRangeScreen> {
     });
   }
 
-  void _confirm() {
+  void _confirm(BuildContext confirmButtonContext) {
     _commitBuffer();
     final s = _startPage.clamp(1, _maxPages);
     final e = _endPage.clamp(s, _maxPages);
+    // Capture the button box before the pop: the KLIK! burst is drawn
+    // around this rect, sized to it. The root overlay outlives the route.
+    final anchor = KuronFx.targetRectOf(confirmButtonContext);
+    KuronFx.trigger(
+      confirmButtonContext,
+      kind: KuronFxKind.sheetConfirm,
+      targetRect: anchor,
+    );
     Navigator.of(context).pop((s, e));
   }
 
@@ -409,11 +419,13 @@ class _DownloadRangeScreenState extends State<DownloadRangeScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         flex: 2,
-                        child: FilledButton.icon(
-                          key: const ValueKey('download-range-confirm'),
-                          onPressed: _confirm,
-                          icon: const Icon(Icons.download),
-                          label: Text(l10n.downloadRange),
+                        child: Builder(
+                          builder: (confirmButtonContext) => FilledButton.icon(
+                            key: const ValueKey('download-range-confirm'),
+                            onPressed: () => _confirm(confirmButtonContext),
+                            icon: const Icon(Icons.download),
+                            label: Text(l10n.downloadRange),
+                          ),
                         ),
                       ),
                     ],
@@ -544,26 +556,28 @@ class _NumpadGrid extends StatelessWidget {
 
   Widget _buildButton(BuildContext context, _PadKey key) {
     final colorScheme = Theme.of(context).colorScheme;
-    return SizedBox(
-      height: 44,
-      child: Material(
-        color: key.isAction
-            ? colorScheme.surfaceContainerHighest
-            : colorScheme.surface,
-        borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-        child: InkWell(
-          key: key.digit != null ? ValueKey('numpad-${key.digit}') : null,
-          onTap: key.digit != null ? () => onDigit(key.digit!) : key.onTap,
+    return KuronSquash(
+      child: SizedBox(
+        height: 44,
+        child: Material(
+          color: key.isAction
+              ? colorScheme.surfaceContainerHighest
+              : colorScheme.surface,
           borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
-          child: Center(
-            child: key.iconData != null
-                ? Icon(key.iconData, size: 20, color: colorScheme.onSurface)
-                : Text(
-                    key.label!,
-                    style: TextStyleConst.headingSmall.copyWith(
-                      color: colorScheme.onSurface,
+          child: InkWell(
+            key: key.digit != null ? ValueKey('numpad-${key.digit}') : null,
+            onTap: key.digit != null ? () => onDigit(key.digit!) : key.onTap,
+            borderRadius: BorderRadius.circular(DesignTokens.radiusMd),
+            child: Center(
+              child: key.iconData != null
+                  ? Icon(key.iconData, size: 20, color: colorScheme.onSurface)
+                  : Text(
+                      key.label!,
+                      style: TextStyleConst.headingSmall.copyWith(
+                        color: colorScheme.onSurface,
+                      ),
                     ),
-                  ),
+            ),
           ),
         ),
       ),

@@ -40,8 +40,8 @@ import 'widgets/detail_info_sections.dart';
 import 'widgets/detail_wide_view.dart';
 import 'widgets/detail_state_views.dart';
 import 'services/detail_tag_query_resolver.dart';
-import 'services/reader_launch_payload_builder.dart';
 import 'services/detail_mangafire_coordinator.dart';
+import '../../widgets/kuron_checkbox.dart';
 
 class DetailScreen extends StatefulWidget {
   final String contentId;

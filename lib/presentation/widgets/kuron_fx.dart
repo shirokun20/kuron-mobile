@@ -28,6 +28,7 @@ enum KuronFxKind {
   toastLand,
   tooltipPop,
   progressComplete,
+  checkboxTick,
 }
 
 /// Single shared overlay host for all sakuga bursts.
@@ -67,6 +68,7 @@ class KuronFxController {
     KuronFxKind.toggleOn => const Duration(milliseconds: 1433),
     KuronFxKind.toggleOff => const Duration(milliseconds: 400),
     KuronFxKind.sliderDrag => const Duration(milliseconds: 360),
+    KuronFxKind.checkboxTick => const Duration(milliseconds: 340),
     _ => const Duration(milliseconds: 720),
   };
 
@@ -164,6 +166,7 @@ class KuronFxController {
       KuronFxKind.toggleOn => const Duration(milliseconds: 1450),
       KuronFxKind.toggleOff => const Duration(milliseconds: 430),
       KuronFxKind.sliderDrag => const Duration(milliseconds: 380),
+      KuronFxKind.checkboxTick => const Duration(milliseconds: 360),
       _ => maxDuration,
     }, _clear);
   }
@@ -249,6 +252,7 @@ class KuronFxController {
     KuronFxKind.tabSwitch => null,
     KuronFxKind.toggleOn => null,
     KuronFxKind.toggleOff => null,
+    KuronFxKind.checkboxTick => null,
   };
 
   /// Bakes the kind's word off the frame loop; when the raster lands, the
@@ -407,6 +411,10 @@ class KuronFxOverlayPainter extends CustomPainter {
         sparkA,
         sparkB,
       );
+      return;
+    }
+    if (kind == KuronFxKind.checkboxTick) {
+      _paintCheckboxTick(canvas, center, base, t, alpha);
       return;
     }
     if (kind == KuronFxKind.sliderDrag) {
@@ -826,6 +834,42 @@ class KuronFxOverlayPainter extends CustomPainter {
       final py = center.dy - base * (0.45 + t * 0.7);
       final r = base * (0.42 - i * 0.1) * (1.0 - 0.5 * t);
       if (r > 0.5) canvas.drawCircle(Offset(px, py), r, puffPaint);
+    }
+  }
+
+  /// Checkbox check beat: a crisp expanding ring around the box plus four
+  /// corner diamond sparks. Wordless — the tick itself is the message.
+  /// [t] runs 0..1; every size derives from [base] (half the shortest side).
+  void _paintCheckboxTick(
+    Canvas canvas,
+    Offset center,
+    double base,
+    double t,
+    double alpha,
+  ) {
+    // 1. Crisp expanding ring: thin stroke leaving the box perimeter.
+    final ringPaint = Paint()
+      ..color = _accent.withValues(alpha: 0.9 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, base * 0.14 * (1.0 - 0.6 * t))
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, base * (0.55 + 1.25 * t), ringPaint);
+
+    // 2. Four corner diamond sparks (crossed ticks along the radial travel).
+    final sparkPaint = Paint()
+      ..color = _accentGold.withValues(alpha: 0.95 * alpha)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, base * 0.1)
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < 4; i++) {
+      final angle = math.pi / 4 + i * math.pi / 2;
+      final dir = Offset(math.cos(angle), math.sin(angle));
+      final p = center + dir * base * (0.85 + 1.1 * t);
+      final arm = base * 0.24 * (1.0 - 0.45 * t);
+      if (arm <= 0.4) continue;
+      final perp = Offset(-dir.dy, dir.dx);
+      canvas.drawLine(p - dir * arm, p + dir * arm, sparkPaint);
+      canvas.drawLine(p - perp * arm * 0.6, p + perp * arm * 0.6, sparkPaint);
     }
   }
 

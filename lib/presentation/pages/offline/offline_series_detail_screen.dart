@@ -17,6 +17,7 @@ import 'package:nhasixapp/l10n/app_localizations.dart';
 import 'package:nhasixapp/presentation/blocs/download/download_bloc.dart';
 import 'package:nhasixapp/presentation/cubits/offline_search/offline_search_cubit.dart';
 import 'package:nhasixapp/presentation/widgets/permission_request_sheet.dart';
+import 'package:nhasixapp/presentation/widgets/kuron_checkbox.dart';
 import 'package:nhasixapp/core/utils/title_parser_utils.dart';
 
 class OfflineSeriesDetailScreen extends StatefulWidget {
@@ -968,12 +969,10 @@ class _OfflineSeriesDetailScreenState extends State<OfflineSeriesDetailScreen> {
             const SizedBox(height: 12),
             ValueListenableBuilder<bool>(
               valueListenable: dontAskAgainNotifier,
-              builder: (context, dontAskAgain, child) => CheckboxListTile(
+              builder: (context, dontAskAgain, child) => KuronCheckboxListTile(
                 value: dontAskAgain,
-                onChanged: (value) =>
-                    dontAskAgainNotifier.value = value ?? false,
+                onChanged: (value) => dontAskAgainNotifier.value = value,
                 title: Text(AppLocalizations.of(context)!.dontAskAgain),
-                contentPadding: EdgeInsets.zero,
                 controlAffinity: ListTileControlAffinity.leading,
               ),
             ),

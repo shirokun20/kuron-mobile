@@ -28,7 +28,7 @@ import '../../../core/utils/app_update_test.dart';
 import '../../widgets/app_main_drawer_widget.dart';
 import '../../widgets/app_scaffold_with_offline.dart';
 import '../../widgets/kuro_mascot.dart';
-import '../../utils/kuron_motion_policy.dart';
+import '../../widgets/kuron_checkbox.dart';
 import 'settings_theme_widgets.dart';
 import 'settings_download_widgets.dart';
 import 'settings_privacy_widgets.dart';

@@ -4,9 +4,10 @@ import 'package:nhasixapp/core/constants/design_tokens.dart';
 
 import '../../core/constants/text_style_const.dart';
 import '../../domain/entities/entities.dart';
+import 'kuron_fx.dart';
 
 // Tab bar for switching between different filter types
-class FilterTypeTabBar extends StatelessWidget {
+class FilterTypeTabBar extends StatefulWidget {
   const FilterTypeTabBar({
     super.key,
     required this.controller,
@@ -17,6 +18,33 @@ class FilterTypeTabBar extends StatelessWidget {
   final TabController controller;
   final List<String> filterTypes;
   final ValueChanged<int> onTabChanged;
+
+  @override
+  State<FilterTypeTabBar> createState() => _FilterTypeTabBarState();
+}
+
+class _FilterTypeTabBarState extends State<FilterTypeTabBar> {
+  /// Label render boxes for the wordless tab-switch beat. Keys are stable
+  /// per filter type so the post-frame callback can capture the tapped
+  /// label's rect. Mirrors the downloads screen tab FX pattern.
+  final Map<String, GlobalKey> _tabKeys = {};
+
+  GlobalKey _keyFor(String type) =>
+      _tabKeys.putIfAbsent(type, () => GlobalKey());
+
+  void _onTabTap(int index) {
+    widget.onTabChanged(index);
+    // The indicator settles after the tap frame; capture the label there.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (index < 0 || index >= widget.filterTypes.length) return;
+      final tabContext = _keyFor(widget.filterTypes[index]).currentContext;
+      if (tabContext == null) return;
+      final rect = KuronFx.targetRectOf(tabContext);
+      if (rect == null) return;
+      KuronFx.triggerOn(context, rect: rect, kind: KuronFxKind.tabSwitch);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +58,7 @@ class FilterTypeTabBar extends StatelessWidget {
         ),
       ),
       child: TabBar(
-        controller: controller,
+        controller: widget.controller,
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         indicatorColor: colorScheme.primary,
@@ -44,8 +72,12 @@ class FilterTypeTabBar extends StatelessWidget {
           color: colorScheme.onSurface.withValues(alpha: 0.7),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
-        tabs: filterTypes
-            .map((type) => Tab(text: TagType.getDisplayName(type)))
+        onTap: _onTabTap,
+        tabs: widget.filterTypes
+            .map(
+              (type) =>
+                  Tab(key: _keyFor(type), text: TagType.getDisplayName(type)),
+            )
             .toList(),
       ),
     );
